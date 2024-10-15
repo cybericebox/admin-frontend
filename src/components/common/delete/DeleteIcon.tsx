@@ -1,20 +1,22 @@
 import styles from "@/components/components.module.css";
-import {MdDelete} from "react-icons/md";
 import React from "react";
+import {cn} from "@/utils/cn";
+import {Trash2} from "lucide-react";
+
 
 interface DeleteIconProps {
     title: string
     onClick: () => void
+    className?: string
 }
 
 export default function DeleteIcon(props: DeleteIconProps) {
     return (
-        <MdDelete className={styles.deleteIcon}
-                  onClick={props.onClick}
-                  aria-label={props.title}
-                  data-tooltip-content={props.title}
-                  data-tooltip-effect="solid"
-                  data-tooltip-id="tooltip"
+        <Trash2 className={cn(styles.deleteIcon, props.className)}
+                onClick={props.onClick}
+                aria-label={props.title}
+                data-tooltip-content={props.title}
+                data-tooltip-id="tooltip"
         />
     )
 }

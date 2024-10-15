@@ -1,15 +1,21 @@
 
 .table {
+
 }
 
 .tableHeader {
     @apply font-semibold;
+    @apply md:text-nowrap;
     @apply sticky top-0 opacity-100;
     @apply bg-white border-b;
 }
 
-.tableBody {
+.tableHeader tr {
+    @apply hover:bg-transparent;
+}
 
+
+.tableBody {
 }
 
 .emptyTableBody {
@@ -19,9 +25,14 @@
 }
 
 .editIcon {
-    @apply w-6 h-6;
-    @apply ml-2;
+    @apply w-5 h-5;
     @apply text-gray-500;
+    @apply cursor-pointer;
+}
+
+.downloadIcon {
+    @apply w-5 h-5;
+    @apply text-primary;
     @apply cursor-pointer;
 }
 
@@ -30,9 +41,8 @@
 }
 
 .deleteIcon {
-    @apply w-6 h-6;
+    @apply w-5 h-5;
     @apply text-red-500;
-    @apply mr-2;
     @apply cursor-pointer;
 }
 
@@ -42,7 +52,7 @@
 }
 
 .addIcon {
-    @apply w-6 h-6 border border-green-500 rounded;
+    @apply w-5 h-5 border border-green-500 rounded;
     @apply text-green-500 font-bold text-4xl;
     @apply cursor-pointer;
 }

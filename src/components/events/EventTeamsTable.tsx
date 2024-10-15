@@ -7,39 +7,40 @@ import React from "react";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {useEventTeam} from "@/hooks/useEventTeam";
 import {useEvent} from "@/hooks/useEvent";
-import {ParticipationType} from "@/types/event";
+import {ParticipationTypeEnum} from "@/types/event";
 
 interface EventTeamsTableProps {
-    eventTag: string;
+    eventID: string;
 }
 
-export default function EventTeamsTable({eventTag}: EventTeamsTableProps) {
-    const eventTeams = useEventTeam().useGetEventTeams(eventTag);
-    const event = useEvent().useGetEventByTag(eventTag);
+export default function EventTeamsTable({eventID}: EventTeamsTableProps) {
+    const {GetEventTeamsResponse, GetEventTeamsRequest} = useEventTeam().useGetEventTeams(eventID);
+    const {GetEventResponse} = useEvent().useGetEvent(eventID);
 
     return (
         <>
             <BodyHeader
-                title={event.data?.Participation === ParticipationType.Individual ? "Учасники заходу" : "Команди заходу"}/>
+                title={GetEventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Учасники заходу" : "Команди заходу"}/>
             <BodyContent>
                 <Table className={styles.table}>
                     <TableHeader className={styles.tableHeader}>
                         <TableRow>
-                            <TableHead>{event.data?.Participation === ParticipationType.Individual ? "Імʼя" : "Назва"}</TableHead>
+                            <TableHead>{GetEventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Імʼя" : "Назва"}</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     {
-                        eventTeams.data &&
+                        GetEventTeamsResponse?.Data &&
                         <TableBody className={styles.tableBody}>
                             {
-                                eventTeams.data?.map((team) => {
+                                GetEventTeamsResponse?.Data.map((team) => {
                                     return (
                                         <TableRow key={team.ID}>
                                             <TableCell>
                                                 {team.Name}
                                             </TableCell>
                                             <TableCell>
+
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -52,16 +53,38 @@ export default function EventTeamsTable({eventTag}: EventTeamsTableProps) {
                     className={styles.emptyTableBody}
                 >
                     {
-                        eventTeams.isLoading ?
+                        GetEventTeamsRequest.isLoading ?
                             "Завантаження..." :
-                            eventTeams.isError ?
+                            GetEventTeamsRequest.isError ?
                                 "Помилка завантаження" :
-                                eventTeams.isSuccess && eventTeams.data.length === 0 ?
+                                GetEventTeamsRequest.isSuccess && GetEventTeamsResponse?.Data.length === 0 ?
                                     "Жодної команди не зареєстровано" :
                                     null
                     }
                 </div>
             </BodyContent>
+            {/*{!!eventTeamDeleteDialog &&*/}
+            {/*    <DeleteDialog*/}
+            {/*        isOpen={!!eventTeamDeleteDialog}*/}
+            {/*        onClose={() => setEventTeamDeleteDialog(undefined)}*/}
+            {/*        name={eventTeamDeleteDialog.Name}*/}
+            {/*        description={"Впевнені? Всі дані команди включаючи завдання та рішення будуть втрачені та не можуть бути відновлені."}*/}
+            {/*        onDelete={*/}
+            {/*            () => {*/}
+            {/*                DeleteEventTeam(eventTeamDeleteDialog.ID!, {*/}
+            {/*                    onSuccess: () => {*/}
+            {/*                        toast.success("Команда успішно видалена")*/}
+            {/*                    },*/}
+            {/*                    onError: (error) => {*/}
+            {/*                        const e = error as IErrorResponse*/}
+            {/*                        const message = e?.response?.data.Status.Message || ""*/}
+            {/*                        toast.error(`Помилка видалення команди\n${message}`)*/}
+            {/*                    },*/}
+            {/*                })*/}
+            {/*            }*/}
+            {/*        }*/}
+            {/*    />*/}
+            {/*}*/}
         </>
     );
 }

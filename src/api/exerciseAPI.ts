@@ -1,90 +1,33 @@
-import type {Exercise} from "@/types/exercise";
+import type {IExercise} from "@/types/exercise";
+import {baseAPI} from "@/api/baseAPI";
+import type {AxiosResponse} from "axios";
+import {IDownloadFileURL, IUploadFileData} from "@/types/common";
+import {IResponse} from "@/types/api";
 
-export const getExercisesFn = async (): Promise<Exercise[]> => {
-    return fetch('/api/exercises', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get exercisees", {
-                cause: res
-            })
-        }
-    });
+export const getExercisesFn = async (search: string): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
+    return await baseAPI.get(`/exercises?${search && "search=" + search}`);
 }
 
-export const getExerciseFn = async (id: string): Promise<Exercise> => {
-    return fetch(`/api/exercises/${id}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get exercise by id", {
-                cause: res
-            })
-        }
-    });
+export const getExerciseFn = async (id: string): Promise<AxiosResponse<IResponse<IExercise>, any>> => {
+    return await baseAPI.get(`/exercises/${id}`);
 }
 
-export const createExerciseFn = async (data: Exercise) => {
-    return fetch('/api/exercises', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to create exercise", {
-                cause: res
-            })
-        }
-    });
+export const getUploadExerciseFileDataFn = async (): Promise<AxiosResponse<IResponse<IUploadFileData>, any>> => {
+    return await baseAPI.get(`/exercises/upload/file`)
 }
 
-export const updateExerciseFn = async (exercise: Exercise) => {
-    return fetch(`/api/exercises/${exercise.ID}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(exercise),
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to update exercise", {
-                cause: res
-            })
-        }
-    });
+export const getDownloadExerciseFileDataFn = async (exerciseID: string, fileID: string, fileName: string): Promise<AxiosResponse<IResponse<IDownloadFileURL>, any>> => {
+    return await baseAPI.get(`/exercises/${exerciseID}/download/file/${fileID}${fileName && "?fileName=" + fileName}`);
 }
 
-export const deleteExerciseFn = async (id: string) => {
-    return fetch(`/api/exercises/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to delete exercise", {
-                cause: res
-            })
-        }
-    });
+export const createExerciseFn = async (data: IExercise): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.post('/exercises', data);
+}
+
+export const updateExerciseFn = async (exercise: IExercise): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.put(`/exercises/${exercise.ID}`, exercise);
+}
+
+export const deleteExerciseFn = async (id: string): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.delete(`/exercises/${id}`);
 }

@@ -4,22 +4,24 @@ import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Button} from "@/components/ui/button";
-import "react-datepicker/dist/react-datepicker.css";
 import {BodyHeader} from "@/components/common/page";
-import {ExerciseCategory, ExerciseCategorySchema} from "@/types/exercise";
+import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
+import toast from "react-hot-toast";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
 export interface ExerciseCategoryFormProps {
-    type: "Створити" | "Зберегти"
-    category?: ExerciseCategory
-    onCancel?: () => void
+    category?: IExerciseCategory
+    onClose: () => void
 }
 
-export default function ExerciseCategoryForm({type, category, onCancel}: ExerciseCategoryFormProps) {
-    const createCategory = useExerciseCategory().useCreateExerciseCategory()
-    const updateCategory = useExerciseCategory().useUpdateExerciseCategory()
+export default function ExerciseCategoryForm({category, ...props}: ExerciseCategoryFormProps) {
+    const type = category?.ID ? "Зберегти" : "Створити"
+    const {CreateExerciseCategory, PendingCreateExerciseCategory} = useExerciseCategory().useCreateExerciseCategory()
+    const {UpdateExerciseCategory, PendingUpdateExerciseCategory} = useExerciseCategory().useUpdateExerciseCategory()
 
     const form = useForm<z.infer<typeof ExerciseCategorySchema>>({
         resolver: zodResolver(ExerciseCategorySchema),
@@ -27,16 +29,32 @@ export default function ExerciseCategoryForm({type, category, onCancel}: Exercis
             Name: category?.Name || "",
             Description: category?.Description || "",
         },
-        mode: type === "Зберегти" ? "onBlur" : "onChange"
+        mode: "all"
     })
 
     const onSubmit: SubmitHandler<z.infer<typeof ExerciseCategorySchema>> = data => {
         if (type === "Зберегти") {
-            updateCategory.mutate({...data, ID: category?.ID})
-            onCancel && onCancel()
+            UpdateExerciseCategory({...data, ID: category?.ID}, {
+                onSuccess: () => {
+                    props.onClose()
+                    toast.success("Категорію успішно оновлено")
+                },
+                onError: (error) => {
+                    const e = error as IErrorResponse
+                    ErrorToast({message: "Не вдалося оновити категорію", error: e})
+                }
+            })
         } else {
-            createCategory.mutate(data)
-            onCancel && onCancel()
+            CreateExerciseCategory(data, {
+                onSuccess: () => {
+                    props.onClose()
+                    toast.success("Категорію успішно створено")
+                },
+                onError: (error) => {
+                    const e = error as IErrorResponse
+                    ErrorToast({message: "Не вдалося створити категорію", error: e})
+                }
+            })
         }
     }
 
@@ -91,7 +109,7 @@ export default function ExerciseCategoryForm({type, category, onCancel}: Exercis
                                 disabled={form.formState.isSubmitting}
                                 className="max-w-[400px]"
                             >
-                                {(createCategory.isPending || updateCategory.isPending) ? (
+                                {(PendingCreateExerciseCategory || PendingUpdateExerciseCategory) ? (
                                     'Опрацювання...'
                                 ) : `${type}`}
                             </Button>
@@ -100,7 +118,7 @@ export default function ExerciseCategoryForm({type, category, onCancel}: Exercis
                                 size="lg"
                                 disabled={form.formState.isSubmitting}
                                 className="max-w-[400px]"
-                                onClick={onCancel}
+                                onClick={props.onClose}
                             >
                                 Відмінити
                             </Button>

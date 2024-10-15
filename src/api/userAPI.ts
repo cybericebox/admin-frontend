@@ -1,63 +1,23 @@
-import {User} from "@/types/user";
+import type {IInviteUsers, IUser} from "@/types/user";
+import type {IResponse} from "@/types/api";
+import {baseAPI} from "@/api/baseAPI";
+import type {AxiosResponse} from "axios";
 
-export interface GetUsersData {
-    search: string;
+
+export const getUsersFn = async (search: string): Promise<AxiosResponse<IResponse<IUser[]>, any>> => {
+    return await baseAPI.get(`/users?${search && "search=" + search}`)
 }
 
+export const inviteUsersFn = async (data: IInviteUsers): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.post("/users/invite", data)
+}
 
-export const getUsersFn = async (search: string): Promise<User[]> => {
-    return fetch(`/api/users?${search && "&search=" + search}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-cache'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get users", {
-                cause: res
-            })
-        }
+export const updateUserRoleFn = async (user: IUser): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.patch(`/users/${user.ID}`, {
+        Role: user.Role
     })
 }
 
-
-export const updateUserRoleFn = async (user: User) => {
-    return fetch(`/api/users/${user.ID}`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({"role": user.Role})
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to update user role", {
-                cause: res
-            })
-        }
-    })
-}
-
-export const deleteUserFn = async (id: string) => {
-    return fetch(`/api/users/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to delete user", {
-                cause: res
-            })
-        }
-    })
+export const deleteUserFn = async (id: string): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.delete(`/users/${id}`)
 }

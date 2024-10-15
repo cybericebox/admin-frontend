@@ -1,31 +1,45 @@
 import {Input} from "@/components/ui/input";
 import React, {useState} from "react";
-import {ChallengeCategory} from "@/types/challenge";
+import {IEventChallengeCategory} from "@/types/challenge";
 import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
-import cn from "classnames";
+import {cn} from "@/utils/cn";
+import toast from "react-hot-toast";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
 interface CategoryNameInputProps {
-    category: ChallengeCategory
+    category: IEventChallengeCategory
+    className?: string
 
 }
 
-export default function CategoryNameInput({category}: CategoryNameInputProps) {
-    const updateChallengeCategory = useEventChallengeCategory().useUpdateEventChallengeCategory(category.EventID!)
-    const [editName, setEditName] = useState(false)
+export default function CategoryNameInput({category, className}: CategoryNameInputProps) {
+    const {UpdateEventChallengeCategory} = useEventChallengeCategory().useUpdateEventChallengeCategory(category.EventID!)
     const [name, setName] = useState<string>(category.Name)
+    const [active, setActive] = useState<boolean>(false)
     return (
         <Input
             value={name}
             onChange={(e) => {
                 setName(e.target.value)
             }}
-            onFocus={() => setEditName(true)}
-            className={cn("w-full text-xl font-bold text-nowrap min-w-72", {"border-0 shadow-none": !editName})}
+            className={cn("w-fit text-xl font-bold text-nowrap", !active && "border-0 shadow-none", className)}
+            onFocus={() => setActive(true)}
             onBlur={() => {
                 if (name !== category.Name) {
-                    updateChallengeCategory.mutate({...category, Name: name})
+                    UpdateEventChallengeCategory({...category, Name: name}, {
+                        onSuccess: () => {
+                            setActive?.(false)
+                            toast.success("Назву категорії успішно змінено")
+                        },
+                        onError: (error) => {
+                            setName(category.Name)
+                            const e = error as IErrorResponse
+                            ErrorToast({message: "Не вдалося змінити назву категорії", error: e})
+                        }
+                    })
                 }
-                setEditName(false)
+                setActive(false)
             }}
         />
     )

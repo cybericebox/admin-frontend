@@ -5,27 +5,21 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
-import {AuthenticatedClient} from "@/hooks/auth";
 import {useEvent} from "@/hooks/useEvent";
-import {Event, EventType} from "@/types/event";
+import {EventTypeEnum, IEvent} from "@/types/event";
 import Link from "next/link";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
+import {toast} from "react-hot-toast";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
-export default function EventsTable({domain}: { domain: string }) {
-    const currentUser = AuthenticatedClient();
+export default function EventsTable() {
+    const {GetEventsRequest, GetEventsResponse} = useEvent().useGetEvents();
+    const {DeleteEvent} = useEvent().useDeleteEvent();
+    const [eventDeleteDialog, setEventDeleteDialog] = useState<IEvent>()
 
-    const getEvents = useEvent().useGetEvents();
-    const deleteEvent = useEvent().useDeleteEvent();
-    const [eventToDelete, setEventToDelete] = useState<Event>()
-    const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-    const openDeleteDialog = (event: Event) => {
-        setEventToDelete(event)
-        setDeleteDialogOpen(true)
-    }
-
-    const getStatus = (event: Event) => {
+    const getStatus = (event: IEvent) => {
         let dateTIme = new Date()
         if (new Date(event.WithdrawTime) < dateTIme) {
             return "Архівований"
@@ -42,7 +36,7 @@ export default function EventsTable({domain}: { domain: string }) {
         return "Створений"
     }
 
-    const getStatusColor = (event: Event) => {
+    const getStatusColor = (event: IEvent) => {
         let dateTIme = new Date();
         if (new Date(event.WithdrawTime) < dateTIme) {
             return "red";
@@ -59,7 +53,7 @@ export default function EventsTable({domain}: { domain: string }) {
         return "black"
     }
 
-    const getNextStep = (event: Event) => {
+    const getNextStep = (event: IEvent) => {
         let dateTIme = new Date()
         if (new Date(event.WithdrawTime) < dateTIme) {
             return ""
@@ -95,19 +89,18 @@ export default function EventsTable({domain}: { domain: string }) {
                         </TableRow>
                     </TableHeader>
                     {
-                        getEvents.data &&
+                        GetEventsResponse?.Data &&
                         <TableBody className={styles.tableBody}>
                             {
-                                getEvents.data?.map((event) => {
+                                GetEventsResponse?.Data.map((event) => {
                                     return (
-                                        <TableRow key={event.ID}>
+                                        <TableRow key={event.ID} className={"hover:bg-blue-200"}>
                                             <TableCell>
                                                 <Link
-                                                    href={"/events/" + event.Tag}
+                                                    href={"/events/" + event.ID}
                                                     color="#54616e"
                                                     aria-label={"Event settings"}
                                                     data-tooltip-content="Перейти до налаштувань заходу"
-                                                    data-tooltip-effect="solid"
                                                     data-tooltip-id="tooltip"
                                                 >
                                                     {event.Name}
@@ -115,20 +108,19 @@ export default function EventsTable({domain}: { domain: string }) {
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={"https://" + event.Tag + "." + domain}
+                                                    href={"https://" + event.Tag + "." + process.env.NEXT_PUBLIC_DOMAIN}
                                                     target="_blank"
                                                     color="#54616e"
                                                     aria-label={"Event site"}
                                                     data-tooltip-content="Перейти до заходу"
-                                                    data-tooltip-effect="solid"
                                                     data-tooltip-id="tooltip"
                                                 >
-                                                    {"https://" + event.Tag + "." + domain}
+                                                    {"https://" + event.Tag + "." + process.env.NEXT_PUBLIC_DOMAIN}
                                                 </Link>
                                             </TableCell>
                                             <TableCell>
-                                                {event.Type === EventType.Competition && "Змагання"}
-                                                {event.Type === EventType.Practice && "Тренування"}
+                                                {event.Type === EventTypeEnum.Competition && "Змагання"}
+                                                {event.Type === EventTypeEnum.Practice && "Тренування"}
                                             </TableCell>
                                             <TableCell>
                                                 {event.Participation === 0 && "Індивідуальний"}
@@ -136,11 +128,11 @@ export default function EventsTable({domain}: { domain: string }) {
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/events/${event.Tag}/challenges`}
+                                                    href={`/events/${event.ID}/challenges`}
                                                     color="#54616e"
                                                     aria-label="Event challenges"
                                                     data-tooltip-content="Перейти до завдань заходу"
-                                                    data-tooltip-effect="solid"
+
                                                     data-tooltip-id="tooltip"
                                                 >
                                                     <div className={"text-center"}>
@@ -150,11 +142,11 @@ export default function EventsTable({domain}: { domain: string }) {
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/events/${event.Tag}/teams`}
+                                                    href={`/events/${event.ID}/teams`}
                                                     color="#54616e"
                                                     aria-label="Event teams"
                                                     data-tooltip-content={`Перейти до ${event.Participation === 0 ? "учасників" : "команд"} заходу`}
-                                                    data-tooltip-effect="solid"
+
                                                     data-tooltip-id="tooltip"
                                                 >
                                                     <div className={"text-center"}>
@@ -171,7 +163,7 @@ export default function EventsTable({domain}: { domain: string }) {
                                             </TableCell>
                                             <TableCell>
                                                 <DeleteIcon title={"Видалити захід"}
-                                                            onClick={() => openDeleteDialog(event)}/>
+                                                            onClick={() => setEventDeleteDialog(event)}/>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -184,25 +176,33 @@ export default function EventsTable({domain}: { domain: string }) {
                     className={styles.emptyTableBody}
                 >
                     {
-                        getEvents.isLoading ?
+                        GetEventsRequest.isLoading ?
                             "Завантаження..." :
-                            getEvents.isError ?
+                            GetEventsRequest.isError ?
                                 "Помилка завантаження" :
-                                getEvents.isSuccess && getEvents.data.length === 0 ?
+                                GetEventsRequest.isSuccess && GetEventsResponse?.Data.length === 0 ?
                                     "Жодного заходу не створено" :
                                     null
                     }
                 </div>
             </BodyContent>
-            {!!eventToDelete &&
+            {!!eventDeleteDialog &&
                 <DeleteDialog
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setDeleteDialogOpen(false)}
-                    name={eventToDelete.Name}
+                    isOpen={!!eventDeleteDialog}
+                    onClose={() => setEventDeleteDialog(undefined)}
+                    name={eventDeleteDialog.Name}
                     description={"Впевнені? Всі дані заходу включаючи завдання та учасники будуть втрачені та не можуть бути відновлені."}
                     onDelete={
                         () => {
-                            deleteEvent.mutate(eventToDelete?.ID!)
+                            DeleteEvent(eventDeleteDialog.ID!, {
+                                onSuccess: () => {
+                                    toast.success("Захід успішно видалений")
+                                },
+                                onError: (error) => {
+                                    const e = error as IErrorResponse
+                                    ErrorToast({message: "Не вдалося видалити захід", error: e})
+                                },
+                            })
                         }
                     }
                 />

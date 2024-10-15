@@ -1,29 +1,28 @@
 import {Page, PageBody, PageHeader} from "@/components/common/page";
 import {GoToCard} from "@/components/common"
-import {FaRegCalendarPlus} from "react-icons/fa";
-import {MdArrowForward} from "react-icons/md";
 import EventTeamsTable from "@/components/events/EventTeamsTable";
+import {ArrowRight, Calendar} from "lucide-react";
 
 interface EventTeamsPageProps {
     params: {
-        tag: string;
+        id: string;
     };
 }
 
-export default function EventTeamsPage({params: {tag}}: EventTeamsPageProps) {
+export default function EventTeamsPage({params: {id}}: EventTeamsPageProps) {
     return (
         <Page>
             <PageHeader>
                 <GoToCard
-                    descIcon={FaRegCalendarPlus}
-                    linkIcon={MdArrowForward}
+                    DescIcon={Calendar}
+                    LinkIcon={ArrowRight}
                     title={"Повернутися до заходу"}
                     description={"Повернутися до налаштувань заходу"}
-                    to={`/events/${tag}`}
+                    to={`/events/${id}`}
                 />
             </PageHeader>
             <PageBody>
-                <EventTeamsTable eventTag={tag}/>
+                <EventTeamsTable eventID={id}/>
             </PageBody>
         </Page>
     );

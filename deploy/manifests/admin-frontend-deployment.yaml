@@ -28,9 +28,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: config
+              prefix: "NEXT_PUBLIC_"
           ports:
             - containerPort: 3000
-              protocol:  TCP
+              protocol: TCP
           resources:
             requests:
               memory: "64Mi"

@@ -1,20 +1,21 @@
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
-import ExerciseCategoryForm from "@/components/exercises/CategoryForm";
+import React, {ReactNode} from "react";
 
-export interface CreateCategoryDialogProps {
+export interface DialogProps {
+    children: ReactNode;
     isOpen: boolean;
     onClose: () => void;
+    className?: string;
 }
 
-export default function CreateCategoryDialog({onClose, isOpen}: CreateCategoryDialogProps) {
-
+export default function DialogForm({onClose, isOpen, children, className}: DialogProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose} modal={true} defaultOpen={false}>
-            <DialogContent>
+            <DialogContent className={className}>
                 <DialogHeader>
-                    <DialogTitle className={"text-2xl text-primary"}></DialogTitle>
+                    <DialogTitle />
                     <DialogDescription>
-                        <ExerciseCategoryForm type={"Створити"} onCancel={onClose}/>
+                        {children}
                     </DialogDescription>
                 </DialogHeader>
             </DialogContent>

@@ -1,24 +1,22 @@
-'use client'
 import {GoToCard} from "@/components/common";
 import {Page, PageBody, PageHeader} from "@/components/common/page";
-import ExercisesCard from "@/components/exercises/ExercisesCard";
-import {FaPlus} from "react-icons/fa";
-import {MdOutlinedFlag} from "react-icons/md";
+import Exercises from "@/components/exercises/Exercises";
+import {Flag, Plus} from "lucide-react";
 
 export default function ExercisesPage() {
     return (
         <Page>
             <PageHeader>
                 <GoToCard
-                    descIcon={MdOutlinedFlag}
-                    linkIcon={FaPlus}
+                    DescIcon={Flag}
+                    LinkIcon={Plus}
                     title={"Створити завдання"}
                     description={"Назва, категорія, опис ..."}
                     to={"/exercises/new"}
                 />
             </PageHeader>
             <PageBody>
-                <ExercisesCard/>
+                <Exercises/>
             </PageBody>
         </Page>
 

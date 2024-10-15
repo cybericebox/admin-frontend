@@ -4,93 +4,130 @@ import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import React, {useState} from "react";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
-import {ExerciseCategory} from "@/types/exercise";
-import {BodyContent} from "@/components/common/page";
+import {IExerciseCategory} from "@/types/exercise";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
-import AddIcon from "@/components/common/AddIcon";
-import CreateCategoryDialog from "@/components/exercises/CreateCategoryDialog";
+import {AddIcon, DialogForm} from "@/components/common";
+import ExerciseCategoryForm from "@/components/exercises/CategoryForm";
+import toast from "react-hot-toast";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
 interface CategoriesTableProps {
-    setSelectedCategory?: (category: ExerciseCategory) => void
+    setSelectedCategory: (category: IExerciseCategory | undefined) => void
+    selectedCategory?: IExerciseCategory
 }
 
 export default function CategoriesTable(props: CategoriesTableProps) {
-    const getExerciseCategories = useExerciseCategory().useGetExerciseCategories()
-    const deleteExerciseCategory = useExerciseCategory().useDeleteExerciseCategory()
+    const {
+        GetExerciseCategoriesRequest,
+        GetExerciseCategoriesResponse
+    } = useExerciseCategory().useGetExerciseCategories()
+    const {DeleteExerciseCategory} = useExerciseCategory().useDeleteExerciseCategory()
 
-    const [categoryToDelete, setCategoryToDelete] = useState<ExerciseCategory>()
-    const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [deleteExerciseCategoryDialog, setDeleteExerciseCategoryDialog] = useState<IExerciseCategory>()
+    const [updateExerciseCategoryDialog, setUpdateExerciseCategoryDialog] = useState<IExerciseCategory>()
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-
-    const openDeleteDialog = (category: ExerciseCategory) => {
-        setCategoryToDelete(category)
-        setDeleteDialogOpen(true)
-    }
     return (
-        <div className={"h-full w-full flex flex-col"}>
-            {/*<BodyHeader title={"Категорії"} textSize={"text-lg"}/>*/}
-            <BodyContent>
-                <Table className={styles.table}>
-                    <TableHeader className={styles.tableHeader}>
-                        <TableRow>
-                            <TableHead>Назва категорії</TableHead>
-                            <TableHead>
-                                <AddIcon
-                                    key={"Add category"}
-                                    title={"Додати категорію"}
-                                    onClick={() => setIsAddDialogOpen(true)}
-                                />
+        <>
+            <Table className={styles.table}>
+                <TableHeader className={styles.tableHeader}>
+                    <TableRow>
+                        <TableHead
+                            onClick={() => props.setSelectedCategory(undefined)}
+                            aria-label="Show exercises of all categories"
+                            data-tooltip-content="Показати всі завдання"
+                            data-tooltip-id="tooltip"
+                        >Назва категорії</TableHead>
+                        <TableHead>
+                            <AddIcon
+                                key={"Add category"}
+                                title={"Додати категорію"}
+                                onClick={() => setIsAddDialogOpen(true)}
+                            />
 
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    {
-                        getExerciseCategories.data &&
-                        <TableBody className={styles.tableBody}>
-                            {
-                                getExerciseCategories.data?.map((category) => {
-                                    return (
-                                        <TableRow key={category.ID}>
-                                            <TableCell>
-                                                {category.Name}
-                                            </TableCell>
-                                            <TableCell>
-                                                <DeleteIcon
-                                                    onClick={() => openDeleteDialog(category)}
-                                                    title={"Видалити категорію"}
-                                                />
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })
-                            }
-                        </TableBody>
-                    }
-                </Table>
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        getExerciseCategories.isLoading ?
-                            "Завантаження..." :
-                            getExerciseCategories.isError ?
-                                "Помилка завантаження" :
-                                getExerciseCategories.isSuccess && getExerciseCategories.data.length === 0 ?
-                                    "Жодної категорії не створено" :
-                                    null
-                    }
-                </div>
-            </BodyContent>
-            {!!categoryToDelete &&
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                {
+                    GetExerciseCategoriesResponse?.Data &&
+                    <TableBody className={styles.tableBody}>
+                        {
+                            GetExerciseCategoriesResponse?.Data.map((category) => {
+                                return (
+                                    <TableRow key={category.ID}
+                                              onClick={() => {
+                                                  props.selectedCategory === category ?
+                                                      props.setSelectedCategory(undefined) :
+                                                      props.setSelectedCategory(category)
+                                              }}
+                                              className={props.selectedCategory === category ? "bg-blue-100 hover:bg-blue-100" : ""}
+                                              aria-label="Show exercises of the category"
+                                              data-tooltip-content="Показати завдання відповідної категорії"
+                                              data-tooltip-id="tooltip"
+
+                                    >
+                                        <TableCell
+                                            onClick={() => setUpdateExerciseCategoryDialog(category)}
+                                            aria-label="Edit category"
+                                            data-tooltip-content="Редагувати категорію"
+                                            data-tooltip-id="tooltip"
+                                        >
+                                            {category.Name}
+                                        </TableCell>
+                                        <TableCell>
+                                            <DeleteIcon
+                                                onClick={() => setDeleteExerciseCategoryDialog(category)}
+                                                title={"Видалити категорію"}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })
+                        }
+                    </TableBody>
+                }
+            </Table>
+            <div
+                className={styles.emptyTableBody}
+            >
+                {
+                    GetExerciseCategoriesRequest.isLoading ?
+                        "Завантаження..." :
+                        GetExerciseCategoriesRequest.isError ?
+                            "Помилка завантаження" :
+                            GetExerciseCategoriesRequest.isSuccess && GetExerciseCategoriesResponse?.Data.length === 0 ?
+                                "Жодної категорії не створено" :
+                                null
+                }
+            </div>
+
+            {!!deleteExerciseCategoryDialog &&
                 <DeleteDialog
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setDeleteDialogOpen(false)}
-                    name={categoryToDelete.Name}
-                    description={"Впевнені? Всі дані категорії включаючи завдання та учасники будуть втрачені та не можуть бути відновлені."}
-                    onDelete={() => deleteExerciseCategory.mutate(categoryToDelete.ID!)}
+                    isOpen={!!deleteExerciseCategoryDialog}
+                    onClose={() => setDeleteExerciseCategoryDialog(undefined)}
+                    name={deleteExerciseCategoryDialog.Name}
+                    description={"Впевнені? Всі дані категорії включаючи завдання будуть втрачені та не можуть бути відновлені."}
+                    onDelete={() => DeleteExerciseCategory(deleteExerciseCategoryDialog.ID!, {
+                        onSuccess: () => {
+                            toast.success("Категорію успішно видалено")
+                        },
+                        onError: (error) => {
+                            const e = error as IErrorResponse
+                            ErrorToast({message: "Не вдалося видалити категорію", error: e})
+                        }
+                    })}
                 />}
-            <CreateCategoryDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}/>
-        </div>
+            {!!updateExerciseCategoryDialog &&
+                <DialogForm isOpen={!!updateExerciseCategoryDialog}
+                            onClose={() => setUpdateExerciseCategoryDialog(undefined)}>
+                    <ExerciseCategoryForm onClose={() => setUpdateExerciseCategoryDialog(undefined)}
+                                          category={updateExerciseCategoryDialog}/>
+                </DialogForm>
+            }
+            <DialogForm isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
+                <ExerciseCategoryForm onClose={() => setIsAddDialogOpen(false)}/>
+            </DialogForm>
+        </>
     )
 }

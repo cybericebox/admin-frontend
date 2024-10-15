@@ -1,5 +1,4 @@
 "use client"
-import "react-datepicker/dist/react-datepicker.css";
 import {useExercise} from "@/hooks/useExercise";
 import React, {useState} from "react";
 import {Search} from "@/components/common";
@@ -10,6 +9,9 @@ import {Checkbox} from "@/components/ui/checkbox";
 import {Button} from "@/components/ui/button";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
+import {IExercise} from "@/types/exercise";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
 export interface SelectChallengeFormProps {
     eventID: string
@@ -18,19 +20,32 @@ export interface SelectChallengeFormProps {
 }
 
 export default function SelectChallengesForm({eventID, categoryID, onCancel}: SelectChallengeFormProps) {
-    const getExercises = useExercise().useGetExercises()
-    const [selectedExerciseIDs, setSelectedExerciseIDs] = useState<string[]>([])
     const [search, setSearch] = useState("")
-    const createChallenge = useEventChallenge().useCreateEventChallenge(eventID)
-    const getExerciseCategories = useExerciseCategory().useGetExerciseCategories()
+    const {GetExerciseCategoriesResponse} = useExerciseCategory().useGetExerciseCategories()
+    const {GetEventChallengesResponse} = useEventChallenge().useGetEventChallenges(eventID)
+    const {GetExercisesResponse, GetExercisesRequest} = useExercise().useGetExercises({
+        search,
+        filter: (exercise: IExercise) => {
+            return GetEventChallengesResponse?.Data.find(challenge => challenge.ExerciseID === exercise.ID) === undefined
+        }
+    })
+    const [selectedExerciseIDs, setSelectedExerciseIDs] = useState<string[]>([])
+    const {CreateEventChallenge} = useEventChallenge().useCreateEventChallenge(eventID)
 
     const onCreateChallenge = () => {
-        createChallenge.mutate({
+        CreateEventChallenge({
             CategoryID: categoryID,
-            ExerciseIDs: selectedExerciseIDs
-
+            ExerciseIDs: selectedExerciseIDs,
+        }, {
+            onSuccess: () => {
+                onCancel?.()
+            },
+            onError: (error) => {
+                const e = error as IErrorResponse
+                ErrorToast({message: "Не вдалося додати завдання", error: e})
+            }
         })
-        onCancel && onCancel()
+        onCancel?.()
     }
 
     return (
@@ -46,14 +61,15 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                             <TableHead>Назва завдання</TableHead>
                             <TableHead>Категорія</TableHead>
                             <TableHead>Тип</TableHead>
+                            <TableHead>Задачі</TableHead>
                         </TableRow>
                     </TableHeader>
                     {
-                        getExercises.data &&
+                        GetExercisesResponse?.Data &&
                         <TableBody className={styles.tableBody}>
                             {
-                                getExercises.data?.map((exercise) => {
-                                    const category = getExerciseCategories.data?.find(category => category.ID === exercise.CategoryID)
+                                GetExercisesResponse?.Data.map((exercise) => {
+                                    const category = GetExerciseCategoriesResponse?.Data.find(category => category.ID === exercise.CategoryID)
                                     return (
                                         <TableRow key={exercise.ID}>
                                             <TableCell>
@@ -77,6 +93,16 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                                             <TableCell>
                                                 {exercise.Data.Instances.length === 0 ? "Статичний" : "Динамічний"}
                                             </TableCell>
+                                            <TableCell>
+                                                {exercise.Data.Tasks.map(task => {
+                                                    return (
+                                                        <div key={task.ID}
+                                                             className={"text-white bg-primary border rounded-md px-2 py-1"}>
+                                                            {task.Name}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </TableCell>
                                         </TableRow>
                                     )
                                 })
@@ -88,12 +114,12 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                     className={styles.emptyTableBody}
                 >
                     {
-                        getExercises.isLoading ?
+                        GetExercisesRequest.isLoading ?
                             "Завантаження..." :
-                            getExercises.isError ?
+                            GetExercisesRequest.isError ?
                                 "Помилка завантаження" :
-                                getExercises.isSuccess && getExercises.data.length === 0 ?
-                                    "Жодного завдання не створено" :
+                                GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
+                                    "Жодного завдання не знайдено" :
                                     null
                     }
                 </div>

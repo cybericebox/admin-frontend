@@ -1,44 +1,40 @@
 "use client";
-
-import {User} from "@/types/user";
+import {IUser} from "@/types/user";
 import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
-import {Search} from "@/components/common";
+import {Search, EditIcon} from "@/components/common";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {useUser} from "@/hooks/useUser";
-import {MdEdit} from "react-icons/md";
 import {AuthenticatedClient} from "@/hooks/auth";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
+import {UserSearch} from "lucide-react";
+import toast from "react-hot-toast";
+import {IErrorResponse} from "@/types/api";
+import {ErrorToast} from "@/components/common/errorToast";
 
 export default function UsersTable() {
     const currentUser = AuthenticatedClient();
     const [search, setSearch] = useState("")
 
-    const getUsers = useUser().useGetUsers({search});
-    const updateUser = useUser().useUpdateUserRole();
-    const deleteUser = useUser().useDeleteUser();
+    const {GetUsersResponse, GetUsersRequest} = useUser().useGetUsers({search});
+    const {UpdateUserRole} = useUser().useUpdateUserRole();
+    const {DeleteUser} = useUser().useDeleteUser();
 
-    const [userToDelete, setUserToDelete] = useState<User>()
-    const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-    const openDeleteDialog = (user: User) => {
-        setUserToDelete(user)
-        setDeleteDialogOpen(true)
-    }
+    const [useDeleteDialog, setUseDeleteDialog] = useState<IUser>()
 
     return (
         <>
             <BodyHeader title={"Користувачі"}>
-                <Search setSearch={setSearch} placeholder={"Знайти користувача"} key={"search"}/>
+                <Search setSearch={setSearch} placeholder={"Знайти користувача"} key={"search"} SearchIcon={UserSearch}/>
             </BodyHeader>
             <BodyContent>
-                <Table className={styles.table}>
+                <Table>
                     <TableHeader className={styles.tableHeader}>
-                        <TableRow>
+                        <TableRow className={"hover:bg-transparent"}>
                             <TableHead>Імʼя</TableHead>
                             <TableHead>Адреса електронної пошти</TableHead>
                             <TableHead>Роль</TableHead>
@@ -47,13 +43,13 @@ export default function UsersTable() {
                         </TableRow>
                     </TableHeader>
                     {
-                        getUsers.data &&
+                        GetUsersResponse?.Data &&
                         <TableBody className={styles.tableBody}>
                             {
-                                getUsers.data?.map((user: User) => {
+                                GetUsersResponse.Data?.map((user) => {
                                     return (
                                         <TableRow key={user.ID}
-                                                  className={`${currentUser.ID === user.ID && "bg-blue-100 hover:bg-blue-100"}`}>
+                                                  className={`${currentUser.ID === user.ID && "bg-blue-100"}`}>
                                             <TableCell>{user.Name}</TableCell>
                                             <TableCell>{user.Email}</TableCell>
                                             <TableCell className={styles.editButton}>
@@ -61,19 +57,21 @@ export default function UsersTable() {
                                                 {currentUser.ID != user.ID &&
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger>
-                                                            <MdEdit
-                                                                className={styles.editIcon}
-                                                                aria-label="Change user role"
-                                                                data-tooltip-content="Змінити роль користувача"
-                                                                data-tooltip-effect="solid"
-                                                                data-tooltip-id="tooltip"
-                                                            />
+                                                            <EditIcon title={"Змінити роль користувача"}/>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent>
                                                             <DropdownMenuItem
-                                                                onClick={() => updateUser.mutate({
+                                                                onClick={() => UpdateUserRole({
                                                                     ...user,
                                                                     Role: user.Role === "Користувач" ? "Адміністратор" : "Користувач"
+                                                                }, {
+                                                                    onSuccess: () => {
+                                                                        toast.success("Роль користувача успішно змінено")
+                                                                    },
+                                                                    onError: (error) => {
+                                                                        const e = error as IErrorResponse
+                                                                        ErrorToast({message: "Не вдалося змінити роль користувача", error: e})
+                                                                    }
                                                                 })}
                                                             >
                                                                 {user.Role === "Користувач" ? "Зробити адміністратором" : "Зробити користувачем"}
@@ -87,7 +85,7 @@ export default function UsersTable() {
                                                 {currentUser.ID != user.ID &&
                                                     <DeleteIcon
                                                         title={"Видалити користувача"}
-                                                        onClick={() => openDeleteDialog(user)}
+                                                        onClick={() => setUseDeleteDialog(user)}
                                                     />
                                                 }
                                             </TableCell>
@@ -102,25 +100,33 @@ export default function UsersTable() {
                     className={styles.emptyTableBody}
                 >
                     {
-                        getUsers.isLoading ?
+                        GetUsersRequest.isLoading ?
                             "Завантаження..." :
-                            getUsers.isError ?
+                            GetUsersRequest.isError ?
                                 "Помилка завантаження" :
-                                getUsers.isSuccess && getUsers.data.length === 0 && search.length != 0 ?
+                                GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length != 0 ?
                                     "Жодного користувача не знайдено" :
-                                    getUsers.isSuccess && getUsers.data.length === 0 && search.length === 0 ?
+                                    GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length === 0 ?
                                         "Жодного користувача не зареєстровано" :
                                         null
                     }
                 </div>
-                {userToDelete &&
+                {!!useDeleteDialog &&
                     <DeleteDialog
-                        isOpen={isDeleteDialogOpen}
-                        onClose={() => setDeleteDialogOpen(false)}
-                        name={userToDelete.Name}
+                        isOpen={!!useDeleteDialog}
+                        onClose={() => setUseDeleteDialog(undefined)}
+                        name={useDeleteDialog.Name}
                         description={"Впевнені? Всі дані користувача будуть втрачені та не можуть бути відновлені."}
                         onDelete={() => {
-                            deleteUser.mutate(userToDelete.ID)
+                            DeleteUser(useDeleteDialog.ID, {
+                                onSuccess: () => {
+                                    toast.success("Користувач успішно видалений")
+                                },
+                                onError: (error) => {
+                                    const e = error as IErrorResponse
+                                    ErrorToast({message: "Не вдалося видалити користувача", error: e})
+                                }
+                            })
                         }}
                     />
                 }
