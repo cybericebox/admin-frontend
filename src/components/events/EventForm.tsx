@@ -185,6 +185,7 @@ export default function EventForm({event}: EventFormProps) {
                                                     <FormItem className="w-full">
                                                         <FormLabel>Тип заходу</FormLabel>
                                                         <Select
+                                                            name={"Type"}
                                                             onValueChange={(value: string) => field.onChange(Number(value))}
                                                             defaultValue={field.value?.toString()}
                                                             disabled={type === "Зберегти"}
@@ -212,6 +213,7 @@ export default function EventForm({event}: EventFormProps) {
                                                     <FormItem className="w-full">
                                                         <FormLabel>Тип участі</FormLabel>
                                                         <Select
+                                                            name={"Participation"}
                                                             onValueChange={(value: string) => field.onChange(Number(value))}
                                                             defaultValue={field.value?.toString()}
                                                             disabled={type === "Зберегти"}
@@ -307,6 +309,7 @@ export default function EventForm({event}: EventFormProps) {
                                                     <FormItem className="w-full">
                                                         <FormLabel>Статус реєстрації</FormLabel>
                                                         <Select
+                                                            name={"Registration"}
                                                             onValueChange={(value: string) => field.onChange(Number(value))}
                                                             defaultValue={field.value?.toString()}>
                                                             <FormControl>
@@ -334,6 +337,7 @@ export default function EventForm({event}: EventFormProps) {
                                                     <FormItem className="w-full">
                                                         <FormLabel>Результати</FormLabel>
                                                         <Select
+                                                            name="ScoreboardAvailability"
                                                             onValueChange={(value: string) => field.onChange(Number(value))}
                                                             defaultValue={field.value?.toString()}>
                                                             <FormControl>

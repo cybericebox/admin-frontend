@@ -14,9 +14,10 @@ export interface EventBannerFieldProps {
     fieldState: ControllerFieldState
     oldImage: string | undefined
     eventID: string | undefined
+    id?: string
 }
 
-export default function EventBannerField({field, fieldState, eventID, oldImage}: EventBannerFieldProps) {
+export default function EventBannerField({field, fieldState, eventID, oldImage, id}: EventBannerFieldProps) {
     const [uploadProgress, setUploadProgress] = useState(-1)
     const [loaded, setLoaded] = useState(false)
     const [showIcon, setShowIcon] = useState(false)
@@ -96,12 +97,12 @@ export default function EventBannerField({field, fieldState, eventID, oldImage}:
             <input
                 type="file"
                 accept="image/*"
-                id="file"
+                id={id}
                 className="hidden"
                 onChange={onUploadFileChange}
             />
             <label
-                htmlFor="file"
+                htmlFor={id}
                 className="cursor-pointer flex flex-col items-center justify-center rounded-2xl bg-gray-100">
                 {!!field.value ?
                     <>

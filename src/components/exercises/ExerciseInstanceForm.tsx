@@ -87,6 +87,7 @@ export default function ExerciseInstanceForm({instanceIndex, form, removeInstanc
                                                                     <FormLabel>Тип запису</FormLabel>
                                                                     <FormControl>
                                                                         <Select
+                                                                            name={`Data.Instances.${instanceIndex}.DNSRecords.${index}.Type`}
                                                                             onValueChange={(value) => field.onChange(value)}
                                                                             defaultValue={field.value}
                                                                         >

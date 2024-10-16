@@ -119,6 +119,7 @@ export default function ExerciseTaskForm({taskIndex, form, removeTask}: Exercise
                                                                         <div
                                                                             className={"flex justify-between items-center gap-1"}>
                                                                             <Select
+                                                                                name={`Data.Tasks.${taskIndex}.AttachedFileIDs.${index}`}
                                                                                 onValueChange={(value) => field.onChange(value)}
                                                                                 defaultValue={field.value}>
                                                                                 <FormControl>

@@ -73,6 +73,7 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
                                     <FormItem className="w-full">
                                         <FormLabel>Роль користувачів</FormLabel>
                                         <Select
+                                            name={"Role"}
                                             onValueChange={(value: string) => field.onChange(value)}
                                             defaultValue={field.value}
                                         >
