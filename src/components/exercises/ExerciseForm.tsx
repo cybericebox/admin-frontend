@@ -128,8 +128,12 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
 
 
     // prevent page reload on form dirty
-    if (form.formState.isDirty && !form.formState.isSubmitted && window !== undefined) {
+    if (form.formState.isDirty && typeof window !== "undefined" && !window.onbeforeunload) {
         window.onbeforeunload = () => true
+    }
+    // remove page reload on form clean
+    if (!form.formState.isDirty && typeof window !== "undefined" && window.onbeforeunload) {
+        window.onbeforeunload = null
     }
 
     let fileUploadProgress = {

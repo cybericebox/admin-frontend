@@ -40,6 +40,9 @@ const Toolbar = ({editor}: Props) => {
 
     const setLink = () => {
         const previousUrl = editor.getAttributes('link').href
+        if (typeof window === 'undefined') {
+            return
+        }
         const url = window.prompt('URL', previousUrl)
 
         // cancelled

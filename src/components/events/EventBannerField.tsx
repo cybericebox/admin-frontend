@@ -5,17 +5,20 @@ import {DeleteIcon} from "@/components/common/delete";
 import {useEvent} from "@/hooks/useEvent";
 import DownloadIcon from "@/components/common/DownloadIcon";
 import Loader from "@/components/common/Loader";
+import UndoIcon from "@/components/common/UndoIcon";
+import type {ControllerFieldState, ControllerRenderProps} from "react-hook-form";
+import type {IEvent} from "@/types/event";
 
 export interface EventBannerFieldProps {
-    oldImage?: string
-    onChange: (url: string) => void
-    eventID?: string
+    field: ControllerRenderProps<IEvent, "Picture">
+    fieldState: ControllerFieldState
+    oldImage: string | undefined
+    eventID: string | undefined
 }
 
-export default function EventBannerField({oldImage, onChange, eventID}: EventBannerFieldProps) {
+export default function EventBannerField({field, fieldState, eventID, oldImage}: EventBannerFieldProps) {
     const [uploadProgress, setUploadProgress] = useState(-1)
     const [loaded, setLoaded] = useState(false)
-    const [previewURL, setPreviewURL] = useState<string>(oldImage || "")
     const [showIcon, setShowIcon] = useState(false)
     const {GetUploadEventBannerData} = useEvent().useGetUploadEventBannerData()
     const {GetDownloadEventBannerData} = useEvent().useGetDownloadEventBannerData(eventID || "")
@@ -24,7 +27,7 @@ export default function EventBannerField({oldImage, onChange, eventID}: EventBan
         const file = e.target.files?.[0];
         if (file) {
             setUploadProgress(0)
-            setPreviewURL("")
+            field.onChange("")
             onUploadFile(file)
         }
     }
@@ -44,8 +47,7 @@ export default function EventBannerField({oldImage, onChange, eventID}: EventBan
                     }
                 }).then(() => {
                     setUploadProgress(-1)
-                    setPreviewURL(data.Data.DownloadURL)
-                    onChange(data.Data.DownloadURL)
+                    field.onChange(data.Data.DownloadURL)
                 })
             }
         })
@@ -57,27 +59,35 @@ export default function EventBannerField({oldImage, onChange, eventID}: EventBan
             onMouseOver={() => setShowIcon(true)}
             onMouseLeave={() => setShowIcon(false)}
         >
-            {previewURL && showIcon && <div
-                className={"absolute top-1 right-1 flex justify-end gap-1 bg-white rounded-xl"}
+            { field.value && showIcon && <div
+                className={"absolute top-1 right-1 flex justify-end gap-1 bg-white rounded-xl px-1 py-0.5"}
             >
-                <DownloadIcon
+                {!fieldState.isDirty ? <DownloadIcon
                     title={"Завантажити зображення"}
                     onClick={
                         () => {
                             GetDownloadEventBannerData().then(({data}) => {
                                 if (data?.Status.Code == 10000) {
-                                    setPreviewURL(data.Data)
+                                    field.onChange(data.Data)
+                                    if (typeof window === 'undefined') {
+                                        return
+                                    }
                                     window.open(data.Data, "_blank")
                                 }
                             })
                         }
                     }
+                /> : <UndoIcon
+                    title={"Скасувати зміни"}
+                    onClick={() => {
+                        field.onChange(oldImage)
+                    }}
                 />
+                }
                 <DeleteIcon
                     title={"Видалити зображення"}
                     onClick={() => {
-                        setPreviewURL("")
-                        onChange("")
+                        field.onChange("")
                         setShowIcon(false)
                     }
                     }
@@ -93,11 +103,11 @@ export default function EventBannerField({oldImage, onChange, eventID}: EventBan
             <label
                 htmlFor="file"
                 className="cursor-pointer flex flex-col items-center justify-center rounded-2xl bg-gray-100">
-                {!!previewURL ?
+                {!!field.value ?
                     <>
                         <Image
                             hidden={!loaded}
-                            src={previewURL}
+                            src={field.value}
                             alt={"Banner"}
                             width={1920}
                             height={1080}

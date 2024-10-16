@@ -103,9 +103,14 @@ export default function EventForm({event}: EventFormProps) {
             })
         }
     }
+
     // prevent page reload on form dirty
-    if (form.formState.isDirty && !form.formState.isSubmitted && window !== undefined) {
+    if (form.formState.isDirty && typeof window !== "undefined" && !window.onbeforeunload) {
         window.onbeforeunload = () => true
+    }
+    // remove page reload on form clean
+    if (!form.formState.isDirty && typeof window !== "undefined" && window.onbeforeunload) {
+        window.onbeforeunload = null
     }
 
     const onSwitch = (value: AccordionItemType) => {
@@ -239,13 +244,15 @@ export default function EventForm({event}: EventFormProps) {
                                             <FormField
                                                 control={form.control}
                                                 name="Picture"
-                                                render={({field}) => (
+                                                render={({field, fieldState, formState}) => (
                                                     <FormItem className="w-full">
                                                         <FormLabel>Банер</FormLabel>
                                                         <FormControl>
                                                             <EventBannerField
-                                                                oldImage={event?.Picture}
-                                                                onChange={(url) => field.onChange(url)}
+                                                                field={field}
+                                                                oldImage={formState.defaultValues?.Picture}
+                                                                fieldState={fieldState}
+                                                                eventID={event?.ID}
                                                             />
                                                         </FormControl>
                                                         <FormMessage/>

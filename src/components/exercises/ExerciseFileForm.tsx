@@ -167,7 +167,7 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                     onClick={
                         () => {
                             GetDownloadExerciseFileData().then(({data}) => {
-                                if (data?.Status.Code == 10000) {
+                                if (data?.Status.Code == 10000 && typeof window !== 'undefined') {
                                     const downloadURL = data?.Data
                                     if (downloadURL) {
                                         window.open(downloadURL, "_blank")
