@@ -30,6 +30,7 @@ export default function EventBannerField({field, fieldState, eventID, oldImage, 
             setUploadProgress(0)
             field.onChange("")
             onUploadFile(file)
+            e.target.value = ""
         }
     }
 

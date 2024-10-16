@@ -417,7 +417,9 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
                                 />
                             </Accordion>
                         </FormFields>
-                        <FormButtons>
+                        <FormButtons
+                            show={form.formState.isDirty}
+                        >
                             <Button
                                 type="submit"
                                 size="lg"

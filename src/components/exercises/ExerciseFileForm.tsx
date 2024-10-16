@@ -39,12 +39,15 @@ export function AddExerciseFileButton({addFile, nextIndex}: AddExerciseFileProps
         <>
             <input
                 type={"file"}
+                multiple={true}
                 className={"hidden"}
                 id={"file_upload"}
                 onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                        onUploadFile(file)
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                        for (let i = 0; i < files.length; i++) {
+                            onUploadFile(files[i])
+                        }
                         e.target.value = ""
                     }
                 }}

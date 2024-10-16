@@ -6,12 +6,17 @@ export interface DialogProps {
     isOpen: boolean;
     onClose: () => void;
     className?: string;
+    preventFocusOnOpen?: boolean;
 }
 
-export default function DialogForm({onClose, isOpen, children, className}: DialogProps) {
+export default function DialogForm({onClose, isOpen, children, className, preventFocusOnOpen}: DialogProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose} modal={true} defaultOpen={false}>
-            <DialogContent className={className}>
+            <DialogContent className={className} onOpenAutoFocus={(e) => {
+                if (preventFocusOnOpen) {
+                    e.preventDefault()
+                }
+            }}>
                 <DialogHeader>
                     <DialogTitle />
                     <DialogDescription>

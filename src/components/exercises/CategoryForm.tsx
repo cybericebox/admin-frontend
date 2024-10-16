@@ -12,6 +12,7 @@ import {useExerciseCategory} from "@/hooks/useExerciseCategory";
 import toast from "react-hot-toast";
 import {IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
+import {FormProvider, FormFields, FormButtons} from "@/components/common/form";
 
 export interface ExerciseCategoryFormProps {
     category?: IExerciseCategory
@@ -29,6 +30,7 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
             Name: category?.Name || "",
             Description: category?.Description || "",
         },
+        disabled: PendingCreateExerciseCategory || PendingUpdateExerciseCategory,
         mode: "all"
     })
 
@@ -57,18 +59,15 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
             })
         }
     }
-
     return (
         <>
             <BodyHeader title={type === "Створити" ? "Нова категорія" : form.watch("Name")}/>
             <div>
                 <Form {...form}>
-                    <form
+                    <FormProvider
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="flex flex-col gap-3"
                     >
-
-                        <div className="flex flex-col gap-5 md:flex-row w-full">
+                        <FormFields>
                             <FormField
                                 control={form.control}
                                 name="Name"
@@ -82,15 +81,13 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
                                     </FormItem>
                                 )}
                             />
-                        </div>
-                        <div className="flex flex-col gap-5 md:flex-row">
                             <FormField
                                 control={form.control}
                                 name="Description"
                                 render={({field}) => (
                                     <FormItem className="w-full">
-                                        <FormLabel>Опис завдання</FormLabel>
-                                        <FormControl className="h-44">
+                                        <FormLabel>Опис категорії</FormLabel>
+                                        <FormControl className="h-20">
                                             <Textarea placeholder="Опис..." {...field}
                                                       className="textarea rounded-2xl"/>
                                         </FormControl>
@@ -98,10 +95,10 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
                                     </FormItem>
                                 )}
                             />
-                        </div>
 
-                        <div
-                            className="flex gap-5 flex-row justify-evenly w-full"
+                        </FormFields>
+                        <FormButtons
+                            show={form.formState.isDirty}
                         >
                             <Button
                                 type="submit"
@@ -122,8 +119,8 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
                             >
                                 Відмінити
                             </Button>
-                        </div>
-                    </form>
+                        </FormButtons>
+                    </FormProvider>
                 </Form>
             </div>
         </>

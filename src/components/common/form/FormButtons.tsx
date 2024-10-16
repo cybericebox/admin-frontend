@@ -1,16 +1,18 @@
 import type React from "react";
+import {cn} from "@/utils/cn";
 
 interface FormButtonsProps {
     children?: React.ReactNode
+    show: boolean
 }
 
-export default function FormButtons({children}: FormButtonsProps) {
+export default function FormButtons({children, show}: FormButtonsProps) {
     return (
         <div
-            className={"w-full row-start-12 row-span-2"}
+            className={cn("w-full h-fit", show ? "visible" : "invisible")}
         >
             <div
-                className={"h-full w-full flex flex-row justify-evenly items-center"}
+                className={"flex flex-row justify-evenly items-center"}
             >
                 {children}
             </div>

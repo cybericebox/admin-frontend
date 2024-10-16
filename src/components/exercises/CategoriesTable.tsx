@@ -70,7 +70,7 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                                         <TableCell
                                             onClick={() => setUpdateExerciseCategoryDialog(category)}
                                             aria-label="Edit category"
-                                            data-tooltip-content="Редагувати категорію"
+                                            data-tooltip-content="Показати категорію"
                                             data-tooltip-id="tooltip"
                                         >
                                             {category.Name}
@@ -120,6 +120,7 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                 />}
             {!!updateExerciseCategoryDialog &&
                 <DialogForm isOpen={!!updateExerciseCategoryDialog}
+                            preventFocusOnOpen={true}
                             onClose={() => setUpdateExerciseCategoryDialog(undefined)}>
                     <ExerciseCategoryForm onClose={() => setUpdateExerciseCategoryDialog(undefined)}
                                           category={updateExerciseCategoryDialog}/>

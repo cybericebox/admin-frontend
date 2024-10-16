@@ -399,8 +399,7 @@ export default function EventForm({event}: EventFormProps) {
                                                         <FormLabel>Дата публікації</FormLabel>
                                                         <FormControl>
                                                             <DateTimePicker
-                                                                onChange={(date) => field.onChange(date)}
-                                                                value={new Date}
+                                                                {...field}
                                                                 placeholder={"Оберіть дату публікації"}
                                                             />
                                                         </FormControl>
@@ -554,7 +553,9 @@ export default function EventForm({event}: EventFormProps) {
                                 </AccordionItem>
                             </Accordion>
                         </FormFields>
-                        <FormButtons>
+                        <FormButtons
+                            show={form.formState.isDirty}
+                        >
                             <Button
                                 type="submit"
                                 size="lg"
