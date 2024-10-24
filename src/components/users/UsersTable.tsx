@@ -1,5 +1,5 @@
 "use client";
-import {IUser} from "@/types/user";
+import {IUser, UserRoleEnum} from "@/types/user";
 import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import moment from "moment";
@@ -63,7 +63,7 @@ export default function UsersTable() {
                                                             <DropdownMenuItem
                                                                 onClick={() => UpdateUserRole({
                                                                     ...user,
-                                                                    Role: user.Role === "Користувач" ? "Адміністратор" : "Користувач"
+                                                                    Role: user.Role === UserRoleEnum.User ? UserRoleEnum.Administrator : UserRoleEnum.User
                                                                 }, {
                                                                     onSuccess: () => {
                                                                         toast.success("Роль користувача успішно змінено")
@@ -74,7 +74,7 @@ export default function UsersTable() {
                                                                     }
                                                                 })}
                                                             >
-                                                                {user.Role === "Користувач" ? "Зробити адміністратором" : "Зробити користувачем"}
+                                                                {user.Role === UserRoleEnum.User ? "Зробити адміністратором" : "Зробити користувачем"}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>}

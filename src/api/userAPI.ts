@@ -9,7 +9,10 @@ export const getUsersFn = async (search: string): Promise<AxiosResponse<IRespons
 }
 
 export const inviteUsersFn = async (data: IInviteUsers): Promise<AxiosResponse<IResponse, any>> => {
-    return await baseAPI.post("/users/invite", data)
+    return await baseAPI.post("/users/invite", {
+        Emails: data.Emails.map((email) => email.Email),
+        Role: data.Role
+    })
 }
 
 export const updateUserRoleFn = async (user: IUser): Promise<AxiosResponse<IResponse, any>> => {
