@@ -63,7 +63,6 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
             },
         },
         mode: "all",
-        shouldFocusError: true,
         delayError: 500,
     })
 

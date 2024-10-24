@@ -25,10 +25,12 @@ spec:
       containers:
         - name: admin-frontend
           image: cybericebox/admin-frontend:latest
-          envFrom:
-            - configMapRef:
-                name: config
-              prefix: "NEXT_PUBLIC_"
+          env:
+            - name: NEXT_PUBLIC_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: config
+                  key: DOMAIN
           ports:
             - containerPort: 3000
               protocol: TCP

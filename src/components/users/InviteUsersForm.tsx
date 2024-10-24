@@ -1,18 +1,19 @@
 "use client"
-import {DeepRequired, FieldError, FieldErrorsImpl, Merge, SubmitHandler, useForm} from "react-hook-form";
+import {SubmitHandler, useFieldArray, useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {ZodString} from "zod";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Button} from "@/components/ui/button";
 import {BodyHeader} from "@/components/common/page";
-import {InviteUsersSchema} from "@/types/user";
+import {InviteUsersSchema, UserRoleEnum} from "@/types/user";
 import {useUser} from "@/hooks/useUser";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import React from "react";
-import {MultiTagInput} from "@/components/common";
 import {IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
+import {FormButtons, FormFields, FormProvider} from "@/components/common/form";
+import {Input} from "@/components/ui/input";
+import {DeleteIcon} from "@/components/common/delete";
 
 export interface InviteUsersFormProps {
     onClose: () => void
@@ -24,23 +25,32 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
     const form = useForm<z.infer<typeof InviteUsersSchema>>({
         resolver: zodResolver(InviteUsersSchema),
         defaultValues: {
-            Role: "Користувач",
-            Emails: []
+            Role: UserRoleEnum.User,
+            Emails: [{Email: ""}]
         },
         mode: "onChange"
     })
 
-    function getIndicesPassingCondition<T>(array: Merge<FieldError, FieldErrorsImpl<Array<NonNullable<DeepRequired<ZodString["_output"]>>> & {}>> | undefined): number[] {
-        const indices: number[] = [];
+    const emails = useFieldArray({
+        control: form.control,
+        name: "Emails",
+    })
 
-        for (const error in array) {
-            if (error) {
-                indices.push(Number(error));
+    const onChangeEmail = (e: React.ChangeEvent<HTMLInputElement>, oldValue: string): Record<string, string> => {
+        const value = e.target.value
+        if (value.length && !oldValue.length) {
+            const ts = value.split(" ")
+            if (ts.length > 1) {
+                ts.slice(1).forEach((t) => {
+                    emails.append({Email: t}, {
+                        shouldFocus: true,
+                        focusName: `Emails.${form.watch("Emails").length}`
+                    })
+                })
+                return {Email: ts[0]}
             }
         }
-
-
-        return indices;
+        return {Email: value}
     }
 
     const onSubmit: SubmitHandler<z.infer<typeof InviteUsersSchema>> = data => {
@@ -58,14 +68,11 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
     return (
         <>
             <BodyHeader title={"Додати користувачів"}/>
-            <div>
                 <Form {...form}>
-                    <form
+                    <FormProvider
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="flex flex-col gap-3"
                     >
-
-                        <div className="flex flex-col gap-5 md:flex-row w-full">
+                        <FormFields>
                             <FormField
                                 control={form.control}
                                 name="Role"
@@ -93,31 +100,80 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
                                     </FormItem>
                                 )}
                             />
-                        </div>
-                        <div className="flex flex-col gap-5 md:flex-row">
                             <FormField
+                                name={`Emails`}
                                 control={form.control}
-                                name="Emails"
-                                render={({field}) => (
-                                    <FormItem className="w-full">
-                                        <FormLabel>Адреси електронних пошт користувачів</FormLabel>
+                                render={() => (
+                                    <FormItem>
                                         <FormControl>
-                                            <MultiTagInput
-                                                tags={field.value}
-                                                setTags={field.onChange}
-                                                errorTagsIndexes={getIndicesPassingCondition(form.formState.errors.Emails)}
-                                                placeholder={"Адреси електронної пошти..."}
-                                                className="max-h-44"
-                                            />
+                                            <>
+                                                <div className={"mt-4"}>
+                                                    <FormLabel>Адреси електронних пошт користувачів</FormLabel>
+                                                </div>
+                                                <FormMessage/>
+                                                <div className={"w-full flex flex-col"}>
+                                                    {
+                                                        emails.fields.map((email, index) => {
+                                                            return (
+
+                                                                <FormField
+                                                                    key={email.id}
+                                                                    control={form.control}
+                                                                    name={`Emails.${index}`}
+                                                                    render={({field}) => (
+                                                                        <FormItem className="w-full">
+                                                                            <FormControl>
+                                                                                <div
+                                                                                    className={"relative"}>
+                                                                                    <Input
+                                                                                        {...field}
+                                                                                        value={field.value.Email}
+                                                                                        onChange={(e) => {
+                                                                                            field.onChange(onChangeEmail(e, field.value.Email))
+                                                                                        }}
+                                                                                        type={"email"}
+                                                                                        className={"w-full"}
+                                                                                        placeholder={"Адреса електронної пошти..."}
+                                                                                    />
+                                                                                    <DeleteIcon
+
+                                                                                        cross={true}
+                                                                                        className={"cursor-pointer top-2 right-1 absolute"}
+                                                                                        onClick={() => {
+                                                                                            emails.remove(index)
+                                                                                        }}/>
+                                                                                </div>
+
+                                                                            </FormControl>
+                                                                            <FormMessage/>
+                                                                        </FormItem>
+                                                                    )}
+                                                                />
+                                                            )
+                                                        })
+                                                    }
+                                                    <Button
+                                                        type={"button"}
+                                                        onClick={() => {
+                                                            emails.append({
+                                                                Email: ""
+                                                            }, {
+                                                                shouldFocus: true,
+                                                                focusName: `Emails.${emails.fields.length}`
+                                                            })
+                                                        }}
+                                                    >
+                                                        Додати адресу електронної пошти
+                                                    </Button>
+                                                </div>
+                                            </>
                                         </FormControl>
-                                        <FormMessage/>
                                     </FormItem>
                                 )}
                             />
-                        </div>
-
-                        <div
-                            className="flex gap-5 flex-row justify-evenly w-full"
+                        </FormFields>
+                        <FormButtons
+                            show={form.formState.isDirty}
                         >
                             <Button
                                 type="submit"
@@ -138,10 +194,9 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
                             >
                                 Відмінити
                             </Button>
-                        </div>
-                    </form>
+                        </FormButtons>
+                    </FormProvider>
                 </Form>
-            </div>
         </>
     )
 }

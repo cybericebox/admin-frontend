@@ -9,6 +9,7 @@ import axios from "axios";
 import {Button} from "@/components/ui/button";
 import React, {useRef} from "react";
 import {DownloadIcon} from "@/components/common";
+import {cn} from "@/utils/cn";
 
 interface ExerciseFileFormProps {
     fileIndex: number;
@@ -105,11 +106,13 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                     form.setValue(`Data.Files.${fileIndex}.Progress`, undefined)
                     form.setValue(`Data.Files.${fileIndex}.EstimatedTime`, undefined)
                 }).catch((error) => {
+                    console.log(error)
+                    axios.isAxiosError(error) && console.log(error.response)
                     if (!axios.isCancel(error)) {
                         if (error.response?.status === 413) {
                             form.setValue(`Data.Files.${fileIndex}.Progress`, -2)
                         } else {
-                            form.setValue(`Data.Files.${fileIndex}.Progress`, -3)
+                            form.setValue(`Data.Files.${fileIndex}.Progress`, -1)
                         }
                     }
                 })
@@ -118,7 +121,7 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
     }
     return (
         <div
-            className={"w-full h-full flex flex-col gap-3 rounded-lg border-2 p-3 relative"}
+            className={cn("w-full h-full flex flex-col gap-3 rounded-lg border-2 p-3 relative", form.formState.errors.Data?.Files?.[fileIndex] && "border-destructive")}
         >
             <div
                 className={"absolute top-2 right-2 flex justify-end gap-2"}
@@ -129,8 +132,8 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                         width="18"
                         viewBox="0 0 20 20  "
                         aria-label={`Завантаження ${form.watch(`Data.Files.${fileIndex}.Progress`)}%`}
-                        data-tooltip-html={form.watch(`Data.Files.${fileIndex}.Progress`)! < 0 ? "Помилка завантаження" :
-                            `<div style="text-align: center" >Завантажено ${form.watch(`Data.Files.${fileIndex}.Progress`)}% ${form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! > 0 ? "<br/>Залишилось " : ""} ${Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 3600) > 0 ? Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 3600) + " год. " : ""}${Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 60) % 60 > 0 ? Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 60) % 60 + " хв. " : ""}${form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! % 60 > 0 ? form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! % 60 + " сек." : ""}</div`}
+                        data-tooltip-html={form.watch(`Data.Files.${fileIndex}.Progress`)! < 0 ? `Помилка завантаження<br/>${form.watch(`Data.Files.${fileIndex}.Progress`)! === -2 ? "Файл занадто великий" : "Помилка сервера"}` :
+                            `<div style="text-align: center" >Завантажено ${form.watch(`Data.Files.${fileIndex}.Progress`)}% ${form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! >= 0 ? "<br/>Залишилось " : ""} ${Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 3600) > 0 ? Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 3600) + " год. " : ""}${Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 60) % 60 > 0 ? Math.floor(form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! / 60) % 60 + " хв. " : ""}${form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! % 60 > 0 ? form.watch(`Data.Files.${fileIndex}.EstimatedTime`)! % 60 + " сек." : ""}</div`}
 
                         data-tooltip-id="tooltip"
                         className={"mt-0.5"}
@@ -146,9 +149,9 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                             cx="10"
                             cy="10"
                             fill="transparent"
-                            stroke={form.watch(`Data.Files.${fileIndex}.Progress`)! > -1 ? "currentColor" : "#ef4444"}
+                            stroke={form.watch(`Data.Files.${fileIndex}.Progress`)! >= 0 ? "currentColor" : "#ef4444"}
                             strokeWidth="10"
-                            strokeDasharray={form.watch(`Data.Files.${fileIndex}.Progress`)! > -1 ? `calc(${form.watch(`Data.Files.${fileIndex}.Progress`)} * 31.4 / 100) 31.4` : "31.4 31.4"}
+                            strokeDasharray={form.watch(`Data.Files.${fileIndex}.Progress`)! >= 0 ? `calc(${form.watch(`Data.Files.${fileIndex}.Progress`)} * 31.4 / 100) 31.4` : "31.4 31.4"}
                             transform="rotate(-90) translate(-20)"
                         />
                         <circle
@@ -184,7 +187,9 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                     title={"Видалити файл"}
                     className={""}
                     onClick={() => {
-                        form.watch(`Data.Files.${fileIndex}.Ref`)?.current.abort("File upload was canceled by the user")
+                        if (form.watch(`Data.Files.${fileIndex}.Progress`) != undefined && form.watch(`Data.Files.${fileIndex}.Progress`)! >= 0) {
+                            form.watch(`Data.Files.${fileIndex}.Ref`)?.current.abort("File upload was canceled by the user")
+                        }
                         removeFile(fileIndex)
                     }}
                 />
