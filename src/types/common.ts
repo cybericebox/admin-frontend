@@ -14,5 +14,5 @@ export const DownloadFileURLSchema = z.string({required_error: "Поле має 
 export type IDownloadFileURL = z.infer<typeof DownloadFileURLSchema>
 
 export const TextEditorSchema = z.string().refine((value) => {
-    return !value.startsWith("<!-- Invalid -->")
+    return value.startsWith("<!-- Valid -->")
 })
