@@ -81,7 +81,7 @@ export const ExerciseSchema = z.object({
     CategoryID: z.string({required_error: "Поле має бути заповненим"}).uuid({message: "Оберіть категорію"}),
     Description: TextEditorSchema,
     Data: z.object({
-        Tasks: z.array(ExerciseTaskSchema).min(1, {message: "Додайте хоча б одне завдання"}),
+        Tasks: z.array(ExerciseTaskSchema).min(1, {message: "Додайте хоча б одну задачу"}),
         Instances: z.array(ExerciseInstanceSchema),
         Files: z.array(ExerciseFileSchema)
     }),

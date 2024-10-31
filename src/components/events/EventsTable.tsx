@@ -71,10 +71,10 @@ export default function EventsTable() {
     }
 
     return (
-        <>
+        <div className={styles.tableWrapper}>
             <BodyHeader title={"Заходи"}/>
             <BodyContent>
-                <Table className={styles.table}>
+                <Table>
                     <TableHeader className={styles.tableHeader}>
                         <TableRow>
                             <TableHead>Назва</TableHead>
@@ -90,7 +90,7 @@ export default function EventsTable() {
                     </TableHeader>
                     {
                         GetEventsResponse?.Data &&
-                        <TableBody className={styles.tableBody}>
+                        <TableBody>
                             {
                                 GetEventsResponse?.Data.map((event) => {
                                     return (
@@ -207,6 +207,6 @@ export default function EventsTable() {
                     }
                 />
             }
-        </>
+        </div>
     );
 }

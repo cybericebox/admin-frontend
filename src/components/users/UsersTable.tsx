@@ -27,7 +27,7 @@ export default function UsersTable() {
     const [useDeleteDialog, setUseDeleteDialog] = useState<IUser>()
 
     return (
-        <>
+        <div className={styles.tableWrapper}>
             <BodyHeader title={"Користувачі"}>
                 <Search setSearch={setSearch} placeholder={"Знайти користувача"} key={"search"} SearchIcon={UserSearch}/>
             </BodyHeader>
@@ -44,7 +44,7 @@ export default function UsersTable() {
                     </TableHeader>
                     {
                         GetUsersResponse?.Data &&
-                        <TableBody className={styles.tableBody}>
+                        <TableBody>
                             {
                                 GetUsersResponse.Data?.map((user) => {
                                     return (
@@ -105,7 +105,7 @@ export default function UsersTable() {
                             GetUsersRequest.isError ?
                                 "Помилка завантаження" :
                                 GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length != 0 ?
-                                    "Жодного користувача не знайдено" :
+                                    "Жодного користувача за запитом не знайдено" :
                                     GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length === 0 ?
                                         "Жодного користувача не зареєстровано" :
                                         null
@@ -131,6 +131,6 @@ export default function UsersTable() {
                     />
                 }
             </BodyContent>
-        </>
+        </div>
     );
 }

@@ -29,8 +29,8 @@ export default function CategoriesTable(props: CategoriesTableProps) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
     return (
-        <>
-            <Table className={styles.table}>
+        <div className={styles.tableWrapper}>
+            <Table>
                 <TableHeader className={styles.tableHeader}>
                     <TableRow>
                         <TableHead
@@ -51,21 +51,20 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                 </TableHeader>
                 {
                     GetExerciseCategoriesResponse?.Data &&
-                    <TableBody className={styles.tableBody}>
+                    <TableBody>
                         {
                             GetExerciseCategoriesResponse?.Data.map((category) => {
                                 return (
                                     <TableRow key={category.ID}
                                               onClick={() => {
-                                                  props.selectedCategory === category ?
+                                                  props.selectedCategory?.ID === category.ID ?
                                                       props.setSelectedCategory(undefined) :
                                                       props.setSelectedCategory(category)
                                               }}
-                                              className={props.selectedCategory === category ? "bg-blue-100 hover:bg-blue-100" : ""}
+                                              className={props.selectedCategory?.ID === category.ID ? "bg-blue-100 hover:bg-blue-100" : ""}
                                               aria-label="Show exercises of the category"
                                               data-tooltip-content="Показати завдання відповідної категорії"
                                               data-tooltip-id="tooltip"
-
                                     >
                                         <TableCell
                                             onClick={() => setUpdateExerciseCategoryDialog(category)}
@@ -111,6 +110,10 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                     onDelete={() => DeleteExerciseCategory(deleteExerciseCategoryDialog.ID!, {
                         onSuccess: () => {
                             toast.success("Категорію успішно видалено")
+                            // category was selected unselect it
+                            if (props.selectedCategory?.ID === deleteExerciseCategoryDialog.ID) {
+                                props.setSelectedCategory(undefined)
+                            }
                         },
                         onError: (error) => {
                             const e = error as IErrorResponse
@@ -129,6 +132,6 @@ export default function CategoriesTable(props: CategoriesTableProps) {
             <DialogForm isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
                 <ExerciseCategoryForm onClose={() => setIsAddDialogOpen(false)}/>
             </DialogForm>
-        </>
+        </div>
     )
 }

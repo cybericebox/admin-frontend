@@ -27,7 +27,7 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
     const [deleteExerciseDialog, setDeleteExerciseDialog] = useState<IExercise>()
 
     return (
-        <>
+        <div className={styles.tableWrapper}>
             <Table>
                 <TableHeader className={styles.tableHeader}>
                     <TableRow>
@@ -95,13 +95,19 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                         GetExercisesRequest.isError ?
                             "Помилка завантаження" :
                             GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
-                                "Жодного завдання не створено" :
+                                selectedCategory ?
+                                    search.length === 0 ?
+                                        "В цій категорії завдань не створено" :
+                                        "В цій категорії завдань за запитом не знайдено" :
+                                    search.length === 0 ?
+                                        "Завдань не створено" :
+                                        "Завдань за запитом не знайдено" :
                                 null
                 }
             </div>
             {!!deleteExerciseDialog &&
                 <DeleteDialog
-                    isOpen={!deleteExerciseDialog}
+                    isOpen={!!deleteExerciseDialog}
                     onClose={() => setDeleteExerciseDialog(undefined)}
                     name={deleteExerciseDialog.Name}
                     description={"Впевнені? Всі дані будуть втрачені та не можуть бути відновлені."}
@@ -115,6 +121,6 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                         }
                     })}
                 />}
-        </>
+        </div>
     )
 }

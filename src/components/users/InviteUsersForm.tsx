@@ -68,6 +68,7 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
     return (
         <>
             <BodyHeader title={"Додати користувачів"}/>
+            <div>
                 <Form {...form}>
                     <FormProvider
                         onSubmit={form.handleSubmit(onSubmit)}
@@ -197,6 +198,7 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
                         </FormButtons>
                     </FormProvider>
                 </Form>
+            </div>
         </>
     )
 }

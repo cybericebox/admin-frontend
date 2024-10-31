@@ -1,6 +1,6 @@
 
-.table {
-
+.tableWrapper {
+    @apply relative h-full w-full;
 }
 
 .tableHeader {
@@ -15,13 +15,10 @@
 }
 
 
-.tableBody {
-}
-
 .emptyTableBody {
-    @apply flex flex-col;
-    @apply items-center justify-center;
-    @apply w-full h-full;
+    @apply absolute;
+    @apply top-[50%] left-[50%] transform translate-x-[-50%] translate-y-[-50%];
+    @apply text-center text-nowrap
 }
 
 .editIcon {
