@@ -70,7 +70,7 @@ const TextEditor = ({onChange, value, minCharacters, maxCharacters}: TextEditorP
             },
         },
         onUpdate: ({editor}) => {
-            // trim content with <!-- Invalid --> comments in only in start
+            // trim content with <!-- Valid --> comments in only in start
             const content = editor.getHTML().replace(/<!--\s*Valid\s*-->/, "");
 
             if (editor.storage.characterCount.characters() < minCharacters) {
