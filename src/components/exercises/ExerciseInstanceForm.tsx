@@ -101,12 +101,12 @@ export default function ExerciseInstanceForm({instanceIndex, form, removeInstanc
                                                                             <SelectContent>
                                                                                 <SelectItem key={"A"}
                                                                                             value={"A"}>{"A"}</SelectItem>
-                                                                                <SelectItem key={"AAAA"}
-                                                                                            value={"AAAA"}>{"AAAA"}</SelectItem>
+                                                                                {/*<SelectItem key={"AAAA"}*/}
+                                                                                {/*            value={"AAAA"}>{"AAAA"}</SelectItem>*/}
                                                                                 <SelectItem key={"CNAME"}
                                                                                             value={"CNAME"}>{"CNAME"}</SelectItem>
-                                                                                <SelectItem key={"MX"}
-                                                                                            value={"MX"}>{"MX"}</SelectItem>
+                                                                                {/*<SelectItem key={"MX"}*/}
+                                                                                {/*            value={"MX"}>{"MX"}</SelectItem>*/}
                                                                                 <SelectItem key={"TXT"}
                                                                                             value={"TXT"}>{"TXT"}</SelectItem>
                                                                             </SelectContent>
