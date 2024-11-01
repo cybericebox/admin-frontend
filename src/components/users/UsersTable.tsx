@@ -105,7 +105,7 @@ export default function UsersTable() {
                             GetUsersRequest.isError ?
                                 "Помилка завантаження" :
                                 GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length != 0 ?
-                                    "Жодного користувача за запитом не знайдено" :
+                                    "Користувачів за запитом не знайдено" :
                                     GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length === 0 ?
                                         "Жодного користувача не зареєстровано" :
                                         null

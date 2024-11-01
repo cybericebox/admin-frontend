@@ -97,10 +97,10 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                             GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
                                 selectedCategory ?
                                     search.length === 0 ?
-                                        "В цій категорії завдань не створено" :
+                                        "В цій категорії жодного завдання не створено" :
                                         "В цій категорії завдань за запитом не знайдено" :
                                     search.length === 0 ?
-                                        "Завдань не створено" :
+                                        "Жодного завдання не створено" :
                                         "Завдань за запитом не знайдено" :
                                 null
                 }
