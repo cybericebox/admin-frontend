@@ -22,7 +22,7 @@ interface BodyHeaderProps {
 
 export function BodyHeader({title, children, textSize = "text-2xl"}: BodyHeaderProps) {
     return (
-        <div className={"w-full"}>
+        <div className={"w-full h-fit"}>
             <div
                 className="flex flex-wrap short:gap-2 gap-2 sm:gap-4 items-center justify-left sm:justify-between w-full sm:px-2.5 px-0"
             >
@@ -45,7 +45,7 @@ interface BodyContentProps {
 export function BodyContent({children, className}: BodyContentProps) {
     return (
         <div
-            className={cn("flex-1 w-full h-full rounded-lg shadow-sm", className)}
+            className={cn("flex-1 w-full h-full rounded-lg shadow-sm overflow-hidden", className)}
         >
             {children}
         </div>

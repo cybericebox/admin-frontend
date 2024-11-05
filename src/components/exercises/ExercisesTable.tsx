@@ -27,7 +27,7 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
     const [deleteExerciseDialog, setDeleteExerciseDialog] = useState<IExercise>()
 
     return (
-        <div className={styles.tableWrapper}>
+        <>
             <Table>
                 <TableHeader className={styles.tableHeader}>
                     <TableRow>
@@ -85,26 +85,26 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                         }
                     </TableBody>
                 }
+                <div
+                    className={styles.emptyTableBody}
+                >
+                    {
+                        GetExercisesRequest.isLoading ?
+                            "Завантаження..." :
+                            GetExercisesRequest.isError ?
+                                "Помилка завантаження" :
+                                GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
+                                    selectedCategory ?
+                                        search.length === 0 ?
+                                            "В цій категорії жодного завдання не створено" :
+                                            "В цій категорії завдань за запитом не знайдено" :
+                                        search.length === 0 ?
+                                            "Жодного завдання не створено" :
+                                            "Завдань за запитом не знайдено" :
+                                    null
+                    }
+                </div>
             </Table>
-            <div
-                className={styles.emptyTableBody}
-            >
-                {
-                    GetExercisesRequest.isLoading ?
-                        "Завантаження..." :
-                        GetExercisesRequest.isError ?
-                            "Помилка завантаження" :
-                            GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
-                                selectedCategory ?
-                                    search.length === 0 ?
-                                        "В цій категорії жодного завдання не створено" :
-                                        "В цій категорії завдань за запитом не знайдено" :
-                                    search.length === 0 ?
-                                        "Жодного завдання не створено" :
-                                        "Завдань за запитом не знайдено" :
-                                null
-                }
-            </div>
             {!!deleteExerciseDialog &&
                 <DeleteDialog
                     isOpen={!!deleteExerciseDialog}
@@ -121,6 +121,6 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                         }
                     })}
                 />}
-        </div>
+        </>
     )
 }

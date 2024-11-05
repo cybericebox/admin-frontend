@@ -71,7 +71,7 @@ export default function EventsTable() {
     }
 
     return (
-        <div className={styles.tableWrapper}>
+        <>
             <BodyHeader title={"Заходи"}/>
             <BodyContent>
                 <Table>
@@ -171,20 +171,20 @@ export default function EventsTable() {
                             }
                         </TableBody>
                     }
+                    <div
+                        className={styles.emptyTableBody}
+                    >
+                        {
+                            GetEventsRequest.isLoading ?
+                                "Завантаження..." :
+                                GetEventsRequest.isError ?
+                                    "Помилка завантаження" :
+                                    GetEventsRequest.isSuccess && GetEventsResponse?.Data.length === 0 ?
+                                        "Жодного заходу не створено" :
+                                        null
+                        }
+                    </div>
                 </Table>
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetEventsRequest.isLoading ?
-                            "Завантаження..." :
-                            GetEventsRequest.isError ?
-                                "Помилка завантаження" :
-                                GetEventsRequest.isSuccess && GetEventsResponse?.Data.length === 0 ?
-                                    "Жодного заходу не створено" :
-                                    null
-                    }
-                </div>
             </BodyContent>
             {!!eventDeleteDialog &&
                 <DeleteDialog
@@ -207,6 +207,6 @@ export default function EventsTable() {
                     }
                 />
             }
-        </div>
+        </>
     );
 }

@@ -29,7 +29,7 @@ export default function CategoriesTable(props: CategoriesTableProps) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
     return (
-        <div className={styles.tableWrapper}>
+        <>
             <Table>
                 <TableHeader className={styles.tableHeader}>
                     <TableRow>
@@ -86,20 +86,21 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                         }
                     </TableBody>
                 }
+                <div
+                    className={styles.emptyTableBody}
+                >
+                    {
+                        GetExerciseCategoriesRequest.isLoading ?
+                            "Завантаження..." :
+                            GetExerciseCategoriesRequest.isError ?
+                                "Помилка завантаження" :
+                                GetExerciseCategoriesRequest.isSuccess && GetExerciseCategoriesResponse?.Data.length === 0 ?
+                                    "Жодної категорії не створено" :
+                                    null
+                    }
+                </div>
+
             </Table>
-            <div
-                className={styles.emptyTableBody}
-            >
-                {
-                    GetExerciseCategoriesRequest.isLoading ?
-                        "Завантаження..." :
-                        GetExerciseCategoriesRequest.isError ?
-                            "Помилка завантаження" :
-                            GetExerciseCategoriesRequest.isSuccess && GetExerciseCategoriesResponse?.Data.length === 0 ?
-                                "Жодної категорії не створено" :
-                                null
-                }
-            </div>
 
             {!!deleteExerciseCategoryDialog &&
                 <DeleteDialog
@@ -132,6 +133,6 @@ export default function CategoriesTable(props: CategoriesTableProps) {
             <DialogForm isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
                 <ExerciseCategoryForm onClose={() => setIsAddDialogOpen(false)}/>
             </DialogForm>
-        </div>
+        </>
     )
 }

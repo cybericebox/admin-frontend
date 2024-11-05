@@ -27,7 +27,7 @@ export default function UsersTable() {
     const [useDeleteDialog, setUseDeleteDialog] = useState<IUser>()
 
     return (
-        <div className={styles.tableWrapper}>
+        <>
             <BodyHeader title={"Користувачі"}>
                 <Search setSearch={setSearch} placeholder={"Знайти користувача"} key={"search"} SearchIcon={UserSearch}/>
             </BodyHeader>
@@ -70,7 +70,10 @@ export default function UsersTable() {
                                                                     },
                                                                     onError: (error) => {
                                                                         const e = error as IErrorResponse
-                                                                        ErrorToast({message: "Не вдалося змінити роль користувача", error: e})
+                                                                        ErrorToast({
+                                                                            message: "Не вдалося змінити роль користувача",
+                                                                            error: e
+                                                                        })
                                                                     }
                                                                 })}
                                                             >
@@ -95,22 +98,22 @@ export default function UsersTable() {
                             }
                         </TableBody>
                     }
+                    <div
+                        className={styles.emptyTableBody}
+                    >
+                        {
+                            GetUsersRequest.isLoading ?
+                                "Завантаження..." :
+                                GetUsersRequest.isError ?
+                                    "Помилка завантаження" :
+                                    GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length != 0 ?
+                                        "Користувачів за запитом не знайдено" :
+                                        GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length === 0 ?
+                                            "Жодного користувача не зареєстровано" :
+                                            null
+                        }
+                    </div>
                 </Table>
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetUsersRequest.isLoading ?
-                            "Завантаження..." :
-                            GetUsersRequest.isError ?
-                                "Помилка завантаження" :
-                                GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length != 0 ?
-                                    "Користувачів за запитом не знайдено" :
-                                    GetUsersRequest.isSuccess && GetUsersResponse?.Data.length === 0 && search.length === 0 ?
-                                        "Жодного користувача не зареєстровано" :
-                                        null
-                    }
-                </div>
                 {!!useDeleteDialog &&
                     <DeleteDialog
                         isOpen={!!useDeleteDialog}
@@ -131,6 +134,6 @@ export default function UsersTable() {
                     />
                 }
             </BodyContent>
-        </div>
+        </>
     );
 }
