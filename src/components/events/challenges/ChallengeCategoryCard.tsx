@@ -9,7 +9,7 @@ import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
 import CategoryNameInput from "@/components/events/challenges/CategoryNameInput";
 import {Draggable, Droppable} from "@hello-pangea/dnd";
 import {cn} from "@/utils/cn";
-import DialogForm from "@/components/common/DialogForm";
+import DialogForm from "@/components/common/form/DialogForm";
 import SelectChallengesForm from "@/components/events/challenges/SelectChallengeForm";
 import toast from "react-hot-toast";
 import {IErrorResponse} from "@/types/api";

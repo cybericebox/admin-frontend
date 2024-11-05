@@ -1,11 +1,10 @@
 "use client";
-import UsersTable from "@/components/users/UsersTable";
 import {Page, PageBody, PageHeader} from "@/components/common/page";
 import {GoToCard} from "@/components/common";
 import {Plus, UserRoundPlus} from "lucide-react";
-import DialogForm from "@/components/common/DialogForm";
+import {DialogForm} from "@/components/common/form";
 import {useState} from "react";
-import InviteUsersForm from "@/components/users/InviteUsersForm";
+import {Users, InviteUsersForm} from "@/components/users";
 
 
 export default function UsersPage() {
@@ -22,7 +21,7 @@ export default function UsersPage() {
                 />
             </PageHeader>
             <PageBody>
-                <UsersTable/>
+                <Users/>
                 <DialogForm isOpen={openDialogForm} onClose={() => setOpenDialogForm(false)}>
                     <InviteUsersForm onClose={() => setOpenDialogForm(false)}/>
                 </DialogForm>

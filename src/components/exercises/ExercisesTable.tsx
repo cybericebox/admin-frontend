@@ -3,13 +3,13 @@
 import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import React, {useState} from "react";
-import {IExercise, IExerciseCategory} from "@/types/exercise";
+import type {IExercise, IExerciseCategory} from "@/types/exercise";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import {useExercise} from "@/hooks/useExercise";
 import Link from "next/link";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
 import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
+import {type IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
 
 interface ExercisesTableProps {

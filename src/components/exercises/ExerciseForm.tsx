@@ -1,5 +1,5 @@
 "use client"
-import {SubmitHandler, useFieldArray, useForm} from "react-hook-form";
+import {type SubmitHandler, useFieldArray, useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
@@ -7,23 +7,23 @@ import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {FormButtons, FormFields, FormProvider} from "@/components/common/form";
-import {ExerciseSchema, IExercise} from "@/types/exercise";
+import {ExerciseSchema, type IExercise} from "@/types/exercise";
 import {useExercise} from "@/hooks/useExercise";
 import {Input} from "@/components/ui/input";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
 import React, {useState} from "react";
-import ExerciseInstanceForm from "@/components/exercises/ExerciseInstanceForm";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
-import ExerciseFileForm, {AddExerciseFileButton} from "@/components/exercises/ExerciseFileForm";
-import ExerciseTaskForm from "@/components/exercises/ExerciseTaskForm";
+import ExerciseFileForm, {AddExerciseFileButton} from "./ExerciseFileForm";
+import ExerciseInstanceForm from "./ExerciseInstanceForm";
+import ExerciseTaskForm from "./ExerciseTaskForm";
 import {cn} from "@/utils/cn";
 import TextEditor from "@/components/common/editor";
 import {AccordionHeader} from "@radix-ui/react-accordion";
-import ExerciseCategoryForm from "@/components/exercises/CategoryForm";
+import ExerciseCategoryForm from "./CategoryForm";
 import {DialogForm} from "@/components/common";
 import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
+import {type IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
 import {invalidateTag} from "@/api/serverAPI";
 

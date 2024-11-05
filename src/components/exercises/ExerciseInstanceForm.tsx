@@ -1,6 +1,6 @@
 import {FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Input} from "@/components/ui/input";
-import {useFieldArray, UseFieldArrayRemove, UseFormReturn} from "react-hook-form";
+import {useFieldArray, type UseFieldArrayRemove, type UseFormReturn} from "react-hook-form";
 import * as z from "zod";
 import {ExerciseSchema} from "@/types/exercise";
 import {Button} from "@/components/ui/button";

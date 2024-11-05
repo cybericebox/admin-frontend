@@ -1,6 +1,6 @@
 import {GoToCard} from "@/components/common";
 import {Page, PageBody, PageHeader} from "@/components/common/page";
-import Exercises from "@/components/exercises/Exercises";
+import {Exercises} from "@/components/exercises";
 import {Flag, Plus} from "lucide-react";
 
 export default function ExercisesPage() {

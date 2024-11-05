@@ -20,6 +20,7 @@ export default function DeleteIcon(props: DeleteIconProps) {
                 aria-label={props.title}
                 data-tooltip-content={showTooltip && props.title}
                 data-tooltip-id={showTooltip && "tooltip"}
+                data-tooltip-hidden={!showTooltip}
         />
     )
 }

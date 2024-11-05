@@ -1,16 +1,16 @@
 "use client"
-import {SubmitHandler, useForm} from "react-hook-form";
+import {type SubmitHandler, useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Button} from "@/components/ui/button";
 import {BodyHeader} from "@/components/common/page";
-import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
+import {ExerciseCategorySchema, type IExerciseCategory} from "@/types/exercise";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
 import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
+import {type IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
 import {FormProvider, FormFields, FormButtons} from "@/components/common/form";
 

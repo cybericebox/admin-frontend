@@ -16,7 +16,6 @@ export default function DownloadIcon(props: DownloadIconProps) {
             onClick={props.onClick}
             aria-label={props.title}
             data-tooltip-content={props.title}
-
             data-tooltip-id="tooltip"
         />
     )

@@ -5,21 +5,21 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
-import {Search, EditIcon} from "@/components/common";
+import {EditIcon} from "@/components/common";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {useUser} from "@/hooks/useUser";
-import {AuthenticatedClient} from "@/hooks/auth";
-import {BodyContent, BodyHeader} from "@/components/common/page";
+import {ClientAuthentication} from "@/hooks/auth";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
-import {UserSearch} from "lucide-react";
 import toast from "react-hot-toast";
 import {IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";
 
-export default function UsersTable() {
-    const currentUser = AuthenticatedClient();
-    const [search, setSearch] = useState("")
+interface UsersTableProps {
+    search: string
+}
 
+export default function UsersTable({search}: UsersTableProps) {
+    const currentUser = ClientAuthentication();
     const {GetUsersResponse, GetUsersRequest} = useUser().useGetUsers({search});
     const {UpdateUserRole} = useUser().useUpdateUserRole();
     const {DeleteUser} = useUser().useDeleteUser();
@@ -28,10 +28,6 @@ export default function UsersTable() {
 
     return (
         <>
-            <BodyHeader title={"Користувачі"}>
-                <Search setSearch={setSearch} placeholder={"Знайти користувача"} key={"search"} SearchIcon={UserSearch}/>
-            </BodyHeader>
-            <BodyContent>
                 <Table>
                     <TableHeader className={styles.tableHeader}>
                         <TableRow className={"hover:bg-transparent"}>
@@ -133,7 +129,6 @@ export default function UsersTable() {
                         }}
                     />
                 }
-            </BodyContent>
         </>
     );
 }

@@ -3,9 +3,9 @@ import Image from "next/image";
 import axios from "axios";
 import {DeleteIcon} from "@/components/common/delete";
 import {useEvent} from "@/hooks/useEvent";
-import DownloadIcon from "@/components/common/DownloadIcon";
+import DownloadIcon from "@/components/common/icons/DownloadIcon";
 import Loader from "@/components/common/Loader";
-import UndoIcon from "@/components/common/UndoIcon";
+import UndoIcon from "@/components/common/icons/UndoIcon";
 import type {ControllerFieldState, ControllerRenderProps} from "react-hook-form";
 import type {IEvent} from "@/types/event";
 

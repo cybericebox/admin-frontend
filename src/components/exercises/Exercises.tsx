@@ -2,9 +2,9 @@
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import type React from "react";
 import {useState} from "react";
-import CategoriesTable from "@/components/exercises/CategoriesTable";
+import CategoriesTable from "./CategoriesTable";
 import {IExerciseCategory} from "@/types/exercise";
-import ExercisesTable from "@/components/exercises/ExercisesTable";
+import ExercisesTable from "./ExercisesTable";
 import {Search} from "@/components/common";
 
 export default function Exercises() {

@@ -7,7 +7,7 @@ import {useExerciseCategory} from "@/hooks/useExerciseCategory";
 import {IExerciseCategory} from "@/types/exercise";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import {AddIcon, DialogForm} from "@/components/common";
-import ExerciseCategoryForm from "@/components/exercises/CategoryForm";
+import ExerciseCategoryForm from "./CategoryForm";
 import toast from "react-hot-toast";
 import {IErrorResponse} from "@/types/api";
 import {ErrorToast} from "@/components/common/errorToast";

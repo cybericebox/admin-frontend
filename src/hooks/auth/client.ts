@@ -4,7 +4,7 @@ import {IAuthenticated} from "@/types/auth";
 
 const permissionsTokenField = "permissionsToken"
 
-export function AuthenticatedClient(): IAuthenticated {
+export function ClientAuthentication(): IAuthenticated {
     const token = getCookie(permissionsTokenField) || ""
     try {
         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());

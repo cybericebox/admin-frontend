@@ -1,6 +1,6 @@
 import {getExerciseFn} from "@/api/serverAPI";
 import {Page, PageBody} from "@/components/common/page";
-import ExerciseForm from "@/components/exercises/ExerciseForm";
+import {ExerciseForm} from "@/components/exercises";
 import NotFound from "@/app/not-found";
 
 interface ExercisePageProps {
