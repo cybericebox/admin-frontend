@@ -86,3 +86,33 @@ export const TeamInfoSchema = z.object({
 
 export interface ITeamInfo extends z.infer<typeof TeamInfoSchema> {
 }
+
+export enum ParticipationStatusEnum {
+    NoParticipationStatus = 0,
+    PendingParticipationStatus = 1,
+    ApprovedParticipationStatus = 2,
+    RejectedParticipationStatus = 3,
+}
+
+export const ParticipationStatusNameEnum = {
+    [ParticipationStatusEnum.NoParticipationStatus]: "Не бере участі",
+    [ParticipationStatusEnum.PendingParticipationStatus]: "Очікує на затвердження",
+    [ParticipationStatusEnum.ApprovedParticipationStatus]: "Затверджено",
+    [ParticipationStatusEnum.RejectedParticipationStatus]: "Відхилено",
+}
+
+export const ParticipantSchema = z.object({
+    EventID: z.string().uuid(),
+    UserID: z.string().uuid(),
+    TeamID: z.string().uuid().optional().or(z.string().nullable()),
+
+    Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Імʼя має складатися хоча б з 2 символів"}).max(255, {message: "Імʼя має складатися не більше ніж з 255 символів"}),
+    Email: z.string({required_error: "Поле має бути заповненим"}).email({message: "Введіть коректний email"}),
+
+    ApprovalStatus: z.nativeEnum(ParticipationStatusEnum, {message: "Оберіть статус участі"}),
+
+    CreatedAt: z.coerce.date().optional(),
+})
+
+export interface IParticipant extends z.infer<typeof ParticipantSchema> {
+}

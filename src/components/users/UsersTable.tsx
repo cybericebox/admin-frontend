@@ -5,7 +5,6 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
-import {EditIcon} from "@/components/common";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {useUser} from "@/hooks/useUser";
 import {ClientAuthentication} from "@/hooks/auth";
@@ -49,11 +48,14 @@ export default function UsersTable({search}: UsersTableProps) {
                                             <TableCell>{user.Name}</TableCell>
                                             <TableCell>{user.Email}</TableCell>
                                             <TableCell className={styles.editButton}>
-                                                {user.Role}
-                                                {currentUser.ID != user.ID &&
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger>
-                                                            <EditIcon title={"Змінити роль користувача"}/>
+                                                        <DropdownMenuTrigger
+                                                            data-tooltip-id={"tooltip"}
+                                                            data-tooltip-content={"Змінити роль користувача"}
+                                                            data-tooltip-hidden={currentUser.ID === user.ID }
+                                                            disabled={currentUser.ID === user.ID}
+                                                        >
+                                                            {user.Role}
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent>
                                                             <DropdownMenuItem
@@ -76,7 +78,7 @@ export default function UsersTable({search}: UsersTableProps) {
                                                                 {user.Role === UserRoleEnum.User ? "Зробити адміністратором" : "Зробити користувачем"}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
-                                                    </DropdownMenu>}
+                                                    </DropdownMenu>
                                             </TableCell>
                                             <TableCell>
                                                 {currentUser.ID != user.ID && moment(user.LastSeen).fromNow()}</TableCell>

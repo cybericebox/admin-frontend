@@ -3,7 +3,7 @@ import {IInviteUsers, IUser, UserSchema} from "@/types/user";
 import {deleteUserFn, getUsersFn, inviteUsersFn, updateUserRoleFn} from "@/api/userAPI";
 import {z} from "zod";
 
-const useGetUsers = ({search}: { search: string }) => {
+const useGetUsers = ({search}: { search?: string }) => {
     const {data: GetUsersResponse, isLoading, isError, isSuccess, error} = useQuery({
         queryKey: ['users', search],
         queryFn: () => getUsersFn(search),

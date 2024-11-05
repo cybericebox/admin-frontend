@@ -1,5 +1,5 @@
 import type {ITeamInfo} from "@/types/event";
-import {AxiosResponse} from "axios";
+import type {AxiosResponse} from "axios";
 import type {IResponse} from "@/types/api";
 import {baseAPI} from "@/api/baseAPI";
 

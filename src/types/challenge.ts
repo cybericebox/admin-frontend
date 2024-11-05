@@ -43,3 +43,18 @@ export interface ICreateEventChallenge {
     CategoryID: string;
     ExerciseIDs: string[];
 }
+
+export const ChallengeSolutionAttemptSchema = z.object({
+  ID: z.string().uuid(),
+    EventID: z.string().uuid(),
+    ChallengeID: z.string().uuid(),
+    TeamID: z.string().uuid(),
+    ParticipantID: z.string().uuid(),
+    Answer: z.string(),
+    Flag : z.string(),
+    IsCorrect: z.boolean(),
+    Timestamp: z.coerce.date(),
+})
+
+export interface IEventChallengeSolutionAttempt extends z.infer<typeof ChallengeSolutionAttemptSchema> {
+}

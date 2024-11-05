@@ -101,6 +101,7 @@ const useGetUploadExerciseFileData = () => {
             return data.data
         },
         enabled: false,
+        staleTime: 0,
     })
     const GetUploadExerciseFileDataRequest = {
         isLoading,

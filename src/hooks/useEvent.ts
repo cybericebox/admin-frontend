@@ -101,6 +101,7 @@ const useGetUploadEventBannerData = () => {
             return data.data
         },
         enabled: false,
+        staleTime: 0,
     })
 
     const GetUploadEventBannerDataRequest = {

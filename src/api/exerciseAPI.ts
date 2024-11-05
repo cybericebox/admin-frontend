@@ -1,8 +1,8 @@
 import type {IExercise} from "@/types/exercise";
 import {baseAPI} from "@/api/baseAPI";
 import type {AxiosResponse} from "axios";
-import {IDownloadFileURL, IUploadFileData} from "@/types/common";
-import {IResponse} from "@/types/api";
+import type {IDownloadFileURL, IUploadFileData} from "@/types/common";
+import type {IResponse} from "@/types/api";
 
 export const getExercisesFn = async (search: string): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
     return await baseAPI.get(`/exercises?${search && "search=" + search}`);

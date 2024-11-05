@@ -1,7 +1,7 @@
 'use server'
 import {cookies} from "next/headers";
-import {EventSchema, IEvent} from "@/types/event";
-import {ExercisePreprocessedSchema, IExercise} from "@/types/exercise";
+import {EventSchema, type IEvent} from "@/types/event";
+import {ExercisePreprocessedSchema, type IExercise} from "@/types/exercise";
 import type {IResponse} from "@/types/api";
 import {revalidateTag} from "next/cache";
 

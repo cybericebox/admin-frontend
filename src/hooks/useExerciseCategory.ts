@@ -36,7 +36,7 @@ const useGetExerciseCategories = () => {
 
 const useGetExerciseCategory = (id: string) => {
     const {data: GetExerciseCategoryResponse, isLoading, isError, isSuccess, error} = useQuery({
-        queryKey: ['exerciseCategory', id],
+        queryKey: ['exerciseCategories', id],
         queryFn: () => getExerciseCategoryFn(id),
         enabled: !!id,
         select: (data) => {

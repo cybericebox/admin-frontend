@@ -1,7 +1,7 @@
-import {ICreateEventChallenge, IEventChallenge, IOrder} from "@/types/challenge";
+import type {ICreateEventChallenge, IEventChallenge, IOrder} from "@/types/challenge";
 import type {AxiosResponse} from "axios";
 import {baseAPI} from "@/api/baseAPI";
-import {IResponse} from "@/types/api";
+import type {IResponse} from "@/types/api";
 
 export const getEventChallengesFn = async (eventID: string): Promise<AxiosResponse<IResponse<IEventChallenge[]>, any>> => {
     return await baseAPI.get(`/events/${eventID}/challenges`);

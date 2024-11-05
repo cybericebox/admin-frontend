@@ -1,15 +1,16 @@
 import {Page, PageBody, PageHeader} from "@/components/common/page";
 import {GoToCard} from "@/components/common"
-import EventTeamsTable from "@/components/events/teams/EventTeamsTable";
-import {ArrowRight, Calendar, Flag, UsersRound} from "lucide-react";
+import {ArrowRight, Calendar, Flag} from "lucide-react";
+import EventChallengeSolutionAttemptsTable
+    from "@/components/events/challenges/solutions/EventChallengeSolutionAttemptsTable";
 
-interface EventTeamsPageProps {
+interface EventChallengeSolutionsPageProps {
     params: {
         id: string;
     };
 }
 
-export default function EventTeamsPage({params: {id}}: EventTeamsPageProps) {
+export default function EventChallengeSolutionsPage({params: {id}}: EventChallengeSolutionsPageProps) {
     return (
         <Page>
             <PageHeader>
@@ -21,22 +22,15 @@ export default function EventTeamsPage({params: {id}}: EventTeamsPageProps) {
                     to={`/events/${id}`}
                 />
                 <GoToCard
-                    DescIcon={UsersRound}
-                    LinkIcon={ArrowRight}
-                    title={"Реєстрація учасників"}
-                    description={"Переглянути реєстрацію учасників"}
-                    to={`/events/${id}/participants`}
-                />
-                <GoToCard
                     DescIcon={Flag}
                     LinkIcon={ArrowRight}
-                    title={"Завдання"}
-                    description={"Переглянути завданнь заходу"}
+                    title={"Повернутися до завдань"}
+                    description={"Повернутися до завдань заходу"}
                     to={`/events/${id}/challenges`}
                 />
             </PageHeader>
             <PageBody>
-                <EventTeamsTable eventID={id}/>
+                <EventChallengeSolutionAttemptsTable eventID={id}/>
             </PageBody>
         </Page>
     );

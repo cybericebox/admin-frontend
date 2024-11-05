@@ -1,8 +1,8 @@
 import type {IEvent} from "@/types/event";
 import type {AxiosResponse} from "axios";
 import {baseAPI} from "@/api/baseAPI";
-import {IUploadFileData} from "@/types/common";
-import {IResponse} from "@/types/api";
+import type {IUploadFileData} from "@/types/common";
+import type {IResponse} from "@/types/api";
 
 export const getEventsFn = async (): Promise<AxiosResponse<IResponse<IEvent[]>, any>> => {
     return await baseAPI.get('/events')
