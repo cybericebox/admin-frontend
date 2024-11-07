@@ -2,7 +2,7 @@
 import {useQuery} from "@tanstack/react-query";
 import {getEventTeamsFn} from "@/api/eventTeamAPI";
 import {z} from "zod";
-import {TeamInfoSchema} from "@/types/event";
+import {TeamSchema} from "@/types/event";
 
 const useGetEventTeams = (eventID: string) => {
     const {
@@ -16,7 +16,7 @@ const useGetEventTeams = (eventID: string) => {
         queryFn: () => getEventTeamsFn(eventID),
         enabled: !!eventID,
         select: (data) => {
-            const res = z.array(TeamInfoSchema).safeParse(data.data.Data)
+            const res = z.array(TeamSchema).safeParse(data.data.Data)
             if (!res.success) {
                 throw new Error("Invalid response")
             } else {

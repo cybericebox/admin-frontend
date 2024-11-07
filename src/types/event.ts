@@ -79,12 +79,21 @@ export const EventSchema = z.object({
 export interface IEvent extends z.infer<typeof EventSchema> {
 }
 
-export const TeamInfoSchema = z.object({
-    ID: z.string().uuid(),
+export const TeamSchema = z.object({
+    ID: z.string().uuid().optional(),
     Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Назва має складатися хоча б з 2 символів"}).max(255, {message: "Назва має складатися не більше ніж з 255 символів"}),
+
+    ParticipantsCount: z.number().int().optional(),
+
+    // score
+    Rank: z.number().int().optional(),
+    Score: z.number().int().optional(),
+    SolvedChallengesCount: z.number().int().optional(),
+
+    CreatedAt: z.coerce.date().optional(),
 })
 
-export interface ITeamInfo extends z.infer<typeof TeamInfoSchema> {
+export interface ITeam extends z.infer<typeof TeamSchema> {
 }
 
 export enum ParticipationStatusEnum {

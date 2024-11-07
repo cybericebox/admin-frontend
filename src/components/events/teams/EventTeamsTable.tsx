@@ -26,6 +26,10 @@ export default function EventTeamsTable({eventID}: EventTeamsTableProps) {
                     <TableHeader className={styles.tableHeader}>
                         <TableRow>
                             <TableHead>{GetEventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Імʼя" : "Назва"}</TableHead>
+                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team && <TableHead className={"text-center"}>Кількість учасників</TableHead>}
+                            <TableHead className={"text-center"}>Рейтинг</TableHead>
+                            <TableHead className={"text-center"}>Бали</TableHead>
+                            <TableHead className={"text-center"}>Кількість вирішених завдань</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -38,6 +42,18 @@ export default function EventTeamsTable({eventID}: EventTeamsTableProps) {
                                         <TableRow key={team.ID}>
                                             <TableCell>
                                                 {team.Name}
+                                            </TableCell>
+                                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team && <TableCell className={"text-center"}>
+                                                {team.ParticipantsCount}
+                                            </TableCell>}
+                                            <TableCell className={"text-center"}>
+                                                {team.Rank || "-"}
+                                            </TableCell>
+                                            <TableCell className={"text-center"}>
+                                                {team.Score || "-"}
+                                            </TableCell>
+                                            <TableCell className={"text-center"}>
+                                                {team.SolvedChallengesCount || "-"}
                                             </TableCell>
                                             <TableCell>
 
