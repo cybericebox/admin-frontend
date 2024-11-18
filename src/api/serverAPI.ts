@@ -4,6 +4,7 @@ import {EventSchema, type IEvent} from "@/types/event";
 import {ExercisePreprocessedSchema, type IExercise} from "@/types/exercise";
 import type {IResponse} from "@/types/api";
 import {revalidateTag} from "next/cache";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
     const response = await fetch(`https://admin.${process.env.NEXT_PUBLIC_DOMAIN}/api/events/${id}`, {
@@ -13,17 +14,15 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        next: {
-            revalidate: 3600, // 1 hour
-            tags: [`/events/${id}`]
-        }
+        cache: 'no-store',
     })
     if (response.ok) {
         // parse the response
         const data = await response.json() as IResponse<IEvent>;
         const res = EventSchema.safeParse(data.Data);
         if (!res.success) {
-            throw new Error("Invalid response");
+            console.log(res.error)
+            throw ErrorInvalidResponseData
         } else {
             data.Data = res.data;
         }
@@ -40,17 +39,15 @@ export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> =
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        next: {
-            revalidate: 3600, // 1 hour
-            tags: [`/exercises${id}`]
-        }
+        cache: 'no-store',
     })
     if (response.ok) {
         // parse the response
         const data = await response.json() as IResponse<IExercise>;
         const res = ExercisePreprocessedSchema.safeParse(data.Data);
         if (!res.success) {
-            throw new Error("Invalid response");
+            console.log(res.error)
+            throw ErrorInvalidResponseData
         } else {
             data.Data = res.data;
         }
