@@ -6,6 +6,7 @@ import {
     updateEventChallengeSolutionAttemptStatusFn
 } from "@/api/eventChallengeSolutionAPI";
 import {ChallengeSolutionAttemptSchema, type IEventChallengeSolutionAttempt} from "@/types/challenge";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetEventChallengeSolutionAttempts = (eventID: string) => {
     const {
@@ -21,7 +22,8 @@ const useGetEventChallengeSolutionAttempts = (eventID: string) => {
         select: (data) => {
             const res = z.array(ChallengeSolutionAttemptSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

@@ -8,6 +8,7 @@ import {
 import {ChallengeSchema, ICreateEventChallenge, IEventChallenge, IOrder} from "@/types/challenge";
 import {getEventChallengeCategoriesFn} from "@/api/eventCategoryChallengeAPI";
 import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetEventChallenges = (eventID: string) => {
     const queryClient = useQueryClient();
@@ -24,7 +25,8 @@ const useGetEventChallenges = (eventID: string) => {
         select: (data) => {
             const res = z.array(ChallengeSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

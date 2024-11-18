@@ -9,6 +9,7 @@ import {
 } from "@/api/exerciseCategoryAPI";
 import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
 import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetExerciseCategories = () => {
     const {data: GetExerciseCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
@@ -17,7 +18,8 @@ const useGetExerciseCategories = () => {
         select: (data) => {
             const res = z.array(ExerciseCategorySchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -42,7 +44,8 @@ const useGetExerciseCategory = (id: string) => {
         select: (data) => {
             const res = ExerciseCategorySchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

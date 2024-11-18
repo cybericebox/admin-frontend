@@ -7,6 +7,7 @@ import {
     getEventParticipantsFn,
     updateEventParticipantStatusFn, updateEventParticipantTeamFn
 } from "@/api/eventParticipantAPI";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetEventParticipants = (eventID: string) => {
     const {
@@ -22,7 +23,8 @@ const useGetEventParticipants = (eventID: string) => {
         select: (data) => {
             const res = z.array(ParticipantSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

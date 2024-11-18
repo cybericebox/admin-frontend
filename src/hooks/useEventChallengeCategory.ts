@@ -11,6 +11,7 @@ import {ChallengeCategorySchema, IEventChallengeCategory, IOrder} from "@/types/
 import {forEach} from "lodash";
 import {IResponse} from "@/types/api";
 import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetEventChallengeCategories = (eventID: string) => {
     const {data: GetEventChallengeCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
@@ -20,7 +21,8 @@ const useGetEventChallengeCategories = (eventID: string) => {
         select: (data) => {
             const res = z.array(ChallengeCategorySchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

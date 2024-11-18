@@ -10,7 +10,7 @@ import {
 } from "@/api/exerciseAPI";
 import {ExercisePreprocessedSchema, IExercise} from "@/types/exercise";
 import {z} from "zod";
-import {DownloadFileURLSchema, UploadFileDataSchema} from "@/types/common";
+import {DownloadFileURLSchema, ErrorInvalidResponseData, UploadFileDataSchema} from "@/types/common";
 
 interface GetExercisesParams {
     search: string,
@@ -25,7 +25,8 @@ const useGetExercises = ({search, categoryID, filter}: GetExercisesParams) => {
         select: (data) => {
             const res = z.array(ExercisePreprocessedSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -62,7 +63,8 @@ const useGetExercise = (id: string) => {
         select: (data) => {
             const res = ExercisePreprocessedSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -93,7 +95,8 @@ const useGetUploadExerciseFileData = () => {
         select: (data) => {
             const res = UploadFileDataSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -126,7 +129,8 @@ const useGetDownloadExerciseFileData = (exerciseID: string, fileID: string, file
         select: (data) => {
             const res = DownloadFileURLSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

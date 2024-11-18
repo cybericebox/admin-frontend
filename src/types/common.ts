@@ -16,3 +16,5 @@ export type IDownloadFileURL = z.infer<typeof DownloadFileURLSchema>
 export const TextEditorSchema = z.string().refine((value) => {
     return value.startsWith("<!-- Valid -->")
 })
+
+export const ErrorInvalidResponseData = Error("Отримано помилкові дані від серверу. Будь ласка, зверніться до адміністратора.")

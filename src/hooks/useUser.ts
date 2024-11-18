@@ -2,6 +2,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {IInviteUsers, IUser, UserSchema} from "@/types/user";
 import {deleteUserFn, getUsersFn, inviteUsersFn, updateUserRoleFn} from "@/api/userAPI";
 import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetUsers = ({search}: { search?: string }) => {
     const {data: GetUsersResponse, isLoading, isError, isSuccess, error} = useQuery({
@@ -10,9 +11,8 @@ const useGetUsers = ({search}: { search?: string }) => {
         select: (data) => {
             const res = z.array(UserSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response", {
-                    cause: res.error
-                })
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }

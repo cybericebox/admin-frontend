@@ -11,7 +11,7 @@ import {
     updateEventFn
 } from "@/api/eventAPI";
 import {z} from "zod";
-import {DownloadFileURLSchema, UploadFileDataSchema} from "@/types/common";
+import {DownloadFileURLSchema, ErrorInvalidResponseData, UploadFileDataSchema} from "@/types/common";
 
 const useGetEvents = () => {
     const {
@@ -26,7 +26,7 @@ const useGetEvents = () => {
         select: (data) => {
             const res = z.array(EventSchema).safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -60,7 +60,8 @@ const useGetEvent = (id?: string) => {
         select: (data) => {
             const res = EventSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -93,7 +94,8 @@ const useGetUploadEventBannerData = () => {
         select: (data) => {
             const res = UploadFileDataSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
@@ -128,7 +130,8 @@ const useGetDownloadEventBannerData = (id: string) => {
         select: (data) => {
             const res = DownloadFileURLSchema.safeParse(data.data.Data)
             if (!res.success) {
-                throw new Error("Invalid response")
+                console.log(res.error)
+                throw ErrorInvalidResponseData
             } else {
                 data.data.Data = res.data
             }
