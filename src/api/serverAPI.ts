@@ -10,7 +10,7 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Cookie': cookies().toString()
+            'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
         next: {
@@ -37,7 +37,7 @@ export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> =
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Cookie': cookies().toString()
+            'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
         next: {

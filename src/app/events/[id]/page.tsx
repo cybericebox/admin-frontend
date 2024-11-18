@@ -8,12 +8,18 @@ import {ParticipationTypeEnum} from "@/types/event";
 
 
 interface EventPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default async function EventPage({params: {id}}: EventPageProps) {
+export default async function EventPage(props: EventPageProps) {
+    const params = await props.params;
+
+    const {
+        id
+    } = params;
+
     const eventResponse = await getEventFn(id);
     // If the event is not found, return the NotFound page
     if (eventResponse?.Status?.Code === 30000) {

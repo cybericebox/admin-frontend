@@ -5,12 +5,18 @@ import EventChallengeSolutionAttemptsTable
     from "@/components/events/challenges/solutions/EventChallengeSolutionAttemptsTable";
 
 interface EventChallengeSolutionsPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default function EventChallengeSolutionsPage({params: {id}}: EventChallengeSolutionsPageProps) {
+export default async function EventChallengeSolutionsPage(props: EventChallengeSolutionsPageProps) {
+    const params = await props.params;
+
+    const {
+        id
+    } = params;
+
     return (
         <Page>
             <PageHeader>

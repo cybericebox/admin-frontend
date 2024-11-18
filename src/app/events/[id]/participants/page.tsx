@@ -7,12 +7,18 @@ import {getEventFn} from "@/api/serverAPI";
 import NotFound from "@/app/not-found";
 
 interface EventParticipantsPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default async function EventParticipantsPage({params: {id}}: EventParticipantsPageProps) {
+export default async function EventParticipantsPage(props: EventParticipantsPageProps) {
+    const params = await props.params;
+
+    const {
+        id
+    } = params;
+
     const eventResponse = await getEventFn(id);
     // If the event is not found, return the NotFound page
     if (eventResponse?.Status?.Code === 30000) {

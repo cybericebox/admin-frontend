@@ -5,7 +5,7 @@ import {IAuthenticated} from "@/types/auth";
 const permissionsTokenField = "permissionsToken"
 
 export async function ServerAuthentication(): Promise<IAuthenticated> {
-    const token = cookies().get(permissionsTokenField)?.value || ""
+    const token = (await cookies()).get(permissionsTokenField)?.value || ""
     try {
         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
         const userID = payload?.sub

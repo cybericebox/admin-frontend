@@ -4,12 +4,18 @@ import {ExerciseForm} from "@/components/exercises";
 import NotFound from "@/app/not-found";
 
 interface ExercisePageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default async function ExercisePage({params: {id}}: ExercisePageProps) {
+export default async function ExercisePage(props: ExercisePageProps) {
+    const params = await props.params;
+
+    const {
+        id
+    } = params;
+
     const exerciseResponse = await getExerciseFn(id);
     // If the exercise is not found, return the NotFound page
     if (exerciseResponse?.Status?.Code === 30000) {

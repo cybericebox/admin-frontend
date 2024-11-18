@@ -4,12 +4,18 @@ import EventTeamsTable from "@/components/events/teams/EventTeamsTable";
 import {ArrowRight, Calendar, Flag, UsersRound} from "lucide-react";
 
 interface EventTeamsPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default function EventTeamsPage({params: {id}}: EventTeamsPageProps) {
+export default async function EventTeamsPage(props: EventTeamsPageProps) {
+    const params = await props.params;
+
+    const {
+        id
+    } = params;
+
     return (
         <Page>
             <PageHeader>
