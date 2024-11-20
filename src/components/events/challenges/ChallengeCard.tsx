@@ -3,10 +3,8 @@ import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import React, {useState} from "react";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {cn} from "@/utils/cn";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
 import {GripVertical} from "lucide-react";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 interface ChallengeCardProps {
     challenge: IEventChallenge
@@ -46,11 +44,10 @@ export default function ChallengeCard({challenge}: ChallengeCardProps) {
                     description={"Впевнені? Всі дані завдання будуть втрачені та не можуть бути відновлені."}
                     onDelete={() => DeleteEventChallenge(deleteEventChallengeDialog.ID!, {
                         onSuccess: () => {
-                            toast.success("Завдання успішно видалено")
+                            SuccessToast("Завдання успішно видалено")
                         },
                         onError: (error) => {
-                            const e = error as IErrorResponse
-                            ErrorToast({message: "Не вдалося видалити завдання", error: e})
+                            ErrorToast("Не вдалося видалити завдання", {cause: error})
                         }
                     })}
                 />}

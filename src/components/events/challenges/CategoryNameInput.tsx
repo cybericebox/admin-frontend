@@ -1,11 +1,9 @@
 import {Input} from "@/components/ui/input";
 import React, {useState} from "react";
-import {IEventChallengeCategory} from "@/types/challenge";
+import {type IEventChallengeCategory} from "@/types/challenge";
 import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
 import {cn} from "@/utils/cn";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 interface CategoryNameInputProps {
     category: IEventChallengeCategory
@@ -30,12 +28,11 @@ export default function CategoryNameInput({category, className}: CategoryNameInp
                     UpdateEventChallengeCategory({...category, Name: name}, {
                         onSuccess: () => {
                             setActive?.(false)
-                            toast.success("Назву категорії успішно змінено")
+                            SuccessToast("Назву категорії успішно змінено")
                         },
                         onError: (error) => {
                             setName(category.Name)
-                            const e = error as IErrorResponse
-                            ErrorToast({message: "Не вдалося змінити назву категорії", error: e})
+                            ErrorToast("Не вдалося змінити назву категорії", {cause: error})
                         }
                     })
                 }

@@ -4,8 +4,16 @@ import type {AxiosResponse} from "axios";
 import type {IDownloadFileURL, IUploadFileData} from "@/types/common";
 import type {IResponse} from "@/types/api";
 
-export const getExercisesFn = async (search: string): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
-    return await baseAPI.get(`/exercises?${search && "search=" + search}`);
+interface getExerciseParams {
+    search: string
+    page: number
+}
+
+export const getExercisesFn = async ({
+                                         search,
+                                         page
+                                     }: getExerciseParams): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
+    return await baseAPI.get(`/exercises?page=${page}${search && "&search=" + search}`);
 }
 
 export const getExerciseFn = async (id: string): Promise<AxiosResponse<IResponse<IExercise>, any>> => {

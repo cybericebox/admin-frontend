@@ -11,10 +11,9 @@ import {Draggable, Droppable} from "@hello-pangea/dnd";
 import {cn} from "@/utils/cn";
 import DialogForm from "@/components/common/form/DialogForm";
 import SelectChallengesForm from "@/components/events/challenges/SelectChallengeForm";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
 import {GripVertical} from "lucide-react";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+
 
 interface ChallengeCategoryCardProps {
     category: IEventChallengeCategory
@@ -96,7 +95,7 @@ export default function ChallengeCategoryCard({category, index}: ChallengeCatego
                     </div>
                     <DialogForm isOpen={isSelectChallengesDialogOpen}
                                 onClose={() => setIsSelectChallengesDialogOpen(false)}
-                                className={"max-w-fit"}>
+                                className={"h-[80dvh] p-2 sm:p-6 max-w-full sm:max-w-[80dvw]"}>
                         <SelectChallengesForm eventID={category.EventID} categoryID={category.ID!}
                                               onCancel={() => setIsSelectChallengesDialogOpen(false)}/>
                     </DialogForm>
@@ -108,11 +107,10 @@ export default function ChallengeCategoryCard({category, index}: ChallengeCatego
                             description={"Впевнені? Всі дані категорії включаючи завдання будуть втрачені та не можуть бути відновлені."}
                             onDelete={() => DeleteEventChallengeCategory(deleteEventChallengeCategoryDialog.ID!, {
                                 onSuccess: () => {
-                                    toast.success("Категорію успішно видалено")
+                                    SuccessToast("Категорію успішно видалено")
                                 },
                                 onError: (error) => {
-                                    const e = error as IErrorResponse
-                                    ErrorToast({message: "Не вдалося видалити категорію", error: e})
+                                    ErrorToast("Не вдалося видалити категорію", {cause: error})
                                 }
                             })}
                         />

@@ -1,5 +1,5 @@
 "use client"
-import {useQuery} from "@tanstack/react-query";
+import {useInfiniteQuery} from "@tanstack/react-query";
 import {getEventTeamsFn} from "@/api/eventTeamAPI";
 import {z} from "zod";
 import {TeamSchema} from "@/types/event";
@@ -11,21 +11,36 @@ const useGetEventTeams = (eventID: string) => {
         isLoading,
         isError,
         isSuccess,
-        error
-    } = useQuery({
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['eventTeams', eventID],
-        queryFn: () => getEventTeamsFn(eventID),
+        queryFn: ({pageParam}) => getEventTeamsFn({eventID, page: pageParam}),
         enabled: !!eventID,
         select: (data) => {
-            const res = z.array(TeamSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(TeamSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
 
@@ -36,7 +51,13 @@ const useGetEventTeams = (eventID: string) => {
         error,
     }
 
-    return {GetEventTeamsResponse, GetEventTeamsRequest}
+    const GetMoreEventTeamsRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetEventTeamsResponse, GetEventTeamsRequest, GetMoreEventTeamsRequest}
 }
 
 export const useEventTeam = () => {

@@ -3,12 +3,13 @@ import {cn} from "@/utils/cn";
 
 interface PageBodyProps {
     children?: React.ReactNode
+    className?: string
 }
 
-export function PageBody({children}: PageBodyProps) {
+export function PageBody({children, className}: PageBodyProps) {
     return (
         <div
-            className="w-full h-full overflow-hidden flex-1 flex flex-col short:space-y-1 space-y-3 rounded-2xl shadow-md short:pt-1 short:pb-2 pt-2 px-4 pb-5 bg-white text-primary">
+            className={cn("w-full h-full overflow-hidden flex-1 flex flex-col short:space-y-1 space-y-3 rounded-2xl shadow-md short:pt-1 short:pb-2 pt-2 px-4 pb-5 bg-white text-primary", className)}>
             {children}
         </div>
     )

@@ -1,11 +1,13 @@
 "use client"
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQueryClient} from "@tanstack/react-query";
 import {z} from "zod";
 import {type IParticipant, ParticipantSchema,} from "@/types/event";
 import {
-    createEventParticipantFn, deleteEventParticipantFn,
+    createEventParticipantFn,
+    deleteEventParticipantFn,
     getEventParticipantsFn,
-    updateEventParticipantStatusFn, updateEventParticipantTeamFn
+    updateEventParticipantStatusFn,
+    updateEventParticipantTeamFn
 } from "@/api/eventParticipantAPI";
 import {ErrorInvalidResponseData} from "@/types/common";
 
@@ -15,21 +17,36 @@ const useGetEventParticipants = (eventID: string) => {
         isLoading,
         isError,
         isSuccess,
-        error
-    } = useQuery({
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['eventParticipants', eventID],
-        queryFn: () => getEventParticipantsFn(eventID),
+        queryFn: ({pageParam}) => getEventParticipantsFn({eventID, page: pageParam}),
         enabled: !!eventID,
         select: (data) => {
-            const res = z.array(ParticipantSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(ParticipantSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
 
@@ -40,7 +57,13 @@ const useGetEventParticipants = (eventID: string) => {
         error,
     }
 
-    return {GetEventParticipantsResponse, GetEventParticipantsRequest}
+    const GetModeEventParticipantsRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetEventParticipantsResponse, GetEventParticipantsRequest, GetModeEventParticipantsRequest}
 }
 
 const useCreateEventParticipant = () => {
@@ -57,7 +80,12 @@ const useCreateEventParticipant = () => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
         }
     })
-    return {CreateEventParticipant, CreateEventParticipantResponse, PendingCreateEventParticipant, CreateEventParticipantError}
+    return {
+        CreateEventParticipant,
+        CreateEventParticipantResponse,
+        PendingCreateEventParticipant,
+        CreateEventParticipantError
+    }
 }
 
 const useUpdateEventParticipantStatus = () => {
@@ -74,7 +102,12 @@ const useUpdateEventParticipantStatus = () => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
         }
     })
-    return {UpdateEventParticipantStatus, UpdateEventParticipantStatusResponse, PendingUpdateEventParticipantStatus, UpdateEventParticipantStatusError}
+    return {
+        UpdateEventParticipantStatus,
+        UpdateEventParticipantStatusResponse,
+        PendingUpdateEventParticipantStatus,
+        UpdateEventParticipantStatusError
+    }
 }
 
 const useUpdateEventParticipantTeam = () => {
@@ -91,7 +124,12 @@ const useUpdateEventParticipantTeam = () => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
         }
     })
-    return {UpdateEventParticipantTeam, UpdateEventParticipantTeamResponse, PendingUpdateEventParticipantTeam, UpdateEventParticipantTeamError}
+    return {
+        UpdateEventParticipantTeam,
+        UpdateEventParticipantTeamResponse,
+        PendingUpdateEventParticipantTeam,
+        UpdateEventParticipantTeamError
+    }
 }
 
 const useDeleteEventParticipant = () => {
@@ -108,7 +146,12 @@ const useDeleteEventParticipant = () => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
         }
     })
-    return {DeleteEventParticipant, DeleteEventParticipantResponse, PendingDeleteEventParticipant, DeleteEventParticipantError}
+    return {
+        DeleteEventParticipant,
+        DeleteEventParticipantResponse,
+        PendingDeleteEventParticipant,
+        DeleteEventParticipantError
+    }
 }
 
 export const useEventParticipant = () => {

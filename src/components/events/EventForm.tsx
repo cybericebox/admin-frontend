@@ -28,10 +28,7 @@ import EventBannerField from "@/components/events/EventBannerField";
 import TextEditor from "@/components/common/editor";
 import React, {useState} from "react";
 import {cn} from "@/utils/cn";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
-import {invalidateTag} from "@/api/serverAPI";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 export interface EventFormProps {
     event?: IEvent;
@@ -78,39 +75,37 @@ export default function EventForm({event}: EventFormProps) {
         if (type === "Зберегти") {
             UpdateEvent({...data}, {
                 onSuccess: () => {
-                    toast.success("Захід успішно оновлено")
+                    SuccessToast("Захід успішно оновлено")
                     form.control._resetDefaultValues()
-                    invalidateTag(`/events/${event?.ID}`)
-                    router.push("/events")
 
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося оновити захід", error: e})
+                    ErrorToast("Не вдалося оновити захід", {cause: error})
                 },
             })
         } else {
             CreateEvent({...data}, {
                 onSuccess: () => {
-                    toast.success("Захід успішно створено")
+                    SuccessToast("Захід успішно створено")
                     form.reset()
                     router.push("/events")
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося створити захід", error: e})
+                    ErrorToast("Не вдалося створити захід", {cause: error})
                 },
             })
         }
     }
 
-    // prevent page reload on form dirty
-    if (form.formState.isDirty && typeof window !== "undefined" && !window.onbeforeunload) {
-        window.onbeforeunload = () => true
-    }
-    // remove page reload on form clean
-    if (!form.formState.isDirty && typeof window !== "undefined" && window.onbeforeunload) {
-        window.onbeforeunload = null
+    if (typeof window !== "undefined") {
+        // prevent page reload on form dirty
+        if (form.formState.isDirty && !window.onbeforeunload) {
+            window.onbeforeunload = () => true
+        }
+        // remove page reload on form clean
+        if (!form.formState.isDirty && window.onbeforeunload) {
+            window.onbeforeunload = null
+        }
     }
 
     const onSwitch = (value: AccordionItemType) => {

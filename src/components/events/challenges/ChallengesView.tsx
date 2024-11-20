@@ -1,15 +1,14 @@
 "use client"
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
-import {DragDropContext, Droppable, DropResult} from "@hello-pangea/dnd"
+import {DragDropContext, Droppable, type DropResult} from "@hello-pangea/dnd"
 import {Button} from "@/components/ui/button";
-import React from "react";
+import type React from "react";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {Tooltip} from "react-tooltip";
-import {IOrder} from "@/types/challenge";
+import {type IOrder} from "@/types/challenge";
 import ChallengeCategoryCard from "@/components/events/challenges/ChallengeCategoryCard";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast} from "@/components/common/customToast";
 
 interface EventChallengesCardProps {
     eventID: string
@@ -38,8 +37,7 @@ export default function EventChallengesCard({eventID}: EventChallengesCardProps)
             EventID: eventID
         }, {
             onError: (error) => {
-                const e = error as IErrorResponse
-                ErrorToast({message: "Не вдалося створити категорію", error: e})
+                ErrorToast("Не вдалося створити категорію", {cause: error})
             },
         })
     }
@@ -76,8 +74,7 @@ export default function EventChallengesCard({eventID}: EventChallengesCardProps)
 
             UpdateEventChallengeCategoriesOrder(data, {
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося оновити порядок категорій", error: e})
+                    ErrorToast("Не вдалося оновити порядок категорій", {cause: error})
                 }
             });
         }
@@ -101,8 +98,7 @@ export default function EventChallengesCard({eventID}: EventChallengesCardProps)
 
                 UpdateEventChallengesOrder(data, {
                     onError: (error) => {
-                        const e = error as IErrorResponse
-                        ErrorToast({message: "Не вдалося оновити порядок завдань", error: e})
+                        ErrorToast("Не вдалося оновити порядок завдань", {cause: error})
                     }
                 });
 
@@ -127,8 +123,7 @@ export default function EventChallengesCard({eventID}: EventChallengesCardProps)
 
                 UpdateEventChallengesOrder(data, {
                     onError: (error) => {
-                        const e = error as IErrorResponse
-                        ErrorToast({message: "Не вдалося оновити порядок завдань", error: e})
+                        ErrorToast("Не вдалося оновити порядок завдань", {cause: error})
                     }
                 });
             }

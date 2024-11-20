@@ -1,6 +1,8 @@
 import * as React from "react"
 
 import {cn} from "@/utils/cn"
+import {Loader} from "@/components/common";
+import {ErrorHTMLMessage} from "@/components/common/customToast";
 
 const Table = React.forwardRef<
     HTMLTableElement,
@@ -20,20 +22,58 @@ const TableHeader = React.forwardRef<
     HTMLTableSectionElement,
     React.HTMLAttributes<HTMLTableSectionElement>
 >(({className, ...props}, ref) => (
-    <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+    <thead ref={ref}
+           className={cn("[&_tr]:border-b [&_tr]:hover:bg-transparent font-semibold sticky top-0 opacity-100 z-10 bg-white border-b", className)} {...props} />
 ))
 TableHeader.displayName = "TableHeader"
 
 const TableBody = React.forwardRef<
     HTMLTableSectionElement,
-    React.HTMLAttributes<HTMLTableSectionElement>
->(({className, ...props}, ref) => (
-    <tbody
+    React.HTMLAttributes<HTMLTableSectionElement> & {
+    isFetchingMoreData: boolean
+    onEmpty: {
+        isLoading: boolean
+        error: Error | null
+        hasFilter?: boolean
+        isEmpty: boolean
+        noDataMessage: string
+        noFilteredDataMessage?: string
+    }
+}
+>(({className, isFetchingMoreData, children, onEmpty, ...props}, ref) => {
+    if (onEmpty.isEmpty) {
+        return (
+            <div
+                className={cn("absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] text-center", className)}
+            >
+                {
+                    onEmpty.isLoading ?
+                        <Loader/> :
+                        !!onEmpty.error ?
+                            ErrorHTMLMessage("Помилка завантаження", onEmpty.error) :
+                            onEmpty.isEmpty && onEmpty.hasFilter ?
+                                onEmpty.noFilteredDataMessage :
+                                onEmpty.isEmpty ?
+                                    onEmpty.noDataMessage :
+                                    null
+                }
+            </div>
+        )
+    }
+    return (<tbody
         ref={ref}
         className={cn("[&_tr:last-child]:border-0", className)}
         {...props}
-    />
-))
+    >
+    {children}
+    <TableRow
+        className={"absolute w-full flex justify-center"}
+    >
+        {isFetchingMoreData && <Loader/>}
+    </TableRow>
+    </tbody>)
+})
+
 TableBody.displayName = "TableBody"
 
 const TableFooter = React.forwardRef<

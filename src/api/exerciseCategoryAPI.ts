@@ -3,8 +3,8 @@ import type {IResponse} from "@/types/api";
 import {baseAPI} from "@/api/baseAPI";
 import type {AxiosResponse} from "axios";
 
-export const getExerciseCategoriesFn = async (): Promise<AxiosResponse<IResponse<IExerciseCategory[]>, any>> => {
-    return await baseAPI.get('/exercises/categories')
+export const getExerciseCategoriesFn = async (page: number): Promise<AxiosResponse<IResponse<IExerciseCategory[]>, any>> => {
+    return await baseAPI.get(`/exercises/categories?page=${page}`)
 }
 
 export const getExerciseCategoryFn = async (id: string): Promise<AxiosResponse<IResponse<IExerciseCategory>, any>> => {

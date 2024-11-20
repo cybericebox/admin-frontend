@@ -3,7 +3,6 @@ import {cookies} from "next/headers";
 import {EventSchema, type IEvent} from "@/types/event";
 import {ExercisePreprocessedSchema, type IExercise} from "@/types/exercise";
 import type {IResponse} from "@/types/api";
-import {revalidateTag} from "next/cache";
 import {ErrorInvalidResponseData} from "@/types/common";
 
 export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
@@ -14,7 +13,6 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        cache: 'no-store',
     })
     if (response.ok) {
         // parse the response
@@ -39,7 +37,6 @@ export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> =
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        cache: 'no-store',
     })
     if (response.ok) {
         // parse the response
@@ -53,10 +50,6 @@ export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> =
         }
         return data;
     }
-        return Promise.resolve({} as IResponse<IExercise>);
+    return Promise.resolve({} as IResponse<IExercise>);
 
-}
-
-export async function invalidateTag(tag: string) {
-    revalidateTag(tag);
 }

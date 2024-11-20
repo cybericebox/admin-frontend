@@ -1,7 +1,8 @@
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     createEventChallengeFn,
     deleteEventChallengeFn,
+    getAvailableExercisesFn,
     getEventChallengesFn,
     updateEventChallengesOrderFn
 } from "@/api/eventChallengeAPI";
@@ -9,6 +10,7 @@ import {ChallengeSchema, ICreateEventChallenge, IEventChallenge, IOrder} from "@
 import {getEventChallengeCategoriesFn} from "@/api/eventCategoryChallengeAPI";
 import {z} from "zod";
 import {ErrorInvalidResponseData} from "@/types/common";
+import {ExercisePreprocessedSchema} from "@/types/exercise";
 
 const useGetEventChallenges = (eventID: string) => {
     const queryClient = useQueryClient();
@@ -65,6 +67,67 @@ const useGetEventChallenges = (eventID: string) => {
     }
 
     return {GetEventChallengesResponse, GetEventChallengesRequest}
+}
+
+interface getAvailableExercises {
+    eventID: string
+    search: string
+}
+
+const useGetAvailableExercises = ({eventID, search}: getAvailableExercises) => {
+    const {
+        data: GetAvailableExercisesResponse,
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
+        queryKey: ['availableExercises', eventID, search],
+        queryFn: ({pageParam}) => getAvailableExercisesFn({eventID, search, page: pageParam}),
+        enabled: !!eventID,
+        select: (data) => {
+            data.pages.forEach((page) => {
+                const res = z.array(ExercisePreprocessedSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    console.log(res.error)
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
+            }
+
+            return lastPageParam + 1
+        },
+    })
+
+    const GetAvailableExercisesRequest = {
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+    }
+
+    const GetMoreAvailableExercisesRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetAvailableExercisesResponse, GetAvailableExercisesRequest, GetMoreAvailableExercisesRequest}
 }
 
 const useGetEventChallengesByCategory = (eventID: string, categoryID: string) => {
@@ -138,6 +201,7 @@ const useUpdateEventChallengesOrder = (eventID: string) => {
 export const useEventChallenge = () => {
     return {
         useGetEventChallenges,
+        useGetAvailableExercises,
         useGetEventChallengesByCategory,
         useCreateEventChallenge,
         useDeleteEventChallenge,

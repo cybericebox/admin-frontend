@@ -2,9 +2,24 @@ import type {ICreateEventChallenge, IEventChallenge, IOrder} from "@/types/chall
 import type {AxiosResponse} from "axios";
 import {baseAPI} from "@/api/baseAPI";
 import type {IResponse} from "@/types/api";
+import {IExercise} from "@/types/exercise";
 
 export const getEventChallengesFn = async (eventID: string): Promise<AxiosResponse<IResponse<IEventChallenge[]>, any>> => {
     return await baseAPI.get(`/events/${eventID}/challenges`);
+}
+
+interface getAvailableExercisesParams {
+    eventID: string
+    search: string
+    page: number
+}
+
+export const getAvailableExercisesFn = async ({
+                                                  eventID,
+                                                  search,
+                                                  page
+                                              }: getAvailableExercisesParams): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
+    return await baseAPI.get((`/events/${eventID}/challenges/exercises?page=${page}${search && "&search=" + search}`))
 }
 
 export const createEventChallengeFn = async (eventID: string, data: ICreateEventChallenge): Promise<AxiosResponse<IResponse, any>> => {

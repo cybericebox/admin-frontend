@@ -4,7 +4,7 @@ import {GoToCard} from "@/components/common";
 import {Plus, UserRoundPlus} from "lucide-react";
 import {DialogForm} from "@/components/common/form";
 import {useState} from "react";
-import {Users, InviteUsersForm} from "@/components/users";
+import {InviteUsersForm, Users} from "@/components/users";
 
 
 export default function UsersPage() {

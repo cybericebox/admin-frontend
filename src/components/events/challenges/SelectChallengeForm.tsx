@@ -1,17 +1,14 @@
 "use client"
-import {useExercise} from "@/hooks/useExercise";
 import React, {useState} from "react";
 import {Search} from "@/components/common";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
-import styles from "@/components/components.module.css";
 import {Checkbox} from "@/components/ui/checkbox";
 import {Button} from "@/components/ui/button";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
-import {IExercise} from "@/types/exercise";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+import {useInView} from "@/hooks/useInView";
 
 export interface SelectChallengeFormProps {
     eventID: string
@@ -22,12 +19,13 @@ export interface SelectChallengeFormProps {
 export default function SelectChallengesForm({eventID, categoryID, onCancel}: SelectChallengeFormProps) {
     const [search, setSearch] = useState("")
     const {GetExerciseCategoriesResponse} = useExerciseCategory().useGetExerciseCategories()
-    const {GetEventChallengesResponse} = useEventChallenge().useGetEventChallenges(eventID)
-    const {GetExercisesResponse, GetExercisesRequest} = useExercise().useGetExercises({
+    const {
+        GetAvailableExercisesRequest,
+        GetAvailableExercisesResponse,
+        GetMoreAvailableExercisesRequest
+    } = useEventChallenge().useGetAvailableExercises({
         search,
-        filter: (exercise: IExercise) => {
-            return GetEventChallengesResponse?.Data.find(challenge => challenge.ExerciseID === exercise.ID) === undefined
-        }
+        eventID
     })
     const [selectedExerciseIDs, setSelectedExerciseIDs] = useState<string[]>([])
     const {CreateEventChallenge} = useEventChallenge().useCreateEventChallenge(eventID)
@@ -38,26 +36,36 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
             ExerciseIDs: selectedExerciseIDs,
         }, {
             onSuccess: () => {
+                SuccessToast("Завдання успішно додані")
                 onCancel?.()
             },
             onError: (error) => {
-                const e = error as IErrorResponse
-                ErrorToast({message: "Не вдалося додати завдання", error: e})
+                ErrorToast("Не вдалося додати завдання", {cause: error})
             }
         })
         onCancel?.()
     }
 
+    const {ref: lastElementRef} = useInView({
+        onInView: () => {
+            if (GetMoreAvailableExercisesRequest.HasMore) {
+                GetMoreAvailableExercisesRequest.FetchMore()
+            }
+        },
+        isLoading: GetAvailableExercisesRequest.isLoading || GetMoreAvailableExercisesRequest.isFetchingMore,
+        deps: [search]
+    });
+
     return (
-        <div>
+        <div className={"flex flex-col short:space-y-1 space-y-3 h-[calc(80dvh-1.5rem)] sm:h-[calc(80dvh-3.5rem)] w-[calc(100dvw-1rem)] sm:w-[calc(80dvw-3rem)]"}>
             <BodyHeader title={"Завдання"}>
                 <Search setSearch={setSearch} placeholder={"Знайти завдання"} key={"search"}/>
             </BodyHeader>
-            <BodyContent>
-                <Table className={styles.table}>
-                    <TableHeader className={styles.tableHeader}>
+            <BodyContent className={"flex flex-col sm:gap-6 gap-2"}>
+                <Table>
+                    <TableHeader>
                         <TableRow>
-                            <TableHead>Обрати</TableHead>
+                            <TableHead className={"text-center"}>Обрати</TableHead>
                             <TableHead>Назва завдання</TableHead>
                             <TableHead>Категорія</TableHead>
                             <TableHead>Тип</TableHead>
@@ -65,14 +73,26 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                         </TableRow>
                     </TableHeader>
                     {
-                        GetExercisesResponse?.Data &&
-                        <TableBody className={styles.tableBody}>
+                        <TableBody
+                            onEmpty={{
+                                isLoading: GetAvailableExercisesRequest.isLoading,
+                                error: GetAvailableExercisesRequest.error,
+                                isEmpty: !GetAvailableExercisesResponse?.Data.length,
+                                hasFilter: !!search.length,
+                                noDataMessage: "Жодного завдання не створено",
+                                noFilteredDataMessage: "Завдань за запитом не знайдено"
+                            }}
+                            isFetchingMoreData={GetMoreAvailableExercisesRequest.isFetchingMore}
+                        >
                             {
-                                GetExercisesResponse?.Data.map((exercise) => {
+                                GetAvailableExercisesResponse?.Data.map((exercise, index) => {
                                     const category = GetExerciseCategoriesResponse?.Data.find(category => category.ID === exercise.CategoryID)
                                     return (
-                                        <TableRow key={exercise.ID}>
-                                            <TableCell>
+                                        <TableRow
+                                            key={exercise.ID}
+                                            ref={GetAvailableExercisesResponse.Data.length === index + 1 ? lastElementRef : null}
+                                        >
+                                            <TableCell className={"text-center"}>
                                                 <Checkbox
                                                     checked={selectedExerciseIDs.includes(exercise.ID!)}
                                                     onCheckedChange={(checked) => {
@@ -110,24 +130,10 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                         </TableBody>
                     }
                 </Table>
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetExercisesRequest.isLoading ?
-                            "Завантаження..." :
-                            GetExercisesRequest.isError ?
-                                "Помилка завантаження" :
-                                GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
-                                    "Жодного завдання не знайдено" :
-                                    null
-                    }
-                </div>
                 <Button
                     onClick={() => {
                         onCreateChallenge()
                     }}
-                    className={"w-full mt-4"}
                 >
                     Додати завдання
                 </Button>

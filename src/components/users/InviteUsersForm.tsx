@@ -1,5 +1,5 @@
 "use client"
-import {SubmitHandler, useFieldArray, useForm} from "react-hook-form";
+import {type SubmitHandler, useFieldArray, useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
@@ -8,12 +8,11 @@ import {BodyHeader} from "@/components/common/page";
 import {InviteUsersSchema, UserRoleEnum} from "@/types/user";
 import {useUser} from "@/hooks/useUser";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import React from "react";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import type React from "react";
 import {FormButtons, FormFields, FormProvider} from "@/components/common/form";
 import {Input} from "@/components/ui/input";
 import {DeleteIcon} from "@/components/common/delete";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 export interface InviteUsersFormProps {
     onClose: () => void
@@ -56,11 +55,11 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
     const onSubmit: SubmitHandler<z.infer<typeof InviteUsersSchema>> = data => {
         InviteUsers(data, {
             onSuccess: () => {
+                SuccessToast("Користувачі успішно запрошені")
                 props.onClose()
             },
             onError: (error) => {
-                const e = error as IErrorResponse
-                ErrorToast({message: "Не вдалося додати користувачів", error: e})
+                ErrorToast("Не вдалося додати користувачів", {cause: error})
             }
         })
     }
@@ -109,7 +108,7 @@ export default function InviteUsersForm(props: InviteUsersFormProps) {
                                         <FormControl>
                                             <>
                                                 <div className={"mt-4"}>
-                                                    <FormLabel>Адреси електронних пошт користувачів</FormLabel>
+                                                    <FormLabel>Адреси електронної пошти користувачів</FormLabel>
                                                 </div>
                                                 <FormMessage/>
                                                 <div className={"w-full flex flex-col"}>

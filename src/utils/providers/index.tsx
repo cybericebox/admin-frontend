@@ -13,7 +13,7 @@ export default function Providers({children}: {
             {children}
             <Tooltip
                 id={"tooltip"}
-                className={"!bg-primary"}
+                className={"!bg-primary z-20"}
             />
         </QueryProvider>
     )

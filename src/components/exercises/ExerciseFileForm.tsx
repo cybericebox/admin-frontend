@@ -23,17 +23,17 @@ interface AddExerciseFileProps {
 }
 
 export function AddExerciseFileButton({addFile, nextIndex}: AddExerciseFileProps) {
-    const onUploadFile = (fileToUpload: File) => {
+    const onUploadFile = (fileToUpload: File, nextFileIndex: number) => {
         // if there is no file to upload, return
         if (!fileToUpload) return;
         addFile({
-            ID: `new-${nextIndex}`,
+            ID: `new-${nextFileIndex}`,
             Name: fileToUpload.name,
             File: fileToUpload,
             Progress: undefined,
             Ref: null,
             EstimatedTime: 0,
-        }, {shouldFocus: true, focusName: `Data.Files.${nextIndex}.Name`})
+        }, {shouldFocus: true, focusName: `Data.Files.${nextFileIndex}.Name`})
     }
 
     return (
@@ -47,7 +47,7 @@ export function AddExerciseFileButton({addFile, nextIndex}: AddExerciseFileProps
                     const files = e.target.files;
                     if (files && files.length > 0) {
                         for (let i = 0; i < files.length; i++) {
-                            onUploadFile(files[i])
+                            onUploadFile(files[i], nextIndex + i)
                         }
                         e.target.value = ""
                     }
@@ -69,7 +69,7 @@ export function AddExerciseFileButton({addFile, nextIndex}: AddExerciseFileProps
 
 
 export default function ExerciseFileForm({fileIndex, form, removeFile}: ExerciseFileFormProps) {
-    const {GetUploadExerciseFileData} = useExercise().useGetUploadExerciseFileData()
+    const {GetUploadExerciseFileData} = useExercise().useGetUploadExerciseFileData(fileIndex)
     const {GetDownloadExerciseFileData} = useExercise().useGetDownloadExerciseFileData(form.watch("ID") || "", form.watch(`Data.Files.${fileIndex}.ID`), form.watch(`Data.Files.${fileIndex}.Name`))
     const abortRef = useRef<AbortController>(new AbortController())
     if (form.watch(`Data.Files.${fileIndex}.Progress`) != undefined) {
@@ -87,6 +87,7 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
         // get the presigned URL
         GetUploadExerciseFileData().then(({data}) => {
             if (data?.Status.Code == 10000) {
+                form.setValue(`Data.Files.${fileIndex}.ID`, data?.Data.FileID)
                 axios.put(data?.Data.UploadURL, fileToUpload, {
                     headers: {
                         'Content-Type': fileToUpload.type
@@ -101,7 +102,6 @@ export default function ExerciseFileForm({fileIndex, form, removeFile}: Exercise
                     },
                     signal: form.watch(`Data.Files.${fileIndex}.Ref`).current.signal,
                 }).then(() => {
-                    form.setValue(`Data.Files.${fileIndex}.ID`, data?.Data.FileID)
                     form.setValue(`Data.Files.${fileIndex}.Ref`, null)
                     form.setValue(`Data.Files.${fileIndex}.Progress`, undefined)
                     form.setValue(`Data.Files.${fileIndex}.EstimatedTime`, undefined)

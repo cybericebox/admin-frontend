@@ -1,5 +1,5 @@
 "use client"
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQueryClient} from "@tanstack/react-query";
 import {z} from "zod";
 import {
     getEventChallengeSolutionAttemptsFn,
@@ -14,21 +14,36 @@ const useGetEventChallengeSolutionAttempts = (eventID: string) => {
         isLoading,
         isError,
         isSuccess,
-        error
-    } = useQuery({
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['eventChallengeSolutionAttempts', eventID],
-        queryFn: () => getEventChallengeSolutionAttemptsFn(eventID),
+        queryFn: ({pageParam}) => getEventChallengeSolutionAttemptsFn({eventID, page: pageParam}),
         enabled: !!eventID,
         select: (data) => {
-            const res = z.array(ChallengeSolutionAttemptSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(ChallengeSolutionAttemptSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
 
@@ -39,7 +54,17 @@ const useGetEventChallengeSolutionAttempts = (eventID: string) => {
         error,
     }
 
-    return {GetEventChallengeSolutionAttemptsResponse, GetEventChallengeSolutionAttemptsRequest}
+    const GetMoreEventChallengeSolutionAttemptsRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {
+        GetEventChallengeSolutionAttemptsResponse,
+        GetEventChallengeSolutionAttemptsRequest,
+        GetMoreEventChallengeSolutionAttemptsRequest
+    }
 }
 
 const useUpdateEventChallengeSolutionAttemptStatus = () => {
@@ -56,7 +81,12 @@ const useUpdateEventChallengeSolutionAttemptStatus = () => {
             queryClient.invalidateQueries({queryKey: ['eventChallengeSolutionAttempts', variables.EventID]}).catch((e) => console.log(e))
         }
     })
-    return {UpdateEventChallengeSolutionAttemptStatus, UpdateEventChallengeSolutionAttemptStatusResponse, PendingUpdateEventChallengeSolutionAttemptStatus, UpdateEventChallengeSolutionAttemptStatusError}
+    return {
+        UpdateEventChallengeSolutionAttemptStatus,
+        UpdateEventChallengeSolutionAttemptStatusResponse,
+        PendingUpdateEventChallengeSolutionAttemptStatus,
+        UpdateEventChallengeSolutionAttemptStatusError
+    }
 }
 export const useEventChallengeSolutionAttempt = () => {
     return {

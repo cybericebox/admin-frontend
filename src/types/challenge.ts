@@ -45,13 +45,13 @@ export interface ICreateEventChallenge {
 }
 
 export const ChallengeSolutionAttemptSchema = z.object({
-  ID: z.string().uuid(),
+    ID: z.string().uuid(),
     EventID: z.string().uuid(),
     ChallengeID: z.string().uuid(),
     TeamID: z.string().uuid(),
     ParticipantID: z.string().uuid(),
     Answer: z.string(),
-    Flag : z.string(),
+    Flag: z.string(),
     IsCorrect: z.boolean(),
     Timestamp: z.coerce.date(),
 })

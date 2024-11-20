@@ -1,16 +1,14 @@
 "use client"
 
-import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import React, {useState} from "react";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
-import {IExerciseCategory} from "@/types/exercise";
+import {type IExerciseCategory} from "@/types/exercise";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import {AddIcon, DialogForm} from "@/components/common";
 import ExerciseCategoryForm from "./CategoryForm";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+import {useInView} from "@/hooks/useInView";
 
 interface CategoriesTableProps {
     setSelectedCategory: (category: IExerciseCategory | undefined) => void
@@ -20,7 +18,8 @@ interface CategoriesTableProps {
 export default function CategoriesTable(props: CategoriesTableProps) {
     const {
         GetExerciseCategoriesRequest,
-        GetExerciseCategoriesResponse
+        GetExerciseCategoriesResponse,
+        GetMoreExerciseCategoriesRequest
     } = useExerciseCategory().useGetExerciseCategories()
     const {DeleteExerciseCategory} = useExerciseCategory().useDeleteExerciseCategory()
 
@@ -28,10 +27,19 @@ export default function CategoriesTable(props: CategoriesTableProps) {
     const [updateExerciseCategoryDialog, setUpdateExerciseCategoryDialog] = useState<IExerciseCategory>()
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
+    const {ref: lastElementRef} = useInView({
+        onInView: () => {
+            if (GetMoreExerciseCategoriesRequest.HasMore) {
+                GetMoreExerciseCategoriesRequest.FetchMore()
+            }
+        },
+        isLoading: GetExerciseCategoriesRequest.isLoading || GetMoreExerciseCategoriesRequest.isFetchingMore,
+    });
+
     return (
         <>
             <Table>
-                <TableHeader className={styles.tableHeader}>
+                <TableHeader>
                     <TableRow>
                         <TableHead
                             onClick={() => props.setSelectedCategory(undefined)}
@@ -51,20 +59,30 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                 </TableHeader>
                 {
                     GetExerciseCategoriesResponse?.Data &&
-                    <TableBody>
+                    <TableBody
+                        onEmpty={{
+                            isLoading: GetExerciseCategoriesRequest.isLoading,
+                            error: GetExerciseCategoriesRequest.error,
+                            isEmpty: !GetExerciseCategoriesResponse?.Data.length,
+                            noDataMessage: "Жодної категорії не створено",
+                        }}
+                        isFetchingMoreData={GetMoreExerciseCategoriesRequest.isFetchingMore}
+                    >
                         {
-                            GetExerciseCategoriesResponse?.Data.map((category) => {
+                            GetExerciseCategoriesResponse?.Data.map((category, index) => {
                                 return (
-                                    <TableRow key={category.ID}
-                                              onClick={() => {
-                                                  props.selectedCategory?.ID === category.ID ?
-                                                      props.setSelectedCategory(undefined) :
-                                                      props.setSelectedCategory(category)
-                                              }}
-                                              className={props.selectedCategory?.ID === category.ID ? "bg-blue-100 hover:bg-blue-100" : ""}
-                                              aria-label="Show exercises of the category"
-                                              data-tooltip-content="Показати завдання відповідної категорії"
-                                              data-tooltip-id="tooltip"
+                                    <TableRow
+                                        ref={GetExerciseCategoriesResponse.Data.length === index + 1 ? lastElementRef : null}
+                                        key={category.ID}
+                                        onClick={() => {
+                                            props.selectedCategory?.ID === category.ID ?
+                                                props.setSelectedCategory(undefined) :
+                                                props.setSelectedCategory(category)
+                                        }}
+                                        className={props.selectedCategory?.ID === category.ID ? "bg-blue-100 hover:bg-blue-100" : ""}
+                                        aria-label="Show exercises of the category"
+                                        data-tooltip-content="Показати завдання відповідної категорії"
+                                        data-tooltip-id="tooltip"
                                     >
                                         <TableCell
                                             onClick={() => setUpdateExerciseCategoryDialog(category)}
@@ -86,20 +104,6 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                         }
                     </TableBody>
                 }
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetExerciseCategoriesRequest.isLoading ?
-                            "Завантаження..." :
-                            GetExerciseCategoriesRequest.isError ?
-                                "Помилка завантаження" :
-                                GetExerciseCategoriesRequest.isSuccess && GetExerciseCategoriesResponse?.Data.length === 0 ?
-                                    "Жодної категорії не створено" :
-                                    null
-                    }
-                </div>
-
             </Table>
 
             {!!deleteExerciseCategoryDialog &&
@@ -110,15 +114,14 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                     description={"Впевнені? Всі дані категорії включаючи завдання будуть втрачені та не можуть бути відновлені."}
                     onDelete={() => DeleteExerciseCategory(deleteExerciseCategoryDialog.ID!, {
                         onSuccess: () => {
-                            toast.success("Категорію успішно видалено")
+                            SuccessToast("Категорію успішно видалено")
                             // category was selected unselect it
                             if (props.selectedCategory?.ID === deleteExerciseCategoryDialog.ID) {
                                 props.setSelectedCategory(undefined)
                             }
                         },
                         onError: (error) => {
-                            const e = error as IErrorResponse
-                            ErrorToast({message: "Не вдалося видалити категорію", error: e})
+                            ErrorToast("Не вдалося видалити категорію", {cause: error})
                         }
                     })}
                 />}

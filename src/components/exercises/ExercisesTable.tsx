@@ -1,6 +1,5 @@
 "use client"
 
-import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import React, {useState} from "react";
 import type {IExercise, IExerciseCategory} from "@/types/exercise";
@@ -8,9 +7,8 @@ import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import {useExercise} from "@/hooks/useExercise";
 import Link from "next/link";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
-import toast from "react-hot-toast";
-import {type IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+import {useInView} from "@/hooks/useInView";
 
 interface ExercisesTableProps {
     selectedCategory?: IExerciseCategory
@@ -18,7 +16,7 @@ interface ExercisesTableProps {
 }
 
 export default function ExercisesTable({selectedCategory, search}: ExercisesTableProps) {
-    const {GetExercisesResponse, GetExercisesRequest} = useExercise().useGetExercises({
+    const {GetExercisesResponse, GetExercisesRequest, GetMoreExercisesRequest} = useExercise().useGetExercises({
         search,
         categoryID: selectedCategory?.ID
     })
@@ -26,10 +24,20 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
     const {GetExerciseCategoriesResponse} = useExerciseCategory().useGetExerciseCategories()
     const [deleteExerciseDialog, setDeleteExerciseDialog] = useState<IExercise>()
 
+    const {ref: lastElementRef} = useInView({
+        onInView: () => {
+            if (GetMoreExercisesRequest.HasMore) {
+                GetMoreExercisesRequest.FetchMore()
+            }
+        },
+        isLoading: GetExercisesRequest.isLoading || GetMoreExercisesRequest.isFetchingMore,
+        deps: [search, selectedCategory?.ID]
+    });
+
     return (
         <>
             <Table>
-                <TableHeader className={styles.tableHeader}>
+                <TableHeader>
                     <TableRow>
                         <TableHead>Назва завдання</TableHead>
                         <TableHead>Категорія</TableHead>
@@ -39,12 +47,25 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                 </TableHeader>
                 {
                     GetExercisesResponse?.Data &&
-                    <TableBody>
+                    <TableBody
+                        onEmpty={{
+                            isLoading: GetExercisesRequest.isLoading,
+                            error: GetExercisesRequest.error,
+                            isEmpty: !GetExercisesResponse?.Data.length,
+                            hasFilter: search.length > 0 || !!selectedCategory?.ID,
+                            noDataMessage: "Жодного завдання не створено",
+                            noFilteredDataMessage: "Завдань за запитом не знайдено"
+                        }}
+                        isFetchingMoreData={GetMoreExercisesRequest.isFetchingMore}
+                    >
                         {
-                            GetExercisesResponse?.Data.map((exercise) => {
+                            GetExercisesResponse?.Data.map((exercise, index) => {
                                 const category = GetExerciseCategoriesResponse?.Data.find(category => category.ID === exercise.CategoryID)
                                 return (
-                                    <TableRow key={exercise.ID}>
+                                    <TableRow
+                                        key={exercise.ID}
+                                        ref={GetExercisesResponse.Data.length === index + 1 ? lastElementRef : null}
+                                    >
                                         <TableCell>
                                             <Link
                                                 href={"/exercises/" + exercise.ID}
@@ -85,25 +106,6 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                         }
                     </TableBody>
                 }
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetExercisesRequest.isLoading ?
-                            "Завантаження..." :
-                            GetExercisesRequest.isError ?
-                                "Помилка завантаження" :
-                                GetExercisesRequest.isSuccess && GetExercisesResponse?.Data.length === 0 ?
-                                    selectedCategory ?
-                                        search.length === 0 ?
-                                            "В цій категорії жодного завдання не створено" :
-                                            "В цій категорії завдань за запитом не знайдено" :
-                                        search.length === 0 ?
-                                            "Жодного завдання не створено" :
-                                            "Завдань за запитом не знайдено" :
-                                    null
-                    }
-                </div>
             </Table>
             {!!deleteExerciseDialog &&
                 <DeleteDialog
@@ -113,11 +115,10 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                     description={"Впевнені? Всі дані будуть втрачені та не можуть бути відновлені."}
                     onDelete={() => DeleteExercise(deleteExerciseDialog.ID!, {
                         onSuccess: () => {
-                            toast.success("Завдання успішно видалено")
+                            SuccessToast("Завдання успішно видалено")
                         },
                         onError: (error) => {
-                            const e = error as IErrorResponse
-                            ErrorToast({message: "Не вдалося видалити завдання", error: e})
+                            ErrorToast("Не вдалося видалити завдання", {cause: error})
                         }
                     })}
                 />}

@@ -1,4 +1,4 @@
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     createExerciseFn,
     deleteExerciseFn,
@@ -12,39 +12,58 @@ import {ExercisePreprocessedSchema, IExercise} from "@/types/exercise";
 import {z} from "zod";
 import {DownloadFileURLSchema, ErrorInvalidResponseData, UploadFileDataSchema} from "@/types/common";
 
-interface GetExercisesParams {
+interface getExercisesParams {
     search: string,
     categoryID?: string,
-    filter?: (exercise: IExercise) => boolean
 }
 
-const useGetExercises = ({search, categoryID, filter}: GetExercisesParams) => {
-    const {data: GetExercisesResponse, isLoading, isError, isSuccess, error} = useQuery({
+const useGetExercises = ({search, categoryID}: getExercisesParams) => {
+    const {
+        data: GetExercisesResponse,
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['exercises', search, categoryID],
-        queryFn: () => getExercisesFn(search),
+        queryFn: ({pageParam}) => getExercisesFn({search, page: pageParam}),
         select: (data) => {
-            const res = z.array(ExercisePreprocessedSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(ExercisePreprocessedSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    console.log(res.error)
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+                if (!page.data.backUpData) {
+                    page.data.backUpData = page.data.Data
+                }
+                if (categoryID) {
+                    page.data.Data = page.data?.backUpData.filter((exercise) => exercise.CategoryID === categoryID)
+                } else {
+                    page.data.Data = page.data?.backUpData
+                }
+
+            })
+
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
             }
-            if (!data.data.backUpData) {
-                data.data.backUpData = data.data.Data
-            }
-            if (categoryID) {
-                data.data.Data = data.data?.backUpData.filter((exercise) => exercise.CategoryID === categoryID)
-            } else {
-                data.data.Data = data.data?.backUpData
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            if (filter) {
-                data.data.Data = data.data.Data.filter(filter)
-            }
-
-            return data.data
-        }
+            return lastPageParam + 1
+        },
     })
     const GetExercisesRequest = {
         isLoading,
@@ -52,7 +71,14 @@ const useGetExercises = ({search, categoryID, filter}: GetExercisesParams) => {
         isSuccess,
         error,
     }
-    return {GetExercisesResponse, GetExercisesRequest}
+
+    const GetMoreExercisesRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetExercisesResponse, GetExercisesRequest, GetMoreExercisesRequest}
 }
 
 const useGetExercise = (id: string) => {
@@ -81,7 +107,7 @@ const useGetExercise = (id: string) => {
     return {GetExerciseResponse, GetExerciseRequest}
 }
 
-const useGetUploadExerciseFileData = () => {
+const useGetUploadExerciseFileData = (fileIndex: number) => {
     const {
         data: GetUploadExerciseFileDataResponse,
         isLoading,
@@ -90,7 +116,7 @@ const useGetUploadExerciseFileData = () => {
         error,
         refetch: GetUploadExerciseFileData
     } = useQuery({
-        queryKey: ['exercises', 'upload'],
+        queryKey: ['exercises', 'upload', fileIndex],
         queryFn: () => getUploadExerciseFileDataFn(),
         select: (data) => {
             const res = UploadFileDataSchema.safeParse(data.data.Data)

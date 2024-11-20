@@ -1,43 +1,56 @@
 "use client";
 
-import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import "moment/locale/uk";
 import React from "react";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {useEventTeam} from "@/hooks/useEventTeam";
 import {useEvent} from "@/hooks/useEvent";
-import { ParticipationTypeEnum} from "@/types/event";
-import toast from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
+import {ParticipationTypeEnum} from "@/types/event";
 import moment from "moment/moment";
 import {useEventChallengeSolutionAttempt} from "@/hooks/useEventChallengeSolutionAttempt";
 import {useUser} from "@/hooks/useUser";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+import {useInView} from "@/hooks/useInView";
 
 interface EventChallengeSolutionAttemptsTableProps {
     eventID: string;
 }
 
 export default function EventChallengeSolutionAttemptsTable({eventID}: EventChallengeSolutionAttemptsTableProps) {
-    const {GetEventChallengeSolutionAttemptsResponse, GetEventChallengeSolutionAttemptsRequest} = useEventChallengeSolutionAttempt().useGetEventChallengeSolutionAttempts(eventID);
+    const {
+        GetEventChallengeSolutionAttemptsResponse,
+        GetEventChallengeSolutionAttemptsRequest,
+        GetMoreEventChallengeSolutionAttemptsRequest
+    } = useEventChallengeSolutionAttempt().useGetEventChallengeSolutionAttempts(eventID);
     const {GetEventTeamsResponse} = useEventTeam().useGetEventTeams(eventID);
-    const {GetUsersResponse} = useUser().useGetUsers({})
+    const {GetUsersResponse} = useUser().useGetUsers({search: ""})
     const {GetEventChallengesResponse} = useEventChallenge().useGetEventChallenges(eventID)
     const {GetEventResponse} = useEvent().useGetEvent(eventID);
     const {UpdateEventChallengeSolutionAttemptStatus} = useEventChallengeSolutionAttempt().useUpdateEventChallengeSolutionAttemptStatus();
+
+    const {ref: lastElementRef} = useInView({
+        onInView: () => {
+            if (GetMoreEventChallengeSolutionAttemptsRequest.HasMore) {
+                GetMoreEventChallengeSolutionAttemptsRequest.FetchMore()
+            }
+        },
+        isLoading: GetEventChallengeSolutionAttemptsRequest.isLoading || GetMoreEventChallengeSolutionAttemptsRequest.isFetchingMore,
+    });
+
     return (
         <>
             <BodyHeader
                 title={"Спроби вирішення завдань"}/>
             <BodyContent>
-                <Table className={styles.table}>
-                    <TableHeader className={styles.tableHeader}>
+                <Table>
+                    <TableHeader>
                         <TableRow>
                             <TableHead>{"Дата"}</TableHead>
-                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team && <TableHead>{"Команда"}</TableHead>}
+                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
+                                <TableHead>{"Команда"}</TableHead>}
                             <TableHead>{"Учасник"}</TableHead>
                             <TableHead>{"Завдання"}</TableHead>
                             <TableHead className={"text-center"}>{"Статус"}</TableHead>
@@ -47,21 +60,33 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
                     </TableHeader>
                     {
                         GetEventChallengeSolutionAttemptsResponse?.Data &&
-                        <TableBody className={styles.tableBody}>
+                        <TableBody
+                            onEmpty={{
+                                isLoading: GetEventChallengeSolutionAttemptsRequest.isLoading,
+                                error: GetEventChallengeSolutionAttemptsRequest.error,
+                                isEmpty: GetEventChallengeSolutionAttemptsResponse?.Data.length == 0,
+                                noDataMessage: "Жодної спроби вирішення завдань не зафіксовано",
+                            }}
+                            isFetchingMoreData={GetMoreEventChallengeSolutionAttemptsRequest.isFetchingMore}
+                        >
                             {
-                                GetEventChallengeSolutionAttemptsResponse?.Data.map((solution) => {
+                                GetEventChallengeSolutionAttemptsResponse?.Data.map((solution, index) => {
                                     const team = GetEventTeamsResponse?.Data.find(team => team.ID === solution.TeamID)
                                     const participant = GetUsersResponse?.Data.find(user => user.ID === solution.ParticipantID)
-                                    const challenge = GetEventChallengesResponse?.Data.find(challenge => challenge.ID === solution.ChallengeID)
+                                    const challenge = GetEventChallengesResponse?.Data.find((challenge) => challenge.ID === solution.ChallengeID)
                                     return (
-                                        <TableRow key={solution.ID}>
+                                        <TableRow
+                                            key={solution.ID}
+                                            ref={GetEventChallengeSolutionAttemptsResponse.Data.length === index + 1 ? lastElementRef : null}
+                                        >
                                             <TableCell>{moment(solution.Timestamp).format("DD.MM.YYYY HH:mm:ss")}</TableCell>
                                             <TableCell>
                                                 {team?.Name || ""}
                                             </TableCell>
-                                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team && <TableCell>
-                                                {participant?.Name || ""}
-                                            </TableCell>}
+                                            {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
+                                                <TableCell>
+                                                    {participant?.Name || ""}
+                                                </TableCell>}
                                             <TableCell>
                                                 {challenge?.Data.Name || ""}
                                             </TableCell>
@@ -83,14 +108,10 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
                                                                 IsCorrect: !solution.IsCorrect
                                                             }, {
                                                                 onSuccess: () => {
-                                                                    toast.success("Статус спроби успішно змінено")
+                                                                    SuccessToast("Статус спроби успішно змінено")
                                                                 },
                                                                 onError: (error) => {
-                                                                    const e = error as IErrorResponse
-                                                                    ErrorToast({
-                                                                        message: "Не вдалося змінити статус спроби",
-                                                                        error: e
-                                                                    })
+                                                                    ErrorToast("Не вдалося змінити статус спроби", {cause: error})
                                                                 }
                                                             })}
                                                             className={`border rounded-2xl text-center py-1 ${solution.IsCorrect ? "border-red-500 text-red-700 bg-red-300" : "border-green-500 text-green-700 bg-green-300"}`}
@@ -113,19 +134,6 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
                         </TableBody>
                     }
                 </Table>
-                <div
-                    className={styles.emptyTableBody}
-                >
-                    {
-                        GetEventChallengeSolutionAttemptsRequest.isLoading ?
-                            "Завантаження..." :
-                            GetEventChallengeSolutionAttemptsRequest.isError ?
-                                "Помилка завантаження" :
-                                GetEventChallengeSolutionAttemptsRequest.isSuccess && GetEventChallengeSolutionAttemptsResponse?.Data.length === 0 ?
-                                    "Жодного спроби вирішення завдань не знайдено" :
-                                    null
-                    }
-                </div>
             </BodyContent>
         </>
     );

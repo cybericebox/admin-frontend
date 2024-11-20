@@ -61,7 +61,7 @@ export default function EventBannerField({field, fieldState, eventID, oldImage, 
             onMouseOver={() => setShowIcon(true)}
             onMouseLeave={() => setShowIcon(false)}
         >
-            { field.value && showIcon && <div
+            {field.value && showIcon && <div
                 className={"absolute top-1 right-1 flex justify-end gap-1 bg-white rounded-xl px-1 py-0.5"}
             >
                 {!fieldState.isDirty ? <DownloadIcon

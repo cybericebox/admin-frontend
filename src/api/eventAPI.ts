@@ -4,8 +4,12 @@ import {baseAPI} from "@/api/baseAPI";
 import type {IUploadFileData} from "@/types/common";
 import type {IResponse} from "@/types/api";
 
-export const getEventsFn = async (): Promise<AxiosResponse<IResponse<IEvent[]>, any>> => {
-    return await baseAPI.get('/events')
+interface getEventsParams {
+    page: number
+}
+
+export const getEventsFn = async ({page}: getEventsParams): Promise<AxiosResponse<IResponse<IEvent[]>, any>> => {
+    return await baseAPI.get(`/events?page=${page}`)
 }
 
 export const getEventFn = async (id: string): Promise<AxiosResponse<IResponse<IEvent>, any>> => {

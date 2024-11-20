@@ -18,7 +18,7 @@ export default function DialogForm({onClose, isOpen, children, className, preven
                 }
             }}>
                 <DialogHeader>
-                    <DialogTitle />
+                    <DialogTitle/>
                     <DialogDescription>
                         {children}
                     </DialogDescription>

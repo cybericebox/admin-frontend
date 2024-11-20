@@ -22,10 +22,7 @@ import TextEditor from "@/components/common/editor";
 import {AccordionHeader} from "@radix-ui/react-accordion";
 import ExerciseCategoryForm from "./CategoryForm";
 import {DialogForm} from "@/components/common";
-import toast from "react-hot-toast";
-import {type IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
-import {invalidateTag} from "@/api/serverAPI";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 export interface ExerciseModelProps {
     exercise?: IExercise
@@ -88,12 +85,10 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
             }, {
                 onSuccess: () => {
                     form.reset()
-                    toast.success("Завдання успішно оновлено")
-                    router.push("/exercises")
+                    SuccessToast("Завдання успішно оновлено")
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося оновити завдання", error: e})
+                    ErrorToast("Не вдалося оновити завдання", {cause: error})
                 }
             })
         } else {
@@ -103,13 +98,11 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
             }, {
                 onSuccess: () => {
                     form.control._resetDefaultValues()
-                    invalidateTag(`/exercises/${exercise?.ID}`)
-                    toast.success("Завдання успішно створено")
+                    SuccessToast("Завдання успішно створено")
                     router.push("/exercises")
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося створити завдання", error: e})
+                    ErrorToast("Не вдалося створити завдання", {cause: error})
                 }
             })
         }
@@ -126,13 +119,15 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
     }
 
 
-    // prevent page reload on form dirty
-    if (form.formState.isDirty && typeof window !== "undefined" && !window.onbeforeunload) {
-        window.onbeforeunload = () => true
-    }
-    // remove page reload on form clean
-    if (!form.formState.isDirty && typeof window !== "undefined" && window.onbeforeunload) {
-        window.onbeforeunload = null
+    if (typeof window !== "undefined") {
+        // prevent page reload on form dirty
+        if (form.formState.isDirty && !window.onbeforeunload) {
+            window.onbeforeunload = () => true
+        }
+        // remove page reload on form clean
+        if (!form.formState.isDirty && window.onbeforeunload) {
+            window.onbeforeunload = null
+        }
     }
 
     let fileUploadProgress = {

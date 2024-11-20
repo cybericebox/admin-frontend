@@ -1,23 +1,45 @@
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQueryClient} from "@tanstack/react-query";
 import {IInviteUsers, IUser, UserSchema} from "@/types/user";
 import {deleteUserFn, getUsersFn, inviteUsersFn, updateUserRoleFn} from "@/api/userAPI";
 import {z} from "zod";
 import {ErrorInvalidResponseData} from "@/types/common";
 
-const useGetUsers = ({search}: { search?: string }) => {
-    const {data: GetUsersResponse, isLoading, isError, isSuccess, error} = useQuery({
+const useGetUsers = ({search}: { search: string }) => {
+    const {
+        data: GetUsersResponse,
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['users', search],
-        queryFn: () => getUsersFn(search),
+        queryFn: ({pageParam}) => getUsersFn({page: pageParam, search}),
         select: (data) => {
-            const res = z.array(UserSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(UserSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    console.log(res.error)
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
 
@@ -28,7 +50,13 @@ const useGetUsers = ({search}: { search?: string }) => {
         error,
     }
 
-    return {GetUsersResponse, GetUsersRequest}
+    const GetMoreUsersRequest = {
+        FetchMore,
+        HasMore,
+        isFetchingMore,
+    }
+
+    return {GetUsersResponse, GetUsersRequest, GetMoreUsersRequest}
 }
 
 const useInviteUsers = () => {

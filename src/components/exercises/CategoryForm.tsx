@@ -9,10 +9,8 @@ import {ExerciseCategorySchema, type IExerciseCategory} from "@/types/exercise";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {useExerciseCategory} from "@/hooks/useExerciseCategory";
-import toast from "react-hot-toast";
-import {type IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
-import {FormProvider, FormFields, FormButtons} from "@/components/common/form";
+import {FormButtons, FormFields, FormProvider} from "@/components/common/form";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 
 export interface ExerciseCategoryFormProps {
     category?: IExerciseCategory
@@ -38,23 +36,21 @@ export default function ExerciseCategoryForm({category, ...props}: ExerciseCateg
         if (type === "Зберегти") {
             UpdateExerciseCategory({...data, ID: category?.ID}, {
                 onSuccess: () => {
+                    SuccessToast("Категорію успішно оновлено")
                     props.onClose()
-                    toast.success("Категорію успішно оновлено")
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося оновити категорію", error: e})
+                    ErrorToast("Не вдалося оновити категорію", {cause: error})
                 }
             })
         } else {
             CreateExerciseCategory(data, {
                 onSuccess: () => {
+                    SuccessToast("Категорію успішно створено")
                     props.onClose()
-                    toast.success("Категорію успішно створено")
                 },
                 onError: (error) => {
-                    const e = error as IErrorResponse
-                    ErrorToast({message: "Не вдалося створити категорію", error: e})
+                    ErrorToast("Не вдалося створити категорію", {cause: error})
                 }
             })
         }

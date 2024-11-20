@@ -1,15 +1,10 @@
-import type React from 'react'
-import LoadingSpin from "react-loading-spin";
+import {Loader as LoaderIcon} from 'lucide-react'
 
 export default function Loader() {
     return (
-        <div
-            className={"flex justify-center items-center w-full h-full"}
-        >
-            <LoadingSpin
-                primaryColor={"text-primary"}
-                size="100px"
-            />
+        <div className='flex justify-center items-center'>
+            <LoaderIcon className='animate-spin h-10 w-10 text-primary'/>
         </div>
     )
 }
+

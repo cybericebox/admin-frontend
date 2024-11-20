@@ -20,6 +20,7 @@ export default async function EventPage(props: EventPageProps) {
         id
     } = params;
 
+
     const eventResponse = await getEventFn(id);
     // If the event is not found, return the NotFound page
     if (eventResponse?.Status?.Code === 30000) {
@@ -38,8 +39,8 @@ export default async function EventPage(props: EventPageProps) {
                 <GoToCard
                     DescIcon={UsersRound}
                     LinkIcon={ArrowRight}
-                    title={eventResponse.Data.Participation === ParticipationTypeEnum.Individual ? "Учасники" : "Команди"}
-                    description={eventResponse.Data.Participation === ParticipationTypeEnum.Individual ? "Переглянути учасників заходу" : "Переглянути команди заходу"}
+                    title={eventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Учасники" : "Команди"}
+                    description={eventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Переглянути учасників заходу" : "Переглянути команди заходу"}
                     to={`/events/${id}/teams`}
                 />
                 <GoToCard
@@ -51,7 +52,7 @@ export default async function EventPage(props: EventPageProps) {
                 />
             </PageHeader>
             <PageBody>
-                <EventForm event={eventResponse.Data}/>
+                <EventForm event={eventResponse?.Data}/>
             </PageBody>
         </Page>
     );

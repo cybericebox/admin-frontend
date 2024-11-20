@@ -1,5 +1,5 @@
 "use client";
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {EventSchema, IEvent} from "@/types/event";
 import {
     createEventFn,
@@ -19,19 +19,35 @@ const useGetEvents = () => {
         isLoading,
         isError,
         isSuccess,
-        error
-    } = useQuery({
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['events'],
-        queryFn: () => getEventsFn(),
+        queryFn: ({pageParam}) => getEventsFn({page: pageParam}),
         select: (data) => {
-            const res = z.array(EventSchema).safeParse(data.data.Data)
-            if (!res.success) {
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(EventSchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
 
@@ -42,7 +58,13 @@ const useGetEvents = () => {
         error,
     }
 
-    return {GetEventsResponse, GetEventsRequest}
+    const GetMoreEventsRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetEventsResponse, GetEventsRequest, GetMoreEventsRequest}
 }
 
 const useGetEvent = (id?: string) => {

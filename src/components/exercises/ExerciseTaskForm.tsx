@@ -115,27 +115,32 @@ export default function ExerciseTaskForm({taskIndex, form, removeTask}: Exercise
                                                             name={`Data.Tasks.${taskIndex}.AttachedFileIDs.${index}`}
                                                             render={({field}) => (
                                                                 <FormItem className="w-full">
-                                                                    <FormControl>
+                                                                    <FormControl
+                                                                        className={"w-full"}
+                                                                    >
                                                                         <div
-                                                                            className={"flex justify-between items-center gap-1"}>
+                                                                            className={"w-full flex justify-between items-center gap-1"}>
                                                                             <Select
                                                                                 name={`Data.Tasks.${taskIndex}.AttachedFileIDs.${index}`}
                                                                                 onValueChange={(value) => field.onChange(value)}
-                                                                                defaultValue={field.value}>
-                                                                                <FormControl>
+                                                                                defaultValue={field.value}
+                                                                            >
+                                                                                <FormControl
+                                                                                    className={"max-w-[calc(100%-2rem)]"}
+                                                                                >
                                                                                     <SelectTrigger>
                                                                                         <SelectValue/>
                                                                                     </SelectTrigger>
                                                                                 </FormControl>
                                                                                 <SelectContent>
                                                                                     {
-                                                                                        form.watch("Data.Files")?.map((files) => {
+                                                                                        form.watch("Data.Files")?.map((file) => {
                                                                                             return (
                                                                                                 <SelectItem
-                                                                                                    key={files.ID}
-                                                                                                    value={files.ID}
+                                                                                                    key={file.ID}
+                                                                                                    value={file.ID}
                                                                                                 >
-                                                                                                    {files.Name}
+                                                                                                    {file.Name}
                                                                                                 </SelectItem>)
                                                                                         })
                                                                                     }
@@ -148,7 +153,6 @@ export default function ExerciseTaskForm({taskIndex, form, removeTask}: Exercise
                                                                                     attachedFileIDs.remove(index)
                                                                                 }}/>
                                                                         </div>
-
                                                                     </FormControl>
                                                                     <FormMessage/>
                                                                 </FormItem>

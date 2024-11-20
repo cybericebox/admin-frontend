@@ -88,7 +88,13 @@ export const ExerciseSchema = z.object({
     CreatedAt: z.coerce.date({required_error: "Поле має бути заповненим"}).optional(),
 })
 
-export const ExercisePreprocessedSchema = ExerciseSchema.pick({ID: true, Name: true, CategoryID: true, Description: true, CreatedAt: true}).merge(z.object({
+export const ExercisePreprocessedSchema = ExerciseSchema.pick({
+    ID: true,
+    Name: true,
+    CategoryID: true,
+    Description: true,
+    CreatedAt: true
+}).merge(z.object({
     Data: z.object({
         // @ts-ignore
         Tasks: z.array(z.preprocess((data: z.infer<typeof ExerciseTaskSchema>) => {

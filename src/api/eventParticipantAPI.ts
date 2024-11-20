@@ -3,8 +3,16 @@ import type {AxiosResponse} from "axios";
 import type {IResponse} from "@/types/api";
 import {baseAPI} from "@/api/baseAPI";
 
-export const getEventParticipantsFn = async (eventID: string): Promise<AxiosResponse<IResponse<IParticipant[]>, any>> => {
-    return await baseAPI.get(`/events/${eventID}/participants`);
+interface getEventParticipantsParams {
+    eventID: string
+    page: number
+}
+
+export const getEventParticipantsFn = async ({
+                                                 eventID,
+                                                 page
+                                             }: getEventParticipantsParams): Promise<AxiosResponse<IResponse<IParticipant[]>, any>> => {
+    return await baseAPI.get(`/events/${eventID}/participants?page=${page}`);
 }
 
 export const createEventParticipantFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {
@@ -25,7 +33,6 @@ export const updateEventParticipantTeamFn = async (participant: IParticipant): P
         TeamID: participant.TeamID
     })
 }
-
 
 export const deleteEventParticipantFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {
     return await baseAPI.delete(`/events/${participant.EventID}/participants/${participant.UserID}`);

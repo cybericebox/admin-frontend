@@ -1,6 +1,5 @@
 "use client";
 
-import styles from "@/components/components.module.css";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import moment from "moment";
 import "moment/locale/uk";
@@ -10,12 +9,11 @@ import {EventTypeEnum, IEvent} from "@/types/event";
 import Link from "next/link";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
-import {toast} from "react-hot-toast";
-import {IErrorResponse} from "@/types/api";
-import {ErrorToast} from "@/components/common/errorToast";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+import {useInView} from "@/hooks/useInView";
 
 export default function EventsTable() {
-    const {GetEventsRequest, GetEventsResponse} = useEvent().useGetEvents();
+    const {GetEventsRequest, GetEventsResponse, GetMoreEventsRequest} = useEvent().useGetEvents();
     const {DeleteEvent} = useEvent().useDeleteEvent();
     const [eventDeleteDialog, setEventDeleteDialog] = useState<IEvent>()
 
@@ -70,12 +68,21 @@ export default function EventsTable() {
         return `Публікація ${moment(event.PublishTime).fromNow()}`
     }
 
+    const {ref: lastElementRef} = useInView({
+        onInView: () => {
+            if (GetMoreEventsRequest.HasMore) {
+                GetMoreEventsRequest.FetchMore()
+            }
+        },
+        isLoading: GetEventsRequest.isLoading || GetMoreEventsRequest.isFetchingMore,
+    });
+
     return (
         <>
             <BodyHeader title={"Заходи"}/>
             <BodyContent>
                 <Table>
-                    <TableHeader className={styles.tableHeader}>
+                    <TableHeader>
                         <TableRow>
                             <TableHead>Назва</TableHead>
                             <TableHead>Посилання</TableHead>
@@ -90,11 +97,22 @@ export default function EventsTable() {
                     </TableHeader>
                     {
                         GetEventsResponse?.Data &&
-                        <TableBody>
+                        <TableBody
+                            onEmpty={{
+                                isLoading: GetEventsRequest.isLoading,
+                                error: GetEventsRequest.error,
+                                isEmpty: !GetEventsResponse?.Data.length,
+                                noDataMessage: "Жодного заходу не створено",
+                            }}
+                            isFetchingMoreData={GetMoreEventsRequest.isFetchingMore}
+                        >
                             {
-                                GetEventsResponse?.Data.map((event) => {
+                                GetEventsResponse?.Data.map((event, index) => {
                                     return (
-                                        <TableRow key={event.ID} className={"hover:bg-blue-200"}>
+                                        <TableRow
+                                            ref={GetEventsResponse.Data.length === index + 1 ? lastElementRef : null}
+                                            key={event.ID}
+                                        >
                                             <TableCell>
                                                 <Link
                                                     href={"/events/" + event.ID}
@@ -171,19 +189,6 @@ export default function EventsTable() {
                             }
                         </TableBody>
                     }
-                    <div
-                        className={styles.emptyTableBody}
-                    >
-                        {
-                            GetEventsRequest.isLoading ?
-                                "Завантаження..." :
-                                GetEventsRequest.isError ?
-                                    "Помилка завантаження" :
-                                    GetEventsRequest.isSuccess && GetEventsResponse?.Data.length === 0 ?
-                                        "Жодного заходу не створено" :
-                                        null
-                        }
-                    </div>
                 </Table>
             </BodyContent>
             {!!eventDeleteDialog &&
@@ -196,11 +201,10 @@ export default function EventsTable() {
                         () => {
                             DeleteEvent(eventDeleteDialog.ID!, {
                                 onSuccess: () => {
-                                    toast.success("Захід успішно видалений")
+                                    SuccessToast("Захід успішно видалено")
                                 },
                                 onError: (error) => {
-                                    const e = error as IErrorResponse
-                                    ErrorToast({message: "Не вдалося видалити захід", error: e})
+                                    ErrorToast("Не вдалося видалити захід", {cause: error})
                                 },
                             })
                         }

@@ -17,18 +17,18 @@ export default function EventURLFieldInput({field, fieldState, disabled, id}: Ev
     const [showEventURL, setShowEventURL] = useState(!!field.value)
     return (
         !disabled ? <Input placeholder="Тег..." {...field}
-                id={id}
-               value={showEventURL && !fieldState.invalid ? `https://${field.value}.${process.env.NEXT_PUBLIC_DOMAIN}` : field.value}
-               onBlurCapture={() => {
-                   if (field.value) {
-                       setShowEventURL(true)
-                   }
-               }
-               }
-               onFocusCapture={() => {
-                   setShowEventURL(false)
-               }}
-               disabled={disabled}
+                           id={id}
+                           value={showEventURL && !fieldState.invalid ? `https://${field.value}.${process.env.NEXT_PUBLIC_DOMAIN}` : field.value}
+                           onBlurCapture={() => {
+                               if (field.value) {
+                                   setShowEventURL(true)
+                               }
+                           }
+                           }
+                           onFocusCapture={() => {
+                               setShowEventURL(false)
+                           }}
+                           disabled={disabled}
         /> : <Link
             id={id}
             href={`https://${field.value}.${process.env.NEXT_PUBLIC_DOMAIN}`}

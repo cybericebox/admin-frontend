@@ -1,5 +1,5 @@
 'use client'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {
     createExerciseCategoryFn,
     deleteExerciseCategoryFn,
@@ -11,29 +11,85 @@ import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
 import {z} from "zod";
 import {ErrorInvalidResponseData} from "@/types/common";
 
+// const useGetExerciseCategories = () => {
+//     const {data: GetExerciseCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
+//         queryKey: ['exerciseCategories'],
+//         queryFn: () => getExerciseCategoriesFn(),
+//         select: (data) => {
+//             const res = z.array(ExerciseCategorySchema).safeParse(data.data.Data)
+//             if (!res.success) {
+//                 console.log(res.error)
+//                 throw ErrorInvalidResponseData
+//             } else {
+//                 data.data.Data = res.data
+//             }
+//
+//             return data.data
+//         },
+//     })
+//     const GetExerciseCategoriesRequest = {
+//         isLoading,
+//         isError,
+//         isSuccess,
+//         error,
+//     }
+//     return {GetExerciseCategoriesResponse, GetExerciseCategoriesRequest}
+// }
+
 const useGetExerciseCategories = () => {
-    const {data: GetExerciseCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
+    const {
+        data: GetExerciseCategoriesResponse,
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['exerciseCategories'],
-        queryFn: () => getExerciseCategoriesFn(),
+        queryFn: ({pageParam}) => getExerciseCategoriesFn(pageParam),
         select: (data) => {
-            const res = z.array(ExerciseCategorySchema).safeParse(data.data.Data)
-            if (!res.success) {
-                console.log(res.error)
-                throw ErrorInvalidResponseData
-            } else {
-                data.data.Data = res.data
+            data.pages.forEach((page) => {
+                const res = z.array(ExerciseCategorySchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    console.log(res.error)
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
             }
 
-            return data.data
+            return lastPageParam + 1
         },
     })
+
     const GetExerciseCategoriesRequest = {
         isLoading,
         isError,
         isSuccess,
         error,
     }
-    return {GetExerciseCategoriesResponse, GetExerciseCategoriesRequest}
+
+    const GetMoreExerciseCategoriesRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetExerciseCategoriesResponse, GetExerciseCategoriesRequest, GetMoreExerciseCategoriesRequest}
 }
 
 const useGetExerciseCategory = (id: string) => {

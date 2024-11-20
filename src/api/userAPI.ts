@@ -4,8 +4,13 @@ import {baseAPI} from "@/api/baseAPI";
 import type {AxiosResponse} from "axios";
 
 
-export const getUsersFn = async (search?: string): Promise<AxiosResponse<IResponse<IUser[]>, any>> => {
-    return await baseAPI.get(`/users?${search && "search=" + search}`)
+interface getUsersProps {
+    page: number
+    search: string
+}
+
+export const getUsersFn = async ({page, search}: getUsersProps): Promise<AxiosResponse<IResponse<IUser[]>, any>> => {
+    return await baseAPI.get(`/users?page=${page}&${search.length && "search=" + search}`)
 }
 
 export const inviteUsersFn = async (data: IInviteUsers): Promise<AxiosResponse<IResponse, any>> => {
