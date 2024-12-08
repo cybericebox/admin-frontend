@@ -1,4 +1,4 @@
-"use client"
+    "use client"
 import {IEventChallengeCategory} from "@/types/challenge";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import React, {useState} from "react";

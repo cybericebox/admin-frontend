@@ -96,7 +96,6 @@ export default function EventsTable() {
                         </TableRow>
                     </TableHeader>
                     {
-                        GetEventsResponse?.Data &&
                         <TableBody
                             onEmpty={{
                                 isLoading: GetEventsRequest.isLoading,

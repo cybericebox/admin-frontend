@@ -11,31 +11,6 @@ import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
 import {z} from "zod";
 import {ErrorInvalidResponseData} from "@/types/common";
 
-// const useGetExerciseCategories = () => {
-//     const {data: GetExerciseCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
-//         queryKey: ['exerciseCategories'],
-//         queryFn: () => getExerciseCategoriesFn(),
-//         select: (data) => {
-//             const res = z.array(ExerciseCategorySchema).safeParse(data.data.Data)
-//             if (!res.success) {
-//                 console.log(res.error)
-//                 throw ErrorInvalidResponseData
-//             } else {
-//                 data.data.Data = res.data
-//             }
-//
-//             return data.data
-//         },
-//     })
-//     const GetExerciseCategoriesRequest = {
-//         isLoading,
-//         isError,
-//         isSuccess,
-//         error,
-//     }
-//     return {GetExerciseCategoriesResponse, GetExerciseCategoriesRequest}
-// }
-
 const useGetExerciseCategories = () => {
     const {
         data: GetExerciseCategoriesResponse,

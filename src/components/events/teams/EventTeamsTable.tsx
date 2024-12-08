@@ -48,7 +48,6 @@ export default function EventTeamsTable({eventID}: EventTeamsTableProps) {
                         </TableRow>
                     </TableHeader>
                     {
-                        GetEventTeamsResponse?.Data &&
                         <TableBody
                             onEmpty={{
                                 isLoading: GetEventTeamsRequest.isLoading,

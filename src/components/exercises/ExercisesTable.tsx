@@ -46,7 +46,6 @@ export default function ExercisesTable({selectedCategory, search}: ExercisesTabl
                     </TableRow>
                 </TableHeader>
                 {
-                    GetExercisesResponse?.Data &&
                     <TableBody
                         onEmpty={{
                             isLoading: GetExercisesRequest.isLoading,

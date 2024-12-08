@@ -26,6 +26,7 @@ const useGetEventChallengeSolutionAttempts = (eventID: string) => {
             data.pages.forEach((page) => {
                 const res = z.array(ChallengeSolutionAttemptSchema).safeParse(page.data.Data)
                 if (!res.success) {
+                    console.log(res.error)
                     throw ErrorInvalidResponseData
                 } else {
                     page.data.Data = res.data

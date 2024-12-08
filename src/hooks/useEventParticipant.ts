@@ -29,6 +29,7 @@ const useGetEventParticipants = (eventID: string) => {
             data.pages.forEach((page) => {
                 const res = z.array(ParticipantSchema).safeParse(page.data.Data)
                 if (!res.success) {
+                    console.log(res.error)
                     throw ErrorInvalidResponseData
                 } else {
                     page.data.Data = res.data

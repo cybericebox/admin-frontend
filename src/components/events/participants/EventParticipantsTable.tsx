@@ -69,7 +69,6 @@ export default function EventParticipantsTable({eventID}: EventParticipantsTable
                         </TableRow>
                     </TableHeader>
                     {
-                        GetEventParticipantsResponse?.Data &&
                         <TableBody
                             onEmpty={{
                                 isLoading: GetEventParticipantsRequest.isLoading,

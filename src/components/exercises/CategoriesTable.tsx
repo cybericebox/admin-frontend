@@ -58,7 +58,6 @@ export default function CategoriesTable(props: CategoriesTableProps) {
                     </TableRow>
                 </TableHeader>
                 {
-                    GetExerciseCategoriesResponse?.Data &&
                     <TableBody
                         onEmpty={{
                             isLoading: GetExerciseCategoriesRequest.isLoading,
