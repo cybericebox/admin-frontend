@@ -1,5 +1,5 @@
 "use client";
-import {getCookie} from "cookies-next"
+import {getCookie} from "cookies-next/client"
 import {type IAuthenticated} from "@/types/auth";
 
 const permissionsTokenField = "permissionsToken"
@@ -16,19 +16,12 @@ export function ClientAuthentication(): IAuthenticated {
         }
 
         // if token is string, parse it
-        if (typeof token === "string") {
             const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
             const userID = payload?.sub
             return {
                 IsAuthenticated: !!userID,
                 ID: userID
             }
-        }
-
-        return {
-            IsAuthenticated: false,
-            ID: ""
-        }
 
     } catch (e) {
         return {
