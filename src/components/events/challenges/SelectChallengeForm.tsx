@@ -43,7 +43,6 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
                 ErrorToast("Не вдалося додати завдання", {cause: error})
             }
         })
-        onCancel?.()
     }
 
     const {ref: lastElementRef} = useInView({

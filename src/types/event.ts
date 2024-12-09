@@ -114,6 +114,7 @@ export const ParticipantSchema = z.object({
     EventID: z.string().uuid(),
     UserID: z.string().uuid(),
     TeamID: z.string().uuid().optional().or(z.string().nullable()),
+    TeamName: z.string().nullable(),
 
     Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Імʼя має складатися хоча б з 2 символів"}).max(255, {message: "Імʼя має складатися не більше ніж з 255 символів"}),
     Email: z.string({required_error: "Поле має бути заповненим"}).email({message: "Введіть коректний email"}),

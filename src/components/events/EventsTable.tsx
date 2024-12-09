@@ -5,7 +5,7 @@ import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
 import {useEvent} from "@/hooks/useEvent";
-import {EventTypeEnum, IEvent} from "@/types/event";
+import {EventTypeEnum, IEvent, ParticipationTypeEnum} from "@/types/event";
 import Link from "next/link";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
@@ -162,7 +162,7 @@ export default function EventsTable() {
                                                     href={`/events/${event.ID}/teams`}
                                                     color="#54616e"
                                                     aria-label="Event teams"
-                                                    data-tooltip-content={`Перейти до ${event.Participation === 0 ? "учасників" : "команд"} заходу`}
+                                                    data-tooltip-content={`Перейти до ${event.Participation === ParticipationTypeEnum.Individual ? "учасників" : "команд"} заходу`}
 
                                                     data-tooltip-id="tooltip"
                                                 >

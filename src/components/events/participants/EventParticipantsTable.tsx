@@ -4,7 +4,6 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import "moment/locale/uk";
 import React, {useState} from "react";
 import {BodyContent, BodyHeader} from "@/components/common/page";
-import {useEventTeam} from "@/hooks/useEventTeam";
 import {useEvent} from "@/hooks/useEvent";
 import {IParticipant, ParticipationStatusEnum, ParticipationStatusNameEnum, ParticipationTypeEnum} from "@/types/event";
 import {useEventParticipant} from "@/hooks/useEventParticipant";
@@ -24,7 +23,6 @@ export default function EventParticipantsTable({eventID}: EventParticipantsTable
         GetEventParticipantsRequest,
         GetModeEventParticipantsRequest
     } = useEventParticipant().useGetEventParticipants(eventID);
-    const {GetEventTeamsResponse} = useEventTeam().useGetEventTeams(eventID)
     const {GetEventResponse} = useEvent().useGetEvent(eventID);
 
     const [eventParticipantDeleteDialog, setEventParticipantDeleteDialog] = useState<IParticipant>()
@@ -80,7 +78,6 @@ export default function EventParticipantsTable({eventID}: EventParticipantsTable
                         >
                             {
                                 GetEventParticipantsResponse?.Data.map((participant, index) => {
-                                    const team = GetEventTeamsResponse?.Data.find(team => team.ID === participant.TeamID)
                                     return (
                                         <TableRow
                                             key={participant.UserID}
@@ -94,7 +91,7 @@ export default function EventParticipantsTable({eventID}: EventParticipantsTable
                                             </TableCell>
                                             {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
                                                 <TableCell>
-                                                    {team?.Name || ""}
+                                                    {participant?.TeamName || ""}
                                                 </TableCell>}
                                             <TableCell className={"text-center"}>
                                                 <DropdownMenu>

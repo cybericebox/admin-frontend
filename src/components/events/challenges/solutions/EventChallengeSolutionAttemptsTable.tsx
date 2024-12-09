@@ -4,16 +4,15 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import "moment/locale/uk";
 import React from "react";
 import {BodyContent, BodyHeader} from "@/components/common/page";
-import {useEventTeam} from "@/hooks/useEventTeam";
 import {useEvent} from "@/hooks/useEvent";
 import {ParticipationTypeEnum} from "@/types/event";
 import moment from "moment/moment";
 import {useEventChallengeSolutionAttempt} from "@/hooks/useEventChallengeSolutionAttempt";
-import {useUser} from "@/hooks/useUser";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {ErrorToast, SuccessToast} from "@/components/common/customToast";
 import {useInView} from "@/hooks/useInView";
+import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
 
 interface EventChallengeSolutionAttemptsTableProps {
     eventID: string;
@@ -25,9 +24,8 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
         GetEventChallengeSolutionAttemptsRequest,
         GetMoreEventChallengeSolutionAttemptsRequest
     } = useEventChallengeSolutionAttempt().useGetEventChallengeSolutionAttempts(eventID);
-    const {GetEventTeamsResponse} = useEventTeam().useGetEventTeams(eventID);
-    const {GetUsersResponse} = useUser().useGetUsers({search: ""})
     const {GetEventChallengesResponse} = useEventChallenge().useGetEventChallenges(eventID)
+    const {GetEventChallengeCategoriesResponse} = useEventChallengeCategory().useGetEventChallengeCategories(eventID)
     const {GetEventResponse} = useEvent().useGetEvent(eventID);
     const {UpdateEventChallengeSolutionAttemptStatus} = useEventChallengeSolutionAttempt().useUpdateEventChallengeSolutionAttemptStatus();
 
@@ -52,6 +50,7 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
                             {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
                                 <TableHead>{"Команда"}</TableHead>}
                             <TableHead>{"Учасник"}</TableHead>
+                            <TableHead>{"Категорія"}</TableHead>
                             <TableHead>{"Завдання"}</TableHead>
                             <TableHead className={"text-center"}>{"Статус"}</TableHead>
                             <TableHead>{"Прапор"}</TableHead>
@@ -59,34 +58,36 @@ export default function EventChallengeSolutionAttemptsTable({eventID}: EventChal
                         </TableRow>
                     </TableHeader>
                     {
-                        GetEventChallengeSolutionAttemptsResponse?.Data &&
                         <TableBody
                             onEmpty={{
                                 isLoading: GetEventChallengeSolutionAttemptsRequest.isLoading,
                                 error: GetEventChallengeSolutionAttemptsRequest.error,
-                                isEmpty: GetEventChallengeSolutionAttemptsResponse?.Data.length == 0,
+                                isEmpty: !GetEventChallengeSolutionAttemptsResponse?.Data.length,
                                 noDataMessage: "Жодної спроби вирішення завдань не зафіксовано",
                             }}
                             isFetchingMoreData={GetMoreEventChallengeSolutionAttemptsRequest.isFetchingMore}
                         >
                             {
                                 GetEventChallengeSolutionAttemptsResponse?.Data.map((solution, index) => {
-                                    const team = GetEventTeamsResponse?.Data.find(team => team.ID === solution.TeamID)
-                                    const participant = GetUsersResponse?.Data.find(user => user.ID === solution.ParticipantID)
                                     const challenge = GetEventChallengesResponse?.Data.find((challenge) => challenge.ID === solution.ChallengeID)
+                                    const category = GetEventChallengeCategoriesResponse?.Data.find((category) => challenge?.CategoryID === category.ID)
                                     return (
                                         <TableRow
                                             key={solution.ID}
                                             ref={GetEventChallengeSolutionAttemptsResponse.Data.length === index + 1 ? lastElementRef : null}
+                                            className={`${solution.TeamID === GetEventResponse?.Data.ID && "bg-blue-100"}`}
                                         >
                                             <TableCell>{moment(solution.Timestamp).format("DD.MM.YYYY HH:mm:ss")}</TableCell>
                                             <TableCell>
-                                                {team?.Name || ""}
+                                                {solution.TeamName || ""}
                                             </TableCell>
                                             {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
                                                 <TableCell>
-                                                    {participant?.Name || ""}
+                                                    {solution.ParticipantName || ""}
                                                 </TableCell>}
+                                            <TableCell>
+                                                {category?.Name || ""}
+                                            </TableCell>
                                             <TableCell>
                                                 {challenge?.Data.Name || ""}
                                             </TableCell>
