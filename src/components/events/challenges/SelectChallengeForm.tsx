@@ -56,7 +56,8 @@ export default function SelectChallengesForm({eventID, categoryID, onCancel}: Se
     });
 
     return (
-        <div className={"flex flex-col short:space-y-1 space-y-3 h-[calc(80dvh-1.5rem)] sm:h-[calc(80dvh-3.5rem)] w-[calc(100dvw-1rem)] sm:w-[calc(80dvw-3rem)]"}>
+        <div
+            className={"flex flex-col short:space-y-1 space-y-3 h-[calc(80dvh-1.5rem)] sm:h-[calc(80dvh-3.5rem)] w-[calc(100dvw-1rem)] sm:w-[calc(80dvw-3rem)]"}>
             <BodyHeader title={"Завдання"}>
                 <Search setSearch={setSearch} placeholder={"Знайти завдання"} key={"search"}/>
             </BodyHeader>

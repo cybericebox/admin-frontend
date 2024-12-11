@@ -1,10 +1,10 @@
-import EventForm from "@/components/events/EventForm";
-import {getEventFn} from "@/api/serverAPI";
 import {Page, PageBody, PageHeader} from "@/components/common/page";
 import {GoToCard} from "@/components/common";
 import {ArrowRight, Flag, UsersRound} from "lucide-react";
-import NotFound from "@/app/not-found";
 import {ParticipationTypeEnum} from "@/types/event";
+import EventForm from "@/components/events/EventForm";
+import {getEventFn} from "@/api/serverAPI";
+import NotFound from "@/app/not-found";
 
 
 interface EventPageProps {
@@ -20,12 +20,12 @@ export default async function EventPage(props: EventPageProps) {
         id
     } = params;
 
+    const getEventResponse = await getEventFn(id);
 
-    const eventResponse = await getEventFn(id);
-    // If the event is not found, return the NotFound page
-    if (eventResponse?.Status?.Code === 30000) {
-        return NotFound
+    if (getEventResponse?.Status?.Code == 31301) {
+        return NotFound();
     }
+
     return (
         <Page>
             <PageHeader>
@@ -39,8 +39,8 @@ export default async function EventPage(props: EventPageProps) {
                 <GoToCard
                     DescIcon={UsersRound}
                     LinkIcon={ArrowRight}
-                    title={eventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Учасники" : "Команди"}
-                    description={eventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Переглянути учасників заходу" : "Переглянути команди заходу"}
+                    title={getEventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Учасники" : "Команди"}
+                    description={getEventResponse?.Data.Participation === ParticipationTypeEnum.Individual ? "Переглянути учасників заходу" : "Переглянути команди заходу"}
                     to={`/events/${id}/teams`}
                 />
                 <GoToCard
@@ -52,7 +52,7 @@ export default async function EventPage(props: EventPageProps) {
                 />
             </PageHeader>
             <PageBody>
-                <EventForm event={eventResponse?.Data}/>
+                <EventForm event={getEventResponse?.Data}/>
             </PageBody>
         </Page>
     );

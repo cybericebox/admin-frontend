@@ -19,7 +19,7 @@ export const getAvailableExercisesFn = async ({
                                                   search,
                                                   page
                                               }: getAvailableExercisesParams): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
-    return await baseAPI.get((`/events/${eventID}/challenges/exercises?page=${page}${search && "&search=" + search}`))
+    return await baseAPI.get((`/events/${eventID}/challenges/exercises?page=${page}${(search.length > 0 ? "&search=" : "") + search}`))
 }
 
 export const createEventChallengeFn = async (eventID: string, data: ICreateEventChallenge): Promise<AxiosResponse<IResponse, any>> => {

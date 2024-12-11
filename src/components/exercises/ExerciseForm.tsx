@@ -39,10 +39,28 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
     const router = useRouter()
     const [selectedAccordion, setSelectedAccordion] = useState<AccordionItemType>("Main")
 
+    let values = undefined
+    if (exercise) {
+        values = {
+           ...exercise,
+            Data: {
+                ...exercise.Data,
+                Tasks: Array.from(exercise?.Data.Tasks, (task) => {
+                    return {
+                        ...task,
+                        UseRandomFlag: task.Flags.length === 0,
+                        Link: !!task.LinkedInstanceID,
+                    }
+                }),
+            },
+        }
+    }
+
+
     const form = useForm<z.infer<typeof ExerciseSchema>>({
         resolver: zodResolver(ExerciseSchema),
         defaultValues: {
-            ID: exercise?.ID || undefined,
+            ...exercise,
             CategoryID: exercise?.CategoryID || "",
             Name: exercise?.Name || "",
             Description: exercise?.Description || "",
@@ -52,13 +70,13 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
                         ...task,
                         UseRandomFlag: task.Flags.length === 0,
                         Link: !!task.LinkedInstanceID,
-                        LinkedInstanceID: !!task.LinkedInstanceID ? task.LinkedInstanceID : undefined,
                     }
                 }) : [],
                 Instances: exercise?.Data?.Instances || [],
                 Files: exercise?.Data?.Files || []
             },
         },
+        values: values,
         mode: "all",
         delayError: 500,
     })
@@ -81,10 +99,10 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
     const onSubmit: SubmitHandler<z.infer<typeof ExerciseSchema>> = data => {
         if (type === "Зберегти") {
             UpdateExercise({
-                ...data, ID: exercise?.ID
+                ...data
             }, {
                 onSuccess: () => {
-                    form.reset()
+                    router.refresh()
                     SuccessToast("Завдання успішно оновлено")
                 },
                 onError: (error) => {
@@ -97,7 +115,6 @@ export default function ExerciseForm({exercise}: ExerciseModelProps) {
                 ...data
             }, {
                 onSuccess: () => {
-                    form.control._resetDefaultValues()
                     SuccessToast("Завдання успішно створено")
                     router.push("/exercises")
                 },

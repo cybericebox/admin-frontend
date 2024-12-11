@@ -16,10 +16,7 @@ export const getEventParticipantsFn = async ({
 }
 
 export const createEventParticipantFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {
-    return await baseAPI.post(`/events/${participant.EventID}/participants`, {
-        UserID: participant.UserID,
-        ApprovalStatus: participant.ApprovalStatus
-    });
+    return await baseAPI.post(`/events/${participant.EventID}/participants`, participant);
 }
 
 export const updateEventParticipantStatusFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {
@@ -29,9 +26,7 @@ export const updateEventParticipantStatusFn = async (participant: IParticipant):
 }
 
 export const updateEventParticipantTeamFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {
-    return await baseAPI.patch(`/events/${participant.EventID}/participants/${participant.UserID}/team`, {
-        TeamID: participant.TeamID
-    })
+    return await baseAPI.patch(`/events/${participant.EventID}/participants/${participant.UserID}/team`, participant)
 }
 
 export const deleteEventParticipantFn = async (participant: IParticipant): Promise<AxiosResponse<IResponse, any>> => {

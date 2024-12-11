@@ -57,6 +57,8 @@ export const EventSchema = z.object({
     ScoreboardAvailability: z.nativeEnum(ScoreboardVisibilityTypeEnum, {message: "Оберіть доступність таблиці результатів"}),
     ParticipantsVisibility: z.nativeEnum(ParticipantsVisibilityTypeEnum, {message: "Оберіть доступність учасників"}),
     CreatedAt: z.coerce.date().optional(),
+    UpdatedAt: z.coerce.date().optional(),
+    UpdatedBy: z.string().uuid().optional(),
     ChallengesCount: z.number().int().optional(),
     TeamsCount: z.number().int().optional(),
 }).refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
@@ -90,6 +92,8 @@ export const TeamSchema = z.object({
     Score: z.number().int().optional(),
     SolvedChallengesCount: z.number().int().optional(),
 
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     CreatedAt: z.coerce.date().optional(),
 })
 
@@ -121,6 +125,8 @@ export const ParticipantSchema = z.object({
 
     ApprovalStatus: z.nativeEnum(ParticipationStatusEnum, {message: "Оберіть статус участі"}),
 
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     CreatedAt: z.coerce.date().optional(),
 })
 

@@ -13,6 +13,7 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
+        cache: 'no-store'
     })
     if (response.ok) {
         // parse the response
@@ -26,6 +27,11 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
         }
         return data;
     }
+
+    if (response.status < 500) {
+        return await response.json() as IResponse<IEvent>;
+    }
+
     return Promise.resolve({} as IResponse<IEvent>);
 }
 
@@ -50,6 +56,11 @@ export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> =
         }
         return data;
     }
+
+    if (response.status < 500) {
+        return await response.json() as IResponse<IExercise>;
+    }
+
     return Promise.resolve({} as IResponse<IExercise>);
 
 }

@@ -22,6 +22,8 @@ export const ChallengeSchema = z.object({
         AttachedFiles: z.array(ExerciseFileSchema),
     }),
     Order: z.number().int(),
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     CreatedAt: z.coerce.date().optional(),
 })
 
@@ -33,6 +35,8 @@ export const ChallengeCategorySchema = z.object({
     EventID: z.string({required_error: "Поле має бути заповненим"}),
     Name: z.string({required_error: "Поле має бути заповненим"}),
     Order: z.number().int(),
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     CreatedAt: z.coerce.date().optional(),
 })
 

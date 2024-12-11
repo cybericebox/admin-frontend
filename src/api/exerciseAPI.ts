@@ -13,7 +13,7 @@ export const getExercisesFn = async ({
                                          search,
                                          page
                                      }: getExerciseParams): Promise<AxiosResponse<IResponse<IExercise[]>, any>> => {
-    return await baseAPI.get(`/exercises?page=${page}${search && "&search=" + search}`);
+    return await baseAPI.get(`/exercises?page=${page}${(search.length > 0 ? "&search=" : "") + search}`);
 }
 
 export const getExerciseFn = async (id: string): Promise<AxiosResponse<IResponse<IExercise>, any>> => {

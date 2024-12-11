@@ -18,8 +18,8 @@ export default async function ExercisePage(props: ExercisePageProps) {
 
     const exerciseResponse = await getExerciseFn(id);
     // If the exercise is not found, return the NotFound page
-    if (exerciseResponse?.Status?.Code === 30000) {
-        return NotFound
+    if (exerciseResponse?.Status?.Code === 31101) {
+        return NotFound();
     }
     return (
         <Page>

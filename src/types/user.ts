@@ -13,6 +13,8 @@ export const UserSchema = z.object({
     Role: z.nativeEnum(UserRoleEnum, {message: "Оберіть роль користувача"}),
     Picture: z.string({required_error: "Поле має бути заповненим"}).max(0).or(z.string().url({message: "Некоректне посилання на зображення"})).optional(),
     LastSeen: z.coerce.date({required_error: "Поле має бути заповненим"}),
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     CreatedAt: z.coerce.date({required_error: "Поле має бути заповненим"}),
 })
 

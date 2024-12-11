@@ -43,41 +43,41 @@ export default function EventForm({event}: EventFormProps) {
     const router = useRouter()
     const [selectedAccordion, setSelectedAccordion] = useState<AccordionItemType>("Main")
 
+    let values = undefined
+    if (event) {
+        values = {
+            ...event,
+        }
+    }
+
     const form = useForm<z.infer<typeof EventSchema>>({
         resolver: zodResolver(EventSchema),
         defaultValues: {
-            ID: event?.ID || undefined,
-            Name: event?.Name || "",
-            Tag: event?.Tag || "",
-            Picture: event?.Picture || "",
-            Description: event?.Description || "",
-            Rules: event?.Rules || "",
-            Type: type === "Зберегти" ? event?.Type : EventTypeEnum.Competition,
-            Participation: type === "Зберегти" ? event?.Participation : ParticipationTypeEnum.Team,
-            Availability: type === "Зберегти" ? event?.Availability : AvailabilityTypeEnum.Private,
-            Registration: type === "Зберегти" ? event?.Registration : RegistrationTypeEnum.Open,
-            ParticipantsVisibility: type === "Зберегти" ? event?.ParticipantsVisibility : ParticipantsVisibilityTypeEnum.Private,
-            ScoreboardAvailability: type === "Зберегти" ? event?.ScoreboardAvailability : ScoreboardVisibilityTypeEnum.Private,
-            PublishTime: event ? new Date(event.PublishTime) : new Date(Date.now()),
-            StartTime: event ? new Date(event.StartTime) : new Date(Date.now()),
-            FinishTime: event ? new Date(event.FinishTime) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-            WithdrawTime: event ? new Date(event.WithdrawTime) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-            DynamicScoring: event?.DynamicScoring || false,
-            DynamicMinScore: event?.DynamicMinScore || 1,
-            DynamicMaxScore: event?.DynamicMaxScore || 1,
-            DynamicSolveThreshold: event?.DynamicSolveThreshold || 1,
+            Type: EventTypeEnum.Competition,
+            Participation: ParticipationTypeEnum.Team,
+            Availability: AvailabilityTypeEnum.Private,
+            Registration: RegistrationTypeEnum.Open,
+            ParticipantsVisibility: ParticipantsVisibilityTypeEnum.Private,
+            ScoreboardAvailability: ScoreboardVisibilityTypeEnum.Private,
+            PublishTime: new Date(Date.now()),
+            StartTime: new Date(Date.now()),
+            FinishTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            WithdrawTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            DynamicScoring: false,
+            DynamicMinScore: 1,
+            DynamicMaxScore: 1,
+            DynamicSolveThreshold: 1,
         },
-        mode: "onChange"
+        values: values,
+        mode: "onChange",
     })
 
     const onSubmit: SubmitHandler<z.infer<typeof EventSchema>> = data => {
-
         if (type === "Зберегти") {
             UpdateEvent({...data}, {
                 onSuccess: () => {
+                    router.refresh()
                     SuccessToast("Захід успішно оновлено")
-                    form.control._resetDefaultValues()
-
                 },
                 onError: (error) => {
                     ErrorToast("Не вдалося оновити захід", {cause: error})
@@ -87,7 +87,6 @@ export default function EventForm({event}: EventFormProps) {
             CreateEvent({...data}, {
                 onSuccess: () => {
                     SuccessToast("Захід успішно створено")
-                    form.reset()
                     router.push("/events")
                 },
                 onError: (error) => {
@@ -193,8 +192,8 @@ export default function EventForm({event}: EventFormProps) {
                                                             <SelectContent>
                                                                 <SelectItem
                                                                     value={`${EventTypeEnum.Competition}`}>Змагання</SelectItem>
-                                                                {/*<SelectItem*/}
-                                                                {/*    value={`${EventTypeEnum.Practice}`}>Тренування</SelectItem>*/}
+                                                                {/*    <SelectItem*/}
+                                                                {/*        value={`${EventTypeEnum.Practice}`}>Тренування</SelectItem>*/}
                                                             </SelectContent>
                                                         </Select>
                                                         <FormMessage/>
