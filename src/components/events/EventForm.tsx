@@ -192,8 +192,8 @@ export default function EventForm({event}: EventFormProps) {
                                                             <SelectContent>
                                                                 <SelectItem
                                                                     value={`${EventTypeEnum.Competition}`}>Змагання</SelectItem>
-                                                                {/*    <SelectItem*/}
-                                                                {/*        value={`${EventTypeEnum.Practice}`}>Тренування</SelectItem>*/}
+                                                                    <SelectItem
+                                                                        value={`${EventTypeEnum.Practice}`}>Тренування</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                         <FormMessage/>
@@ -314,8 +314,8 @@ export default function EventForm({event}: EventFormProps) {
                                                             <SelectContent>
                                                                 <SelectItem
                                                                     value={`${RegistrationTypeEnum.Open}`}>Відкрита</SelectItem>
-                                                                {/*<SelectItem value={`${RegistrationTypeEnum.Approval}`}>За*/}
-                                                                {/*    підтвердженням</SelectItem>*/}
+                                                                <SelectItem value={`${RegistrationTypeEnum.Approval}`}>За
+                                                                    підтвердженням</SelectItem>
                                                                 <SelectItem
                                                                     value={`${RegistrationTypeEnum.Close}`}>Закрита</SelectItem>
                                                             </SelectContent>
