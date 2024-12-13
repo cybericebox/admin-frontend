@@ -1,6 +1,6 @@
 "use client";
 import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {EventSchema, IEvent} from "@/types/event";
+import {EventSchema, EventWithoutMetadataSchema, IEvent} from "@/types/event";
 import {
     createEventFn,
     deleteEventFn,
@@ -28,7 +28,7 @@ const useGetEvents = () => {
         queryFn: ({pageParam}) => getEventsFn({page: pageParam}),
         select: (data) => {
             data.pages.forEach((page) => {
-                const res = z.array(EventSchema).safeParse(page.data.Data)
+                const res = z.array(EventWithoutMetadataSchema).safeParse(page.data.Data)
                 if (!res.success) {
                     console.log(res.error)
                     throw ErrorInvalidResponseData

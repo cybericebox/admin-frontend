@@ -5,7 +5,7 @@ import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
 import {useEvent} from "@/hooks/useEvent";
-import {EventTypeEnum, IEvent, ParticipationTypeEnum} from "@/types/event";
+import {EventTypeEnum, IEvent, IEventWithoutMetadata, ParticipationTypeEnum} from "@/types/event";
 import Link from "next/link";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
@@ -15,9 +15,9 @@ import {useInView} from "@/hooks/useInView";
 export default function EventsTable() {
     const {GetEventsRequest, GetEventsResponse, GetMoreEventsRequest} = useEvent().useGetEvents();
     const {DeleteEvent} = useEvent().useDeleteEvent();
-    const [eventDeleteDialog, setEventDeleteDialog] = useState<IEvent>()
+    const [eventDeleteDialog, setEventDeleteDialog] = useState<IEventWithoutMetadata>()
 
-    const getStatus = (event: IEvent) => {
+    const getStatus = (event: IEventWithoutMetadata) => {
         let dateTIme = new Date()
         if (new Date(event.WithdrawTime) < dateTIme) {
             return "Архівований"
@@ -34,7 +34,7 @@ export default function EventsTable() {
         return "Створений"
     }
 
-    const getStatusColor = (event: IEvent) => {
+    const getStatusColor = (event: IEventWithoutMetadata) => {
         let dateTIme = new Date();
         if (new Date(event.WithdrawTime) < dateTIme) {
             return "red";
@@ -51,7 +51,7 @@ export default function EventsTable() {
         return "black"
     }
 
-    const getNextStep = (event: IEvent) => {
+    const getNextStep = (event: IEventWithoutMetadata) => {
         let dateTIme = new Date()
         if (new Date(event.WithdrawTime) < dateTIme) {
             return ""

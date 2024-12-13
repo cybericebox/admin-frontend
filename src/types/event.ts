@@ -35,7 +35,7 @@ export enum ParticipantsVisibilityTypeEnum {
     Public = 2,
 }
 
-export const EventSchema = z.object({
+export const EventSchemaBase = z.object({
     ID: z.string().uuid().optional(),
     Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Назва має складатися хоча б з 2 символів"}).max(255, {message: "Назва має складатися не більше ніж з 255 символів"}),
     Tag: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Тег має складатися хоча б з 2 символів"}).max(64, {message: "Тег має складатися не більше ніж з 64 символів"}),
@@ -57,11 +57,13 @@ export const EventSchema = z.object({
     ScoreboardAvailability: z.nativeEnum(ScoreboardVisibilityTypeEnum, {message: "Оберіть доступність таблиці результатів"}),
     ParticipantsVisibility: z.nativeEnum(ParticipantsVisibilityTypeEnum, {message: "Оберіть доступність учасників"}),
     CreatedAt: z.coerce.date().optional(),
-    UpdatedAt: z.coerce.date().optional(),
-    UpdatedBy: z.string().uuid().optional(),
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
     ChallengesCount: z.number().int().optional(),
     TeamsCount: z.number().int().optional(),
-}).refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
+})
+
+export const EventSchema = EventSchemaBase.refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
     message: "Максимальний бал має бути більше або рівний мінімальному балу",
     path: ["DynamicMaxScore"],
 }).refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
@@ -78,26 +80,27 @@ export const EventSchema = z.object({
     path: ["WithdrawTime"],
 })
 
-export interface IEvent extends z.infer<typeof EventSchema> {
+export interface IEvent extends z.infer<typeof EventSchemaBase> {
 }
 
-export const TeamSchema = z.object({
-    ID: z.string().uuid().optional(),
-    Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Назва має складатися хоча б з 2 символів"}).max(255, {message: "Назва має складатися не більше ніж з 255 символів"}),
-
-    ParticipantsCount: z.number().int().optional(),
-
-    // score
-    Rank: z.number().int().optional(),
-    Score: z.number().int().optional(),
-    SolvedChallengesCount: z.number().int().optional(),
-
-    UpdatedAt: z.coerce.date().optional().nullable(),
-    UpdatedBy: z.string().uuid().optional().nullable(),
-    CreatedAt: z.coerce.date().optional(),
+export const EventWithoutMetadataSchema = EventSchemaBase.omit({Description: true, Rules: true, Picture: true}).refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
+    message: "Максимальний бал має бути більше або рівний мінімальному балу",
+    path: ["DynamicMaxScore"],
+}).refine(({DynamicMaxScore, DynamicMinScore}) => DynamicMinScore <= DynamicMaxScore, {
+    message: "Мінімальний бал має бути менше або рівний максимальному балу",
+    path: ["DynamicMinScore"],
+}).refine(({PublishTime, StartTime}) => StartTime >= PublishTime, {
+    message: "Час початку має бути пізніше або рівний часу публікації",
+    path: ["StartTime"],
+}).refine(({StartTime, FinishTime}) => FinishTime > StartTime, {
+    message: "Час завершення має бути пізніше часу початку",
+    path: ["FinishTime"],
+}).refine(({FinishTime, WithdrawTime}) => WithdrawTime >= FinishTime, {
+    message: "Час архівації має бути пізніше або рівний часу завершення",
+    path: ["WithdrawTime"],
 })
 
-export interface ITeam extends z.infer<typeof TeamSchema> {
+export interface IEventWithoutMetadata extends z.infer<typeof EventWithoutMetadataSchema> {
 }
 
 export enum ParticipationStatusEnum {
@@ -114,16 +117,39 @@ export const ParticipationStatusNameEnum = {
     [ParticipationStatusEnum.RejectedParticipationStatus]: "Відхилено",
 }
 
+export const TeamSchema = z.object({
+    ID: z.string().uuid().optional(),
+    Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Назва має складатися хоча б з 2 символів"}).max(255, {message: "Назва має складатися не більше ніж з 255 символів"}),
+
+    ParticipantsCount: z.number().int().optional(),
+
+    // score
+    Rank: z.number().int().optional(),
+    Score: z.number().int().optional(),
+    SolvedChallengesCount: z.number().int().optional(),
+
+    ApprovalStatus: z.nativeEnum(ParticipationStatusEnum, {message: "Оберіть статус участі"}),
+    Hidden: z.boolean().optional(),
+
+    UpdatedAt: z.coerce.date().optional().nullable(),
+    UpdatedBy: z.string().uuid().optional().nullable(),
+    CreatedAt: z.coerce.date().optional(),
+})
+
+export interface ITeam extends z.infer<typeof TeamSchema> {
+}
+
 export const ParticipantSchema = z.object({
     EventID: z.string().uuid(),
     UserID: z.string().uuid(),
-    TeamID: z.string().uuid().optional().or(z.string().nullable()),
+    TeamID: z.string().uuid().optional().or(z.null()),
     TeamName: z.string().nullable(),
 
     Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Імʼя має складатися хоча б з 2 символів"}).max(255, {message: "Імʼя має складатися не більше ніж з 255 символів"}),
     Email: z.string({required_error: "Поле має бути заповненим"}).email({message: "Введіть коректний email"}),
 
     ApprovalStatus: z.nativeEnum(ParticipationStatusEnum, {message: "Оберіть статус участі"}),
+    Hidden: z.boolean().optional(),
 
     UpdatedAt: z.coerce.date().optional().nullable(),
     UpdatedBy: z.string().uuid().optional().nullable(),

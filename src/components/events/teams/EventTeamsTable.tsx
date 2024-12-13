@@ -58,19 +58,18 @@ export default function EventTeamsTable({eventID}: EventTeamsTableProps) {
                             isFetchingMoreData={GetMoreEventTeamsRequest.isFetchingMore}
                         >
                             {
-                                GetEventTeamsResponse?.Data.map((team, index) => {
+                                GetEventTeamsResponse?.Data.filter((team) => team.ID != GetEventResponse?.Data.ID).map((team, index) => {
                                     return (
                                         <TableRow
                                             key={team.ID}
                                             ref={GetEventTeamsResponse.Data.length === index + 1 ? lastElementRef : null}
-                                            className={`${team.ID === GetEventResponse?.Data.ID && "bg-blue-100"}`}
                                         >
                                             <TableCell>
                                                 {team.Name}
                                             </TableCell>
                                             {GetEventResponse?.Data.Participation === ParticipationTypeEnum.Team &&
                                                 <TableCell className={"text-center"}>
-                                                    {team.ID === GetEventResponse?.Data.ID ? "-" : team.ParticipantsCount}
+                                                    {team.ParticipantsCount}
                                                 </TableCell>}
                                             {/*<TableCell className={"text-center"}>*/}
                                             {/*    {team.Rank || "-"}*/}

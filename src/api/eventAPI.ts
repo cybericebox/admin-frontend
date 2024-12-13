@@ -1,4 +1,4 @@
-import type {IEvent} from "@/types/event";
+import type {IEvent, IEventWithoutMetadata} from "@/types/event";
 import type {AxiosResponse} from "axios";
 import {baseAPI} from "@/api/baseAPI";
 import type {IUploadFileData} from "@/types/common";
@@ -8,7 +8,7 @@ interface getEventsParams {
     page: number
 }
 
-export const getEventsFn = async ({page}: getEventsParams): Promise<AxiosResponse<IResponse<IEvent[]>, any>> => {
+export const getEventsFn = async ({page}: getEventsParams): Promise<AxiosResponse<IResponse<IEventWithoutMetadata[]>, any>> => {
     return await baseAPI.get(`/events?page=${page}`)
 }
 

@@ -101,6 +101,7 @@ const useUpdateEventParticipantStatus = () => {
         mutationFn: async (data: IParticipant) => await updateEventParticipantStatusFn(data),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['eventTeams', variables.EventID]}).catch((e) => console.log(e))
         }
     })
     return {
@@ -145,6 +146,7 @@ const useDeleteEventParticipant = () => {
         mutationFn: async (data: IParticipant) => await deleteEventParticipantFn(data),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({queryKey: ['eventParticipants', variables.EventID]}).catch((e) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['eventTeams', variables.EventID]}).catch((e) => console.log(e))
         }
     })
     return {
