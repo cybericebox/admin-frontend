@@ -5,7 +5,7 @@ import moment from "moment";
 import "moment/locale/uk";
 import React, {useState} from "react";
 import {useEvent} from "@/hooks/useEvent";
-import {EventTypeEnum, IEvent, IEventWithoutMetadata, ParticipationTypeEnum} from "@/types/event";
+import {EventTypeEnum, IEventWithoutMetadata, ParticipationTypeEnum} from "@/types/event";
 import Link from "next/link";
 import {BodyContent, BodyHeader} from "@/components/common/page";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
