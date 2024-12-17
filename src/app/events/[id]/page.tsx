@@ -47,7 +47,7 @@ export default async function EventPage(props: EventPageProps) {
                     DescIcon={Flag}
                     LinkIcon={ArrowRight}
                     title={"Завдання"}
-                    description={"Переглянути завданнь заходу"}
+                    description={"Переглянути завдання заходу"}
                     to={`/events/${id}/challenges`}
                 />
             </PageHeader>

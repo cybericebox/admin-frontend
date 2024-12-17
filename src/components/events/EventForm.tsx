@@ -19,7 +19,7 @@ import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Checkbox} from "@/components/ui/checkbox";
-import EventURLFieldInput from "@/components/events/eventURLFieldInput";
+import EventURLInputField from "@/components/events/EventURLInputField";
 import DateTimePicker from "@/components/events/dateTimePicker";
 import {useRouter} from "next/navigation";
 import {BodyContent, BodyHeader} from "@/components/common/page";
@@ -162,7 +162,7 @@ export default function EventForm({event}: EventFormProps) {
                                                     <FormItem className="w-full">
                                                         <FormLabel>Посилання на захід</FormLabel>
                                                         <FormControl>
-                                                            <EventURLFieldInput field={field} fieldState={fieldState}
+                                                            <EventURLInputField field={field} fieldState={fieldState}
                                                                                 disabled={type === "Зберегти"}
                                                             />
                                                         </FormControl>

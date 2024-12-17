@@ -13,7 +13,7 @@ export interface EventURLFieldInputProps {
     id?: string
 }
 
-export default function EventURLFieldInput({field, fieldState, disabled, id}: EventURLFieldInputProps) {
+export default function EventURLInputField({field, fieldState, disabled, id}: EventURLFieldInputProps) {
     const [showEventURL, setShowEventURL] = useState(!!field.value)
     return (
         !disabled ? <Input placeholder="Тег..." {...field}

@@ -13,7 +13,6 @@ export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
             'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        cache: 'no-store'
     })
     if (response.ok) {
         // parse the response
