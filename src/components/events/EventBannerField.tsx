@@ -108,10 +108,10 @@ export default function EventBannerField({field, fieldState, eventID, oldImage, 
                 {!!field.value ?
                     <>
                         <Image
-                            unoptimized={true}
                             hidden={!loaded}
                             src={field.value}
                             alt={"Banner"}
+                            priority={true}
                             width={1920}
                             height={1080}
                             className={"rounded-2xl max-w-full max-h-96 w-auto"}
