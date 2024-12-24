@@ -74,7 +74,7 @@ const config = {
             },
             screens: {
                 "short": {
-                    "raw": '(max-height: 450px)'
+                    "raw": '(max-width: 400px)'
                 }
             }
         },

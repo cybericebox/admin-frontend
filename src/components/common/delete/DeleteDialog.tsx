@@ -19,7 +19,7 @@ export interface DeleteDialogProps {
 
 export default function DeleteDialog({onDelete, onClose, isOpen, name, description}: DeleteDialogProps) {
 
-    const userDelete = async () => {
+    const onDeleteFn = () => {
         onDelete()
         onClose()
     }
@@ -29,13 +29,11 @@ export default function DeleteDialog({onDelete, onClose, isOpen, name, descripti
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle className={"text-2xl text-primary"}>Видалити {name}?</DialogTitle>
-                    <DialogDescription className={"text-lg"}>
-                        {description}
-                    </DialogDescription>
+                    <DialogDescription className={"text-lg"}>{description}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                     <Button onClick={onClose} variant={'secondary'}>Відмінити</Button>
-                    <Button onClick={userDelete} variant={"destructive"}>Видалити</Button>
+                    <Button onClick={onDeleteFn} variant={"destructive"}>Видалити</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

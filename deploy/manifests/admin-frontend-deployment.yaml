@@ -25,12 +25,15 @@ spec:
       containers:
         - name: admin-frontend
           image: cybericebox/admin-frontend:latest
-          envFrom:
-            - configMapRef:
-                name: config
+          env:
+            - name: NEXT_PUBLIC_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: config
+                  key: DOMAIN
           ports:
             - containerPort: 3000
-              protocol:  TCP
+              protocol: TCP
           resources:
             requests:
               memory: "64Mi"
@@ -38,3 +41,14 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
+          readinessProbe:
+            httpGet:
+              port: 3000
+              path: /api/health
+            initialDelaySeconds: 20
+          livenessProbe:
+            httpGet:
+              port: 3000
+              path: /api/health
+            initialDelaySeconds: 20
+            periodSeconds: 30

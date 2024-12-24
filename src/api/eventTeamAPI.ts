@@ -1,21 +1,18 @@
-import type {TeamInfo} from "@/types/event";
+import type {ITeam} from "@/types/event";
+import type {AxiosResponse} from "axios";
+import type {IResponse} from "@/types/api";
+import {baseAPI} from "@/api/baseAPI";
 
-export const getEventTeamsFn = async (eventTag: string): Promise<TeamInfo[]> => {
-    return fetch(`/api/events/${eventTag}/teams/info`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get event teams", {
-                cause: res
-            })
-        }
-    });
+interface getEventTeamsProps {
+    eventID: string
+    page: number
+}
+
+export const getEventTeamsFn = async ({
+                                          eventID,
+                                          page
+                                      }: getEventTeamsProps): Promise<AxiosResponse<IResponse<ITeam[]>, any>> => {
+    return await baseAPI.get(`/events/${eventID}/teams?page=${page}`);
 }
 
 

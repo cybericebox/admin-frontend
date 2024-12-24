@@ -2,6 +2,6 @@ import {redirect} from "next/navigation";
 
 export default function HomePage() {
     return (
-        redirect('/events')
-    );
+        redirect("/events")
+    )
 }

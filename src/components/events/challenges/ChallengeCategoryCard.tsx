@@ -1,51 +1,86 @@
-import {ChallengeCategory} from "@/types/challenge";
+"use client"
+import {IEventChallengeCategory} from "@/types/challenge";
 import {useEventChallenge} from "@/hooks/useEventChallenge";
 import React, {useState} from "react";
-import SelectChallengesDialog from "@/components/events/challenges/SelectChallengeDialog";
 import {DeleteDialog, DeleteIcon} from "@/components/common/delete";
 import ChallengeCard from "@/components/events/challenges/ChallengeCard";
 import {Button} from "@/components/ui/button";
 import {useEventChallengeCategory} from "@/hooks/useEventChallengeCategory";
 import CategoryNameInput from "@/components/events/challenges/CategoryNameInput";
 import {Draggable, Droppable} from "@hello-pangea/dnd";
+import {cn} from "@/utils/cn";
+import DialogForm from "@/components/common/form/DialogForm";
+import SelectChallengesForm from "@/components/events/challenges/SelectChallengeForm";
+import {GripVertical} from "lucide-react";
+import {ErrorToast, SuccessToast} from "@/components/common/customToast";
+
 
 interface ChallengeCategoryCardProps {
-    category: ChallengeCategory
+    category: IEventChallengeCategory
     index: number
+
 }
 
 export default function ChallengeCategoryCard({category, index}: ChallengeCategoryCardProps) {
-    const getChallenges = useEventChallenge().useGetEventChallenges(category.EventID, category.ID)
-    const deleteChallengeCategory = useEventChallengeCategory().useDeleteEventChallengeCategory(category.EventID!)
-    const [isSelectDialogOpen, setIsSelectDialogOpen] = useState(false)
-    const [categoryToDelete, setCategoryToDelete] = useState<ChallengeCategory>()
-    const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const {GetEventChallengesByCategoryResponse} = useEventChallenge().useGetEventChallengesByCategory(category.EventID, category.ID!)
+    const {DeleteEventChallengeCategory} = useEventChallengeCategory().useDeleteEventChallengeCategory(category.EventID!)
+    const [isSelectChallengesDialogOpen, setIsSelectChallengesDialogOpen] = useState(false)
+    const [showIcon, setShowIcon] = useState<boolean>(false)
+    const [deleteEventChallengeCategoryDialog, setDeleteEventChallengeCategoryDialog] = useState<IEventChallengeCategory>()
+
     return (
-        <Draggable draggableId={category.ID!} index={index}>
-            {(provider) => (
+        <Draggable
+            key={category.ID}
+            draggableId={category.ID!.toString()}
+            index={index}
+        >
+            {provided => (
                 <div
-                    {...provider.draggableProps}
-                    {...provider.dragHandleProps}
-                    ref={provider.innerRef}
-                    className="bg-gray-50 shadow-md rounded-lg py-4 px-3 flex flex-col h-full"
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    className="bg-gray-50 shadow-md rounded-lg pt-2 pb-4 px-3 flex flex-col relative h-fit"
+                    onMouseOver={() => setShowIcon(true)}
+                    onMouseLeave={() => setShowIcon(false)}
                 >
-                    <div className={"flex items-center justify-between w-full mb-4"}>
-                        <CategoryNameInput category={category}/>
-                        <DeleteIcon title={"Видалити категорію"} onClick={() => {
-                            setCategoryToDelete(category)
-                            setDeleteDialogOpen(true)
-                        }}/>
-                    </div>
+                    <DeleteIcon
+                        title={"Видалити категорію"}
+                        onClick={() => {
+                            setDeleteEventChallengeCategoryDialog(category)
+                        }}
+                        className={cn("absolute top-4 right-2", !showIcon && "hidden")}
+                    />
+                    <GripVertical
+                        className={"absolute top-3 left-2"}
+                    />
+
+                    <CategoryNameInput category={category} className={"mb-4 mx-5"}/>
                     <div className="flex flex-col gap-2 items-center">
-                        <Droppable droppableId={category.ID!} type={"challenge"} direction={"vertical"}>
+                        <Droppable droppableId={category.ID!.toString()} type={"challenge"}>
                             {(provided) => (
                                 <div
+                                    key={category.ID}
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
-                                    className="w-full flex flex-col gap-2 items-center overflow-y-auto"
+                                    className="w-full flex flex-col gap-2 items-center"
                                 >
-                                    {getChallenges.data?.length ? getChallenges.data?.map((challenge, index) => (
-                                        <ChallengeCard challenge={challenge} key={challenge.ID!} index={index}/>
+                                    {GetEventChallengesByCategoryResponse?.length ? GetEventChallengesByCategoryResponse.map((challenge, index) => (
+                                        <Draggable
+                                            key={challenge.ID}
+                                            draggableId={challenge.ID!.toString()}
+                                            index={index}
+                                        >
+                                            {provided => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    className="w-full"
+                                                >
+                                                    <ChallengeCard challenge={challenge}/>
+                                                </div>
+                                            )}
+                                        </Draggable>
                                     )) : <div className={"text-gray-400"}>Немає завдань</div>}
                                     {provided.placeholder}
                                 </div>
@@ -53,23 +88,37 @@ export default function ChallengeCategoryCard({category, index}: ChallengeCatego
                         </Droppable>
                         <Button
                             className={"w-full"}
-                            onClick={() => setIsSelectDialogOpen(true)}
+                            onClick={() => setIsSelectChallengesDialogOpen(true)}
                         >
                             Додати завдання
                         </Button>
                     </div>
-                    <SelectChallengesDialog isOpen={isSelectDialogOpen} onClose={() => setIsSelectDialogOpen(false)}
-                                            order={getChallenges.data?.length || 0} categoryID={category.ID!}
-                                            eventID={category.EventID}/>
-                    {!!categoryToDelete &&
+                    <DialogForm isOpen={isSelectChallengesDialogOpen}
+                                onClose={() => setIsSelectChallengesDialogOpen(false)}
+                                className={"h-[80dvh] p-2 sm:p-6 max-w-full sm:max-w-[80dvw]"}>
+                        <SelectChallengesForm eventID={category.EventID} categoryID={category.ID!}
+                                              onCancel={() => setIsSelectChallengesDialogOpen(false)}/>
+                    </DialogForm>
+                    {!!deleteEventChallengeCategoryDialog &&
                         <DeleteDialog
-                            isOpen={isDeleteDialogOpen}
-                            onClose={() => setDeleteDialogOpen(false)}
-                            name={categoryToDelete.Name}
+                            isOpen={!!deleteEventChallengeCategoryDialog}
+                            onClose={() => setDeleteEventChallengeCategoryDialog(undefined)}
+                            name={deleteEventChallengeCategoryDialog.Name}
                             description={"Впевнені? Всі дані категорії включаючи завдання будуть втрачені та не можуть бути відновлені."}
-                            onDelete={() => deleteChallengeCategory.mutate(categoryToDelete.ID!)}
-                        />}
-                </div>)}
+                            onDelete={() => DeleteEventChallengeCategory(deleteEventChallengeCategoryDialog.ID!, {
+                                onSuccess: () => {
+                                    SuccessToast("Категорію успішно видалено")
+                                },
+                                onError: (error) => {
+                                    ErrorToast("Не вдалося видалити категорію", {cause: error})
+                                }
+                            })}
+                        />
+                    }
+                </div>
+
+            )}
         </Draggable>
+
     );
 }

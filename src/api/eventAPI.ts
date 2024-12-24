@@ -1,95 +1,37 @@
-import type {Event} from "@/types/event";
+import type {IEvent, IEventWithoutMetadata} from "@/types/event";
+import type {AxiosResponse} from "axios";
+import {baseAPI} from "@/api/baseAPI";
+import type {IUploadFileData} from "@/types/common";
+import type {IResponse} from "@/types/api";
 
-export const getEventsFn = async (): Promise<Event[]> => {
-    return fetch('/api/events', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-cache'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get events", {
-                cause: res
-            })
-        }
-    })
+interface getEventsParams {
+    page: number
 }
 
-export const getEventByTagFn = async (tag: string): Promise<Event> => {
-    return fetch(`/api/events/${tag}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-cache'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to get event by tag", {
-                cause: res
-            })
-        }
-    })
+export const getEventsFn = async ({page}: getEventsParams): Promise<AxiosResponse<IResponse<IEventWithoutMetadata[]>, any>> => {
+    return await baseAPI.get(`/events?page=${page}`)
 }
 
-export const createEventFn = async (event: Event) => {
-    return fetch('/api/events', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(event)
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to create event", {
-                cause: res
-            })
-        }
-    })
+export const getEventFn = async (id: string): Promise<AxiosResponse<IResponse<IEvent>, any>> => {
+    return await baseAPI.get(`/events/${id}`)
 }
 
-export const updateEventFn = async (event: Event) => {
-    return fetch(`/api/events/${event.ID}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(event)
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to update event", {
-                cause: res
-            })
-        }
-    })
+export const getUploadEventBannerDataFn = async (): Promise<AxiosResponse<IResponse<IUploadFileData>, any>> => {
+    return await baseAPI.get(`/events/upload/banner`)
 }
 
-export const deleteEventFn = async (id: string) => {
-    return fetch(`/api/events/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            throw new Error("Failed to delete event", {
-                cause: res
-            })
-        }
-    });
+export const getDownloadEventBannerDataFn = async (id: string): Promise<AxiosResponse<IResponse<string>, any>> => {
+    return await baseAPI.get(`/events/${id}/download/banner`)
+}
+
+export const createEventFn = async (event: IEvent): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.post('/events', event)
+}
+
+export const updateEventFn = async (event: IEvent): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.put(`/events/${event.ID}`, event)
+}
+
+export const deleteEventFn = async (id: string): Promise<AxiosResponse<IResponse, any>> => {
+    return await baseAPI.delete(`/events/${id}`);
 }

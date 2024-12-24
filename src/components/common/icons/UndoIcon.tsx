@@ -1,0 +1,21 @@
+import React from "react";
+import {cn} from "@/utils/cn";
+import {Undo} from "lucide-react";
+
+
+interface UndoIconProps {
+    title: string
+    onClick?: () => void
+    className?: string
+}
+
+export default function UndoIcon(props: UndoIconProps) {
+    return (
+        <Undo className={cn('w-5 h-5 text-gray-500 cursor-pointer', props.className)}
+              onClick={props?.onClick}
+              aria-label={props.title}
+              data-tooltip-content={props.title}
+              data-tooltip-id="tooltip"
+        />
+    )
+}

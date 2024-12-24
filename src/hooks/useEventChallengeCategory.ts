@@ -1,76 +1,129 @@
 "use client"
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useMutation, useQuery, useQueryClient, UseQueryResult} from "@tanstack/react-query";
 import {
     createEventChallengeCategoryFn,
     deleteEventChallengeCategoryFn,
     getEventChallengeCategoriesFn,
-    UpdateEventChallengeCategoriesOrderData,
     updateEventChallengeCategoriesOrderFn,
     updateEventChallengeCategoryFn
 } from "@/api/eventCategoryChallengeAPI";
-import {ChallengeCategory} from "@/types/challenge";
-import toast from "react-hot-toast";
+import {ChallengeCategorySchema, IEventChallengeCategory, IOrder} from "@/types/challenge";
+import {forEach} from "lodash";
+import {IResponse} from "@/types/api";
+import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetEventChallengeCategories = (eventID: string) => {
-    return useQuery({
+    const {data: GetEventChallengeCategoriesResponse, isLoading, isError, isSuccess, error} = useQuery({
         queryKey: ['eventChallengeCategories', eventID],
         queryFn: () => getEventChallengeCategoriesFn(eventID),
+        enabled: !!eventID,
+        select: (data) => {
+            const res = z.array(ChallengeCategorySchema).safeParse(data.data.Data)
+            if (!res.success) {
+                console.log(res.error)
+                throw ErrorInvalidResponseData
+            } else {
+                data.data.Data = res.data
+            }
+
+            return data.data
+        },
     })
+    const GetEventChallengeCategoriesRequest = {
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+    }
+    return {GetEventChallengeCategoriesResponse, GetEventChallengeCategoriesRequest}
 }
 
 const useCreateEventChallengeCategory = (eventID: string) => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: CreateEventChallengeCategoryResponse,
+        isPending: PendingCreateEventChallengeCategory,
+        mutate: CreateEventChallengeCategory,
+    } = useMutation({
         mutationKey: ["createEventChallengeCategory"],
-        mutationFn: async (data: ChallengeCategory) => await createEventChallengeCategoryFn(eventID, data),
+        mutationFn: async (data: IEventChallengeCategory) => await createEventChallengeCategoryFn(eventID, data),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).then(() => {
-                toast.success("Категорію успішно створено", {})
-            }).catch((e: any) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
         }
     })
+
+    return {
+        CreateEventChallengeCategory,
+        PendingCreateEventChallengeCategory,
+        CreateEventChallengeCategoryResponse,
+    }
 }
 
 const useUpdateEventChallengeCategory = (eventID: string) => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: UpdateEventChallengeCategoryResponse,
+        isPending: PendingUpdateEventChallengeCategory,
+        mutate: UpdateEventChallengeCategory
+    } = useMutation({
         mutationKey: ["updateEventChallengeCategory"],
-        mutationFn: async (data: ChallengeCategory) => await updateEventChallengeCategoryFn(data),
+        mutationFn: async (data: IEventChallengeCategory) => await updateEventChallengeCategoryFn(data),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).then(() => {
-                toast.success("Категорію успішно оновлено", {})
-            }).catch((e: any) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
         }
     })
-
+    return {UpdateEventChallengeCategory, PendingUpdateEventChallengeCategory, UpdateEventChallengeCategoryResponse}
 }
 
 const useDeleteEventChallengeCategory = (eventID: string) => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: DeleteEventChallengeCategoryResponse,
+        isPending: PendingDeleteEventChallengeCategory,
+        mutate: DeleteEventChallengeCategory,
+    } = useMutation({
         mutationKey: ["deleteEventChallengeCategory"],
         mutationFn: async (id: string) => await deleteEventChallengeCategoryFn(eventID, id),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).then(() => {
-                toast.success("Категорію успішно видалено", {})
-            }).catch((e: any) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
         }
     })
+    return {DeleteEventChallengeCategory, PendingDeleteEventChallengeCategory, DeleteEventChallengeCategoryResponse}
 }
 
 const useUpdateEventChallengeCategoriesOrder = (eventID: string) => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: UpdateEventChallengeCategoriesOrderResponse,
+        isPending: PendingUpdateEventChallengeCategoriesOrder,
+        mutate: UpdateEventChallengeCategoriesOrder
+    } = useMutation({
         mutationKey: ["updateEventChallengeCategoryOrder"],
-        mutationFn: async (data: UpdateEventChallengeCategoriesOrderData) => await updateEventChallengeCategoriesOrderFn(eventID, data),
+        mutationFn: async (data: IOrder[]) => await updateEventChallengeCategoriesOrderFn(eventID, data),
         onMutate: async (variables) => {
-            await client.cancelQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
-            client.setQueryData(['eventChallengeCategories', eventID], (old: ChallengeCategory[]) => [...old].sort((a, b) => a.Order - b.Order))
+            await queryClient.cancelQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
+            queryClient.setQueryData(['eventChallengeCategories', eventID], (old: UseQueryResult<IResponse<IEventChallengeCategory[]>>) => {
+                const newData = forEach(old.data?.Data, (category) => {
+                    const index = variables.findIndex((item) => item.ID === category.ID)
+                    if (index !== -1) {
+                        category.Order = variables[index].Index
+                    }
+                    return category
+                })?.sort((a, b) => a.Order - b.Order)
+                old.data!.Data = newData!
+                return old
+            })
         },
-        onSuccess: () => {
-            client.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
-        }
+        onError: () => {
+            queryClient.invalidateQueries({queryKey: ['eventChallengeCategories', eventID]}).catch((e: any) => console.log(e))
+        },
     })
+    return {
+        UpdateEventChallengeCategoriesOrder,
+        PendingUpdateEventChallengeCategoriesOrder,
+        UpdateEventChallengeCategoriesOrderResponse
+    }
 }
 
 export const useEventChallengeCategory = () => {

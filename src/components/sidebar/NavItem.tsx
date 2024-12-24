@@ -1,44 +1,32 @@
-import type React from 'react'
+import React from 'react'
 import Link from 'next/link'
-import {IconType} from "react-icons";
-import cn from "classnames";
-import styles from './sidebar.module.css'
+import {cn} from "@/utils/cn";
 import {usePathname} from "next/navigation";
-import "./sidebar.module.css"
 
 export interface NavItemProps {
-    icon: IconType;
+    Icon: React.ElementType
     title: string;
-    navSize: "small" | "large";
     to: string;
     customClickEvent?: () => void;
 }
 
 
-export default function NavItem({icon, title, navSize, to, customClickEvent}: NavItemProps) {
+export default function NavItem({Icon, title, to, customClickEvent}: NavItemProps) {
     return (
         <div
-            className={cn(styles.sidebarItem, navSize === "small" ? "items-center" : "items-start")}
+            className={"flex flex-col w-full mt-4 short:mt-1"}
         >
             <Link
                 href={to}
                 data-tooltip-content={title}
                 data-tooltip-id={"tooltip"}
-                data-tooltip-hidden={navSize === "large"}
-                data-tooltip-effect="solid"
+
                 onClick={customClickEvent}
-                className={cn(styles.sidebarItemLink, navSize === "large" ? "w-full" : "w-auto", usePathname() === to && styles.sidebarItemLinkActive)}
+                className={cn("p-2 rounded-lg text-primary w-auto hover:bg-primary/90 hover:text-white", usePathname() === to && "bg-primary text-white")}
 
             >
-
-                <div className={styles.sidebarItemData}>
-                    {icon({className: styles.sidebarItemIcon})}
-                    <div
-                        className={cn(styles.sidebarItemText, navSize === "small" ? "hidden" : "flex")}
-                    >
-                        {title}
-                    </div>
-
+                <div className={"flex flex-row items-center"}>
+                    {<Icon/>}
                 </div>
 
             </Link>

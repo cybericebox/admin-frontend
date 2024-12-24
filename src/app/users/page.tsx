@@ -1,20 +1,30 @@
-import UsersTable from "@/components/users/UsersTable";
+"use client";
 import {Page, PageBody, PageHeader} from "@/components/common/page";
+import {GoToCard} from "@/components/common";
+import {Plus, UserRoundPlus} from "lucide-react";
+import {DialogForm} from "@/components/common/form";
+import {useState} from "react";
+import {InviteUsersForm, Users} from "@/components/users";
 
-export default async function UsersPage() {
+
+export default function UsersPage() {
+    const [openDialogForm, setOpenDialogForm] = useState<boolean>(false)
     return (
         <Page>
             <PageHeader>
-                {/*<GoToCard*/}
-                {/*    descIcon={FaRegCalendarPlus}*/}
-                {/*    linkIcon={FaPlus}*/}
-                {/*    title={"Запросити користувача"}*/}
-                {/*    description={"Надіслати запит на приєднання"}*/}
-                {/*    to={"/users/invite"}*/}
-                {/*/>*/}
+                <GoToCard
+                    DescIcon={UserRoundPlus}
+                    LinkIcon={Plus}
+                    title={"Додати користувачів"}
+                    description={"Надіслати запрошення"}
+                    onClick={() => setOpenDialogForm(true)}
+                />
             </PageHeader>
             <PageBody>
-                <UsersTable/>
+                <Users/>
+                <DialogForm isOpen={openDialogForm} onClose={() => setOpenDialogForm(false)}>
+                    <InviteUsersForm onClose={() => setOpenDialogForm(false)}/>
+                </DialogForm>
             </PageBody>
         </Page>
     );

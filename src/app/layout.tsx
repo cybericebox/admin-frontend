@@ -5,7 +5,6 @@ import Providers from "@/utils/providers";
 import "moment/locale/uk";
 import SideBar from "@/components/sidebar";
 import {Toaster} from "react-hot-toast";
-import getEnv from "@/utils/helper";
 
 
 export const metadata: Metadata = {
@@ -15,12 +14,11 @@ export const metadata: Metadata = {
 
 
 export default function RootLayout({children}: Readonly<{ children: React.ReactNode }>) {
-    const domain = getEnv("DOMAIN") || ""
     return (
         <html lang="uk">
         <body>
         <Providers>
-            <SideBar domain={domain}/>
+            <SideBar/>
             <main>
                 {children}
             </main>

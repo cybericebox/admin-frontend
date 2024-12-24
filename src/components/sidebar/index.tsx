@@ -1,48 +1,33 @@
 'use client';
-import React, {useState} from "react";
-import styles from "./sidebar.module.css";
-import cn from "classnames";
-import {FiCalendar, FiLogOut, FiMenu, FiUsers} from "react-icons/fi";
+import React from "react";
 import NavItem from "@/components/sidebar/NavItem";
-import {MdOutlinedFlag} from "react-icons/md";
-import {RiUserSettingsLine} from "react-icons/ri";
 import Logo from "@/components/Logo";
 import {signOut} from "@/api/authAPI";
+import {Calendar, Flag, LogOut, UserRoundCog, UsersRound} from "lucide-react";
 
-export default function SideBar({domain}: { domain: string }) {
-
-    const [navSize, changeNavSize] = useState<"small" | "large">("small");
+export default function SideBar() {
     return (
         <div
-            className={cn(styles.sidebar, navSize === "small" ? "w-[75px] rounded-xl" : "w-[220px] rounded-2xl")}
+            className={"flex flex-col justify-between items-center sticky m-1 sm:m-3 shadow-md bg-white overflow-x-hidden overflow-y-auto w-[75px] rounded-xl"}
         >
             <div
-                className={cn(styles.sidebarSection, navSize === "small" ? "items-center" : "items-start")}
+                className={"flex flex-col items-center justify-center p-1 my-4 short:p-1 short:my-1"}
             >
                 <Logo/>
-                <div
-                    className={styles.sidebarMenuButton}
-                    onClick={() => {
-                        if (navSize === "small")
-                            changeNavSize("large")
-                        else
-                            changeNavSize("small")
-                    }}
-                >
-                    <FiMenu/>
+                <div>
+                    <NavItem Icon={Calendar} title="Заходи" to="/events"/>
+                    <NavItem Icon={UsersRound} title="Користувачі" to="/users"/>
+                    <NavItem Icon={Flag} title="Завдання" to="/exercises"/>
                 </div>
-                <NavItem navSize={navSize} icon={FiCalendar} title="Заходи" to="/events"/>
-                <NavItem navSize={navSize} icon={FiUsers} title="Користувачі" to="/users"/>
-                <NavItem navSize={navSize} icon={MdOutlinedFlag} title="Завдання" to="/exercises"/>
             </div>
 
             <div
-                className={cn(styles.sidebarSection, navSize === "small" ? "items-center" : "items-start")}
+                className={"flex flex-col items-center p-1 my-4 short:p-1 short:my-1"}
             >
-                <NavItem navSize={navSize} icon={RiUserSettingsLine} title="Профіль"
-                         to={`https://${domain}/profile`}/>
-                <NavItem navSize={navSize} icon={FiLogOut} title="Вийти" customClickEvent={signOut}
-                         to={`https://${domain}/`}/>
+                <NavItem Icon={UserRoundCog} title="Профіль"
+                         to={`https://${process.env.NEXT_PUBLIC_DOMAIN}/profile`}/>
+                <NavItem Icon={LogOut} title="Вийти" customClickEvent={signOut}
+                         to={`https://${process.env.NEXT_PUBLIC_DOMAIN}/`}/>
             </div>
         </div>
     );

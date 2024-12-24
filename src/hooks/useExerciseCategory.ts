@@ -1,5 +1,5 @@
 'use client'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {
     createExerciseCategoryFn,
     deleteExerciseCategoryFn,
@@ -7,61 +7,138 @@ import {
     getExerciseCategoryFn,
     updateExerciseCategoryFn
 } from "@/api/exerciseCategoryAPI";
-import {ExerciseCategory} from "@/types/exercise";
-import toast from "react-hot-toast";
+import {ExerciseCategorySchema, IExerciseCategory} from "@/types/exercise";
+import {z} from "zod";
+import {ErrorInvalidResponseData} from "@/types/common";
 
 const useGetExerciseCategories = () => {
-    return useQuery({
+    const {
+        data: GetExerciseCategoriesResponse,
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+        fetchNextPage: FetchMore,
+        hasNextPage: HasMore,
+        isFetchingNextPage: isFetchingMore,
+    } = useInfiniteQuery({
         queryKey: ['exerciseCategories'],
-        queryFn: getExerciseCategoriesFn,
-    });
+        queryFn: ({pageParam}) => getExerciseCategoriesFn(pageParam),
+        select: (data) => {
+            data.pages.forEach((page) => {
+                const res = z.array(ExerciseCategorySchema).safeParse(page.data.Data)
+                if (!res.success) {
+                    console.log(res.error)
+                    throw ErrorInvalidResponseData
+                } else {
+                    page.data.Data = res.data
+                }
+            })
+
+
+            return {
+                Status: data.pages[data.pages.length - 1]?.data?.Status,
+                Data: data.pages.map((page) => page.data.Data).flat()
+            }
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+            if (!lastPage?.data?.Data?.length) {
+                return undefined
+            }
+
+            return lastPageParam + 1
+        },
+    })
+
+    const GetExerciseCategoriesRequest = {
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+    }
+
+    const GetMoreExerciseCategoriesRequest = {
+        isFetchingMore,
+        HasMore,
+        FetchMore,
+    }
+
+    return {GetExerciseCategoriesResponse, GetExerciseCategoriesRequest, GetMoreExerciseCategoriesRequest}
 }
 
 const useGetExerciseCategory = (id: string) => {
-    return useQuery({
+    const {data: GetExerciseCategoryResponse, isLoading, isError, isSuccess, error} = useQuery({
         queryKey: ['exerciseCategories', id],
-        queryFn: async () => await getExerciseCategoryFn(id),
+        queryFn: () => getExerciseCategoryFn(id),
         enabled: !!id,
-    });
+        select: (data) => {
+            const res = ExerciseCategorySchema.safeParse(data.data.Data)
+            if (!res.success) {
+                console.log(res.error)
+                throw ErrorInvalidResponseData
+            } else {
+                data.data.Data = res.data
+            }
+
+            return data.data
+        },
+    })
+    const GetExerciseCategoryRequest = {
+        isLoading,
+        isError,
+        isSuccess,
+        error,
+    }
+    return {GetExerciseCategoryResponse, GetExerciseCategoryRequest}
 }
 
 const useCreateExerciseCategory = () => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: CreateExerciseCategoryResponse,
+        isPending: PendingCreateExerciseCategory,
+        mutate: CreateExerciseCategory
+    } = useMutation({
         mutationKey: ["createExerciseCategory"],
-        mutationFn: async (data: ExerciseCategory) => await createExerciseCategoryFn(data),
+        mutationFn: async (data: IExerciseCategory) => await createExerciseCategoryFn(data),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['exerciseCategories']}).then(() => {
-                toast.success("Категорію успішно створено", {})
-            }).catch((e) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['exerciseCategories']}).catch((e) => console.log(e))
         }
     })
+    return {CreateExerciseCategory, PendingCreateExerciseCategory, CreateExerciseCategoryResponse}
 }
 
 const useUpdateExerciseCategory = () => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: UpdateExerciseCategoryResponse,
+        isPending: PendingUpdateExerciseCategory,
+        mutate: UpdateExerciseCategory
+    } = useMutation({
         mutationKey: ["updateExerciseCategory"],
-        mutationFn: async (data: ExerciseCategory) => await updateExerciseCategoryFn(data),
+        mutationFn: async (data: IExerciseCategory) => await updateExerciseCategoryFn(data),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['exerciseCategories']}).then(() => {
-                toast.success("Категорію успішно оновлено", {})
-            }).catch((e) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['exerciseCategories']}).catch((e) => console.log(e))
         }
     })
+    return {UpdateExerciseCategory, PendingUpdateExerciseCategory, UpdateExerciseCategoryResponse}
 }
 
 const useDeleteExerciseCategory = () => {
-    const client = useQueryClient()
-    return useMutation({
+    const queryClient = useQueryClient()
+    const {
+        data: DeleteExerciseCategoryResponse,
+        isPending: PendingDeleteExerciseCategory,
+        mutate: DeleteExerciseCategory
+    } = useMutation({
         mutationKey: ["deleteExerciseCategory"],
         mutationFn: async (id: string) => await deleteExerciseCategoryFn(id),
         onSuccess: () => {
-            client.invalidateQueries({queryKey: ['exerciseCategories']}).then(() => {
-                toast.success("Категорію успішно видалено", {})
-            }).catch((e) => console.log(e))
+            queryClient.invalidateQueries({queryKey: ['exerciseCategories']}).catch((e) => console.log(e))
         }
     })
+    return {DeleteExerciseCategory, PendingDeleteExerciseCategory, DeleteExerciseCategoryResponse}
 }
 
 export const useExerciseCategory = () => {

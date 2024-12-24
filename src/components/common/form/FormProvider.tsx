@@ -11,7 +11,7 @@ export default function FormProvider({children, onSubmit}: FormBodyProps) {
             className={"h-full w-full overflow-hidden py-2"}
         >
             <div
-                className={"h-full w-full grid grid-flow-row grid-rows-12 gap-4"}
+                className={"h-full w-full flex flex-col justify-between gap-4"}
             >
                 {children}
             </div>

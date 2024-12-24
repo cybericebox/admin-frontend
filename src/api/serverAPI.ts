@@ -1,43 +1,65 @@
+'use server'
 import {cookies} from "next/headers";
-import type {Event} from "@/types/event";
-import type {Exercise} from "@/types/exercise";
-import getEnv from "@/utils/helper";
+import {EventSchema, type IEvent} from "@/types/event";
+import {ExercisePreprocessedSchema, type IExercise} from "@/types/exercise";
+import type {IResponse} from "@/types/api";
+import {ErrorInvalidResponseData} from "@/types/common";
 
-export const getEventByTagFn = async (tag: string): Promise<Event> => {
-    const domain = getEnv("DOMAIN") || ""
-    return fetch(`https://admin.${domain}/api/events/${tag}`, {
+export const getEventFn = async (id: string): Promise<IResponse<IEvent>> => {
+    const response = await fetch(`https://admin.${process.env.NEXT_PUBLIC_DOMAIN}/api/events/${id}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Cookie': cookies().toString()
+            'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        cache: 'no-cache'
-    }).then(res => {
-        if (res.status === 401) {
+    })
+    if (response.ok) {
+        // parse the response
+        const data = await response.json() as IResponse<IEvent>;
+        const res = EventSchema.safeParse(data.Data);
+        if (!res.success) {
+            console.log(res.error)
+            throw ErrorInvalidResponseData
+        } else {
+            data.Data = res.data;
+        }
+        return data;
+    }
 
-        }
-        if (res.ok) {
-            return res.json();
-        }
-        return []
-    });
+    if (response.status < 500) {
+        return await response.json() as IResponse<IEvent>;
+    }
+
+    return Promise.resolve({} as IResponse<IEvent>);
 }
 
-export const getExerciseByIDFn = async (id: string): Promise<Exercise> => {
-    const domain = getEnv("DOMAIN") || ""
-    return fetch(`https://admin.${domain}/api/exercises/${id}`, {
+export const getExerciseFn = async (id: string): Promise<IResponse<IExercise>> => {
+    const response = await fetch(`https://admin.${process.env.NEXT_PUBLIC_DOMAIN}/api/exercises/${id}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Cookie': cookies().toString()
+            'Cookie': (await cookies()).toString()
         },
         credentials: 'include',
-        cache: 'no-cache'
-    }).then(res => {
-        if (res.ok) {
-            return res.json();
+    })
+    if (response.ok) {
+        // parse the response
+        const data = await response.json() as IResponse<IExercise>;
+        const res = ExercisePreprocessedSchema.safeParse(data.Data);
+        if (!res.success) {
+            console.log(res.error)
+            throw ErrorInvalidResponseData
+        } else {
+            data.Data = res.data;
         }
-        return []
-    });
+        return data;
+    }
+
+    if (response.status < 500) {
+        return await response.json() as IResponse<IExercise>;
+    }
+
+    return Promise.resolve({} as IResponse<IExercise>);
+
 }
