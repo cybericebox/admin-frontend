@@ -39,7 +39,7 @@ export const EventSchemaBase = z.object({
     ID: z.string().uuid().optional(),
     Name: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Назва має складатися хоча б з 2 символів"}).max(255, {message: "Назва має складатися не більше ніж з 255 символів"}),
     Tag: z.string({required_error: "Поле має бути заповненим"}).min(2, {message: "Тег має складатися хоча б з 2 символів"}).max(64, {message: "Тег має складатися не більше ніж з 64 символів"}),
-    Picture: z.string().optional(),
+    Picture: z.string().optional().or(z.string().url()),
     Description: TextEditorSchema,
     Rules: TextEditorSchema,
     DynamicScoring: z.boolean(),
