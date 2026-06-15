@@ -29,3 +29,6 @@ npm-debug.log*
 next-env.d.ts
 
 certificates
+# IDE / Qodana
+.idea/
+qodana.yaml
