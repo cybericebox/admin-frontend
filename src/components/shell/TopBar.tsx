@@ -22,7 +22,7 @@ export function TopBar({ title }: { title: string }) {
           </span>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground">
+          <DropdownMenuTrigger aria-label={t("admin.accountMenu")} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground">
             {initials || "?"}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
