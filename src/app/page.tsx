@@ -1,7 +1,3 @@
-import {redirect} from "next/navigation";
-
-export default function HomePage() {
-    return (
-        redirect("/events")
-    )
+export default function Page() {
+  return null
 }

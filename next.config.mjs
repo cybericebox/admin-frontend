@@ -1,20 +1,15 @@
 /** @type {import('next').NextConfig} */
 
-
+// Static export for id-frontend (identity / auth portal).
+// - output: 'export' produces the `out/` directory for static hosting.
+// - images.unoptimized: true is required when using static export (no server-side image optimization).
+// - trailingSlash: true keeps paths clean for static hosting and consistent with query-param routing.
 const nextConfig = {
-    reactStrictMode: false,
-    images: {
-        unoptimized: true,
-        remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: '**',
-                port: '',
-            },
-        ],
-        minimumCacheTTL: 24 * 60 * 60,// 24 hours
-    },
-    output: 'standalone',
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
+  trailingSlash: true,
 };
 
 export default nextConfig;
