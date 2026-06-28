@@ -13,7 +13,7 @@
 - Repos & branches (no new branches): `AP Backend@feature/backend-frontend-proxy`, `admin-frontend@feature/base-redesign`.
 - Commit footer on every commit: `Claude-Session: https://claude.ai/code/session_01QfvH8LfD5yp5zSztMtJzQ7`
 - Order is fixed `created_at DESC, id DESC` (no sorting). Cursor = `base64url(created_at_rfc3339nano|id)`. Empty cursor → sentinel `(9999-12-31, max-uuid)` so one keyset predicate serves the first page. `HasMore` via `limit+1` (no COUNT per page).
-- List endpoint: `GET /api/users?search=&role=<r>&role=<r>&cursor=&limit=` → `{Users, NextCursor, HasMore}`; permission `users.read`. Stats: `GET /api/users/stats` → `{Total, ByRole:[{Role,Count}], Blocked}`; permission `users.read`.
+- List endpoint: `GET /api/users?search=&role=<r>&role=<r>&cursor=&limit=` → `{Users, NextCursor, HasMore}`; permission `users.read`. Stats: `GET /api/users/stats` → `{Total, Blocked, NewLast7d, ActiveLast7d, AvgDailyActive7d, ByRole:[{Role,Count}], RegistrationsByDay:[{Day,Count}]}` over a 7-day window; permission `users.read`.
 - `UserRow` shape unchanged: `{ID,FirstName,LastName,Email,Role,Status,CreatedAt}`.
 - All UI on the design-system components/tokens. New i18n keys in BOTH `messages/en.json` + `messages/uk.json`.
 - Paths relative to repo root `/Users/volodymyrporokhniak/Projects/My/CyberICEBox`.
@@ -50,6 +50,10 @@
   - `ListUsersCursor(ctx, arg ListUsersCursorParams) ([]User, error)` — `ListUsersCursorParams{ Search string; Roles []string; CursorCreatedAt time.Time; CursorID uuid.UUID; LimitVal int32 }`
   - `CountUsersByRoleAll(ctx) ([]CountUsersByRoleAllRow, error)` — `CountUsersByRoleAllRow{ Role string; Count int64 }`
   - `CountUsersByStatus(ctx, status string) (int64, error)`
+  - `CountUsersCreatedSince(ctx, createdAt time.Time) (int64, error)`
+  - `CountUsersActiveSince(ctx, lastSeen time.Time) (int64, error)`
+  - `AvgDailyActiveSince(ctx, createdAt time.Time) (float64, error)`
+  - `RegistrationsByDaySince(ctx, createdAt time.Time) ([]RegistrationsByDaySinceRow, error)` — `RegistrationsByDaySinceRow{ Day time.Time; Count int64 }`
   - existing `CountUsers(ctx, search string) (int64, error)` is retained (used by stats for Total).
   - the old `ListUsers(ctx, ListUsersParams)` (offset) is removed.
 
@@ -96,6 +100,33 @@ SELECT count(*)
 FROM users
 WHERE deleted_at IS NULL
   AND status = $1;
+
+-- name: CountUsersCreatedSince :one
+SELECT count(*)
+FROM users
+WHERE deleted_at IS NULL
+  AND created_at >= $1;
+
+-- name: CountUsersActiveSince :one
+SELECT count(*)
+FROM users
+WHERE deleted_at IS NULL
+  AND last_seen >= $1;
+
+-- name: AvgDailyActiveSince :one
+SELECT COALESCE(count(*), 0)::float8 / 7.0 AS avg_daily_active
+FROM (SELECT date_trunc('day', created_at) AS d, user_id
+      FROM sessions
+      WHERE created_at >= $1
+      GROUP BY 1, 2) x;
+
+-- name: RegistrationsByDaySince :many
+SELECT date_trunc('day', created_at) AS day, count(*)::bigint AS count
+FROM users
+WHERE deleted_at IS NULL
+  AND created_at >= $1
+GROUP BY 1
+ORDER BY 1;
 ```
 
 - [ ] **Step 2: Regenerate sqlc**
@@ -145,6 +176,54 @@ func (m *MockQuerier) CountUsersByStatus(ctx context.Context, status string) (in
 func (mr *MockQuerierMockRecorder) CountUsersByStatus(ctx, status any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountUsersByStatus", reflect.TypeOf((*MockQuerier)(nil).CountUsersByStatus), ctx, status)
+}
+
+func (m *MockQuerier) CountUsersCreatedSince(ctx context.Context, createdAt time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountUsersCreatedSince", ctx, createdAt)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+func (mr *MockQuerierMockRecorder) CountUsersCreatedSince(ctx, createdAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountUsersCreatedSince", reflect.TypeOf((*MockQuerier)(nil).CountUsersCreatedSince), ctx, createdAt)
+}
+
+func (m *MockQuerier) CountUsersActiveSince(ctx context.Context, lastSeen time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountUsersActiveSince", ctx, lastSeen)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+func (mr *MockQuerierMockRecorder) CountUsersActiveSince(ctx, lastSeen any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountUsersActiveSince", reflect.TypeOf((*MockQuerier)(nil).CountUsersActiveSince), ctx, lastSeen)
+}
+
+func (m *MockQuerier) AvgDailyActiveSince(ctx context.Context, createdAt time.Time) (float64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AvgDailyActiveSince", ctx, createdAt)
+	ret0, _ := ret[0].(float64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+func (mr *MockQuerierMockRecorder) AvgDailyActiveSince(ctx, createdAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AvgDailyActiveSince", reflect.TypeOf((*MockQuerier)(nil).AvgDailyActiveSince), ctx, createdAt)
+}
+
+func (m *MockQuerier) RegistrationsByDaySince(ctx context.Context, createdAt time.Time) ([]postgres.RegistrationsByDaySinceRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegistrationsByDaySince", ctx, createdAt)
+	ret0, _ := ret[0].([]postgres.RegistrationsByDaySinceRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+func (mr *MockQuerierMockRecorder) RegistrationsByDaySince(ctx, createdAt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegistrationsByDaySince", reflect.TypeOf((*MockQuerier)(nil).RegistrationsByDaySince), ctx, createdAt)
 }
 ```
 
@@ -205,12 +284,22 @@ In `AP Backend/internal/model/user/user.go`, add to the `type (...)` block (afte
 		Count int64
 	}
 
+	DayCount struct {
+		Day   time.Time
+		Count int64
+	}
+
 	UserStats struct {
-		Total   int64
-		Blocked int64
-		ByRole  []RoleCount
+		Total            int64
+		Blocked          int64
+		NewLast7d        int64
+		ActiveLast7d     int64
+		AvgDailyActive7d float64
+		ByRole           []RoleCount
+		RegistrationsByDay []DayCount
 	}
 ```
+(`user.go` already imports `"time"`.)
 
 - [ ] **Step 2: Write the failing use-case tests**
 
@@ -283,12 +372,21 @@ func TestGetUserStats_Aggregates(t *testing.T) {
 		{Role: "admin", Count: 3}, {Role: "user", Count: 39},
 	}, nil)
 	repo.EXPECT().CountUsersByStatus(gomock.Any(), userModel.UserStatusBlocked).Return(int64(5), nil)
+	repo.EXPECT().CountUsersCreatedSince(gomock.Any(), gomock.Any()).Return(int64(8), nil)
+	repo.EXPECT().CountUsersActiveSince(gomock.Any(), gomock.Any()).Return(int64(20), nil)
+	repo.EXPECT().AvgDailyActiveSince(gomock.Any(), gomock.Any()).Return(4.5, nil)
+	repo.EXPECT().RegistrationsByDaySince(gomock.Any(), gomock.Any()).Return([]postgres.RegistrationsByDaySinceRow{
+		{Day: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC), Count: 8},
+	}, nil)
 	s, err := uc.GetUserStats(ctx)
 	if err != nil {
 		t.Fatalf("GetUserStats: %v", err)
 	}
 	if s.Total != 42 || s.Blocked != 5 || len(s.ByRole) != 2 {
 		t.Fatalf("unexpected stats: %+v", s)
+	}
+	if s.NewLast7d != 8 || s.ActiveLast7d != 20 || s.AvgDailyActive7d != 4.5 || len(s.RegistrationsByDay) != 1 {
+		t.Fatalf("unexpected window stats: %+v", s)
 	}
 }
 ```
@@ -403,11 +501,14 @@ func (u *AuthUseCase) ListUsers(ctx context.Context, f userModel.UsersFilter) (u
 (d) Add `GetUserStats` (after `ListUsers`):
 
 ```go
-// GetUserStats returns aggregate user counts for the admin dashboard. Requires PermUsersRead.
+// GetUserStats returns aggregate user counts + a 7-day window for the admin
+// dashboard. Requires PermUsersRead.
 func (u *AuthUseCase) GetUserStats(ctx context.Context) (userModel.UserStats, error) {
 	if !rbac.HasPermissionInContext(ctx, rbac.PermUsersRead) {
 		return userModel.UserStats{}, authModel.ErrInsufficientPermission.Err()
 	}
+	since := time.Now().AddDate(0, 0, -7)
+
 	total, err := u.repo.CountUsers(ctx, "")
 	if err != nil {
 		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to count users").Err()
@@ -420,9 +521,37 @@ func (u *AuthUseCase) GetUserStats(ctx context.Context) (userModel.UserStats, er
 	if err != nil {
 		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to count blocked users").Err()
 	}
-	stats := userModel.UserStats{Total: total, Blocked: blocked, ByRole: make([]userModel.RoleCount, 0, len(byRole))}
+	newCount, err := u.repo.CountUsersCreatedSince(ctx, since)
+	if err != nil {
+		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to count new users").Err()
+	}
+	active, err := u.repo.CountUsersActiveSince(ctx, since)
+	if err != nil {
+		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to count active users").Err()
+	}
+	avgDAU, err := u.repo.AvgDailyActiveSince(ctx, since)
+	if err != nil {
+		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to average daily active").Err()
+	}
+	regByDay, err := u.repo.RegistrationsByDaySince(ctx, since)
+	if err != nil {
+		return userModel.UserStats{}, model.ErrPlatform.WithError(err).WithMessage("Failed to load registrations by day").Err()
+	}
+
+	stats := userModel.UserStats{
+		Total:            total,
+		Blocked:          blocked,
+		NewLast7d:        newCount,
+		ActiveLast7d:     active,
+		AvgDailyActive7d: avgDAU,
+		ByRole:           make([]userModel.RoleCount, 0, len(byRole)),
+		RegistrationsByDay: make([]userModel.DayCount, 0, len(regByDay)),
+	}
 	for _, r := range byRole {
 		stats.ByRole = append(stats.ByRole, userModel.RoleCount{Role: r.Role, Count: r.Count})
+	}
+	for _, d := range regByDay {
+		stats.RegistrationsByDay = append(stats.RegistrationsByDay, userModel.DayCount{Day: d.Day, Count: d.Count})
 	}
 	return stats, nil
 }
@@ -480,12 +609,21 @@ In `internal/delivery/controller/http/handler/user/handler.go`:
 		Role  string `json:"Role"`
 		Count int64  `json:"Count"`
 	}
+	dayCountResponse struct {
+		Day   time.Time `json:"Day"`
+		Count int64     `json:"Count"`
+	}
 	userStatsResponse struct {
-		Total   int64               `json:"Total"`
-		Blocked int64               `json:"Blocked"`
-		ByRole  []roleCountResponse `json:"ByRole"`
+		Total              int64               `json:"Total"`
+		Blocked            int64               `json:"Blocked"`
+		NewLast7d          int64               `json:"NewLast7d"`
+		ActiveLast7d       int64               `json:"ActiveLast7d"`
+		AvgDailyActive7d   float64             `json:"AvgDailyActive7d"`
+		ByRole             []roleCountResponse `json:"ByRole"`
+		RegistrationsByDay []dayCountResponse  `json:"RegistrationsByDay"`
 	}
 ```
+(`handler.go` already imports `"time"` from the earlier user-detail work.)
 
 - [ ] **Step 2: Rewrite `listUsers` + add `getUserStats` + route**
 
@@ -529,9 +667,17 @@ func (h *Handler) getUserStats(ctx *gin.Context) {
 		response.AbortWithError(ctx, err)
 		return
 	}
-	out := userStatsResponse{Total: s.Total, Blocked: s.Blocked, ByRole: make([]roleCountResponse, 0, len(s.ByRole))}
+	out := userStatsResponse{
+		Total: s.Total, Blocked: s.Blocked, NewLast7d: s.NewLast7d,
+		ActiveLast7d: s.ActiveLast7d, AvgDailyActive7d: s.AvgDailyActive7d,
+		ByRole:             make([]roleCountResponse, 0, len(s.ByRole)),
+		RegistrationsByDay: make([]dayCountResponse, 0, len(s.RegistrationsByDay)),
+	}
 	for _, r := range s.ByRole {
 		out.ByRole = append(out.ByRole, roleCountResponse{Role: r.Role, Count: r.Count})
+	}
+	for _, d := range s.RegistrationsByDay {
+		out.RegistrationsByDay = append(out.RegistrationsByDay, dayCountResponse{Day: d.Day, Count: d.Count})
 	}
 	response.AbortWithData(ctx, out)
 }
@@ -828,10 +974,28 @@ Claude-Session: https://claude.ai/code/session_01QfvH8LfD5yp5zSztMtJzQ7"
 - Modify: `admin-frontend/src/app/dashboard/page.tsx`
 
 **Interfaces:**
-- Consumes: `apiGet`, DS `Card*`, `t`; `GET /api/users/stats`.
-- Produces: dashboard cards from the stats endpoint (no bulk user fetch).
+- Consumes: `apiGet`, DS `Card*`, `t`; `GET /api/users/stats` (`{Total,Blocked,NewLast7d,ActiveLast7d,AvgDailyActive7d,ByRole,RegistrationsByDay}`).
+- Produces: dashboard number cards + a basic 7-day registrations bar chart (no chart library), from the stats endpoint (no bulk user fetch).
 
-- [ ] **Step 1: Rewrite `dashboard/page.tsx`**
+- [ ] **Step 1: Add i18n keys (en.json)**
+
+```json
+"admin.dashboard.new7d": "New (7d)",
+"admin.dashboard.active7d": "Active (7d)",
+"admin.dashboard.avgDau": "Avg daily active",
+"admin.dashboard.regChart": "Registrations (last 7 days)"
+```
+
+- [ ] **Step 2: Add the same keys (uk.json)**
+
+```json
+"admin.dashboard.new7d": "Нові (7д)",
+"admin.dashboard.active7d": "Активні (7д)",
+"admin.dashboard.avgDau": "Сер. активних/день",
+"admin.dashboard.regChart": "Реєстрації (останні 7 днів)"
+```
+
+- [ ] **Step 3: Rewrite `dashboard/page.tsx`**
 
 Replace the entire contents of `admin-frontend/src/app/dashboard/page.tsx` with:
 
@@ -843,7 +1007,16 @@ import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 
 type RoleCount = { Role: string; Count: number }
-type UserStats = { Total: number; Blocked: number; ByRole: RoleCount[] }
+type DayCount = { Day: string; Count: number }
+type UserStats = {
+  Total: number
+  Blocked: number
+  NewLast7d: number
+  ActiveLast7d: number
+  AvgDailyActive7d: number
+  ByRole: RoleCount[]
+  RegistrationsByDay: DayCount[]
+}
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -856,6 +1029,18 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
       </CardContent>
     </Card>
   )
+}
+
+// last7DayKeys returns [today-6 … today] as YYYY-MM-DD strings.
+function last7DayKeys(): string[] {
+  const out: string[] = []
+  const now = new Date()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - i)
+    out.push(d.toISOString().slice(0, 10))
+  }
+  return out
 }
 
 export default function Page() {
@@ -872,42 +1057,71 @@ export default function Page() {
     return () => { cancelled = true }
   }, [])
 
-  const total = stats?.Total ?? 0
-  const admins = (stats?.ByRole ?? [])
-    .filter((r) => r.Role === "admin" || r.Role === "super_admin")
-    .reduce((acc, r) => acc + r.Count, 0)
-  const blocked = stats?.Blocked ?? 0
+  // Lay the (zero-or-more) registration days onto a fixed 7-day axis.
+  const byDay = new Map<string, number>()
+  ;(stats?.RegistrationsByDay ?? []).forEach((d) => byDay.set(d.Day.slice(0, 10), d.Count))
+  const dayKeys = last7DayKeys()
+  const counts = dayKeys.map((k) => byDay.get(k) ?? 0)
+  const max = Math.max(1, ...counts)
 
   return (
-    <div className="frost-in">
-      <h1 className="mb-4 text-lg font-semibold text-foreground">{t("admin.dashboard.title")}</h1>
+    <div className="frost-in space-y-6">
+      <h1 className="text-lg font-semibold text-foreground">{t("admin.dashboard.title")}</h1>
       {error ? (
         <p className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
-      ) : loading ? (
+      ) : loading || !stats ? (
         <p className="text-sm text-muted-foreground">{t("admin.loading")}</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label={t("admin.dashboard.totalUsers")} value={total} />
-          <StatCard label={t("admin.dashboard.admins")} value={admins} />
-          <StatCard label={t("admin.dashboard.blocked")} value={blocked} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label={t("admin.dashboard.totalUsers")} value={stats.Total} />
+            <StatCard label={t("admin.dashboard.new7d")} value={stats.NewLast7d} />
+            <StatCard label={t("admin.dashboard.active7d")} value={stats.ActiveLast7d} />
+            <StatCard label={t("admin.dashboard.avgDau")} value={stats.AvgDailyActive7d.toFixed(1)} />
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("admin.dashboard.regChart")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex h-32 items-end gap-2">
+                {dayKeys.map((k, i) => (
+                  <div key={k} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="flex w-full flex-1 items-end">
+                      <div
+                        className="w-full rounded-t bg-primary/70"
+                        style={{ height: `${(counts[i] / max) * 100}%` }}
+                        title={`${k}: ${counts[i]}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{k.slice(5)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   )
 }
 ```
 
-- [ ] **Step 2: Typecheck + build**
+- [ ] **Step 4: Typecheck + build**
 
 Run: `cd admin-frontend && npx tsc --noEmit && npm run build`
 Expected: exit 0. (The `UserRow` import from `@/app/users/page` is gone — dashboard no longer depends on the users page.)
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd admin-frontend
-git add src/app/dashboard/page.tsx
-git commit -m "feat(admin): dashboard reads /api/users/stats (cursor-list compatible)
+git add src/app/dashboard/page.tsx messages/en.json messages/uk.json
+git commit -m "feat(admin): dashboard stats — total/new/active/avg-DAU + 7d reg chart
+
+Reads /api/users/stats (cursor-list compatible); adds new/active/avg-daily
+cards and a basic 7-day registrations bar chart.
 
 Claude-Session: https://claude.ai/code/session_01QfvH8LfD5yp5zSztMtJzQ7"
 ```
@@ -920,7 +1134,7 @@ Claude-Session: https://claude.ai/code/session_01QfvH8LfD5yp5zSztMtJzQ7"
 - Cursor keyset list (order, opaque cursor, sentinel first page, limit+1 HasMore) → Task 1 (query) + Task 2 (use-case encode/decode).
 - Multi-role filter (`role = ANY`) + search → Task 1 query + Task 2/3 plumbing; UI checkboxes → Task 4.
 - Debounced search → Task 4 (300ms). Infinite scroll (IntersectionObserver, append, reset on filter change) → Task 4.
-- `GET /api/users/stats` → Task 1 (queries) + Task 2 (`GetUserStats`) + Task 3 (handler). Dashboard switch → Task 5.
+- `GET /api/users/stats` (total/blocked/by-role + 7-day new/active/avg-DAU + registrations-by-day) → Task 1 (4 window queries: created-since, active-since, avg-daily-active from sessions, registrations-by-day) + Task 2 (`GetUserStats` computes `since = now-7d`) + Task 3 (DTO). Dashboard number cards + 7-day bar chart → Task 5.
 - Offset removed for users → Task 1 (drops `ListUsers`), Task 2/3 (new signature). Logs offset untouched (out of scope) — not modified by any task.
 
 **Placeholder scan:** No TBD/TODO. The two conditional notes (Docker-less sqlc → BLOCKED; gin route-conflict fallback) are concrete. The handler-test note (reuse the existing router/protector helper) names exactly what to mirror.
