@@ -45,6 +45,31 @@ plan; this document is the shared design.
     `pending|started|done`, target `done|error`. No new tables are needed for
     logs/statistics — only read endpoints.
 
+## Design system (mandatory)
+
+All admin UI is built **only** on the new design system — base components and
+tones come entirely from `design-system/`. No bespoke colors, no off-DS
+styling, no ad-hoc component variants.
+
+- **Single source of truth:** `design-system/src/components/ui` (base
+  components) and `design-system/src/components/globals.css` (Indigo Frost V1
+  tokens). Components are copied into the frontend (not a dependency); `@/`
+  aliases resolve. Sync is managed at the repo root (`.design-sync/`,
+  `ds-bundle/`, the `DesignSync` mechanism).
+- **Current drift to fix in slice A:** admin-frontend's `src/components/ui`
+  diverges from DS — missing `checkbox.tsx`, older `input.tsx` / `alert.tsx`;
+  `globals.css` `@theme` lacks `--color-accent-warm`. Refresh all base ui
+  components and tokens from the DS so they match the latest render hashes.
+- **Pages build on DS primitives only:** `card`, `button`, `dialog`, `tabs`,
+  `dropdown-menu`, `form`, `input`, `label`, `alert`, `checkbox`. Use DS tokens
+  (`bg-card`, `text-muted-foreground`, `bg-primary`, `accent`, `accent-warm`,
+  `destructive`, etc.) and the existing frost surface utilities that ship with
+  the DS theme.
+- **No `badge` component exists in the DS** — role/status badges are composed
+  from DS tokens (muted/secondary/accent/destructive surfaces) in DS style, not
+  invented as a one-off palette.
+- **Fonts** come from the DS tokens (`--font-sans` / `--font-mono` = Geist).
+
 ## Domains and roles
 
 Three product domains, super-set by super_admin:
@@ -106,6 +131,8 @@ Dashboard                          (visible to admin / super_admin)
   Audit Log       (later — hidden)
 ```
 
+- Slice A first **refreshes base ui components + `globals.css` tokens from the
+  DS** (see "Design system" above) so all later slices build on the current DS.
 - `Sidebar` is extended to model sections (header + items) and an expandable
   group for Notifications. Items carry a visibility predicate
   (`canManage` / `canManagePlatform` / hidden).
