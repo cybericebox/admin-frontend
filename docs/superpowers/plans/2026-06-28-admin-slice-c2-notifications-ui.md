@@ -1013,11 +1013,11 @@ function EmailSection({ types }: { types: string[] }) {
                   <p className="mt-0.5 text-xs text-muted-foreground">{tpl.Subject}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => apiPatch(`/api/notifications/templates/email/${tpl.ID}/status`, { Status: tpl.Status === "active" ? "draft" : "active" }).then(reload)}>
+                  <Button variant="outline" onClick={() => apiPatch(`/api/notifications/templates/email/${tpl.ID}/status`, { Status: tpl.Status === "active" ? "draft" : "active" }).then(reload).catch(() => setError(true))}>
                     {tpl.Status === "active" ? t("admin.notif.tpl.deactivate") : t("admin.notif.tpl.activate")}
                   </Button>
                   <Button variant="outline" onClick={() => setEditing(tpl)}>{t("admin.notif.tpl.edit")}</Button>
-                  <DeleteButton onConfirm={() => apiDelete(`/api/notifications/templates/email/${tpl.ID}`).then(reload)} />
+                  <DeleteButton onConfirm={() => apiDelete(`/api/notifications/templates/email/${tpl.ID}`).then(reload).catch(() => setError(true))} />
                 </div>
               </div>
             ))}
