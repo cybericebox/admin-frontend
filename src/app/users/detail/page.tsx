@@ -41,7 +41,7 @@ function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
   const router = useRouter()
-  const { can, permissions } = useRole()
+  const { can, permissions, me } = useRole()
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,6 +94,11 @@ function Detail() {
     )
   }
 
+  // Self-guard: an admin viewing their own account may inspect it but cannot act
+  // on it (no self role-change, self-block, or self-delete). Me carries no ID, so
+  // identity is matched on the unique email. UI-only — the backend enforces too.
+  const isSelf = !!me && me.Email === user.Email
+
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
       <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
@@ -128,7 +133,13 @@ function Detail() {
         </div>
       </dl>
 
-      {(can("users.role.write") || can("users.status.write") || can("users.delete")) && (
+      {isSelf && (
+        <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">
+          {t("admin.userDetail.selfNote")}
+        </p>
+      )}
+
+      {!isSelf && (can("users.role.write") || can("users.status.write") || can("users.delete")) && (
         <div className="mt-8 flex flex-wrap items-end gap-3 border-t border-border pt-6">
           {can("users.role.write") && (
             <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">

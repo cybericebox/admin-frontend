@@ -16,7 +16,6 @@ export default function Page() {
       }
     >
       <div className="frost-in">
-        <h1 className="mb-4 text-lg font-semibold text-foreground">{t("admin.notif.title")}</h1>
         <Tabs defaultValue="statistics">
           <TabsList>
             <TabsTrigger value="statistics">{t("admin.notif.tab.statistics")}</TabsTrigger>

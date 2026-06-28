@@ -95,8 +95,6 @@ export default function Page() {
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
-      <h1 className="mb-4 text-lg font-semibold text-foreground">{t("admin.users.title")}</h1>
-
       <input
         type="text"
         value={search}

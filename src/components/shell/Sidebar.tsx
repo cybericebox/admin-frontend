@@ -12,11 +12,10 @@ type Section = { headingKey?: string; divider?: boolean; items: Item[] }
 const SECTIONS: Section[] = [
   { items: [{ href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard }] },
   {
-    headingKey: "admin.nav.section.domains",
+    divider: true,
     items: [{ href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" }],
   },
   {
-    headingKey: "admin.nav.section.platform",
     divider: true,
     items: [{ href: "/notifications", label: "admin.nav.notifications", icon: Bell, perm: "notifications.templates.read" }],
   },

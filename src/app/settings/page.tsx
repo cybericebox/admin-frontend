@@ -11,8 +11,7 @@ export default function Page() {
       }
     >
       <div className="frost-panel frost-in rounded-lg p-8">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">{t("admin.nav.settings")}</p>
-        <p className="mt-2 text-muted-foreground">{t("admin.comingSoon")}</p>
+        <p className="text-muted-foreground">{t("admin.comingSoon")}</p>
       </div>
     </RequirePermission>
   )

@@ -64,7 +64,6 @@ export default function Page() {
 
   return (
     <div className="frost-in space-y-6">
-      <h1 className="text-lg font-semibold text-foreground">{t("admin.dashboard.title")}</h1>
       {error ? (
         <p className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
       ) : loading || !stats ? (

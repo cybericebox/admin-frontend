@@ -211,6 +211,7 @@
   "admin.userDetail.deleteConfirmBody": "Цю дію не можна скасувати.",
   "admin.userDetail.cancel": "Скасувати",
   "admin.userDetail.actionError": "Помилка дії",
+  "admin.userDetail.selfNote": "Це ваш власний обліковий запис — дії над собою недоступні.",
   "admin.userDetail.never": "Ніколи",
   "admin.method.email": "Email",
   "admin.method.google": "Google",

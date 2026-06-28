@@ -211,6 +211,7 @@
   "admin.userDetail.deleteConfirmBody": "This action cannot be undone.",
   "admin.userDetail.cancel": "Cancel",
   "admin.userDetail.actionError": "Action failed",
+  "admin.userDetail.selfNote": "This is your own account — actions on yourself are unavailable.",
   "admin.userDetail.never": "Never",
   "admin.method.email": "Email",
   "admin.method.google": "Google",
