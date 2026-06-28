@@ -213,5 +213,10 @@
   "admin.userDetail.actionError": "Помилка дії",
   "admin.userDetail.never": "Ніколи",
   "admin.method.email": "Email",
-  "admin.method.google": "Google"
+  "admin.method.google": "Google",
+  "admin.dashboard.title": "Дашборд",
+  "admin.dashboard.totalUsers": "Усього користувачів",
+  "admin.dashboard.admins": "Адміністратори",
+  "admin.dashboard.blocked": "Заблоковані",
+  "admin.dashboard.loadError": "Не вдалося завантажити дашборд"
 }

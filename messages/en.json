@@ -213,5 +213,10 @@
   "admin.userDetail.actionError": "Action failed",
   "admin.userDetail.never": "Never",
   "admin.method.email": "Email",
-  "admin.method.google": "Google"
+  "admin.method.google": "Google",
+  "admin.dashboard.title": "Dashboard",
+  "admin.dashboard.totalUsers": "Total users",
+  "admin.dashboard.admins": "Admins",
+  "admin.dashboard.blocked": "Blocked",
+  "admin.dashboard.loadError": "Failed to load dashboard"
 }
