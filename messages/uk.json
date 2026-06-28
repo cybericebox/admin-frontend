@@ -178,5 +178,21 @@
   "admin.signOut": "Вийти",
   "admin.profile": "Профіль",
   "admin.accountMenu": "Меню облікового запису",
-  "admin.loading": "Завантаження…"
+  "admin.loading": "Завантаження…",
+  "admin.users.title": "Користувачі",
+  "admin.users.search": "Пошук за іменем або email",
+  "admin.users.col.user": "Користувач",
+  "admin.users.col.role": "Роль",
+  "admin.users.col.status": "Статус",
+  "admin.users.col.created": "Створено",
+  "admin.users.empty": "Користувачів не знайдено",
+  "admin.users.loadError": "Не вдалося завантажити користувачів",
+  "admin.users.total": "Усього",
+  "admin.role.user": "Користувач",
+  "admin.role.admin_viewer": "Перегляд",
+  "admin.role.super_admin": "Суперадмін",
+  "admin.status.active": "Активний",
+  "admin.status.blocked": "Заблокований",
+  "admin.status.incomplete": "Незавершений",
+  "admin.status.deleted": "Видалений"
 }

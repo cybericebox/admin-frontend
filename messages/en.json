@@ -178,5 +178,21 @@
   "admin.signOut": "Sign out",
   "admin.profile": "Profile",
   "admin.accountMenu": "Account menu",
-  "admin.loading": "Loading…"
+  "admin.loading": "Loading…",
+  "admin.users.title": "Users",
+  "admin.users.search": "Search by name or email",
+  "admin.users.col.user": "User",
+  "admin.users.col.role": "Role",
+  "admin.users.col.status": "Status",
+  "admin.users.col.created": "Created",
+  "admin.users.empty": "No users found",
+  "admin.users.loadError": "Failed to load users",
+  "admin.users.total": "Total",
+  "admin.role.user": "User",
+  "admin.role.admin_viewer": "Viewer",
+  "admin.role.super_admin": "Super admin",
+  "admin.status.active": "Active",
+  "admin.status.blocked": "Blocked",
+  "admin.status.incomplete": "Incomplete",
+  "admin.status.deleted": "Deleted"
 }
