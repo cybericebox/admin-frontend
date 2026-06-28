@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { formatNotifType } from "@/utils/notifType"
 
 type Setting = {
@@ -66,9 +66,9 @@ export function GlobalSettingsTab() {
               <tr key={rowKey(s)} className="border-b border-border/50">
                 <td className="px-3 py-2 font-medium text-foreground">{formatNotifType(s.NotificationType)}</td>
                 <td className="px-3 py-2 text-muted-foreground">{s.Channel}</td>
-                <td className="px-3 py-2 text-center"><Checkbox checked={s.Enabled} onChange={(e) => toggle(s, "Enabled", e.target.checked)} /></td>
-                <td className="px-3 py-2 text-center"><Checkbox checked={s.UserCanChange} onChange={(e) => toggle(s, "UserCanChange", e.target.checked)} /></td>
-                <td className="px-3 py-2 text-center"><Checkbox checked={s.UserDefault} onChange={(e) => toggle(s, "UserDefault", e.target.checked)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} onCheckedChange={(v) => toggle(s, "Enabled", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.UserCanChange} onCheckedChange={(v) => toggle(s, "UserCanChange", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.UserDefault} onCheckedChange={(v) => toggle(s, "UserDefault", v)} /></td>
               </tr>
             ))}
           </tbody>
