@@ -160,6 +160,8 @@
 
   "admin.nav.dashboard": "Dashboard",
   "admin.nav.notifications": "Notifications",
+  "admin.nav.section.domains": "Domains",
+  "admin.nav.section.platform": "Platform",
   "admin.nav.users": "Users",
   "admin.nav.events": "Events",
   "admin.nav.exercises": "Exercises",

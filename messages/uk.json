@@ -160,6 +160,8 @@
 
   "admin.nav.dashboard": "Дашборд",
   "admin.nav.notifications": "Сповіщення",
+  "admin.nav.section.domains": "Домени",
+  "admin.nav.section.platform": "Платформа",
   "admin.nav.users": "Користувачі",
   "admin.nav.events": "Івенти",
   "admin.nav.exercises": "Завдання",
