@@ -25,9 +25,9 @@ type UserDetail = {
   CreatedAt: string
 }
 
-// Roles assignable by the current caller (super_admin can grant super_admin; admin cannot).
-function assignableRoles(canManagePlatform: boolean): string[] {
-  return canManagePlatform
+// Roles assignable by the current caller (only a holder of "*" — super_admin — can grant super_admin).
+function assignableRoles(permissions: string[]): string[] {
+  return permissions.includes("*")
     ? ["super_admin", "admin", "admin_viewer", "user"]
     : ["admin", "admin_viewer", "user"]
 }
@@ -41,7 +41,7 @@ function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
   const router = useRouter()
-  const { canManage, canManagePlatform } = useRole()
+  const { can, permissions } = useRole()
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -128,46 +128,52 @@ function Detail() {
         </div>
       </dl>
 
-      {canManage && (
+      {(can("users.role.write") || can("users.status.write") || can("users.delete")) && (
         <div className="mt-8 flex flex-wrap items-end gap-3 border-t border-border pt-6">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">
-            {t("admin.userDetail.changeRole")}
-            <select
-              value={user.Role}
-              disabled={busy}
-              onChange={(e) => changeRole(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {/* Always show the current role even if not normally assignable by this caller. */}
-              {Array.from(new Set([user.Role, ...assignableRoles(canManagePlatform)])).map((r) => (
-                <option key={r} value={r}>{t(`admin.role.${r}`)}</option>
-              ))}
-            </select>
-          </label>
-
-          {user.Status === "blocked" ? (
-            <Button variant="outline" disabled={busy} onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
-          ) : (
-            <Button variant="outline" disabled={busy} onClick={() => setStatus("blocked")}>{t("admin.userDetail.block")}</Button>
+          {can("users.role.write") && (
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">
+              {t("admin.userDetail.changeRole")}
+              <select
+                value={user.Role}
+                disabled={busy}
+                onChange={(e) => changeRole(e.target.value)}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {/* Always show the current role even if not normally assignable by this caller. */}
+                {Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => (
+                  <option key={r} value={r}>{t(`admin.role.${r}`)}</option>
+                ))}
+              </select>
+            </label>
           )}
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="destructive" disabled={busy}>{t("admin.userDetail.delete")}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
-                <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
-                </DialogClose>
-                <Button variant="destructive" disabled={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {can("users.status.write") && (
+            user.Status === "blocked" ? (
+              <Button variant="outline" disabled={busy} onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
+            ) : (
+              <Button variant="outline" disabled={busy} onClick={() => setStatus("blocked")}>{t("admin.userDetail.block")}</Button>
+            )
+          )}
+
+          {can("users.delete") && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="destructive" disabled={busy}>{t("admin.userDetail.delete")}</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
+                  <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
+                  </DialogClose>
+                  <Button variant="destructive" disabled={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           {actionError && <span className="text-sm text-destructive">{t("admin.userDetail.actionError")}</span>}
         </div>

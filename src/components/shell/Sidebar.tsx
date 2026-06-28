@@ -6,27 +6,29 @@ import { Wordmark } from "@/components/brand/Wordmark"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 
-type Item = { href: string; label: string; icon: React.ComponentType<{ className?: string }> }
-type Section = { headingKey?: string; superOnly?: boolean; divider?: boolean; items: Item[] }
+type Item = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; perm?: string }
+type Section = { headingKey?: string; divider?: boolean; items: Item[] }
 
 const SECTIONS: Section[] = [
   { items: [{ href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard }] },
   {
     headingKey: "admin.nav.section.domains",
-    items: [{ href: "/users", label: "admin.nav.users", icon: Users }],
+    items: [{ href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" }],
   },
   {
     headingKey: "admin.nav.section.platform",
-    superOnly: true,
     divider: true,
-    items: [{ href: "/notifications", label: "admin.nav.notifications", icon: Bell }],
+    items: [{ href: "/notifications", label: "admin.nav.notifications", icon: Bell, perm: "notifications.templates.read" }],
   },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { canManagePlatform } = useRole()
-  const sections = SECTIONS.filter((s) => !s.superOnly || canManagePlatform)
+  const { can } = useRole()
+  // Keep only items the user is permitted to see; drop empty sections.
+  const sections = SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || can(it.perm)) }))
+    .filter((s) => s.items.length > 0)
 
   return (
     <aside className="frost-panel sticky top-0 flex h-screen w-56 shrink-0 flex-col gap-1 p-3">
