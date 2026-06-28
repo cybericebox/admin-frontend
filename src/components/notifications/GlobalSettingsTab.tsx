@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Checkbox } from "@/components/ui/checkbox"
+import { formatNotifType } from "@/utils/notifType"
 
 type Setting = {
   NotificationType: string
@@ -63,7 +64,7 @@ export function GlobalSettingsTab() {
           <tbody>
             {rows.map((s) => (
               <tr key={rowKey(s)} className="border-b border-border/50">
-                <td className="px-3 py-2 font-medium text-foreground">{s.NotificationType}</td>
+                <td className="px-3 py-2 font-medium text-foreground">{formatNotifType(s.NotificationType)}</td>
                 <td className="px-3 py-2 text-muted-foreground">{s.Channel}</td>
                 <td className="px-3 py-2 text-center"><Checkbox checked={s.Enabled} onChange={(e) => toggle(s, "Enabled", e.target.checked)} /></td>
                 <td className="px-3 py-2 text-center"><Checkbox checked={s.UserCanChange} onChange={(e) => toggle(s, "UserCanChange", e.target.checked)} /></td>

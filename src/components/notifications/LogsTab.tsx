@@ -5,6 +5,7 @@ import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
+import { formatNotifType } from "@/utils/notifType"
 
 type Dispatch = {
   ID: string
@@ -98,7 +99,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground">{d.NotificationType}</td>
+                  <td className="px-3 py-2 font-medium text-foreground">{formatNotifType(d.NotificationType)}</td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{d.RecipientUserID.slice(0, 8)}</td>
                   <td className="px-3 py-2"><StatusPill status={d.Status} /></td>
                   <td className="px-3 py-2 text-muted-foreground">{new Date(d.CreatedAt).toLocaleString()}</td>

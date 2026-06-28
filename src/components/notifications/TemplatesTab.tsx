@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
 import { useNotificationTypes } from "./templateTypes"
+import { formatNotifType } from "@/utils/notifType"
 
 type InAppTpl = { ID: string; NotificationType: string; Status: string; Title: string; Body: string; Link: string; CreatedAt: string; UpdatedAt: string }
 type InAppList = { Templates: InAppTpl[]; MissingActiveFor: string[] }
@@ -53,7 +54,7 @@ function InAppSection({ types }: { types: string[] }) {
               <div key={tpl.ID} className="flex items-center justify-between rounded-md border border-border p-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">{tpl.NotificationType}</span>
+                    <span className="font-medium text-foreground">{formatNotifType(tpl.NotificationType)}</span>
                     <StatusPill status={tpl.Status} />
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{tpl.Title}</p>
@@ -113,7 +114,7 @@ function InAppEditor({ types, tpl, onClose, onSaved }: { types: string[]; tpl: I
               <span className="text-muted-foreground">{t("admin.notif.tpl.type")}</span>
               <select value={notificationType} onChange={(e) => setNotificationType(e.target.value)}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                {types.map((ty) => <option key={ty} value={ty}>{ty}</option>)}
+                {types.map((ty) => <option key={ty} value={ty}>{formatNotifType(ty)}</option>)}
               </select>
             </label>
           )}
@@ -191,7 +192,7 @@ function EmailSection({ types }: { types: string[] }) {
               <div key={tpl.ID} className="flex items-center justify-between rounded-md border border-border p-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">{tpl.NotificationType}</span>
+                    <span className="font-medium text-foreground">{formatNotifType(tpl.NotificationType)}</span>
                     <StatusPill status={tpl.Status} />
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{tpl.Subject}</p>
@@ -246,7 +247,7 @@ function EmailEditor({ types, tpl, onClose, onSaved }: { types: string[]; tpl: E
               <span className="text-muted-foreground">{t("admin.notif.tpl.type")}</span>
               <select value={notificationType} onChange={(e) => setNotificationType(e.target.value)}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                {types.map((ty) => <option key={ty} value={ty}>{ty}</option>)}
+                {types.map((ty) => <option key={ty} value={ty}>{formatNotifType(ty)}</option>)}
               </select>
             </label>
           )}
@@ -295,7 +296,7 @@ function TestSend({ types }: { types: { Type: string; Channels: string[] }[] }) 
             <span className="text-muted-foreground">{t("admin.notif.tpl.type")}</span>
             <select value={type} onChange={(e) => { setType(e.target.value); setChannels([]) }}
               className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              {types.map((ty) => <option key={ty.Type} value={ty.Type}>{ty.Type}</option>)}
+              {types.map((ty) => <option key={ty.Type} value={ty.Type}>{formatNotifType(ty.Type)}</option>)}
             </select>
           </label>
           <div className="text-sm">
