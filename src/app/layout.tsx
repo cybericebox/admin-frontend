@@ -4,7 +4,7 @@ import { GeistMono } from "geist/font/mono"
 import { RoleProvider } from "@/lib/useRole"
 import { AdminShell } from "@/components/shell/AdminShell"
 
-export const metadata = { title: "CyberICEBox Admin" }
+export const metadata = { title: "Cyber ICE Box Platform Admin" }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
