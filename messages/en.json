@@ -249,5 +249,13 @@
   "admin.notif.logs.attempts": "Attempts",
   "admin.notif.logs.error": "Error",
   "admin.notif.logs.close": "Close",
-  "admin.notif.logs.noTargets": "No targets"
+  "admin.notif.logs.noTargets": "No targets",
+
+  "admin.notif.settings.type": "Type",
+  "admin.notif.settings.channel": "Channel",
+  "admin.notif.settings.enabled": "Enabled",
+  "admin.notif.settings.userCanChange": "User can change",
+  "admin.notif.settings.userDefault": "User default",
+  "admin.notif.settings.empty": "No settings",
+  "admin.notif.settings.saveError": "Failed to save"
 }

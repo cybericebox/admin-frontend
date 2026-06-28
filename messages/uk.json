@@ -249,5 +249,13 @@
   "admin.notif.logs.attempts": "Спроби",
   "admin.notif.logs.error": "Помилка",
   "admin.notif.logs.close": "Закрити",
-  "admin.notif.logs.noTargets": "Немає цілей"
+  "admin.notif.logs.noTargets": "Немає цілей",
+
+  "admin.notif.settings.type": "Тип",
+  "admin.notif.settings.channel": "Канал",
+  "admin.notif.settings.enabled": "Увімкнено",
+  "admin.notif.settings.userCanChange": "Користувач може змінювати",
+  "admin.notif.settings.userDefault": "Типово для користувача",
+  "admin.notif.settings.empty": "Немає налаштувань",
+  "admin.notif.settings.saveError": "Не вдалося зберегти"
 }
