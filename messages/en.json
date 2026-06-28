@@ -233,5 +233,21 @@
   "admin.notif.stats.byType": "By type",
   "admin.notif.stats.byChannel": "By channel",
   "admin.notif.stats.window": "Window (days)",
-  "admin.notif.stats.empty": "No data in this window"
+  "admin.notif.stats.empty": "No data in this window",
+
+  "admin.notif.logs.type": "Type",
+  "admin.notif.logs.status": "Status",
+  "admin.notif.logs.recipient": "Recipient",
+  "admin.notif.logs.created": "Created",
+  "admin.notif.logs.allTypes": "All types",
+  "admin.notif.logs.allStatuses": "All statuses",
+  "admin.notif.logs.empty": "No dispatches",
+  "admin.notif.logs.prev": "Previous",
+  "admin.notif.logs.next": "Next",
+  "admin.notif.logs.targets": "Delivery targets",
+  "admin.notif.logs.channel": "Channel",
+  "admin.notif.logs.attempts": "Attempts",
+  "admin.notif.logs.error": "Error",
+  "admin.notif.logs.close": "Close",
+  "admin.notif.logs.noTargets": "No targets"
 }

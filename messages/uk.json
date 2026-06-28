@@ -233,5 +233,21 @@
   "admin.notif.stats.byType": "За типом",
   "admin.notif.stats.byChannel": "За каналом",
   "admin.notif.stats.window": "Вікно (днів)",
-  "admin.notif.stats.empty": "Немає даних за період"
+  "admin.notif.stats.empty": "Немає даних за період",
+
+  "admin.notif.logs.type": "Тип",
+  "admin.notif.logs.status": "Статус",
+  "admin.notif.logs.recipient": "Отримувач",
+  "admin.notif.logs.created": "Створено",
+  "admin.notif.logs.allTypes": "Усі типи",
+  "admin.notif.logs.allStatuses": "Усі статуси",
+  "admin.notif.logs.empty": "Немає відправок",
+  "admin.notif.logs.prev": "Назад",
+  "admin.notif.logs.next": "Далі",
+  "admin.notif.logs.targets": "Цілі доставки",
+  "admin.notif.logs.channel": "Канал",
+  "admin.notif.logs.attempts": "Спроби",
+  "admin.notif.logs.error": "Помилка",
+  "admin.notif.logs.close": "Закрити",
+  "admin.notif.logs.noTargets": "Немає цілей"
 }
