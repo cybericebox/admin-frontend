@@ -4,10 +4,27 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
+import { apiPost } from "@/api/client"
 import { t } from "@/i18n/t"
 
 const ID_ORIGIN =
   process.env.NEXT_PUBLIC_ID_ORIGIN ?? `https://id.${process.env.NEXT_PUBLIC_DOMAIN ?? ""}`
+
+// Sign out from the ADMIN origin so DeAuthenticate clears this subdomain's local
+// token (httpOnly, out of the id app's reach) and deletes the master session
+// server-side, then go straight to the id sign-in page. Signing out via the id
+// app instead left the admin local-token intact, so a reload re-entered the
+// panel; and bouncing back through admin ran the full silent-SSO before the
+// client guard could redirect, stranding the user on a loading screen.
+async function signOutAndRedirect(): Promise<void> {
+  try {
+    await apiPost("/api/auth/sign-out", {}, undefined, { required: false })
+  } catch {
+    // Even if the call fails, fall through to sign-in — the cookie is httpOnly
+    // and short-lived; the worst case is a stale token that expires on its own.
+  }
+  if (typeof window !== "undefined") window.location.href = `${ID_ORIGIN}/sign-in`
+}
 
 export function TopBar({ title }: { title: string }) {
   const { me, role } = useRole()
@@ -50,8 +67,8 @@ export function TopBar({ title }: { title: string }) {
               <a href={`${ID_ORIGIN}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href={`${ID_ORIGIN}/sign-out?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.signOut")}</a>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
+              {t("admin.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

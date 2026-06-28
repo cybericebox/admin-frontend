@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Bell, Users } from "lucide-react"
-import { Wordmark } from "@/components/brand/Wordmark"
+import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 
@@ -31,8 +31,9 @@ export function Sidebar() {
 
   return (
     <aside className="frost-panel sticky top-0 flex h-screen w-56 shrink-0 flex-col gap-1 p-3">
-      <div className="mb-4 px-2 pt-2">
-        <Wordmark size="md" />
+      <div className="mb-4 flex items-center gap-2 px-2 pt-2">
+        <Logo size={26} />
+        <span className="text-sm font-semibold tracking-tight text-foreground">{t("admin.shell.title")}</span>
       </div>
       <nav className="flex flex-col gap-1">
         {sections.map((section, si) => (

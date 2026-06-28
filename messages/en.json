@@ -158,6 +158,7 @@
   "profile.connections.connect": "Connect Google",
   "profile.connections.linkFailed": "Failed to link Google account. Please try again.",
 
+  "admin.shell.title": "Admin panel",
   "admin.nav.dashboard": "Dashboard",
   "admin.nav.notifications": "Notifications",
   "admin.nav.section.domains": "Domains",

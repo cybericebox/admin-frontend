@@ -158,6 +158,7 @@
   "profile.connections.connect": "Підключити Google",
   "profile.connections.linkFailed": "Не вдалося підключити обліковий запис Google. Спробуйте ще раз.",
 
+  "admin.shell.title": "Адмін-панель",
   "admin.nav.dashboard": "Дашборд",
   "admin.nav.notifications": "Сповіщення",
   "admin.nav.section.domains": "Домени",
