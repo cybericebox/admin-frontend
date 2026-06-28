@@ -10,10 +10,22 @@ export interface LogoProps {
   /** Rendered height in px (width scales with the 375:368 aspect). */
   size?: number
   className?: string
+  /**
+   * Where the brand mark links. Defaults to the landing (apex) origin so the
+   * organisation logo navigates home from every app. Pass `null` to render a
+   * non-linking mark (e.g. when an ancestor already wraps it in an anchor).
+   */
+  href?: string | null
 }
 
-export function Logo({ size = 64, className }: LogoProps) {
-  return (
+// The landing (apex) origin. NEXT_PUBLIC_DOMAIN is baked as a placeholder and
+// substituted at container start; falls back to "/" when unset (dev/SSR).
+const LANDING_HREF = process.env.NEXT_PUBLIC_DOMAIN
+  ? `https://${process.env.NEXT_PUBLIC_DOMAIN}`
+  : "/"
+
+export function Logo({ size = 64, className, href }: LogoProps) {
+  const img = (
     <img
       src={CREST_SRC}
       alt="CyberICEBox"
@@ -22,5 +34,12 @@ export function Logo({ size = 64, className }: LogoProps) {
       className={className}
       style={{ display: "inline-block", objectFit: "contain" }}
     />
+  )
+  const target = href === null ? null : href ?? LANDING_HREF
+  if (!target) return img
+  return (
+    <a href={target} aria-label="CyberICEBox" style={{ display: "inline-flex", lineHeight: 0 }}>
+      {img}
+    </a>
   )
 }
