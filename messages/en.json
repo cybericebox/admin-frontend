@@ -282,5 +282,9 @@
   "admin.notif.tpl.testChannels": "Channels",
   "admin.notif.tpl.testSend": "Send",
   "admin.notif.tpl.testOk": "Test sent",
-  "admin.notif.tpl.testError": "Test failed"
+  "admin.notif.tpl.testError": "Test failed",
+
+  "admin.users.filterRoles": "Roles",
+  "admin.users.endOfList": "End of list",
+  "admin.users.loadingMore": "Loading more…"
 }

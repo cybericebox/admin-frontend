@@ -282,5 +282,9 @@
   "admin.notif.tpl.testChannels": "Канали",
   "admin.notif.tpl.testSend": "Надіслати",
   "admin.notif.tpl.testOk": "Тест надіслано",
-  "admin.notif.tpl.testError": "Помилка тесту"
+  "admin.notif.tpl.testError": "Помилка тесту",
+
+  "admin.users.filterRoles": "Ролі",
+  "admin.users.endOfList": "Кінець списку",
+  "admin.users.loadingMore": "Завантаження…"
 }

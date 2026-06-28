@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
@@ -14,7 +14,10 @@ export type UserRow = {
   Status: string
   CreatedAt: string
 }
-type UsersList = { Users: UserRow[]; Total: number }
+type ListResp = { Users: UserRow[]; NextCursor: string; HasMore: boolean }
+
+const ROLES = ["super_admin", "admin", "admin_viewer", "user"]
+const PAGE = 50
 
 function fullName(u: UserRow): string {
   const n = `${u.FirstName ?? ""} ${u.LastName ?? ""}`.trim()
@@ -22,38 +25,95 @@ function fullName(u: UserRow): string {
 }
 
 export default function Page() {
-  const [users, setUsers] = useState<UserRow[]>([])
-  const [total, setTotal] = useState(0)
   const [search, setSearch] = useState("")
+  const [debounced, setDebounced] = useState("")
+  const [roles, setRoles] = useState<string[]>([])
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [cursor, setCursor] = useState("")
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(false)
 
+  // Debounce the search box.
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(search.trim()), 300)
+    return () => clearTimeout(id)
+  }, [search])
+
+  const buildQuery = useCallback((cur: string) => {
+    const p = new URLSearchParams()
+    if (debounced) p.set("search", debounced)
+    roles.forEach((r) => p.append("role", r))
+    if (cur) p.set("cursor", cur)
+    p.set("limit", String(PAGE))
+    return p.toString()
+  }, [debounced, roles])
+
+  // First page on filter/search change.
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(false)
-    const q = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""
-    apiGet<UsersList>(`/api/users${q}`)
-      .then((d) => { if (!cancelled) { setUsers(d.Users ?? []); setTotal(d.Total ?? 0) } })
+    setLoading(true); setError(false); setUsers([]); setCursor(""); setHasMore(false)
+    apiGet<ListResp>(`/api/users?${buildQuery("")}`)
+      .then((d) => { if (!cancelled) { setUsers(d.Users ?? []); setCursor(d.NextCursor ?? ""); setHasMore(d.HasMore ?? false) } })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [search])
+  }, [buildQuery])
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore || !cursor) return
+    setLoadingMore(true)
+    apiGet<ListResp>(`/api/users?${buildQuery(cursor)}`)
+      .then((d) => {
+        setUsers((prev) => [...prev, ...(d.Users ?? [])])
+        setCursor(d.NextCursor ?? "")
+        setHasMore(d.HasMore ?? false)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false))
+  }, [hasMore, loadingMore, cursor, buildQuery])
+
+  // Keep the latest loadMore in a ref so the observer effect runs once.
+  const loadMoreRef = useRef(loadMore)
+  loadMoreRef.current = loadMore
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMoreRef.current() },
+      { rootMargin: "200px" },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  function toggleRole(r: string) {
+    setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]))
+  }
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="text-lg font-semibold text-foreground">{t("admin.users.title")}</h1>
-        <span className="text-xs text-muted-foreground">{t("admin.users.total")}: {total}</span>
-      </div>
+      <h1 className="mb-4 text-lg font-semibold text-foreground">{t("admin.users.title")}</h1>
 
       <input
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder={t("admin.users.search")}
-        className="mb-4 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mb-3 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.filterRoles")}</span>
+        {ROLES.map((r) => (
+          <label key={r} className="flex items-center gap-1.5 text-sm text-foreground">
+            <input type="checkbox" checked={roles.includes(r)} onChange={() => toggleRole(r)} className="accent-primary" />
+            {t(`admin.role.${r}`)}
+          </label>
+        ))}
+      </div>
 
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.users.loadError")}</p>
@@ -83,14 +143,19 @@ export default function Page() {
                   </td>
                   <td className="px-3 py-2"><RoleBadge role={u.Role} /></td>
                   <td className="px-3 py-2"><StatusBadge status={u.Status} /></td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {u.CreatedAt ? new Date(u.CreatedAt).toLocaleDateString() : "—"}
-                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{u.CreatedAt ? new Date(u.CreatedAt).toLocaleDateString() : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Infinite-scroll sentinel + status line. */}
+      <div ref={sentinelRef} className="h-6" />
+      {loadingMore && <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.users.loadingMore")}</p>}
+      {!loading && !hasMore && users.length > 0 && (
+        <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.users.endOfList")}</p>
       )}
     </div>
   )
