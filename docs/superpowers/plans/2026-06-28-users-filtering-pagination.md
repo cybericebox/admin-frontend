@@ -121,7 +121,7 @@ FROM (SELECT date_trunc('day', created_at) AS d, user_id
       GROUP BY 1, 2) x;
 
 -- name: RegistrationsByDaySince :many
-SELECT date_trunc('day', created_at) AS day, count(*)::bigint AS count
+SELECT date_trunc('day', created_at)::timestamptz AS day, count(*)::bigint AS count
 FROM users
 WHERE deleted_at IS NULL
   AND created_at >= $1
