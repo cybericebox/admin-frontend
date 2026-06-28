@@ -277,5 +277,10 @@
   "admin.notif.tpl.empty": "Немає шаблонів",
   "admin.notif.tpl.saveError": "Не вдалося зберегти",
   "admin.notif.tpl.deleteConfirm": "Видалити цей шаблон?",
-  "admin.notif.tpl.missingActive": "Немає активного шаблону для"
+  "admin.notif.tpl.missingActive": "Немає активного шаблону для",
+  "admin.notif.tpl.test": "Надіслати тест",
+  "admin.notif.tpl.testChannels": "Канали",
+  "admin.notif.tpl.testSend": "Надіслати",
+  "admin.notif.tpl.testOk": "Тест надіслано",
+  "admin.notif.tpl.testError": "Помилка тесту"
 }

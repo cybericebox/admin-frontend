@@ -277,5 +277,10 @@
   "admin.notif.tpl.empty": "No templates",
   "admin.notif.tpl.saveError": "Failed to save",
   "admin.notif.tpl.deleteConfirm": "Delete this template?",
-  "admin.notif.tpl.missingActive": "No active template for"
+  "admin.notif.tpl.missingActive": "No active template for",
+  "admin.notif.tpl.test": "Send test",
+  "admin.notif.tpl.testChannels": "Channels",
+  "admin.notif.tpl.testSend": "Send",
+  "admin.notif.tpl.testOk": "Test sent",
+  "admin.notif.tpl.testError": "Test failed"
 }
