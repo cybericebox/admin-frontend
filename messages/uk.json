@@ -286,5 +286,10 @@
 
   "admin.users.filterRoles": "Ролі",
   "admin.users.endOfList": "Кінець списку",
-  "admin.users.loadingMore": "Завантаження…"
+  "admin.users.loadingMore": "Завантаження…",
+
+  "admin.dashboard.new7d": "Нові (7д)",
+  "admin.dashboard.active7d": "Активні (7д)",
+  "admin.dashboard.avgDau": "Сер. активних/день",
+  "admin.dashboard.regChart": "Реєстрації (останні 7 днів)"
 }

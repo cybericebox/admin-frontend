@@ -286,5 +286,10 @@
 
   "admin.users.filterRoles": "Roles",
   "admin.users.endOfList": "End of list",
-  "admin.users.loadingMore": "Loading more…"
+  "admin.users.loadingMore": "Loading more…",
+
+  "admin.dashboard.new7d": "New (7d)",
+  "admin.dashboard.active7d": "Active (7d)",
+  "admin.dashboard.avgDau": "Avg daily active",
+  "admin.dashboard.regChart": "Registrations (last 7 days)"
 }
