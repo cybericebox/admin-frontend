@@ -24,6 +24,9 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 
+	--color-accent-warm: var(--accent-warm);
+	--color-accent-warm-foreground: var(--accent-warm-foreground);
+
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
 
@@ -43,52 +46,61 @@
 
 @layer base {
 	:root {
-		--background: #0A0F1A;
-		--foreground: #E6F0FA;
-		--card: #0E1626;
-		--card-foreground: #E6F0FA;
-		--popover: #0E1626;
-		--popover-foreground: #E6F0FA;
-		--primary: #38BDF8;
-		--primary-foreground: #04121F;
-		--secondary: #1B2738;
-		--secondary-foreground: #CFE0F0;
-		--muted: #131C2B;
-		--muted-foreground: #7C8CA3;
-		--accent: #7DD3FC;
-		--accent-foreground: #04121F;
-		--destructive: #F43F5E;
-		--destructive-foreground: #FFF1F3;
-		--border: rgba(125, 211, 252, 0.14);
-		--input: rgba(125, 211, 252, 0.18);
-		--ring: #38BDF8;
+		/* Indigo Frost — light ice/cybersecurity theme (V1) */
+		--background: #E8F3FC;
+		--foreground: #0B1233;
+		--card: #FFFFFF;
+		--card-foreground: #0B1233;
+		--popover: #FFFFFF;
+		--popover-foreground: #0B1233;
+		--primary: #1E2A6B;
+		--primary-foreground: #FFFFFF;
+		--secondary: #D7E9FB;
+		--secondary-foreground: #12204A;
+		--muted: #DEEDFA;
+		--muted-foreground: #45607F;
+		/* shadcn --accent = subtle hover surface */
+		--accent: #CFE6FB;
+		--accent-foreground: #073049;
+		/* brand ice-cyan accent */
+		--accent-warm: #0091EA;
+		--accent-warm-foreground: #FFFFFF;
+		--destructive: #E11D48;
+		--destructive-foreground: #FFFFFF;
+		/* visible borders on light surfaces */
+		--border: #B6D4EC;
+		--input: #A6CAE6;
+		--ring: #0091EA;
 		--radius: 0.5rem;
-		--frost-border: rgba(125, 211, 252, 0.18);
-		--frost-glow: rgba(56, 189, 248, 0.35);
-		--grid-line: rgba(125, 211, 252, 0.05);
+		--frost-border: #9FCAE8;
+		--frost-glow: rgba(0, 145, 234, 0.28);
+		--grid-line: rgba(30, 42, 107, 0.06);
 	}
 
 	.dark {
-		--background: #0A0F1A;
-		--foreground: #E6F0FA;
-		--card: #0E1626;
-		--card-foreground: #E6F0FA;
-		--popover: #0E1626;
-		--popover-foreground: #E6F0FA;
-		--primary: #38BDF8;
-		--primary-foreground: #04121F;
-		--secondary: #1B2738;
-		--secondary-foreground: #CFE0F0;
-		--muted: #131C2B;
-		--muted-foreground: #7C8CA3;
-		--accent: #7DD3FC;
-		--accent-foreground: #04121F;
-		--destructive: #F43F5E;
-		--destructive-foreground: #FFF1F3;
-		--border: rgba(125, 211, 252, 0.14);
-		--input: rgba(125, 211, 252, 0.18);
-		--ring: #38BDF8;
+		--background: #E8F3FC;
+		--foreground: #0B1233;
+		--card: #FFFFFF;
+		--card-foreground: #0B1233;
+		--popover: #FFFFFF;
+		--popover-foreground: #0B1233;
+		--primary: #1E2A6B;
+		--primary-foreground: #FFFFFF;
+		--secondary: #D7E9FB;
+		--secondary-foreground: #12204A;
+		--muted: #DEEDFA;
+		--muted-foreground: #45607F;
+		--accent: #CFE6FB;
+		--accent-foreground: #073049;
+		--accent-warm: #0091EA;
+		--accent-warm-foreground: #FFFFFF;
+		--destructive: #E11D48;
+		--destructive-foreground: #FFFFFF;
+		--border: #B6D4EC;
+		--input: #A6CAE6;
+		--ring: #0091EA;
 		--radius: 0.5rem;
+		--frost-border: #9FCAE8;
 	}
 
 	*,
@@ -120,12 +132,12 @@
 
 @layer components {
   .frost-panel {
-    background: linear-gradient(180deg, rgba(20, 32, 52, 0.72), rgba(10, 15, 26, 0.72));
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--frost-border);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      0 0 28px -10px var(--frost-glow);
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 18px 40px -22px rgba(11, 18, 51, 0.35);
   }
   .glow {
     transition: box-shadow 180ms ease, text-shadow 180ms ease;
@@ -176,3 +188,16 @@
   .frost-particles { display: none; }
   .frost-in { animation: none; }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+@keyframes draw-line {
+	from {
+		stroke-dashoffset: var(--draw-len, 600);
+	}
+}
+

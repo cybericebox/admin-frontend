@@ -1,6 +1,7 @@
 import * as React from "react"
-import { IceMark } from "./IceMark"
+import { Logo } from "./Logo"
 
+// Brand lockup — the old crest logo plus the CyberICEBox wordmark.
 export function Wordmark({
   className,
   withMark = true,
@@ -12,11 +13,12 @@ export function Wordmark({
 }) {
   const text =
     size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-lg"
+  const mark = size === "lg" ? 40 : size === "sm" ? 24 : 30
   return (
     <span className={`inline-flex items-center gap-2 font-semibold tracking-tight ${text} ${className ?? ""}`}>
-      {withMark && <IceMark className="text-foreground" size={size === "lg" ? 32 : 24} />}
+      {withMark && <Logo size={mark} />}
       <span className="text-foreground">
-        Cyber<span className="text-primary glow">ICE</span>Box
+        Cyber<span className="text-primary">ICE</span>Box
       </span>
     </span>
   )
