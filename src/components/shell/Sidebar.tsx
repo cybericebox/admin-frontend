@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Bell, Users, ChevronDown, ChevronRight } from "lucide-react"
@@ -60,12 +60,12 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-col gap-1">
         {sections.map((section, si) => (
-          <div key={si} className="flex flex-col gap-1">
+          <div key={section.items[0].href} className="flex flex-col gap-1">
             {section.divider && <div className="my-2 h-px bg-border" />}
             {section.items.map((it) =>
               it.children && it.children.length > 0
                 ? <NavGroup key={it.href} item={it} pathname={pathname} />
-                : <NavLink key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={pathname.startsWith(it.href)} />,
+                : <NavLink key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={pathname === it.href || pathname.startsWith(it.href + "/")} />,
             )}
           </div>
         ))}
@@ -86,6 +86,7 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
 function NavGroup({ item, pathname }: { item: Item; pathname: string }) {
   const groupActive = pathname.startsWith(item.href)
   const [open, setOpen] = useState(groupActive)
+  useEffect(() => { if (groupActive) setOpen(true) }, [groupActive])
   const Icon = item.icon
   return (
     <div className="flex flex-col gap-1">
