@@ -4,6 +4,8 @@ import Link from "next/link"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
+import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
 
 export type UserRow = {
   ID: string
@@ -95,19 +97,19 @@ export default function Page() {
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
-      <input
+      <Input
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder={t("admin.users.search")}
-        className="mb-3 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mb-3 max-w-sm"
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.filterRoles")}</span>
         {ROLES.map((r) => (
-          <label key={r} className="flex items-center gap-1.5 text-sm text-foreground">
-            <input type="checkbox" checked={roles.includes(r)} onChange={() => toggleRole(r)} className="accent-primary" />
+          <label key={r} className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+            <Switch checked={roles.includes(r)} onCheckedChange={() => toggleRole(r)} aria-label={t(`admin.role.${r}`)} />
             {t(`admin.role.${r}`)}
           </label>
         ))}
