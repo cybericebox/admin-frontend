@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,8 @@ export function LogsTab() {
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<DispatchDetail | null>(null)
   const [open, setOpen] = useState(false)
+  const reqId = useRef(0)
+  const [detailError, setDetailError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -47,8 +49,11 @@ export function LogsTab() {
   }, [type, status, offset])
 
   function openDetail(id: string) {
-    setDetail(null); setOpen(true)
-    apiGet<DispatchDetail>(`/api/notifications/dispatches/${id}`).then(setDetail).catch(() => setOpen(false))
+    const my = ++reqId.current
+    setDetail(null); setDetailError(false); setOpen(true)
+    apiGet<DispatchDetail>(`/api/notifications/dispatches/${id}`)
+      .then((d) => { if (my === reqId.current) setDetail(d) })
+      .catch(() => { if (my === reqId.current) setDetailError(true) })
   }
 
   const total = data?.Total ?? 0
@@ -115,7 +120,9 @@ export function LogsTab() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("admin.notif.logs.targets")}</DialogTitle></DialogHeader>
-          {!detail ? (
+          {detailError ? (
+            <p className="py-4 text-sm text-destructive">{t("admin.notif.loadError")}</p>
+          ) : !detail ? (
             <p className="py-4 text-sm text-muted-foreground">{t("admin.loading")}</p>
           ) : detail.Targets.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">{t("admin.notif.logs.noTargets")}</p>
