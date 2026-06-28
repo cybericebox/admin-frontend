@@ -27,7 +27,8 @@ export interface Me {
   LastName: string
   Email: string
   Role: string
-  Avatar?: string
+  // Avatar URL — the backend's UserInfo field is "Picture".
+  Picture?: string
 }
 
 /**
