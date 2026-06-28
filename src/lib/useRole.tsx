@@ -2,14 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
+import { runSilentAuthOnce } from "@/lib/silentAuth"
 
-export type Role = "user" | "viewer" | "admin" | "super_admin"
+// Canonical backend role strings.
+export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
 export interface RoleState {
   me: Me | null
   role: Role | null
   isLoading: boolean
-  canManage: boolean        // admin | super_admin
+  canManage: boolean         // admin | super_admin
   canManagePlatform: boolean // super_admin
 }
 
@@ -27,7 +29,10 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    fetchMe()
+    // Run the one-shot silent-SSO bootstrap first (plants a local token if the
+    // user has a master session), then read identity.
+    runSilentAuthOnce()
+      .then(() => fetchMe())
       .then((m) => { if (!cancelled) setMe(m) })
       .catch(() => { if (!cancelled) setMe(null) })
       .finally(() => { if (!cancelled) setIsLoading(false) })

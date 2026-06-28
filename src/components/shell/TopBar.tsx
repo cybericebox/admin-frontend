@@ -16,7 +16,7 @@ export function TopBar({ title }: { title: string }) {
     <header className="frost-panel sticky top-0 z-40 flex items-center justify-between px-6 py-3">
       <h1 className="text-lg font-semibold text-foreground">{title}</h1>
       <div className="flex items-center gap-3">
-        {role === "viewer" && (
+        {role === "admin_viewer" && (
           <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {t("admin.role.viewOnlyBadge")}
           </span>
