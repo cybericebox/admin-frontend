@@ -218,5 +218,20 @@
   "admin.dashboard.totalUsers": "Усього користувачів",
   "admin.dashboard.admins": "Адміністратори",
   "admin.dashboard.blocked": "Заблоковані",
-  "admin.dashboard.loadError": "Не вдалося завантажити дашборд"
+  "admin.dashboard.loadError": "Не вдалося завантажити дашборд",
+
+  "admin.notif.title": "Сповіщення",
+  "admin.notif.noAccess": "Лише для суперадміна.",
+  "admin.notif.tab.statistics": "Статистика",
+  "admin.notif.tab.logs": "Логи",
+  "admin.notif.tab.settings": "Глобальні налаштування",
+  "admin.notif.tab.templates": "Шаблони",
+  "admin.notif.comingSoon": "Незабаром",
+  "admin.notif.loadError": "Не вдалося завантажити",
+  "admin.notif.stats.total": "Усього відправок",
+  "admin.notif.stats.byStatus": "За статусом",
+  "admin.notif.stats.byType": "За типом",
+  "admin.notif.stats.byChannel": "За каналом",
+  "admin.notif.stats.window": "Вікно (днів)",
+  "admin.notif.stats.empty": "Немає даних за період"
 }

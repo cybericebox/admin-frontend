@@ -218,5 +218,20 @@
   "admin.dashboard.totalUsers": "Total users",
   "admin.dashboard.admins": "Admins",
   "admin.dashboard.blocked": "Blocked",
-  "admin.dashboard.loadError": "Failed to load dashboard"
+  "admin.dashboard.loadError": "Failed to load dashboard",
+
+  "admin.notif.title": "Notifications",
+  "admin.notif.noAccess": "Super admin only.",
+  "admin.notif.tab.statistics": "Statistics",
+  "admin.notif.tab.logs": "Logs",
+  "admin.notif.tab.settings": "Global settings",
+  "admin.notif.tab.templates": "Templates",
+  "admin.notif.comingSoon": "Coming soon",
+  "admin.notif.loadError": "Failed to load",
+  "admin.notif.stats.total": "Total dispatches",
+  "admin.notif.stats.byStatus": "By status",
+  "admin.notif.stats.byType": "By type",
+  "admin.notif.stats.byChannel": "By channel",
+  "admin.notif.stats.window": "Window (days)",
+  "admin.notif.stats.empty": "No data in this window"
 }
