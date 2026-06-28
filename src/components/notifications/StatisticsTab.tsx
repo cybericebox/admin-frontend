@@ -4,6 +4,7 @@ import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { StatusPill } from "./StatusPill"
+import { formatNotifType } from "@/utils/notifType"
 
 type KeyCount = { Key: string; Count: number }
 type ChannelStatus = { Channel: string; Status: string; Count: number }
@@ -75,7 +76,7 @@ export function StatisticsTab() {
               {stats.ByType.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
                 stats.ByType.map((s) => (
                   <div key={s.Key} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{s.Key}</span><span className="font-medium text-foreground">{s.Count}</span>
+                    <span className="text-muted-foreground">{formatNotifType(s.Key)}</span><span className="font-medium text-foreground">{s.Count}</span>
                   </div>
                 ))}
             </CardContent>
