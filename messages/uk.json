@@ -257,5 +257,25 @@
   "admin.notif.settings.userCanChange": "Користувач може змінювати",
   "admin.notif.settings.userDefault": "Типово для користувача",
   "admin.notif.settings.empty": "Немає налаштувань",
-  "admin.notif.settings.saveError": "Не вдалося зберегти"
+  "admin.notif.settings.saveError": "Не вдалося зберегти",
+
+  "admin.notif.tpl.inapp": "Шаблони in-app",
+  "admin.notif.tpl.email": "Шаблони email",
+  "admin.notif.tpl.new": "Новий шаблон",
+  "admin.notif.tpl.edit": "Редагувати",
+  "admin.notif.tpl.delete": "Видалити",
+  "admin.notif.tpl.activate": "Активувати",
+  "admin.notif.tpl.deactivate": "Зробити чернеткою",
+  "admin.notif.tpl.type": "Тип сповіщення",
+  "admin.notif.tpl.title": "Заголовок",
+  "admin.notif.tpl.body": "Текст",
+  "admin.notif.tpl.link": "Посилання",
+  "admin.notif.tpl.subject": "Тема",
+  "admin.notif.tpl.preheader": "Прехедер",
+  "admin.notif.tpl.save": "Зберегти",
+  "admin.notif.tpl.cancel": "Скасувати",
+  "admin.notif.tpl.empty": "Немає шаблонів",
+  "admin.notif.tpl.saveError": "Не вдалося зберегти",
+  "admin.notif.tpl.deleteConfirm": "Видалити цей шаблон?",
+  "admin.notif.tpl.missingActive": "Немає активного шаблону для"
 }

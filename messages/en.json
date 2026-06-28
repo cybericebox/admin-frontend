@@ -257,5 +257,25 @@
   "admin.notif.settings.userCanChange": "User can change",
   "admin.notif.settings.userDefault": "User default",
   "admin.notif.settings.empty": "No settings",
-  "admin.notif.settings.saveError": "Failed to save"
+  "admin.notif.settings.saveError": "Failed to save",
+
+  "admin.notif.tpl.inapp": "In-app templates",
+  "admin.notif.tpl.email": "Email templates",
+  "admin.notif.tpl.new": "New template",
+  "admin.notif.tpl.edit": "Edit",
+  "admin.notif.tpl.delete": "Delete",
+  "admin.notif.tpl.activate": "Activate",
+  "admin.notif.tpl.deactivate": "Set draft",
+  "admin.notif.tpl.type": "Notification type",
+  "admin.notif.tpl.title": "Title",
+  "admin.notif.tpl.body": "Body",
+  "admin.notif.tpl.link": "Link",
+  "admin.notif.tpl.subject": "Subject",
+  "admin.notif.tpl.preheader": "Preheader",
+  "admin.notif.tpl.save": "Save",
+  "admin.notif.tpl.cancel": "Cancel",
+  "admin.notif.tpl.empty": "No templates",
+  "admin.notif.tpl.saveError": "Failed to save",
+  "admin.notif.tpl.deleteConfirm": "Delete this template?",
+  "admin.notif.tpl.missingActive": "No active template for"
 }
