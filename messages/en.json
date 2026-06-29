@@ -325,5 +325,27 @@
   "admin.dashboard.new7d": "New (7d)",
   "admin.dashboard.active7d": "Active (7d)",
   "admin.dashboard.avgDau": "Avg daily active",
-  "admin.dashboard.regChart": "Registrations (last 7 days)"
+  "admin.dashboard.regChart": "Registrations (last 7 days)",
+
+  "admin.notif.tpl.draftPending": "Draft (pending publish)",
+  "admin.notif.tpl.rollback": "Rollback",
+
+  "admin.notif.editor.addBlock": "Add block",
+  "admin.notif.editor.deleteBlock": "Delete block",
+  "admin.notif.editor.moveUp": "Move up",
+  "admin.notif.editor.moveDown": "Move down",
+  "admin.notif.editor.savePreset": "Save as preset",
+  "admin.notif.editor.presetName": "Preset name",
+  "admin.notif.editor.choosePreset": "Choose preset",
+  "admin.notif.editor.block.richText": "Rich text",
+  "admin.notif.editor.block.button": "Button",
+  "admin.notif.editor.block.image": "Image",
+  "admin.notif.editor.block.divider": "Divider",
+  "admin.notif.editor.block.preset": "Preset",
+  "admin.notif.editor.buttonLabel": "Button label",
+  "admin.notif.editor.buttonUrl": "Button URL",
+  "admin.notif.editor.alignment": "Alignment",
+  "admin.notif.editor.imageUrl": "Image URL",
+  "admin.notif.editor.imageAlt": "Image alt text",
+  "admin.notif.editor.previewTitle": "Email preview"
 }

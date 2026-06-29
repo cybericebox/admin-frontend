@@ -325,5 +325,27 @@
   "admin.dashboard.new7d": "Нові (7д)",
   "admin.dashboard.active7d": "Активні (7д)",
   "admin.dashboard.avgDau": "Сер. активних/день",
-  "admin.dashboard.regChart": "Реєстрації (останні 7 днів)"
+  "admin.dashboard.regChart": "Реєстрації (останні 7 днів)",
+
+  "admin.notif.tpl.draftPending": "Чернетка (очікує публікації)",
+  "admin.notif.tpl.rollback": "Відкотити",
+
+  "admin.notif.editor.addBlock": "Додати блок",
+  "admin.notif.editor.deleteBlock": "Видалити блок",
+  "admin.notif.editor.moveUp": "Перемістити вгору",
+  "admin.notif.editor.moveDown": "Перемістити вниз",
+  "admin.notif.editor.savePreset": "Зберегти як пресет",
+  "admin.notif.editor.presetName": "Назва пресету",
+  "admin.notif.editor.choosePreset": "Обрати пресет",
+  "admin.notif.editor.block.richText": "Форматований текст",
+  "admin.notif.editor.block.button": "Кнопка",
+  "admin.notif.editor.block.image": "Зображення",
+  "admin.notif.editor.block.divider": "Роздільник",
+  "admin.notif.editor.block.preset": "Пресет",
+  "admin.notif.editor.buttonLabel": "Текст кнопки",
+  "admin.notif.editor.buttonUrl": "URL кнопки",
+  "admin.notif.editor.alignment": "Вирівнювання",
+  "admin.notif.editor.imageUrl": "URL зображення",
+  "admin.notif.editor.imageAlt": "Альтернативний текст зображення",
+  "admin.notif.editor.previewTitle": "Перегляд email"
 }
