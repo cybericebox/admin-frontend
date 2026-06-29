@@ -318,6 +318,7 @@
   "admin.notif.tpl.unpublish": "Зняти з публікації",
 
   "admin.users.filterRoles": "Ролі",
+  "admin.users.filterRolesAll": "Всі ролі",
   "admin.users.endOfList": "Кінець списку",
   "admin.users.loadingMore": "Завантаження…",
 

@@ -3,10 +3,16 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
+import { ChevronDown } from "lucide-react"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
-import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 
@@ -125,12 +131,30 @@ export default function Page() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.filterRoles")}</span>
-        {ROLES.map((r) => (
-          <label key={r} className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
-            <Switch checked={roles.includes(r)} onCheckedChange={() => toggleRole(r)} aria-label={t(`admin.role.${r}`)} />
-            {t(`admin.role.${r}`)}
-          </label>
-        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="min-w-48 justify-between">
+              <span className="truncate">
+                {roles.length === 0
+                  ? t("admin.users.filterRolesAll")
+                  : ROLES.filter((r) => roles.includes(r)).map((r) => t(`admin.role.${r}`)).join(", ")}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-48">
+            {ROLES.map((r) => (
+              <DropdownMenuCheckboxItem
+                key={r}
+                checked={roles.includes(r)}
+                onCheckedChange={() => toggleRole(r)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {t(`admin.role.${r}`)}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {error ? (

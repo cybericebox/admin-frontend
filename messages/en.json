@@ -318,6 +318,7 @@
   "admin.notif.tpl.unpublish": "Unpublish",
 
   "admin.users.filterRoles": "Roles",
+  "admin.users.filterRolesAll": "All roles",
   "admin.users.endOfList": "End of list",
   "admin.users.loadingMore": "Loading more…",
 
