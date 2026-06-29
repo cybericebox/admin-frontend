@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { apiPost } from "@/api/client"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -36,6 +36,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Derive the effective role each render: respect an explicit user choice, otherwise
   // default to the last (lowest-privilege) assignable role once roles load.
@@ -60,7 +61,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
       for (const r of results ?? []) byEmail.set(r.Email.toLowerCase(), r)
       setChips((prev) => prev.map((c) => {
         if (!emails.includes(c.email)) return c
-        const r = byEmail.get(c.email)
+        const r = byEmail.get(c.email.toLowerCase())
         if (!r || !r.Error) return { ...c, status: "invited" as const, error: undefined }
         if (r.Error === "User already exists") return { ...c, status: "exists" as const, error: undefined }
         return { ...c, status: "failed" as const, error: r.Error }
@@ -68,7 +69,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
       setSubmitted(true)
       // Drop the freshly-invited chips after a beat so the list stays focused on
       // what still needs attention (skipped/failed).
-      setTimeout(() => {
+      dropTimerRef.current = setTimeout(() => {
         setChips((prev) => prev.filter((c) => c.status !== "invited"))
       }, 1500)
     } catch {
@@ -88,6 +89,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   function handleOpenChange(next: boolean) {
     onOpenChange(next)
     if (!next) {
+      if (dropTimerRef.current) { clearTimeout(dropTimerRef.current); dropTimerRef.current = null }
       setChips([]); setRole(""); setBusy(false); setError(false); setSubmitted(false)
       onClosed?.()
     }
