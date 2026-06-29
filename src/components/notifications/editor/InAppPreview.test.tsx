@@ -109,8 +109,8 @@ describe('InAppPreview', () => {
         autoDismissMs={5000}
       />,
     )
-    // The hint includes the seconds value
-    expect(container.textContent).toContain('5')
+    // The hint includes the seconds value (5s format)
+    expect(container.textContent).toContain('5s')
   })
 
   it('does NOT show auto-hide hint when autoDismissMs is null', () => {
@@ -169,5 +169,47 @@ describe('InAppPreview', () => {
     )
     const anchor = container.querySelector('a[href="https://example.com"]')
     expect(anchor).not.toBeNull()
+  })
+
+  it('sanitizes javascript: scheme in link — renders safe href', () => {
+    const { container } = render(
+      <InAppPreview
+        {...defaultProps}
+        link="{{.Url}}"
+        previewValues={{ Url: 'javascript:alert(1)' }}
+      />,
+    )
+    // Link should be rendered with href="#" (safe), not javascript:
+    const anchor = container.querySelector('a')
+    expect(anchor).not.toBeNull()
+    expect(anchor!.getAttribute('href')).toBe('#')
+    expect(anchor!.getAttribute('href')).not.toContain('javascript:')
+  })
+
+  it('sanitizes javascript: scheme in action — renders safe href', () => {
+    const { container } = render(
+      <InAppPreview
+        {...defaultProps}
+        actions={[{ label: 'Click', href: 'javascript:alert(1)' }]}
+      />,
+    )
+    // Action link should have href="#", not javascript:
+    const actionLink = container.querySelector('a')
+    expect(actionLink).not.toBeNull()
+    expect(actionLink!.getAttribute('href')).toBe('#')
+    expect(actionLink!.getAttribute('href')).not.toContain('javascript:')
+  })
+
+  it('preserves legitimate https: link and action URLs', () => {
+    const { container } = render(
+      <InAppPreview
+        {...defaultProps}
+        link="https://x.com"
+        actions={[{ label: 'Visit', href: 'https://x.com' }]}
+      />,
+    )
+    // Both should preserve the https URL
+    const links = container.querySelectorAll('a[href="https://x.com"]')
+    expect(links.length).toBe(2)
   })
 })

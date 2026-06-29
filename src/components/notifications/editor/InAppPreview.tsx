@@ -26,6 +26,28 @@ function substitute(text: string, values: Record<string, string>): string {
   return text.replace(/\{\{\.?(\w+)\}\}/g, (_, name: string) => values[name] ?? "")
 }
 
+// ── Security helpers ──────────────────────────────────────────────────────────
+
+/**
+ * URL allowlist (mirrors previewHtml.ts safeURL):
+ *   permitted: http://, https://, mailto:, leading "/" (NOT "//"), leading "#"
+ *   blocked:   javascript:, data:, vbscript:, protocol-relative "//…", anything else
+ */
+function safeURL(u: string): string {
+  const s = u.trim()
+  const low = s.toLowerCase()
+  if (
+    low.startsWith('http://') ||
+    low.startsWith('https://') ||
+    low.startsWith('mailto:') ||
+    (s.startsWith('/') && !s.startsWith('//')) ||
+    s.startsWith('#')
+  ) {
+    return s
+  }
+  return '#'
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 export interface InAppPreviewProps {
@@ -115,7 +137,7 @@ export function InAppPreview({
           {/* Link */}
           {linkText !== "" && (
             <a
-              href={linkText}
+              href={safeURL(linkText)}
               className="inline-block text-xs font-medium underline"
               style={{ color: accent }}
               target="_blank"
@@ -131,7 +153,7 @@ export function InAppPreview({
               {actions.map((action, i) => (
                 <a
                   key={i}
-                  href={action.href}
+                  href={safeURL(action.href)}
                   className="rounded px-3 py-1 text-xs font-medium text-white"
                   style={{ backgroundColor: accent }}
                   target="_blank"
