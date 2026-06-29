@@ -27,9 +27,10 @@ export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInp
   const [hint, setHint] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  function addEmails(text: string) {
-    const existing = new Set(chips.map((c) => c.email))
-    const fresh = parseEmails(text).filter((e) => !existing.has(e))
+  function addEmails(text: string, parsed?: string[]) {
+    const existing = new Set(chips.map((c) => c.email.toLowerCase()))
+    const p = parsed || parseEmails(text)
+    const fresh = p.filter((e) => !existing.has(e.toLowerCase()))
     if (fresh.length === 0) return
     onChange([...chips, ...fresh.map((email) => ({ email, status: "pending" as const }))])
   }
@@ -37,9 +38,10 @@ export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInp
   function commitBuffer(): boolean {
     const trimmed = buffer.trim()
     if (!trimmed) return true
-    addEmails(trimmed)
+    const parsed = parseEmails(trimmed)
+    addEmails(trimmed, parsed)
     // If nothing parsed out of a non-empty buffer, it's an invalid token: keep it.
-    const parsedAnything = parseEmails(trimmed).length > 0
+    const parsedAnything = parsed.length > 0
     if (!parsedAnything && !isValidEmail(trimmed.toLowerCase())) {
       setHint(true)
       return false
@@ -78,7 +80,7 @@ export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInp
         {chips.map((c) => (
           <span
             key={c.email}
-            title={c.error}
+            title={c.status === "failed" ? c.error : undefined}
             className={cn(
               "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs",
               STATUS_CLASS[c.status],
