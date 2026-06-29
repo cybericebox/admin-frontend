@@ -208,7 +208,7 @@
   "admin.users.invite.error": "Could not send invites. Check your connection or permissions and try again.",
   "admin.users.invite.csvReadError": "Could not read that file.",
   "admin.role.user": "User",
-  "admin.role.admin_viewer": "Viewer",
+  "admin.role.admin_viewer": "Admin (view-only)",
   "admin.role.super_admin": "Super admin",
   "admin.status.active": "Active",
   "admin.status.blocked": "Blocked",
