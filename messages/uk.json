@@ -347,5 +347,6 @@
   "admin.notif.editor.alignment": "Вирівнювання",
   "admin.notif.editor.imageUrl": "URL зображення",
   "admin.notif.editor.imageAlt": "Альтернативний текст зображення",
-  "admin.notif.editor.previewTitle": "Перегляд email"
+  "admin.notif.editor.previewTitle": "Перегляд email",
+  "admin.notif.tpl.styling": "Стилі"
 }

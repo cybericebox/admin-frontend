@@ -19,7 +19,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { t } from "@/i18n/t"
 import { Spinner } from "@/components/ui/spinner"
@@ -51,6 +51,7 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
+  const router = useRouter()
 
   // ── Remote state ──────────────────────────────────────────────────────────
   const [template, setTemplate] = useState<EmailTemplate | null>(null)
@@ -141,7 +142,7 @@ function Detail() {
     setBusy(true)
     setSaveError(false)
     try {
-      if (!id || !template) {
+      if (!template?.ID) {
         // Create new
         const created = await createEmailTemplate({
           NotificationType: notificationType,
@@ -151,9 +152,10 @@ function Detail() {
           Styling: styling,
         })
         setTemplate(created)
+        router.replace(`/notifications/templates/email/detail?id=${created.ID}`)
       } else {
         // Update existing draft
-        const updated = await updateEmailTemplate(id, {
+        const updated = await updateEmailTemplate(template.ID, {
           Subject: subject,
           Preheader: preheader,
           Body: body,
@@ -317,7 +319,11 @@ function Detail() {
             <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
               {t("admin.notif.tpl.subject")}
             </label>
-            <div className={isReadOnly ? "pointer-events-none opacity-60" : ""}>
+            <div
+              data-testid="subject-wrapper"
+              {...(isReadOnly ? { inert: true } : {})}
+              className={isReadOnly ? "opacity-60" : ""}
+            >
               <VariableRichText
                 value={subject}
                 onChange={setSubject}
@@ -333,7 +339,11 @@ function Detail() {
             <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
               {t("admin.notif.tpl.preheader")}
             </label>
-            <div className={isReadOnly ? "pointer-events-none opacity-60" : ""}>
+            <div
+              data-testid="preheader-wrapper"
+              {...(isReadOnly ? { inert: true } : {})}
+              className={isReadOnly ? "opacity-60" : ""}
+            >
               <VariableRichText
                 value={preheader}
                 onChange={setPreheader}
@@ -371,10 +381,12 @@ function Detail() {
           {/* Styling */}
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              Styling
+              {t("admin.notif.tpl.styling")}
             </div>
             <div
-              className={`grid grid-cols-2 gap-4 ${isReadOnly ? "pointer-events-none opacity-60" : ""}`}
+              data-testid="styling-wrapper"
+              {...(isReadOnly ? { inert: true } : {})}
+              className={`grid grid-cols-2 gap-4${isReadOnly ? " opacity-60" : ""}`}
             >
               <ColorPicker
                 label="CTA Background"

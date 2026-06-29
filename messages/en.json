@@ -347,5 +347,6 @@
   "admin.notif.editor.alignment": "Alignment",
   "admin.notif.editor.imageUrl": "Image URL",
   "admin.notif.editor.imageAlt": "Image alt text",
-  "admin.notif.editor.previewTitle": "Email preview"
+  "admin.notif.editor.previewTitle": "Email preview",
+  "admin.notif.tpl.styling": "Styling"
 }

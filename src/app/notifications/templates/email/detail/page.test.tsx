@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import type { EmailTemplate } from '@/api/notifications/emailTemplates'
 
 // ── Module mocks (must be declared before any imports that trigger them) ──────
@@ -89,6 +89,8 @@ vi.mock('@/components/notifications/editor/ColorPicker', () => ({
 // ── Import the API mocks so we can configure them per-test ────────────────────
 import {
   getEmailTemplate,
+  createEmailTemplate,
+  updateEmailTemplate,
   listBlockPresets,
 } from '@/api/notifications/emailTemplates'
 
@@ -220,5 +222,64 @@ describe('Email template editor page', () => {
     expect(getEmailTemplate).not.toHaveBeenCalled()
     // Type selector should be visible
     expect(screen.getByRole('combobox')).toBeInTheDocument()
+  })
+
+  // ── Double-create prevention ───────────────────────────────────────────────
+
+  it('calls updateEmailTemplate (not a second createEmailTemplate) on second Save after new-template create', async () => {
+    mockSearchParams.delete('id')
+    const createdTpl = makeDraftTemplate({ ID: 'tpl-new' })
+    vi.mocked(createEmailTemplate).mockResolvedValue(createdTpl)
+    vi.mocked(updateEmailTemplate).mockResolvedValue(createdTpl)
+
+    render(<Page />)
+
+    // Wait for blank new-template form (type combobox visible)
+    await waitFor(() => {
+      expect(screen.getByRole('combobox')).toBeInTheDocument()
+    })
+
+    // First Save → createEmailTemplate
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+
+    await waitFor(() => {
+      expect(createEmailTemplate).toHaveBeenCalledTimes(1)
+    })
+
+    // Second Save → updateEmailTemplate, createEmailTemplate still called only once
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+
+    await waitFor(() => {
+      expect(updateEmailTemplate).toHaveBeenCalledTimes(1)
+    })
+    expect(createEmailTemplate).toHaveBeenCalledTimes(1)
+  })
+
+  // ── inert read-only wrappers ───────────────────────────────────────────────
+
+  it('adds inert attribute to Subject and Preheader wrappers when template is published', async () => {
+    vi.mocked(getEmailTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'published' }),
+    )
+    render(<Page />)
+
+    await waitFor(() => {
+      const subjectWrapper = document.querySelector('[data-testid="subject-wrapper"]')
+      const preheaderWrapper = document.querySelector('[data-testid="preheader-wrapper"]')
+      expect(subjectWrapper).not.toBeNull()
+      expect(preheaderWrapper).not.toBeNull()
+      expect(subjectWrapper).toHaveAttribute('inert')
+      expect(preheaderWrapper).toHaveAttribute('inert')
+    })
+  })
+
+  it('does NOT add inert attribute to Subject wrapper when template is a draft', async () => {
+    render(<Page />)
+
+    await waitFor(() => {
+      const subjectWrapper = document.querySelector('[data-testid="subject-wrapper"]')
+      expect(subjectWrapper).not.toBeNull()
+      expect(subjectWrapper).not.toHaveAttribute('inert')
+    })
   })
 })
