@@ -142,6 +142,7 @@ import {
   getInAppTemplate,
   createInAppTemplate,
   updateInAppTemplate,
+  rollbackInAppTemplate,
 } from '@/api/notifications/inAppTemplates'
 
 // ── Import component AFTER all mocks ─────────────────────────────────────────
@@ -336,6 +337,46 @@ describe('In-app template editor page', () => {
       expect(updateInAppTemplate).toHaveBeenCalledTimes(1)
     })
     expect(createInAppTemplate).toHaveBeenCalledTimes(1)
+  })
+
+  // ── Rollback re-renders editors ───────────────────────────────────────────
+
+  it('re-renders InAppPreview with rolled-back title after Rollback', async () => {
+    vi.mocked(getInAppTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'published', Title: 'Old Title' }),
+    )
+    const rolledBackTpl = makeDraftTemplate({ Status: 'draft', Title: 'New Title after rollback' })
+    vi.mocked(rollbackInAppTemplate).mockResolvedValue(rolledBackTpl)
+
+    render(<Page />)
+
+    // Wait for published state — preview shows old title, Rollback button visible
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' })).toBeInTheDocument()
+      expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Old Title')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+
+    // After rollback: preview reflects new title from rolled-back template
+    await waitFor(() => {
+      expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'New Title after rollback')
+    })
+  })
+
+  // ── Translated status in StatusPill ──────────────────────────────────────
+
+  it('shows translated i18n key (not raw Go string) via StatusPill for a published template', async () => {
+    vi.mocked(getInAppTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'published' }),
+    )
+    render(<Page />)
+
+    await waitFor(() => {
+      // t() is mocked to return the key; statusLabelKey('published') = 'admin.notif.status.published'
+      // StatusPill renders the label prop, so the translated key should appear in the document
+      expect(screen.getByText('admin.notif.status.published')).toBeInTheDocument()
+    })
   })
 
   // ── Send test button + modal ──────────────────────────────────────────────

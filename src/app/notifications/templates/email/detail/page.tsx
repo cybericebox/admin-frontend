@@ -47,6 +47,7 @@ import { EmailPreview } from "@/components/notifications/editor/EmailPreview"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { StatusPill } from "@/components/notifications/StatusPill"
+import { statusLabelKey } from "@/lib/templateStatus"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
@@ -61,6 +62,11 @@ function Detail() {
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
+
+  // ── Load nonce — incremented whenever we (re)populate form from server data ──
+  // Changing this causes mount-initialized editors (VariableRichText, BlockEditor)
+  // to remount so they pick up the new initial value instead of showing stale content.
+  const [loadNonce, setLoadNonce] = useState(0)
 
   // ── Test modal state ──────────────────────────────────────────────────────
   const [testOpen, setTestOpen] = useState(false)
@@ -98,6 +104,7 @@ function Detail() {
         setPreheader(tpl.Preheader)
         setBody(tpl.Body)
         setStyling(tpl.Styling)
+        setLoadNonce((n) => n + 1)
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
@@ -204,6 +211,7 @@ function Detail() {
       setPreheader(updated.Preheader)
       setBody(updated.Body)
       setStyling(updated.Styling)
+      setLoadNonce((n) => n + 1)
     } catch {
       setSaveError(true)
     } finally {
@@ -265,7 +273,7 @@ function Detail() {
           <h1 className="text-xl font-semibold text-foreground truncate">
             {notificationType || t("admin.notif.tpl.choose")}
           </h1>
-          {template && <StatusPill status={template.Status} />}
+          {template && <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} />}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -340,6 +348,7 @@ function Detail() {
               className={isReadOnly ? "opacity-60" : ""}
             >
               <VariableRichText
+                key={`subject-${loadNonce}`}
                 value={subject}
                 onChange={setSubject}
                 variables={emailVariables}
@@ -360,6 +369,7 @@ function Detail() {
               className={isReadOnly ? "opacity-60" : ""}
             >
               <VariableRichText
+                key={`preheader-${loadNonce}`}
                 value={preheader}
                 onChange={setPreheader}
                 variables={emailVariables}
@@ -380,10 +390,11 @@ function Detail() {
                 className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground"
               >
                 {body.length} {body.length === 1 ? "block" : "blocks"} — read-only while{" "}
-                {template?.Status}. {t("admin.notif.tpl.rollback")} to edit.
+                {template ? t(statusLabelKey(template.Status)) : ""}. {t("admin.notif.tpl.rollback")} to edit.
               </div>
             ) : (
               <BlockEditor
+                key={`body-${loadNonce}`}
                 value={body}
                 onChange={setBody}
                 variables={emailVariables}

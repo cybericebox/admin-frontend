@@ -111,6 +111,7 @@ import {
   getEmailTemplate,
   createEmailTemplate,
   updateEmailTemplate,
+  rollbackEmailTemplate,
   listBlockPresets,
 } from '@/api/notifications/emailTemplates'
 
@@ -333,6 +334,53 @@ describe('Email template editor page', () => {
       expect(modal).toBeInTheDocument()
       expect(modal).toHaveAttribute('data-notification-type', 'user.welcome')
       expect(modal).toHaveAttribute('data-template-id', 'tpl-001')
+    })
+  })
+
+  // ── Rollback re-renders editors ───────────────────────────────────────────
+
+  it('re-renders BlockEditor with rolled-back content after Rollback', async () => {
+    // Start with a published template (body-readonly shown, no BlockEditor)
+    vi.mocked(getEmailTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'published' }),
+    )
+    // Rollback returns a draft template so editors become editable again
+    vi.mocked(rollbackEmailTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'draft', Body: [] }),
+    )
+
+    render(<Page />)
+
+    // Published state: body-readonly shown, BlockEditor NOT rendered
+    await waitFor(() => {
+      expect(screen.getByTestId('body-readonly')).toBeInTheDocument()
+      expect(screen.queryByTestId('block-editor')).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+
+    // After rollback to draft: BlockEditor appears with rolled-back block count (0)
+    await waitFor(() => {
+      expect(screen.queryByTestId('body-readonly')).not.toBeInTheDocument()
+      const editor = screen.getByTestId('block-editor')
+      expect(editor).toBeInTheDocument()
+      expect(editor).toHaveTextContent('blocks: 0')
+    })
+  })
+
+  // ── Translated status in read-only banner ─────────────────────────────────
+
+  it('shows translated i18n key (not raw Go string) in the body-readonly banner', async () => {
+    vi.mocked(getEmailTemplate).mockResolvedValue(
+      makeDraftTemplate({ Status: 'published' }),
+    )
+    render(<Page />)
+
+    await waitFor(() => {
+      const banner = screen.getByTestId('body-readonly')
+      // t() is mocked to return the key; statusLabelKey('published') = 'admin.notif.status.published'
+      // so the banner must contain the full i18n key, not just the raw 'published' word
+      expect(banner.textContent).toContain('admin.notif.status.published')
     })
   })
 

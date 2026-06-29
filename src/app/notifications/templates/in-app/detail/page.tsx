@@ -41,6 +41,7 @@ import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { StatusPill } from "@/components/notifications/StatusPill"
+import { statusLabelKey } from "@/lib/templateStatus"
 import { ICONS, TONES, SURFACES } from "@/components/notifications/editor/inAppOptions"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
@@ -56,6 +57,11 @@ function Detail() {
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
+
+  // ── Load nonce — incremented whenever we (re)populate form from server data ──
+  // Changing this causes mount-initialized editors (VariableRichText) to remount
+  // so they pick up the new initial value instead of showing stale content.
+  const [loadNonce, setLoadNonce] = useState(0)
 
   // ── Test modal state ──────────────────────────────────────────────────────
   const [testOpen, setTestOpen] = useState(false)
@@ -100,6 +106,7 @@ function Detail() {
         setAutoDismissMs(tpl.AutoDismissMs)
         setAutoDismissInput(tpl.AutoDismissMs !== null ? String(tpl.AutoDismissMs) : "")
         setActions(tpl.Actions)
+        setLoadNonce((n) => n + 1)
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
@@ -190,6 +197,7 @@ function Detail() {
       setAutoDismissMs(updated.AutoDismissMs)
       setAutoDismissInput(updated.AutoDismissMs !== null ? String(updated.AutoDismissMs) : "")
       setActions(updated.Actions)
+      setLoadNonce((n) => n + 1)
     } catch {
       setSaveError(true)
     } finally {
@@ -261,7 +269,7 @@ function Detail() {
           <h1 className="text-xl font-semibold text-foreground truncate">
             {notificationType || t("admin.notif.tpl.choose")}
           </h1>
-          {template && <StatusPill status={template.Status} />}
+          {template && <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} />}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -338,6 +346,7 @@ function Detail() {
                 {t("admin.notif.tpl.title")}
               </label>
               <VariableRichText
+                key={`title-${loadNonce}`}
                 value={title}
                 onChange={setTitle}
                 variables={inAppVariables}
@@ -352,6 +361,7 @@ function Detail() {
                 {t("admin.notif.tpl.body")}
               </label>
               <VariableRichText
+                key={`body-${loadNonce}`}
                 value={body}
                 onChange={setBody}
                 variables={inAppVariables}
@@ -366,6 +376,7 @@ function Detail() {
                 {t("admin.notif.tpl.link")}
               </label>
               <VariableRichText
+                key={`link-${loadNonce}`}
                 value={link}
                 onChange={setLink}
                 variables={inAppVariables}
