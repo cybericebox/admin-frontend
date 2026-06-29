@@ -133,8 +133,8 @@ function Detail() {
   const ctaTextColor  = (styling.cta_text_color   as string  | undefined) ?? "#ffffff"
   const textColor     = (styling.text_color        as string  | undefined) ?? "#333333"
   const headingColor  = (styling.heading_color     as string  | undefined) ?? "#000000"
-  const ctaBorderRadius = (styling.cta_border_radius as number | undefined) ?? 4
-  const ctaFontSize   = (styling.cta_font_size     as number  | undefined) ?? 16
+  const ctaBorderRadius = parseInt(String(styling.cta_border_radius ?? '4px'), 10) || 0
+  const ctaFontSize   = parseInt(String(styling.cta_font_size ?? '14px'), 10) || 14
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -418,7 +418,7 @@ function Detail() {
                   max={50}
                   value={ctaBorderRadius}
                   onChange={(e) =>
-                    setStylingKey("cta_border_radius", parseInt(e.target.value, 10) || 0)
+                    setStylingKey("cta_border_radius", `${parseInt(e.target.value, 10) || 0}px`)
                   }
                   disabled={isReadOnly}
                   aria-label="CTA border radius"
@@ -435,7 +435,7 @@ function Detail() {
                   max={48}
                   value={ctaFontSize}
                   onChange={(e) =>
-                    setStylingKey("cta_font_size", parseInt(e.target.value, 10) || 14)
+                    setStylingKey("cta_font_size", `${parseInt(e.target.value, 10) || 14}px`)
                   }
                   disabled={isReadOnly}
                   aria-label="CTA font size"

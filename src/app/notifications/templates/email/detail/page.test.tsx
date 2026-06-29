@@ -282,4 +282,39 @@ describe('Email template editor page', () => {
       expect(subjectWrapper).not.toHaveAttribute('inert')
     })
   })
+
+  // ── Styling px unit fix ───────────────────────────────────────────────────
+
+  it('stores cta_border_radius and cta_font_size with px suffix when edited', async () => {
+    vi.mocked(updateEmailTemplate).mockResolvedValue(makeDraftTemplate())
+    render(<Page />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeInTheDocument()
+    })
+
+    // Find the border-radius input and change it
+    const borderRadiusInput = screen.getByLabelText('CTA border radius')
+    fireEvent.change(borderRadiusInput, { target: { value: '6' } })
+
+    // Find the font-size input and change it
+    const fontSizeInput = screen.getByLabelText('CTA font size')
+    fireEvent.change(fontSizeInput, { target: { value: '18' } })
+
+    // Click Save
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+
+    // Verify updateEmailTemplate was called with px-suffixed values
+    await waitFor(() => {
+      expect(updateEmailTemplate).toHaveBeenCalledWith(
+        'tpl-001',
+        expect.objectContaining({
+          Styling: expect.objectContaining({
+            cta_border_radius: '6px',
+            cta_font_size: '18px',
+          }),
+        }),
+      )
+    })
+  })
 })
