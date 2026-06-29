@@ -7,7 +7,7 @@ import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
+import { RoleSelect } from "@/components/users/RoleSelect"
 import {
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog"
@@ -146,17 +146,13 @@ function Detail() {
           {can("users.role.write") && (
             <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">
               {t("admin.userDetail.changeRole")}
-              <Select
+              <RoleSelect
                 value={user.Role}
+                onChange={changeRole}
+                roles={Array.from(new Set([user.Role, ...assignableRoles(permissions)]))}
                 disabled={busy}
-                onChange={(e) => changeRole(e.target.value)}
                 className="w-48"
-              >
-                {/* Always show the current role even if not normally assignable by this caller. */}
-                {Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => (
-                  <option key={r} value={r}>{t(`admin.role.${r}`)}</option>
-                ))}
-              </Select>
+              />
             </label>
           )}
 

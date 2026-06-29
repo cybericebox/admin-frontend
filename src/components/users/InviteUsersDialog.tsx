@@ -6,9 +6,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import EmailTagInput, { type EmailChip } from "./EmailTagInput"
+import { RoleSelect } from "./RoleSelect"
 import { parseEmails } from "@/lib/emailParse"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
@@ -161,11 +161,13 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
             <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
               {t("admin.users.invite.roleLabel")}
             </label>
-            <Select value={effectiveRole} disabled={busy} onChange={(e) => setRole(e.target.value as Role)}>
-              {roles.map((r) => (
-                <option key={r} value={r}>{t(`admin.role.${r}`)}</option>
-              ))}
-            </Select>
+            <RoleSelect
+              value={effectiveRole}
+              onChange={(r) => setRole(r as Role)}
+              roles={roles}
+              disabled={busy}
+              className="w-full"
+            />
           </div>
 
           {errorKey && (
