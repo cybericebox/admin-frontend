@@ -6,6 +6,9 @@ import { t } from "@/i18n/t"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { useRole } from "@/lib/useRole"
+import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 
 export type UserRow = {
   ID: string
@@ -37,6 +40,10 @@ export default function Page() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(false)
 
+  const { can } = useRole()
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
   // Debounce the search box.
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search.trim()), 300)
@@ -61,7 +68,7 @@ export default function Page() {
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [buildQuery])
+  }, [buildQuery, reloadKey])
 
   const loadMore = useCallback(() => {
     if (!hasMore || loadingMore || !cursor) return
@@ -97,12 +104,23 @@ export default function Page() {
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
-      <Input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={t("admin.users.search")}
-        className="mb-3 max-w-sm"
+      <div className="mb-3 flex items-center gap-3">
+        <Input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("admin.users.search")}
+          className="max-w-sm"
+        />
+        {can("users.invite") && (
+          <Button onClick={() => setInviteOpen(true)}>{t("admin.users.invite.button")}</Button>
+        )}
+      </div>
+
+      <InviteUsersDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onClosed={() => setReloadKey((k) => k + 1)}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
