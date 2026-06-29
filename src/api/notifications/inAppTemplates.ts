@@ -48,6 +48,12 @@ export type InAppTemplate = {
   UpdatedAt:        string
 }
 
+/** List response wrapper (mirrors Go inAppListResponse). */
+export type InAppListResponse = {
+  Templates:        InAppTemplate[]
+  MissingActiveFor: string[]
+}
+
 /** One entry in the latest-versions array (keyed by NotificationType, per handler). */
 export type InAppLatestEntry = {
   NotificationType: string
@@ -73,10 +79,15 @@ export type InAppCreateInput = {
 
 export type InAppUpdateInput = Omit<InAppCreateInput, 'NotificationType'>
 
-// ── Raw response type (backend may emit null for json.RawMessage fields) ───────
+// ── Raw response types (backend may emit null for json.RawMessage fields) ────────
 
 type RawInAppTemplate = Omit<InAppTemplate, 'Actions'> & {
   Actions: InAppAction[] | null
+}
+
+type RawInAppListResponse = {
+  Templates:        RawInAppTemplate[]
+  MissingActiveFor: string[]
 }
 
 type RawInAppLatestEntry = {
@@ -100,14 +111,17 @@ function normalizeTemplate(raw: RawInAppTemplate): InAppTemplate {
 /** GET /api/notifications/templates/inapp[?type=&status=] */
 export async function listInAppTemplates(
   filter?: { type?: string; status?: string },
-): Promise<InAppTemplate[]> {
+): Promise<InAppListResponse> {
   const params = new URLSearchParams()
   if (filter?.type)   params.set('type', filter.type)
   if (filter?.status) params.set('status', filter.status)
   const qs   = params.toString()
   const path = qs ? `${BASE}?${qs}` : BASE
-  const raw  = await apiGet<RawInAppTemplate[]>(path)
-  return raw.map(normalizeTemplate)
+  const raw  = await apiGet<RawInAppListResponse>(path)
+  return {
+    Templates:        (raw.Templates ?? []).map(normalizeTemplate),
+    MissingActiveFor: raw.MissingActiveFor ?? [],
+  }
 }
 
 /** GET /api/notifications/templates/inapp/latest */

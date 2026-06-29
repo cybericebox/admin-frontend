@@ -64,7 +64,7 @@ describe('listInAppTemplates', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('calls apiGet with the correct base path when no filter', async () => {
-    mockApiGet.mockResolvedValueOnce([])
+    mockApiGet.mockResolvedValueOnce({ Templates: [], MissingActiveFor: [] })
     await listInAppTemplates()
     expect(mockApiGet).toHaveBeenCalledOnce()
     const [path] = mockApiGet.mock.calls[0]
@@ -72,23 +72,29 @@ describe('listInAppTemplates', () => {
   })
 
   it('appends status query param when filter.status is provided', async () => {
-    mockApiGet.mockResolvedValueOnce([])
+    mockApiGet.mockResolvedValueOnce({ Templates: [], MissingActiveFor: [] })
     await listInAppTemplates({ status: 'draft' })
     const [path] = mockApiGet.mock.calls[0]
     expect(path).toContain('status=draft')
   })
 
   it('appends type query param when filter.type is provided', async () => {
-    mockApiGet.mockResolvedValueOnce([])
+    mockApiGet.mockResolvedValueOnce({ Templates: [], MissingActiveFor: [] })
     await listInAppTemplates({ type: 'account_alert' })
     const [path] = mockApiGet.mock.calls[0]
     expect(path).toContain('type=account_alert')
   })
 
   it('normalises null Actions in list results', async () => {
-    mockApiGet.mockResolvedValueOnce([rawTemplateNullActions])
+    mockApiGet.mockResolvedValueOnce({ Templates: [rawTemplateNullActions], MissingActiveFor: [] })
     const result = await listInAppTemplates()
-    expect(result[0].Actions).toEqual([])
+    expect(result.Templates[0].Actions).toEqual([])
+  })
+
+  it('returns MissingActiveFor in list response', async () => {
+    mockApiGet.mockResolvedValueOnce({ Templates: [rawTemplate], MissingActiveFor: ['alert'] })
+    const result = await listInAppTemplates()
+    expect(result.MissingActiveFor).toEqual(['alert'])
   })
 })
 
