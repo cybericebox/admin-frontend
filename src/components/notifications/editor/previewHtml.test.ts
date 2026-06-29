@@ -414,3 +414,76 @@ describe('defaultBlockForType', () => {
     expect(b.type).toBe('preset')
   })
 })
+
+// ── Backend-parity regressions (fix wave) ─────────────────────────────────────
+
+describe('text format nesting parity', () => {
+  it('code wraps OUTSIDE bold (matches backend nesting order)', () => {
+    const html = lexicalNodeToHtml(textNode('x', 1 | 16), {})
+    // code is the outermost element: <code ...><strong ...>x</strong></code>
+    expect(html.indexOf('<code')).toBeLessThan(html.indexOf('<strong'))
+    expect(html).toContain('</strong></code>')
+  })
+
+  it("escapes single quote ' to &#39; (matches Go html.EscapeString)", () => {
+    expect(lexicalNodeToHtml(textNode("it's"), {})).toContain('&#39;')
+  })
+})
+
+describe('styling threading parity', () => {
+  it('threads a custom cta_bg_color into the button style', () => {
+    const html = buildPreviewHtml(
+      [{ type: 'button', label: 'Go', url: 'https://x.com' }],
+      { cta_bg_color: '#ff0000' },
+      {},
+      {}
+    )
+    expect(html).toContain('background-color:#ff0000')
+  })
+
+  it('uses the backend default cta_bg_color when styling omits it', () => {
+    const html = buildPreviewHtml(
+      [{ type: 'button', label: 'Go', url: 'https://x.com' }],
+      {},
+      {},
+      {}
+    )
+    expect(html).toContain('background-color:#4F46E5')
+  })
+
+  it('threads custom heading_color via buildPreviewHtml', () => {
+    const html = buildPreviewHtml(
+      [richTextBlock([headingNode('h2', textNode('T'))])],
+      { heading_color: '#abcdef' },
+      {},
+      {}
+    )
+    expect(html).toContain('color:#abcdef')
+  })
+})
+
+describe('vbscript / data scheme blocking', () => {
+  it('blocks vbscript: in link → href="#"', () => {
+    const html = lexicalNodeToHtml(linkNode('vbscript:msgbox(1)', textNode('x')), {})
+    expect(html).not.toContain('vbscript:')
+    expect(html).toContain('href="#"')
+  })
+
+  it('blocks vbscript: in button → href="#"', () => {
+    const html = renderBlockToHtml({ type: 'button', label: 'x', url: 'vbscript:msgbox(1)' }, {}, {})
+    expect(html).not.toContain('vbscript:')
+    expect(html).toContain('href="#"')
+  })
+
+  it('blocks vbscript: in image → src="#"', () => {
+    const html = renderBlockToHtml({ type: 'image', url: 'vbscript:msgbox(1)', alt: '' }, {}, {})
+    expect(html).not.toContain('vbscript:')
+    expect(html).toContain('src="#"')
+  })
+
+  it('blocks data: in image URL → src="#"', () => {
+    const html = renderBlockToHtml({ type: 'image', url: 'data:text/html,<h1>x</h1>', alt: '' }, {}, {})
+    expect(html).not.toContain('data:')
+    expect(html).toContain('src="#"')
+  })
+})
