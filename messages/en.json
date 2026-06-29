@@ -270,6 +270,8 @@
   "admin.notif.logs.error": "Error",
   "admin.notif.logs.close": "Close",
   "admin.notif.logs.noTargets": "No targets",
+  "admin.notif.logs.filteredBy": "Filtered by",
+  "admin.notif.logs.filterByUser": "Filter by this recipient",
 
   "admin.notif.settings.type": "Type",
   "admin.notif.settings.channel": "Channel",

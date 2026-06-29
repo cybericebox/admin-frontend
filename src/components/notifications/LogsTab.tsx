@@ -1,7 +1,10 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
+import { statusLabelKey } from "@/lib/templateStatus"
+import { useUserNames } from "@/lib/userNames"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
@@ -27,6 +30,7 @@ export function LogsTab() {
   const [type, setType] = useState("")
   const [status, setStatus] = useState("")
   const [offset, setOffset] = useState(0)
+  const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null)
   const [data, setData] = useState<ListResp | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -43,12 +47,13 @@ export function LogsTab() {
     if (status) params.set("status", status)
     params.set("limit", String(PAGE))
     params.set("offset", String(offset))
+    if (userFilter) params.set("user", userFilter.id)
     apiGet<ListResp>(`/api/notifications/dispatches?${params.toString()}`)
       .then((d) => { if (!cancelled) setData(d) })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [type, status, offset])
+  }, [type, status, offset, userFilter])
 
   function openDetail(id: string) {
     const my = ++reqId.current
@@ -60,6 +65,7 @@ export function LogsTab() {
 
   const total = data?.Total ?? 0
   const rows = data?.Dispatches ?? []
+  const names = useUserNames(rows.map(r => r.RecipientUserID))
 
   return (
     <div className="space-y-4 pt-4">
@@ -76,9 +82,22 @@ export function LogsTab() {
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="">{t("admin.notif.logs.allStatuses")}</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          {STATUSES.map((s) => <option key={s} value={s}>{t(statusLabelKey(s))}</option>)}
         </select>
       </div>
+
+      {userFilter && (
+        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-accent/10 px-3 py-1 text-sm text-foreground">
+          <span>{t("admin.notif.logs.filteredBy")}: {userFilter.name}</span>
+          <button
+            onClick={() => { setUserFilter(null); setOffset(0) }}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="✕"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
@@ -101,8 +120,39 @@ export function LogsTab() {
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
                   <td className="px-3 py-2 font-medium text-foreground">{formatNotifType(d.NotificationType)}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{d.RecipientUserID.slice(0, 8)}</td>
-                  <td className="px-3 py-2"><StatusPill status={d.Status} /></td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      {names[d.RecipientUserID] ? (
+                        <Link
+                          href={names[d.RecipientUserID].href}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-foreground hover:underline"
+                        >
+                          {names[d.RecipientUserID].name}
+                        </Link>
+                      ) : (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {d.RecipientUserID.slice(0, 8)}
+                        </span>
+                      )}
+                      <button
+                        aria-label={t("admin.notif.logs.filterByUser")}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setUserFilter({
+                            id: d.RecipientUserID,
+                            name: names[d.RecipientUserID]?.name ?? d.RecipientUserID,
+                          })
+                          setOffset(0)
+                        }}
+                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                        title={t("admin.notif.logs.filterByUser")}
+                      >
+                        ⊞
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2"><StatusPill status={d.Status} label={t(statusLabelKey(d.Status))} /></td>
                   <td className="px-3 py-2 text-muted-foreground">{new Date(d.CreatedAt).toLocaleString()}</td>
                 </tr>
               ))}
@@ -134,7 +184,7 @@ export function LogsTab() {
                 <div key={`${tg.Channel}-${i}`} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-foreground">{tg.Channel}</span>
-                    <StatusPill status={tg.Status} />
+                    <StatusPill status={tg.Status} label={t(statusLabelKey(tg.Status))} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.attempts")}: {tg.Attempts}</div>
                   {tg.Error && <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>}
