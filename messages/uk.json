@@ -360,6 +360,11 @@
   "admin.notif.list.new": "Новий email-шаблон",
   "admin.notif.list.loadError": "Не вдалося завантажити шаблони email",
 
+  "admin.notif.inapp.list.title": "In-app шаблони",
+  "admin.notif.inapp.list.empty": "Немає in-app шаблонів",
+  "admin.notif.inapp.list.new": "Новий in-app шаблон",
+  "admin.notif.inapp.list.loadError": "Не вдалося завантажити in-app шаблони",
+
   "admin.notif.status.draft": "Чернетка",
   "admin.notif.status.published": "Опубліковано",
   "admin.notif.status.unpublished": "Знято з публікації",

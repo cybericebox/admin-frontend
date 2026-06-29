@@ -360,6 +360,11 @@
   "admin.notif.list.new": "New email template",
   "admin.notif.list.loadError": "Failed to load email templates",
 
+  "admin.notif.inapp.list.title": "In-app templates",
+  "admin.notif.inapp.list.empty": "No in-app templates",
+  "admin.notif.inapp.list.new": "New in-app template",
+  "admin.notif.inapp.list.loadError": "Failed to load in-app templates",
+
   "admin.notif.status.draft": "Draft",
   "admin.notif.status.published": "Published",
   "admin.notif.status.unpublished": "Unpublished",
