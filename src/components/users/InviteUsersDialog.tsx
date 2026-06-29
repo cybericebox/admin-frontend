@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import EmailTagInput, { type EmailChip } from "./EmailTagInput"
+import { parseEmails } from "@/lib/emailParse"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -37,6 +38,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   const [error, setError] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   // Derive the effective role each render: respect an explicit user choice, otherwise
   // default to the last (lowest-privilege) assignable role once roles load.
@@ -86,6 +88,23 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
     void send(targets.map((c) => ({ ...c, status: "pending" as const })))
   }
 
+  function onCsvPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = "" // allow re-picking the same file
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : ""
+      const existing = new Set(chips.map((c) => c.email.toLowerCase()))
+      const fresh = parseEmails(text).filter((em) => !existing.has(em.toLowerCase()))
+      if (fresh.length > 0) {
+        setChips((prev) => [...prev, ...fresh.map((email) => ({ email, status: "pending" as const }))])
+      }
+    }
+    reader.onerror = () => setError(true)
+    reader.readAsText(file)
+  }
+
   function handleOpenChange(next: boolean) {
     onOpenChange(next)
     if (!next) {
@@ -109,6 +128,19 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
           )}
 
           <EmailTagInput chips={chips} onChange={setChips} disabled={busy} />
+
+          <div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              className="hidden"
+              onChange={onCsvPicked}
+            />
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+              {t("admin.users.invite.importCsv")}
+            </Button>
+          </div>
 
           <div>
             <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
