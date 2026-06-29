@@ -107,6 +107,16 @@ describe('htmlToRawSingleLine', () => {
     expect(result).not.toContain('<br')
     expect(result).toBe('Hello{{Name}}')
   })
+
+  it('unescapes HTML entities in literal text', () => {
+    expect(htmlToRawSingleLine('Tom &amp; Jerry')).toBe('Tom & Jerry')
+  })
+
+  it('round-trips text containing & through subject/preheader', () => {
+    const input = 'Order & payment for {{.Name}}'
+    const html = rawToHtml(input, ['Name'], { dotted: true })
+    expect(htmlToRawSingleLine(html, { dotted: true })).toBe(input)
+  })
 })
 
 // ── insertVariablePill ────────────────────────────────────────────────────────
