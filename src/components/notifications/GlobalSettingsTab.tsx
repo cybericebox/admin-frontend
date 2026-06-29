@@ -4,6 +4,7 @@ import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
 import { formatNotifType } from "@/utils/notifType"
+import { Spinner } from "@/components/ui/spinner"
 
 type Setting = {
   NotificationType: string
@@ -44,7 +45,7 @@ export function GlobalSettingsTab() {
   }
 
   if (error) return <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
-  if (loading) return <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.loading")}</p>
+  if (loading) return <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
   if (rows.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.notif.settings.empty")}</p>
 
   return (

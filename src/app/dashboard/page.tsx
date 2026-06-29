@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Spinner } from "@/components/ui/spinner"
 
 type RoleCount = { Role: string; Count: number }
 type DayCount = { Day: string; Count: number }
@@ -67,7 +68,7 @@ export default function Page() {
       {error ? (
         <p className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
       ) : loading || !stats ? (
-        <p className="text-sm text-muted-foreground">{t("admin.loading")}</p>
+        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

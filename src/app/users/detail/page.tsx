@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select"
 import {
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog"
+import { Spinner } from "@/components/ui/spinner"
 
 type UserDetail = {
   ID: string
@@ -84,7 +85,7 @@ function Detail() {
   }
 
   if (loading) {
-    return <div className="frost-panel frost-in rounded-lg p-8 text-sm text-muted-foreground">{t("admin.loading")}</div>
+    return <div className="frost-panel frost-in flex justify-center rounded-lg p-8"><Spinner label={t("admin.loading")} /></div>
   }
   if (notFound || !user) {
     return (
@@ -196,7 +197,7 @@ function Detail() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="frost-panel frost-in rounded-lg p-8 text-sm text-muted-foreground">{t("admin.loading")}</div>}>
+    <Suspense fallback={<div className="frost-panel frost-in flex justify-center rounded-lg p-8"><Spinner label={t("admin.loading")} /></div>}>
       <Detail />
     </Suspense>
   )

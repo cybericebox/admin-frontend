@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
+import { Spinner } from "@/components/ui/spinner"
 
 const ID_ORIGIN =
   process.env.NEXT_PUBLIC_ID_ORIGIN ?? `https://id.${process.env.NEXT_PUBLIC_DOMAIN ?? ""}`
@@ -23,7 +24,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">{t("admin.loading")}</div>
+    return <div className="flex min-h-screen items-center justify-center"><Spinner label={t("admin.loading")} /></div>
   }
 
   // Not authenticated → bounce to id sign-in with return_to.

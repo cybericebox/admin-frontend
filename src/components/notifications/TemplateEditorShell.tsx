@@ -11,6 +11,7 @@ import { useNotificationTypes } from "./templateTypes"
 import { formatNotifType } from "@/utils/notifType"
 import { VariableChips, type NotifVariable } from "./VariableChips"
 import { TemplatePreview } from "./TemplatePreview"
+import { Spinner } from "@/components/ui/spinner"
 
 type Tpl = { ID: string; NotificationType: string; Status: string } & Record<string, string>
 type ListResp = { Templates: Tpl[]; MissingActiveFor: string[] }
@@ -113,7 +114,7 @@ export function TemplateEditorShell({
   }
 
   if (error) return <p className="text-sm text-destructive">{t("admin.notif.loadError")}</p>
-  if (!data) return <p className="text-sm text-muted-foreground">{t("admin.loading")}</p>
+  if (!data) return <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
 
   return (
     <div className="space-y-4">

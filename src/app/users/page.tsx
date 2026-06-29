@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
+import { Spinner } from "@/components/ui/spinner"
 
 export type UserRow = {
   ID: string
@@ -160,7 +161,7 @@ export default function Page() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.users.loadError")}</p>
       ) : loading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.loading")}</p>
+        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
       ) : users.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.users.empty")}</p>
       ) : (

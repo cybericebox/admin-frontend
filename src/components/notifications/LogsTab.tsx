@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
 import { formatNotifType } from "@/utils/notifType"
+import { Spinner } from "@/components/ui/spinner"
 
 type Dispatch = {
   ID: string
@@ -82,7 +83,7 @@ export function LogsTab() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
       ) : loading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.loading")}</p>
+        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
       ) : rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.notif.logs.empty")}</p>
       ) : (
@@ -124,7 +125,7 @@ export function LogsTab() {
           {detailError ? (
             <p className="py-4 text-sm text-destructive">{t("admin.notif.loadError")}</p>
           ) : !detail ? (
-            <p className="py-4 text-sm text-muted-foreground">{t("admin.loading")}</p>
+            <div className="flex justify-center py-4"><Spinner label={t("admin.loading")} /></div>
           ) : detail.Targets.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">{t("admin.notif.logs.noTargets")}</p>
           ) : (

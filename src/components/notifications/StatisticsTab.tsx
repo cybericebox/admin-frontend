@@ -5,6 +5,7 @@ import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { StatusPill } from "./StatusPill"
 import { formatNotifType } from "@/utils/notifType"
+import { Spinner } from "@/components/ui/spinner"
 
 type KeyCount = { Key: string; Count: number }
 type ChannelStatus = { Channel: string; Status: string; Count: number }
@@ -50,7 +51,7 @@ export function StatisticsTab() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
       ) : loading || !stats ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.loading")}</p>
+        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
