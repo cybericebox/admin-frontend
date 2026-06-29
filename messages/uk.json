@@ -348,5 +348,23 @@
   "admin.notif.editor.imageUrl": "URL зображення",
   "admin.notif.editor.imageAlt": "Альтернативний текст зображення",
   "admin.notif.editor.previewTitle": "Перегляд email",
-  "admin.notif.tpl.styling": "Стилі"
+  "admin.notif.tpl.styling": "Стилі",
+
+  "admin.notif.list.title": "Шаблони email",
+  "admin.notif.list.colType": "Тип",
+  "admin.notif.list.colStatus": "Статус",
+  "admin.notif.list.colUpdated": "Оновлено",
+  "admin.notif.list.colUpdatedBy": "Оновив",
+  "admin.notif.list.draftPending": "Чернетка очікує",
+  "admin.notif.list.empty": "Немає шаблонів email",
+  "admin.notif.list.new": "Новий email-шаблон",
+  "admin.notif.list.loadError": "Не вдалося завантажити шаблони email",
+
+  "admin.notif.status.draft": "Чернетка",
+  "admin.notif.status.published": "Опубліковано",
+  "admin.notif.status.unpublished": "Знято з публікації",
+  "admin.notif.status.pending": "Очікує",
+  "admin.notif.status.started": "Розпочато",
+  "admin.notif.status.done": "Виконано",
+  "admin.notif.status.error": "Помилка"
 }

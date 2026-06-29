@@ -348,5 +348,23 @@
   "admin.notif.editor.imageUrl": "Image URL",
   "admin.notif.editor.imageAlt": "Image alt text",
   "admin.notif.editor.previewTitle": "Email preview",
-  "admin.notif.tpl.styling": "Styling"
+  "admin.notif.tpl.styling": "Styling",
+
+  "admin.notif.list.title": "Email templates",
+  "admin.notif.list.colType": "Type",
+  "admin.notif.list.colStatus": "Status",
+  "admin.notif.list.colUpdated": "Updated",
+  "admin.notif.list.colUpdatedBy": "Updated by",
+  "admin.notif.list.draftPending": "Draft pending",
+  "admin.notif.list.empty": "No email templates",
+  "admin.notif.list.new": "New email template",
+  "admin.notif.list.loadError": "Failed to load email templates",
+
+  "admin.notif.status.draft": "Draft",
+  "admin.notif.status.published": "Published",
+  "admin.notif.status.unpublished": "Unpublished",
+  "admin.notif.status.pending": "Pending",
+  "admin.notif.status.started": "Started",
+  "admin.notif.status.done": "Done",
+  "admin.notif.status.error": "Error"
 }
