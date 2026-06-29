@@ -376,5 +376,36 @@
   "admin.notif.test.error": "Не вдалося надіслати тест",
   "admin.notif.test.channels": "Канали",
   "admin.notif.test.variables": "Змінні",
-  "admin.notif.test.close": "Закрити"
+  "admin.notif.test.close": "Закрити",
+
+  "admin.notif.inapp.icon.info": "Інформація",
+  "admin.notif.inapp.icon.success": "Успіх",
+  "admin.notif.inapp.icon.warning": "Попередження",
+  "admin.notif.inapp.icon.error": "Помилка",
+  "admin.notif.inapp.icon.bell": "Дзвінок",
+
+  "admin.notif.inapp.tone.neutral": "Нейтральний",
+  "admin.notif.inapp.tone.info": "Інфо",
+  "admin.notif.inapp.tone.success": "Успіх",
+  "admin.notif.inapp.tone.warning": "Попередження",
+  "admin.notif.inapp.tone.danger": "Небезпека",
+
+  "admin.notif.inapp.surface.inbox": "Поштова скринька",
+  "admin.notif.inapp.surface.banner": "Банер",
+  "admin.notif.inapp.surface.toast": "Тост",
+
+  "admin.notif.inapp.icon": "Іконка",
+  "admin.notif.inapp.tone": "Тон",
+  "admin.notif.inapp.accent": "Колір обводки",
+  "admin.notif.inapp.surface": "Поверхня",
+  "admin.notif.inapp.autoDismiss": "Авто-приховування (мс)",
+  "admin.notif.inapp.autoHideHint": "Авто-сховати через",
+  "admin.notif.inapp.actions": "Дії",
+  "admin.notif.inapp.addAction": "Додати дію",
+  "admin.notif.inapp.actionLabel": "Мітка",
+  "admin.notif.inapp.actionHref": "URL",
+  "admin.notif.inapp.preview": "Попередній перегляд",
+  "admin.notif.inapp.title": "Заголовок",
+  "admin.notif.inapp.body": "Тіло",
+  "admin.notif.inapp.link": "Посилання"
 }
