@@ -21,7 +21,6 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
-import { ColorPicker } from "@/components/notifications/editor/ColorPicker";
 import {
   defaultBlockForType,
   type EmailBodyBlock,
@@ -338,14 +337,23 @@ export function BlockEditor({
                   }
                   placeholder="https://…"
                 />
-                {/* ColorPicker for button background color (visual styling) */}
-                <ColorPicker
-                  value="#4F46E5"
-                  onChange={() => {
-                    // TODO: wire bg_color to ButtonBlock when backend supports it
-                  }}
-                  label="Button color"
-                />
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">Alignment</span>
+                  <select
+                    value={(block as ButtonBlock).align ?? 'center'}
+                    onChange={(e) =>
+                      updateBlock(i, {
+                        ...(block as ButtonBlock),
+                        align: e.target.value as 'left' | 'center' | 'right'
+                      })
+                    }
+                    className="mt-1 w-full rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
               </div>
             )}
 

@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import type { EmailBodyBlock } from './previewHtml'
+import type { EmailBodyBlock, ButtonBlock } from './previewHtml'
 import type { BlockPreset } from '@/api/notifications/emailTemplates'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -22,15 +22,6 @@ vi.mock('./RichTextEditor', () => ({
   ),
   default: ({ placeholder }: { placeholder?: string }) => (
     <div data-testid="rich-text-editor" aria-label={placeholder ?? 'rich text editor'} />
-  ),
-}))
-
-vi.mock('./ColorPicker', () => ({
-  ColorPicker: ({ label }: { label?: string }) => (
-    <div data-testid="color-picker" aria-label={label ?? 'color picker'} />
-  ),
-  default: ({ label }: { label?: string }) => (
-    <div data-testid="color-picker" aria-label={label ?? 'color picker'} />
   ),
 }))
 
@@ -169,6 +160,24 @@ describe('BlockEditor', () => {
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
     expect(next[0].type).toBe('button')
+  })
+
+  it('changing button alignment select calls onChange with updated align field', () => {
+    render(
+      <BlockEditor
+        value={[makeButton()]}
+        onChange={onChange}
+        presets={[]}
+        onSavePreset={onSavePreset}
+      />
+    )
+    const alignSelect = screen.getByRole('combobox') as HTMLSelectElement
+    fireEvent.change(alignSelect, { target: { value: 'right' } })
+    expect(onChange).toHaveBeenCalledOnce()
+    const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
+    expect(next).toHaveLength(1)
+    expect(next[0].type).toBe('button')
+    expect((next[0] as ButtonBlock).align).toBe('right')
   })
 
   it('clicking "Add divider block" calls onChange with one more block (divider)', () => {
