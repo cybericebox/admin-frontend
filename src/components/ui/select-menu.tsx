@@ -10,21 +10,26 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
-import { t } from "@/i18n/t"
 
-interface RoleSelectProps {
+export interface SelectMenuOption {
   value: string
-  onChange: (role: string) => void
-  roles: string[]
+  label: string
+}
+
+interface SelectMenuProps {
+  value: string
+  onChange: (value: string) => void
+  options: SelectMenuOption[]
   disabled?: boolean
   placeholder?: string
   className?: string
 }
 
-// Custom single-select role picker. A Radix DropdownMenu radio group under the
-// hood (fully styled popup) — replaces the native <select> so the option list
-// matches the rest of our custom dropdowns.
-export function RoleSelect({ value, onChange, roles, disabled, placeholder, className }: RoleSelectProps) {
+// Generic custom single-select. A Radix DropdownMenu radio group under the hood
+// (fully styled popup) — use where a native <select>'s default option list is
+// undesirable. Option-agnostic: pass any {value,label}[].
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className }: SelectMenuProps) {
+  const selected = options.find((o) => o.value === value)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -34,15 +39,15 @@ export function RoleSelect({ value, onChange, roles, disabled, placeholder, clas
           disabled={disabled}
           className={cn("justify-between font-normal", className)}
         >
-          <span className="truncate">{value ? t(`admin.role.${value}`) : (placeholder ?? "")}</span>
+          <span className="truncate">{selected ? selected.label : (placeholder ?? "")}</span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[var(--radix-dropdown-menu-trigger-width)]">
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {roles.map((r) => (
-            <DropdownMenuRadioItem key={r} value={r}>
-              {t(`admin.role.${r}`)}
+          {options.map((o) => (
+            <DropdownMenuRadioItem key={o.value} value={o.value}>
+              {o.label}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
