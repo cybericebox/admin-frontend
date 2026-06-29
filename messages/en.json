@@ -366,5 +366,14 @@
   "admin.notif.status.pending": "Pending",
   "admin.notif.status.started": "Started",
   "admin.notif.status.done": "Done",
-  "admin.notif.status.error": "Error"
+  "admin.notif.status.error": "Error",
+
+  "admin.notif.test.title": "— Send Test",
+  "admin.notif.test.send": "Send",
+  "admin.notif.test.sending": "Sending…",
+  "admin.notif.test.sent": "Test notification sent",
+  "admin.notif.test.error": "Failed to send test",
+  "admin.notif.test.channels": "Channels",
+  "admin.notif.test.variables": "Variables",
+  "admin.notif.test.close": "Close"
 }

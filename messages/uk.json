@@ -366,5 +366,14 @@
   "admin.notif.status.pending": "Очікує",
   "admin.notif.status.started": "Розпочато",
   "admin.notif.status.done": "Виконано",
-  "admin.notif.status.error": "Помилка"
+  "admin.notif.status.error": "Помилка",
+
+  "admin.notif.test.title": "— Тестове надсилання",
+  "admin.notif.test.send": "Надіслати",
+  "admin.notif.test.sending": "Надсилання…",
+  "admin.notif.test.sent": "Тестове сповіщення надіслано",
+  "admin.notif.test.error": "Не вдалося надіслати тест",
+  "admin.notif.test.channels": "Канали",
+  "admin.notif.test.variables": "Змінні",
+  "admin.notif.test.close": "Закрити"
 }
