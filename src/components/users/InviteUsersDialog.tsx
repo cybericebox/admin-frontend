@@ -140,6 +140,10 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
 
           <EmailTagInput chips={chips} onChange={setChips} disabled={busy} />
 
+          {chips.length === 0 && (
+            <p className="text-xs text-muted-foreground">{t("admin.users.invite.empty")}</p>
+          )}
+
           <div>
             <input
               ref={fileRef}

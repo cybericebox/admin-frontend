@@ -22,6 +22,12 @@ const STATUS_CLASS: Record<EmailChipStatus, string> = {
   failed: "border-destructive/60 bg-destructive/15 text-foreground",
 }
 
+const STATUS_OUTCOME_KEY: Partial<Record<EmailChipStatus, string>> = {
+  invited: "admin.users.invite.outcome.invited",
+  exists: "admin.users.invite.outcome.exists",
+  failed: "admin.users.invite.outcome.failed",
+}
+
 export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInputProps) {
   const [buffer, setBuffer] = useState("")
   const [hint, setHint] = useState(false)
@@ -87,6 +93,11 @@ export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInp
             )}
           >
             {c.email}
+            {c.status !== "pending" && (
+              <span className="text-[10px] uppercase tracking-wide opacity-70">
+                {t(STATUS_OUTCOME_KEY[c.status]!)}
+              </span>
+            )}
             <button
               type="button"
               aria-label={`remove ${c.email}`}
