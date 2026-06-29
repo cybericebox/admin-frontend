@@ -38,6 +38,30 @@ function pickVersion(entry: LatestEntry): EmailTemplate | null {
   return entry.Draft ?? entry.Published ?? entry.Unpublished
 }
 
+// ── Helper: pick the most relevant UpdatedByUserID (fallback across versions) ─
+
+function pickUpdatedBy(entry: LatestEntry): string | null {
+  // Prefer effective version's UpdatedByUserID
+  const status = effectiveStatus(entry)
+  const effectiveVersion =
+    status === "published"
+      ? entry.Published
+      : status === "draft"
+        ? entry.Draft
+        : entry.Unpublished
+
+  if (effectiveVersion?.UpdatedByUserID) {
+    return effectiveVersion.UpdatedByUserID
+  }
+
+  // Fallback to first non-null UpdatedByUserID among Draft, Published, Unpublished
+  if (entry.Draft?.UpdatedByUserID) return entry.Draft.UpdatedByUserID
+  if (entry.Published?.UpdatedByUserID) return entry.Published.UpdatedByUserID
+  if (entry.Unpublished?.UpdatedByUserID) return entry.Unpublished.UpdatedByUserID
+
+  return null
+}
+
 // ── Inner component (needs Suspense wrapper for static export) ────────────────
 
 function EmailTemplateList() {
@@ -50,18 +74,9 @@ function EmailTemplateList() {
       .catch(() => setLoadError(true))
   }, [])
 
-  // Collect all UpdatedByUserID values from the effective version of each entry
+  // Collect all UpdatedByUserID values using fallback logic
   const userIds: (string | null | undefined)[] = (entries ?? []).map((entry) => {
-    const status = effectiveStatus(entry)
-    if (!status) return null
-    // Use effective version's editor
-    const effectiveVersion =
-      status === "published"
-        ? entry.Published
-        : status === "draft"
-          ? entry.Draft
-          : entry.Unpublished
-    return effectiveVersion?.UpdatedByUserID ?? null
+    return pickUpdatedBy(entry)
   })
 
   const userNames = useUserNames(userIds)
@@ -134,7 +149,7 @@ function EmailTemplateList() {
                   ? new Date(effectiveVersion.UpdatedAt).toLocaleDateString()
                   : "—"
 
-                const editorId = effectiveVersion?.UpdatedByUserID ?? null
+                const editorId = pickUpdatedBy(entry)
                 const editor = editorId ? userNames[editorId] : null
 
                 const rowHref = version

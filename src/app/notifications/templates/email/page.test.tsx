@@ -162,4 +162,22 @@ describe('Email templates grouped list page', () => {
       expect(screen.getByText('admin.notif.list.empty')).toBeInTheDocument()
     })
   })
+
+  it('row link targets the create affordance when entry has no versions', async () => {
+    const entryNoVersions: LatestEntry = {
+      NotificationType: 'user.password_reset',
+      Draft: null,
+      Published: null,
+      Unpublished: null,
+    }
+    vi.mocked(latestEmailTemplates).mockResolvedValue([entryNoVersions])
+    render(<Page />)
+    // pickVersion returns null → rowHref should be /notifications/templates/email/detail (no ?id=)
+    await waitFor(() => {
+      const createLink = document.querySelector(
+        `a[href="/notifications/templates/email/detail"]`,
+      )
+      expect(createLink).not.toBeNull()
+    })
+  })
 })
