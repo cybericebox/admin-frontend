@@ -21,10 +21,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
 import {
   getEmailTemplate,
   createEmailTemplate,
@@ -59,6 +61,9 @@ function Detail() {
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
+
+  // ── Test modal state ──────────────────────────────────────────────────────
+  const [testOpen, setTestOpen] = useState(false)
 
   // ── Form state (source of truth after first load) ─────────────────────────
   const [notificationType, setNotificationType] = useState("")
@@ -261,6 +266,13 @@ function Detail() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Send test: shown when a template is loaded */}
+          {template !== null && (
+            <Button variant="outline" onClick={() => setTestOpen(true)}>
+              <Send className="h-4 w-4 mr-1" />
+              {t("admin.notif.test.button")}
+            </Button>
+          )}
           {/* Save: shown when not published/unpublished */}
           {!isReadOnly && (
             <Button onClick={() => void handleSave()} disabled={busy}>
@@ -462,6 +474,17 @@ function Detail() {
         </div>
 
       </div>
+
+      {/* ── Test notification modal ── */}
+      {template !== null && (
+        <TestNotificationModal
+          open={testOpen}
+          onClose={() => setTestOpen(false)}
+          notificationType={template.NotificationType}
+          channels={["email"]}
+          templateId={template?.ID}
+        />
+      )}
     </div>
   )
 }

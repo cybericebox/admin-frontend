@@ -369,6 +369,7 @@
   "admin.notif.status.error": "Помилка",
 
   "admin.notif.test.title": "— Тестове надсилання",
+  "admin.notif.test.button": "Надіслати тест",
   "admin.notif.test.send": "Надіслати",
   "admin.notif.test.sending": "Надсилання…",
   "admin.notif.test.sent": "Тестове сповіщення надіслано",

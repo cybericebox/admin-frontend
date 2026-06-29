@@ -369,6 +369,7 @@
   "admin.notif.status.error": "Error",
 
   "admin.notif.test.title": "— Send Test",
+  "admin.notif.test.button": "Send test",
   "admin.notif.test.send": "Send",
   "admin.notif.test.sending": "Sending…",
   "admin.notif.test.sent": "Test notification sent",

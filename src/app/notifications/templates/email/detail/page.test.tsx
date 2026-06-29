@@ -86,6 +86,26 @@ vi.mock('@/components/notifications/editor/ColorPicker', () => ({
   ),
 }))
 
+// TestNotificationModal — expose props as data attributes so tests can assert them
+vi.mock('@/components/notifications/editor/TestNotificationModal', () => ({
+  TestNotificationModal: ({
+    open,
+    notificationType,
+    templateId,
+  }: {
+    open: boolean
+    notificationType: string
+    templateId?: string
+  }) =>
+    open ? (
+      <div
+        data-testid="test-notification-modal"
+        data-notification-type={notificationType}
+        data-template-id={templateId ?? ""}
+      />
+    ) : null,
+}))
+
 // ── Import the API mocks so we can configure them per-test ────────────────────
 import {
   getEmailTemplate,
@@ -280,6 +300,39 @@ describe('Email template editor page', () => {
       const subjectWrapper = document.querySelector('[data-testid="subject-wrapper"]')
       expect(subjectWrapper).not.toBeNull()
       expect(subjectWrapper).not.toHaveAttribute('inert')
+    })
+  })
+
+  // ── Send test button + modal ──────────────────────────────────────────────
+
+  it('shows a Send test button when a template is loaded', async () => {
+    render(<Page />)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'admin.notif.test.button' }),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('opens TestNotificationModal with correct notificationType and templateId on Send test click', async () => {
+    render(<Page />)
+
+    // Wait for template to load and Send test button to appear
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'admin.notif.test.button' }),
+      ).toBeInTheDocument()
+    })
+
+    // Click the button
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.test.button' }))
+
+    // Assert modal rendered with correct props from the loaded template fixture
+    await waitFor(() => {
+      const modal = screen.getByTestId('test-notification-modal')
+      expect(modal).toBeInTheDocument()
+      expect(modal).toHaveAttribute('data-notification-type', 'user.welcome')
+      expect(modal).toHaveAttribute('data-template-id', 'tpl-001')
     })
   })
 
