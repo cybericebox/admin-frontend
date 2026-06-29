@@ -390,6 +390,32 @@ describe('In-app template editor page', () => {
     })
   })
 
+  // ── AccentColor clear button ──────────────────────────────────────────────
+
+  it('clicking accent Clear button resets accentColor to "" (ColorPicker falls back to #000000)', async () => {
+    vi.mocked(getInAppTemplate).mockResolvedValue(
+      makeDraftTemplate({ AccentColor: '#ff0000' }),
+    )
+    render(<Page />)
+
+    // Wait for template to load — ColorPicker should show the set color
+    await waitFor(() => {
+      const picker = screen.getByTestId('color-picker-admin.notif.inapp.accentColor')
+      expect(picker).toHaveTextContent('#ff0000')
+    })
+
+    // Click the Clear / "Use tone color" button
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.inapp.accentClear' }))
+
+    // After clear: accentColor="" → value prop becomes "" || "#000000" = "#000000"
+    await waitFor(() => {
+      const picker = screen.getByTestId('color-picker-admin.notif.inapp.accentColor')
+      expect(picker).toHaveTextContent('#000000')
+    })
+  })
+
+  // ── Send test button + modal ──────────────────────────────────────────────
+
   it('opens TestNotificationModal with channels=["in_app"], notificationType, and templateId on Send test click', async () => {
     render(<Page />)
 

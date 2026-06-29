@@ -426,11 +426,21 @@ function Detail() {
               <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t("admin.notif.inapp.accentColor")}
               </label>
-              <ColorPicker
-                label={t("admin.notif.inapp.accentColor")}
-                value={accentColor || "#000000"}
-                onChange={setAccentColor}
-              />
+              <div className="flex items-center gap-2">
+                <ColorPicker
+                  label={t("admin.notif.inapp.accentColor")}
+                  value={accentColor || "#000000"}
+                  onChange={setAccentColor}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => setAccentColor("")}
+                >
+                  {t("admin.notif.inapp.accentClear")}
+                </Button>
+              </div>
             </div>
 
             {/* Surface */}

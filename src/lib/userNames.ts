@@ -55,11 +55,16 @@ export async function fetchUserName(id: string): Promise<UserName> {
         `${user.FirstName ?? ""} ${user.LastName ?? ""}`.trim() || user.Email
       return { id, name, href: "/users/detail?id=" + id }
     })
-    .catch((): UserName => ({
-      id,
-      name: id.slice(0, 8),
-      href: "/users/detail?id=" + id,
-    }))
+    .catch((): UserName => {
+      // Delete from cache so a subsequent call can retry the fetch instead of
+      // returning this fallback forever (transient network errors are retriable).
+      cache.delete(id)
+      return {
+        id,
+        name: id.slice(0, 8),
+        href: "/users/detail?id=" + id,
+      }
+    })
 
   cache.set(id, promise)
   return promise

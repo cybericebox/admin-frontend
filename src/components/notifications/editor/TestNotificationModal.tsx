@@ -168,7 +168,7 @@ export function TestNotificationModal({
 
         {/* Status feedback */}
         {status === "sent" && (
-          <p className="text-sm text-green-600">{t("admin.notif.test.sent")}</p>
+          <p className="text-sm text-primary">{t("admin.notif.test.sent")}</p>
         )}
         {status === "error" && (
           <p className="text-sm text-destructive">{t("admin.notif.test.error")}</p>

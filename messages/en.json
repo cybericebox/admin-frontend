@@ -404,6 +404,7 @@
   "admin.notif.inapp.icon": "Icon",
   "admin.notif.inapp.tone": "Tone",
   "admin.notif.inapp.accentColor": "Accent color",
+  "admin.notif.inapp.accentClear": "Use tone color",
   "admin.notif.inapp.surface": "Surface",
   "admin.notif.inapp.autoDismissMs": "Auto-hide (ms)",
   "admin.notif.inapp.autoDismissPlaceholder": "e.g. 5000 (leave empty for none)",

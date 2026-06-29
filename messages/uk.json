@@ -404,6 +404,7 @@
   "admin.notif.inapp.icon": "Іконка",
   "admin.notif.inapp.tone": "Тон",
   "admin.notif.inapp.accentColor": "Колір акценту",
+  "admin.notif.inapp.accentClear": "За кольором тону",
   "admin.notif.inapp.surface": "Поверхня",
   "admin.notif.inapp.autoDismissMs": "Автоприховування (мс)",
   "admin.notif.inapp.autoDismissPlaceholder": "наприклад 5000 (залиште порожньо для відсутності)",

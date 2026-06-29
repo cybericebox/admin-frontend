@@ -109,6 +109,42 @@ describe("fetchUserName", () => {
       href: "/users/detail?id=u99",
     })
   })
+
+  it("error: does NOT cache the fallback — a second call retries apiGet (call count = 2)", async () => {
+    // First call → network error → returns fallback, clears cache
+    mockApiGet.mockRejectedValueOnce(new Error("network error"))
+    const fallback = await fetchUserName("u99")
+    expect(fallback.name).toBe("u99".slice(0, 8))
+
+    // Second call → cache is clear → retries apiGet
+    mockApiGet.mockResolvedValueOnce({
+      ID: "u99",
+      FirstName: "Ann",
+      LastName: "Lee",
+      Email: "a@b.com",
+    })
+    const retry = await fetchUserName("u99")
+    expect(retry.name).toBe("Ann Lee")
+
+    // apiGet must have been called twice (not once — no caching of the error fallback)
+    expect(mockApiGet).toHaveBeenCalledTimes(2)
+  })
+
+  it("cache: success still caches — repeated calls after success stay at call count 1", async () => {
+    mockApiGet.mockResolvedValueOnce({
+      ID: "u5",
+      FirstName: "Jane",
+      LastName: "Doe",
+      Email: "j@d.com",
+    })
+
+    const first = await fetchUserName("u5")
+    const second = await fetchUserName("u5") // cache hit
+
+    expect(first.name).toBe("Jane Doe")
+    expect(second.name).toBe("Jane Doe")
+    expect(mockApiGet).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ---------------------------------------------------------------------------
