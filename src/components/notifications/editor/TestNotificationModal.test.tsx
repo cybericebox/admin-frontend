@@ -106,4 +106,15 @@ describe('TestNotificationModal', () => {
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.test.send') }))
     await screen.findByText(t('admin.notif.test.error'))
   })
+
+  it('drops unchecked channel from Channels when sending', async () => {
+    render(<TestNotificationModal {...defaultProps} />)
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[0])
+    fireEvent.click(screen.getByRole('button', { name: t('admin.notif.test.send') }))
+    await waitFor(() => expect(mockSend).toHaveBeenCalledOnce())
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ Channels: ['in_app'] })
+    )
+  })
 })
