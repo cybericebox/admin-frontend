@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { sendTestNotification } from "@/api/notifications/test"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import {
@@ -50,21 +50,44 @@ export function TestNotificationModal({
   // Success / error feedback
   const [status, setStatus] = useState<"idle" | "sent" | "error">("idle")
 
-  // Seed state whenever the modal opens or the resolved type changes.
+  // Read channels via a ref so the effect never needs `channels` as a dep.
+  // This prevents a new array-literal prop reference (from a parent re-render)
+  // from triggering the seed effect and wiping the admin's in-progress edits.
+  const channelsRef = useRef(channels)
+  channelsRef.current = channels
+
+  // Track the notificationType we last seeded for in this open session.
+  // null = not yet seeded.  Resets to null on close so the next open re-seeds.
+  const lastSeededTypeRef = useRef<string | null>(null)
+
+  // Seed state once per open-session per type.
+  // deps: `open` — resets flag on close; `notificationType` — re-seeds on type change;
+  // `types` — re-runs when the async catalog resolves so we can seed if open already.
+  // `channels` is intentionally omitted — always read via channelsRef above.
   useEffect(() => {
-    if (!open) return
-    const vars = matchedType?.Variables ?? []
+    if (!open) {
+      lastSeededTypeRef.current = null  // ensure next open re-seeds
+      return
+    }
+    // Already seeded for this type in this open session — do NOT overwrite edits.
+    if (lastSeededTypeRef.current === notificationType) return
+
+    const matched = types.find((t) => t.Type === notificationType)
+    if (!matched) return  // catalog loading async; re-runs when `types` updates
+
+    const vars = matched.Variables ?? []
     const seed: Record<string, string> = {}
     vars.forEach((v) => {
       seed[v.Name] = v.Default
     })
     setFields(seed)
 
-    const availableChannels = channels ?? matchedType?.Channels ?? []
+    const availableChannels = channelsRef.current ?? matched.Channels ?? []
     setSelectedChannels([...availableChannels])
     setStatus("idle")
     setSending(false)
-  }, [open, notificationType, matchedType, channels])
+    lastSeededTypeRef.current = notificationType
+  }, [open, notificationType, types])
 
   const availableChannels = channels ?? matchedType?.Channels ?? []
 
@@ -157,7 +180,7 @@ export function TestNotificationModal({
               {t("admin.notif.test.close")}
             </Button>
           </DialogClose>
-          <Button onClick={handleSend} disabled={sending}>
+          <Button onClick={handleSend} disabled={sending || selectedChannels.length === 0}>
             {sending ? t("admin.notif.test.sending") : t("admin.notif.test.send")}
           </Button>
         </DialogFooter>

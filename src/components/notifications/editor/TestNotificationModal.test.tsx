@@ -117,4 +117,44 @@ describe('TestNotificationModal', () => {
       expect.objectContaining({ Channels: ['in_app'] })
     )
   })
+
+  // ── Send disabled when no channels selected ───────────────────────────────
+
+  it('disables Send button when all channels are unchecked', () => {
+    render(<TestNotificationModal {...defaultProps} />)
+    const checkboxes = screen.getAllByRole('checkbox')
+    // Uncheck every channel
+    checkboxes.forEach((cb) => fireEvent.click(cb))
+    expect(screen.getByRole('button', { name: t('admin.notif.test.send') })).toBeDisabled()
+  })
+
+  // ── Seed-once / no mid-session reset ─────────────────────────────────────
+
+  it('does not reset edited field when channels prop reference changes (parent re-render)', () => {
+    const { rerender } = render(
+      <TestNotificationModal {...defaultProps} channels={['email', 'in_app']} />
+    )
+    const input = screen.getByDisplayValue('https://x')
+    fireEvent.change(input, { target: { value: 'my-edited-url' } })
+    // Simulate parent re-render: same logical value but a new array reference
+    rerender(
+      <TestNotificationModal {...defaultProps} channels={['email', 'in_app']} />
+    )
+    // Edit must survive the re-render
+    expect(screen.getByDisplayValue('my-edited-url')).toBeTruthy()
+  })
+
+  it('re-seeds fields and channels when modal is closed then reopened', () => {
+    const { rerender } = render(<TestNotificationModal {...defaultProps} />)
+    const input = screen.getByDisplayValue('https://x')
+    fireEvent.change(input, { target: { value: 'edited-before-close' } })
+
+    // Close
+    rerender(<TestNotificationModal {...defaultProps} open={false} />)
+    // Reopen
+    rerender(<TestNotificationModal {...defaultProps} open={true} />)
+
+    // Fields must revert to defaults on reopen
+    expect(screen.getByDisplayValue('https://x')).toBeTruthy()
+  })
 })

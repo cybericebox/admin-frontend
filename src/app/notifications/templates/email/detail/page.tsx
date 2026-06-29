@@ -64,6 +64,9 @@ function Detail() {
 
   // ── Test modal state ──────────────────────────────────────────────────────
   const [testOpen, setTestOpen] = useState(false)
+  // Stable channels array — avoids passing a new [] literal on every render which
+  // would cause TestNotificationModal's seed effect to re-run mid-session.
+  const testChannels = useMemo(() => ["email"], [])
 
   // ── Form state (source of truth after first load) ─────────────────────────
   const [notificationType, setNotificationType] = useState("")
@@ -481,7 +484,7 @@ function Detail() {
           open={testOpen}
           onClose={() => setTestOpen(false)}
           notificationType={template.NotificationType}
-          channels={["email"]}
+          channels={testChannels}
           templateId={template?.ID}
         />
       )}
