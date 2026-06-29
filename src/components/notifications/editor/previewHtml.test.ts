@@ -307,6 +307,15 @@ describe('renderBlockToHtml — image', () => {
     const html = renderBlockToHtml({ type: 'image' }, {}, {})
     expect(html).toBe('')
   })
+
+  it('M2: width_pct is rendered as CSS-safe percentage', () => {
+    const html = renderBlockToHtml(
+      { type: 'image', url: 'https://example.com/img.png', alt: '', width_pct: 50 },
+      {},
+      {}
+    )
+    expect(html).toContain('width:50%')
+  })
 })
 
 describe('renderBlockToHtml — preset', () => {
