@@ -344,5 +344,15 @@
   "admin.ex.val.lastOctet": "Last octet must be 0–255",
   "admin.ex.val.placeholderIPRef": "Choose an IP source: VPN, Internet or static octets",
   "admin.ex.val.placeholderDevice": "Choose a device with external access",
-  "admin.ex.val.envName": "Variable name is required"
+  "admin.ex.val.envName": "Variable name is required",
+  "admin.exDetail.back": "Back to catalog",
+  "admin.exDetail.notFound": "Exercise not found",
+  "admin.exDetail.identity.title": "Details",
+  "admin.exDetail.identity.save": "Save",
+  "admin.exDetail.identity.saved": "Saved",
+  "admin.exDetail.delete.button": "Delete exercise",
+  "admin.exDetail.delete.title": "Delete the exercise?",
+  "admin.exDetail.delete.body": "All versions of this exercise, including the published one, will be permanently deleted.",
+  "admin.exDetail.delete.confirm": "Delete",
+  "admin.exDetail.cancel": "Cancel"
 }

@@ -344,5 +344,15 @@
   "admin.ex.val.lastOctet": "Останній октет — 0–255",
   "admin.ex.val.placeholderIPRef": "Оберіть джерело IP: VPN, Інтернет або статичні октети",
   "admin.ex.val.placeholderDevice": "Оберіть пристрій із зовнішнім доступом",
-  "admin.ex.val.envName": "Вкажіть імʼя змінної"
+  "admin.ex.val.envName": "Вкажіть імʼя змінної",
+  "admin.exDetail.back": "Назад до каталогу",
+  "admin.exDetail.notFound": "Завдання не знайдено",
+  "admin.exDetail.identity.title": "Реквізити",
+  "admin.exDetail.identity.save": "Зберегти",
+  "admin.exDetail.identity.saved": "Збережено",
+  "admin.exDetail.delete.button": "Видалити завдання",
+  "admin.exDetail.delete.title": "Видалити завдання?",
+  "admin.exDetail.delete.body": "Усі версії цього завдання, включно з опублікованою, буде видалено назавжди.",
+  "admin.exDetail.delete.confirm": "Видалити",
+  "admin.exDetail.cancel": "Скасувати"
 }
