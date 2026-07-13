@@ -16,7 +16,7 @@ export const ERR_EXERCISE_MODIFIED = 70904
 export const ERR_NO_DRAFT = 70905
 export const ERR_DRAFT_ALREADY_EXISTS = 70906
 
-const CODE_TO_KEY: Record<number, string> = {
+export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
   30901: "admin.ex.err.notFound",
   30902: "admin.ex.err.versionNotFound",
