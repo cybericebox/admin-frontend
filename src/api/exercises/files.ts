@@ -6,9 +6,9 @@
  * с credentials: "include" и тем же envelope-unwrap.
  */
 import { ApiError } from "@/api/client"
-import { awaitAuthBootstrap } from "@/lib/silentAuth"
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
+const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN ?? ""
+const BASE_URL = DOMAIN ? `https://api.${DOMAIN}` : ""
 const FILES = "/api/exercises/files"
 
 export type UploadedFile = { FileID: string; Name: string; Size: number }
@@ -20,7 +20,6 @@ export function exerciseFileURL(fileId: string): string {
 
 /** POST /api/exercises/files (multipart, поле "file"). */
 export async function uploadExerciseFile(file: File): Promise<UploadedFile> {
-  await awaitAuthBootstrap()
   const form = new FormData()
   form.append("file", file)
   const res = await fetch(`${BASE_URL}${FILES}`, {

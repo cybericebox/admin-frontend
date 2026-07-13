@@ -1,10 +1,11 @@
 // Minimal fetch-based API client.
-// Base URL is same-origin by default; the daemon proxies /api/* paths.
-// Override via NEXT_PUBLIC_API_BASE_URL env var for local development.
+// The API origin is derived from NEXT_PUBLIC_DOMAIN as api.<domain>: every
+// frontend calls the single api host cross-origin with credentials included,
+// and the browser stores/sends the host-scoped __Host-session cookie. No
+// silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
-import { awaitAuthBootstrap } from "@/lib/silentAuth"
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
+const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN ?? ""
+const BASE_URL = DOMAIN ? `https://api.${DOMAIN}` : ""
 
 export class ApiError extends Error {
   constructor(
@@ -27,9 +28,7 @@ export class ApiError extends Error {
 //       runs on the caller.
 //   required: false — opt out (e.g. fetchMe, which treats 401 as "anonymous").
 //       The 401 is thrown as ApiError so the caller can handle it.
-//   skipBootstrap — skip awaiting the silent-auth bootstrap. Used only by the
-//       probe (fetchMe) that IS the bootstrap, to avoid a deadlock.
-export type ApiOptions = { required?: boolean; skipBootstrap?: boolean }
+export type ApiOptions = { required?: boolean }
 
 // portless strips the port from a URL and forces https:, matching the backend's
 // expectations for return_to (port-free, https-only). Returns the input unchanged
@@ -71,8 +70,6 @@ async function request<T>(
   init: RequestInit = {},
   opts: ApiOptions = {}
 ): Promise<T> {
-  if (!opts.skipBootstrap) await awaitAuthBootstrap()
-
   const url = `${BASE_URL}${path}`
 
   const res = await fetch(url, {

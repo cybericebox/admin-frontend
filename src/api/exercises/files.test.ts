@@ -1,15 +1,7 @@
 /**
  * files.test.ts — multipart-загрузка мимо JSON-клиента + download URL.
- *
- * silentAuth мокается: uploadExerciseFile awaits awaitAuthBootstrap() before its
- * own fetch, and the REAL implementation (jsdom => window defined) would issue a
- * real /api/auth/me probe through the SAME stubbed global fetch, consuming the
- * single queued mock response meant for the multipart POST. Mocking the module
- * keeps the test deterministic and focused on the upload call's shape.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-
-vi.mock('@/lib/silentAuth', () => ({ awaitAuthBootstrap: vi.fn().mockResolvedValue(undefined) }))
 
 import { ApiError } from '@/api/client'
 import { uploadExerciseFile, exerciseFileURL } from './files'

@@ -2,7 +2,6 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
-import { runSilentAuthOnce } from "@/lib/silentAuth"
 
 export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
@@ -34,8 +33,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    runSilentAuthOnce()
-      .then(() => fetchMe())
+    fetchMe()
       .then((m) => { if (!cancelled) setMe(m) })
       .catch(() => { if (!cancelled) setMe(null) })
       .finally(() => { if (!cancelled) setIsLoading(false) })
