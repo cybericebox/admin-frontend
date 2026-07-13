@@ -14,6 +14,7 @@ import {
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { VariantTabs } from "@/components/exercises/VariantTabs"
 import { TaskAccordion } from "@/components/exercises/TaskAccordion"
+import { TopologySection } from "@/components/exercises/TopologySection"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -176,6 +177,7 @@ function DraftEditor() {
             renderVariant={(variantIndex) => (
               <div className="space-y-6" data-variant-sections data-variant-index={variantIndex}>
                 <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
+                <TopologySection variantIndex={variantIndex} disabled={disabled} />
               </div>
             )}
           />
