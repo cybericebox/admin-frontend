@@ -17,8 +17,11 @@ import {
   emptyVariant,
   emptyTask,
   emptyDevice,
+  toDraftFormValues,
+  toSaveDraftInput,
   type DraftFormValues,
 } from './exerciseSchemas'
+import type { Version } from '@/api/exercises/versions'
 
 // ── Regexes and parsers ──────────────────────────────────────────────────────────
 
@@ -316,5 +319,151 @@ describe('factories', () => {
     expect(draft.Variants).toHaveLength(1)
     expect(draft.Variants[0].Tasks).toHaveLength(1)
     expect(draft.Variants[0].Index).toBe(1)
+  })
+})
+
+// ── Serialization: form ↔ version ────────────────────────────────────────────────
+
+const DEV_ID = '99999999-8888-7777-6666-555555555555'
+
+function loadedVersion(): Version {
+  return {
+    ID: 'v1',
+    ExerciseID: 'e1',
+    Status: 'draft',
+    AdminNote: 'wip',
+    RegenerateFlagsOnPublish: true,
+    CreatedAt: '2026-01-01T00:00:00Z',
+    CreatedBy: null,
+    PublishedAt: null,
+    Variants: [{
+      ID: 'var1',
+      Index: 1,
+      Tasks: [{
+        ID: 'task1',
+        Name: 'Find the flag',
+        Description: { root: {} },
+        Difficulty: 'medium',
+        Flag: ['CTF{x}'],
+        LinkedDeviceID: DEV_ID,
+        DeviceFlagVar: 'FLAG',
+        Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
+        Placeholders: [{ Kind: 'vpn.subnet' }],
+      }],
+      Topology: {
+        VPN: { Enabled: true, DHCP: true },
+        Internet: { Enabled: false, DHCP: false },
+        Devices: [{
+          ID: DEV_ID,
+          Name: 'web',
+          Type: 'container',
+          Image: 'nginx:1.27',
+          Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1' } }],
+          EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
+          External: { Port: 8080, Protocol: 'https' },
+        }],
+        Connections: [{
+          Endpoints: [
+            { Kind: 'vpn', DeviceID: '', Interface: '' },
+            { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' },
+          ],
+        }],
+      },
+    }],
+  }
+}
+
+describe('toDraftFormValues', () => {
+  it('maps a loaded version into form values (External → Enabled form)', () => {
+    const values = toDraftFormValues(loadedVersion())
+    expect(values.AdminNote).toBe('wip')
+    expect(values.RegenerateFlagsOnPublish).toBe(true)
+    expect(values.Variants[0].ID).toBe('var1')
+    expect(values.Variants[0].Tasks[0].ID).toBe('task1')
+    expect(values.Variants[0].Topology.Devices[0].External)
+      .toEqual({ Enabled: true, Port: 8080, Protocol: 'https' })
+  })
+
+  it('null version → empty draft (1 variant, 1 task)', () => {
+    const values = toDraftFormValues(null)
+    expect(values.Variants).toHaveLength(1)
+    expect(values.Variants[0].Tasks).toHaveLength(1)
+  })
+})
+
+describe('toSaveDraftInput', () => {
+  it('round-trips a loaded version 1:1 (saved IDs go back out)', () => {
+    const input = toSaveDraftInput(toDraftFormValues(loadedVersion()))
+    expect(input).toEqual({
+      AdminNote: 'wip',
+      RegenerateFlagsOnPublish: true,
+      Variants: [{
+        ID: 'var1',
+        Index: 1,
+        Tasks: [{
+          ID: 'task1',
+          Name: 'Find the flag',
+          Description: { root: {} },
+          Difficulty: 'medium',
+          Flag: ['CTF{x}'],
+          LinkedDeviceID: DEV_ID,
+          DeviceFlagVar: 'FLAG',
+          Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
+          Placeholders: [{ Kind: 'vpn.subnet' }],
+        }],
+        Topology: {
+          VPN: { Enabled: true, DHCP: true },
+          Internet: { Enabled: false, DHCP: false },
+          Devices: [{
+            ID: DEV_ID,
+            Name: 'web',
+            Type: 'container',
+            Image: 'nginx:1.27',
+            Interfaces: [{ Name: 'eth0', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1' } }],
+            EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true }],
+            External: { Port: 8080, Protocol: 'https' },
+          }],
+          Connections: [{
+            Endpoints: [
+              { Kind: 'vpn' },
+              { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' },
+            ],
+          }],
+        },
+      }],
+    })
+  })
+
+  it('new entities go out without an ID (except devices), Index is renumbered', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const second = emptyVariant(99) // decorative Index is ignored
+    second.Tasks[0].Name = 'New task'
+    draft.Variants.push(second)
+    const input = toSaveDraftInput(draft)
+    expect(input.Variants[0].ID).toBeUndefined()
+    expect(input.Variants[0].Tasks[0].ID).toBeUndefined()
+    expect(input.Variants[0].Index).toBe(1)
+    expect(input.Variants[1].Index).toBe(2)
+  })
+
+  it('a bare switch goes out bare, disabled External is omitted, null Description is omitted', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const sw = emptyDevice()
+    sw.Name = 'sw1'
+    sw.Type = 'unmanaged-switch'
+    sw.Interfaces = []
+    const web = emptyDevice()
+    web.Name = 'web'
+    draft.Variants[0].Topology.Devices = [sw, web]
+    const input = toSaveDraftInput(draft)
+    const [swDTO, webDTO] = input.Variants[0].Topology.Devices!
+    expect(swDTO).toEqual({ ID: sw.ID, Name: 'sw1', Type: 'unmanaged-switch' })
+    expect(webDTO.External).toBeUndefined()
+    expect(webDTO.Interfaces![0].MAC).toBeUndefined()
+    expect(webDTO.Interfaces![0].IP).toEqual({ Type: 'dhcp' })
+    expect(input.Variants[0].Tasks[0].Description).toBeUndefined()
+    expect(input.Variants[0].Tasks[0].LinkedDeviceID).toBeUndefined()
   })
 })

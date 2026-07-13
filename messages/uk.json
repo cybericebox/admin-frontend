@@ -379,5 +379,20 @@
   "admin.exVersions.view": "Переглянути",
   "admin.exVersions.rollback": "Відкотитися",
   "admin.exVersions.rollback.title": "Відкотитися до цієї версії?",
-  "admin.exVersions.rollback.body": "З цієї версії буде створено нову чернетку."
+  "admin.exVersions.rollback.body": "З цієї версії буде створено нову чернетку.",
+  "admin.exDraft.heading": "Редактор чернетки",
+  "admin.exDraft.readOnly": "Перегляд версії (тільки читання)",
+  "admin.exDraft.save": "Зберегти чернетку",
+  "admin.exDraft.savedNote": "Чернетку збережено",
+  "admin.exDraft.unsaved": "Є незбережені зміни",
+  "admin.exDraft.loadError": "Не вдалося завантажити чернетку",
+  "admin.exDraft.variant": "Варіант",
+  "admin.exDraft.addVariant": "Додати варіант",
+  "admin.exDraft.removeVariant": "Видалити варіант",
+  "admin.exDraft.settings.title": "Налаштування",
+  "admin.exDraft.adminNote": "Нотатка адміністратора",
+  "admin.exDraft.regenFlags": "Перегенерувати прапорці під час публікації",
+  "admin.exDraft.regenFlags.hint": "Фіксовані значення прапорців зберігаються; випадкові генеруються заново при кожній публікації.",
+  "admin.exDraft.tasks.title": "Задачі",
+  "admin.exDraft.topology.title": "Топологія"
 }

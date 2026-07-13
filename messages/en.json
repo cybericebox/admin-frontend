@@ -379,5 +379,20 @@
   "admin.exVersions.view": "View",
   "admin.exVersions.rollback": "Roll back",
   "admin.exVersions.rollback.title": "Roll back to this version?",
-  "admin.exVersions.rollback.body": "A new draft will be created from this version."
+  "admin.exVersions.rollback.body": "A new draft will be created from this version.",
+  "admin.exDraft.heading": "Draft editor",
+  "admin.exDraft.readOnly": "Version view (read-only)",
+  "admin.exDraft.save": "Save draft",
+  "admin.exDraft.savedNote": "Draft saved",
+  "admin.exDraft.unsaved": "Unsaved changes",
+  "admin.exDraft.loadError": "Failed to load the draft",
+  "admin.exDraft.variant": "Variant",
+  "admin.exDraft.addVariant": "Add variant",
+  "admin.exDraft.removeVariant": "Remove variant",
+  "admin.exDraft.settings.title": "Settings",
+  "admin.exDraft.adminNote": "Admin note",
+  "admin.exDraft.regenFlags": "Regenerate flags on publish",
+  "admin.exDraft.regenFlags.hint": "Fixed flag values are kept; random ones are regenerated on every publish.",
+  "admin.exDraft.tasks.title": "Tasks",
+  "admin.exDraft.topology.title": "Topology"
 }

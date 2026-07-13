@@ -9,13 +9,22 @@
 import { z } from "zod"
 import { t } from "@/i18n/t"
 import type {
+  ConnectionDTO,
+  DeviceDTO,
+  InterfaceDTO,
   NormalizedDevice,
   NormalizedInterface,
   NormalizedTask,
   NormalizedTopology,
   NormalizedVariant,
+  PlaceholderDTO,
   PlaceholderKind,
   Protocol,
+  SaveDraftInput,
+  TaskDTO,
+  TopologyDTO,
+  VariantDTO,
+  Version,
 } from "@/api/exercises/versions"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
@@ -45,8 +54,6 @@ export function isValidCIDR(v: string): boolean {
 export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Protocol }
 export type DeviceFormValues = Omit<NormalizedDevice, "External"> & { External: ExternalFormValues }
 export type TopologyFormValues = Omit<NormalizedTopology, "Devices"> & { Devices: DeviceFormValues[] }
-export type VariantFormValues = Omit<NormalizedVariant, "Topology"> & { Topology: TopologyFormValues }
-export type TaskFormValues = NormalizedTask
 export type PlaceholderFormValues = {
   Kind: PlaceholderKind
   IPReference: string
@@ -54,6 +61,11 @@ export type PlaceholderFormValues = {
   LastOctet: number
   ShowMask: boolean
   DeviceName: string
+}
+export type TaskFormValues = Omit<NormalizedTask, "Placeholders"> & { Placeholders: PlaceholderFormValues[] }
+export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
+  Topology: TopologyFormValues
+  Tasks: TaskFormValues[]
 }
 export type DraftFormValues = {
   AdminNote: string
@@ -289,4 +301,131 @@ export function emptyVariant(index: number): VariantFormValues {
 
 export function emptyDraft(): DraftFormValues {
   return { AdminNote: "", RegenerateFlagsOnPublish: false, Variants: [emptyVariant(1)] }
+}
+
+// ── Serialization: version → form → saveDraftRequest ────────────────────────────
+
+/** Version (or null — no draft yet) → editor form values. */
+export function toDraftFormValues(version: Version | null): DraftFormValues {
+  if (!version) return emptyDraft()
+  return {
+    AdminNote: version.AdminNote,
+    RegenerateFlagsOnPublish: version.RegenerateFlagsOnPublish,
+    Variants: version.Variants.map((v) => ({
+      ID: v.ID,
+      Index: v.Index,
+      Tasks: v.Tasks.map((task) => ({
+        ...task,
+        Placeholders: task.Placeholders.map((p) => ({
+          Kind: p.Kind,
+          IPReference: p.IPReference ?? "",
+          Octets1to3: p.Octets1to3 ?? "",
+          LastOctet: p.LastOctet ?? 0,
+          ShowMask: p.ShowMask ?? false,
+          DeviceName: p.DeviceName ?? "",
+        })),
+      })),
+      Topology: {
+        VPN: v.Topology.VPN,
+        Internet: v.Topology.Internet,
+        Devices: v.Topology.Devices.map((d) => ({
+          ...d,
+          External: d.External
+            ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
+            : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
+        })),
+        Connections: v.Topology.Connections,
+      },
+    })),
+  }
+}
+
+function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
+  switch (p.Kind) {
+    case "ip":
+      return {
+        Kind: p.Kind,
+        IPReference: p.IPReference,
+        LastOctet: p.LastOctet,
+        ShowMask: p.ShowMask,
+        ...(p.IPReference === "static" ? { Octets1to3: p.Octets1to3 } : {}),
+      }
+    case "external.link":
+      return { Kind: p.Kind, DeviceName: p.DeviceName }
+    default:
+      // vpn.subnet / internet.subnet — Kind only
+      return { Kind: p.Kind }
+  }
+}
+
+function taskToDTO(task: TaskFormValues): TaskDTO {
+  return {
+    ...(task.ID ? { ID: task.ID } : {}),
+    Name: task.Name,
+    ...(task.Description ? { Description: task.Description } : {}),
+    Difficulty: task.Difficulty,
+    Flag: task.Flag,
+    ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
+    Attachments: task.Attachments,
+    Placeholders: task.Placeholders.map(placeholderToDTO),
+  }
+}
+
+function interfaceToDTO(iface: NormalizedInterface): InterfaceDTO {
+  return {
+    Name: iface.Name,
+    ...(iface.MAC ? { MAC: iface.MAC } : {}),
+    IP: {
+      Type: iface.IP.Type,
+      ...(iface.IP.Type === "static"
+        ? { Addresses: iface.IP.Addresses, ...(iface.IP.Gateway ? { Gateway: iface.IP.Gateway } : {}) }
+        : {}),
+    },
+  }
+}
+
+function deviceToDTO(d: DeviceFormValues): DeviceDTO {
+  // The device ID ALWAYS goes out (client-side uuid for new devices): Connections
+  // and LinkedDeviceID reference it.
+  const base: DeviceDTO = { ID: d.ID, Name: d.Name, Type: d.Type }
+  if (d.Type === "unmanaged-switch" || d.Type === "hub") return base // switch/hub is "bare"
+  return {
+    ...base,
+    ...(d.Image ? { Image: d.Image } : {}),
+    Interfaces: d.Interfaces.map(interfaceToDTO),
+    EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
+    ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),
+  }
+}
+
+function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
+  const connections: ConnectionDTO[] = topology.Connections.map((c) => ({
+    Endpoints: c.Endpoints.map((ep) =>
+      ep.Kind === "device"
+        ? { Kind: ep.Kind, DeviceID: ep.DeviceID, ...(ep.Interface ? { Interface: ep.Interface } : {}) }
+        : { Kind: ep.Kind },
+    ),
+  }))
+  return {
+    VPN: topology.VPN,
+    Internet: topology.Internet,
+    Devices: topology.Devices.map(deviceToDTO),
+    Connections: connections,
+    // VisualRender is not written (reserved for the canvas).
+  }
+}
+
+/** Form values → PUT /:id/draft (1:1, Index is renumbered by position). */
+export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
+  const variants: VariantDTO[] = values.Variants.map((v, i) => ({
+    ...(v.ID ? { ID: v.ID } : {}),
+    Index: i + 1,
+    Tasks: v.Tasks.map(taskToDTO),
+    Topology: topologyToDTO(v.Topology),
+  }))
+  return {
+    AdminNote: values.AdminNote,
+    RegenerateFlagsOnPublish: values.RegenerateFlagsOnPublish,
+    Variants: variants,
+  }
 }
