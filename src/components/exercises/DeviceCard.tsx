@@ -1,14 +1,16 @@
 "use client"
 
-import { Controller, useFormContext, useWatch } from "react-hook-form"
-import { Trash2 } from "lucide-react"
+import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { InterfaceForm } from "./InterfaceForm"
+import { SecretInput } from "./SecretInput"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import type { DeviceType, Protocol } from "@/api/exercises/versions"
 
@@ -96,7 +98,7 @@ export function DeviceCard({
 
           <InterfaceForm variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} />
 
-          {/* SECTION:ENVVARS */}
+          <EnvVarsList variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} />
 
           <div className="space-y-2 rounded-md border border-border p-3">
             <div className="flex items-center justify-between">
@@ -148,6 +150,102 @@ export function DeviceCard({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/** EnvVarsList — container/vm environment variables; secrets go through SecretInput. */
+function EnvVarsList({
+  variantIndex,
+  deviceIndex,
+  disabled,
+}: {
+  variantIndex: number
+  deviceIndex: number
+  disabled: boolean
+}) {
+  const { control } = useFormContext<DraftFormValues>()
+  const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.EnvVars` as const
+  const { fields, append, remove } = useFieldArray({ control, name })
+  const rows = useWatch({ control, name }) ?? []
+
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exEnv.title")}</span>
+        {!disabled && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ Name: "", Value: "", Secret: false, HasValue: false })}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {t("admin.exEnv.add")}
+          </Button>
+        )}
+      </div>
+
+      {fields.map((field, ei) => {
+        const isSecret = rows[ei]?.Secret ?? false
+        const hasValue = rows[ei]?.HasValue ?? false
+        return (
+          <div key={field.id} className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+            <FormField control={control} name={`${name}.${ei}.Name`} render={({ field: nameField }) => (
+              <FormItem>
+                <FormLabel>{t("admin.exEnv.name")}</FormLabel>
+                <FormControl><Input {...nameField} disabled={disabled} placeholder="DB_PASS" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div>
+              <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exEnv.value")}</span>
+              <Controller
+                control={control}
+                name={`${name}.${ei}.Value`}
+                render={({ field: valueField }) =>
+                  isSecret ? (
+                    <SecretInput
+                      value={valueField.value}
+                      hasValue={hasValue}
+                      onChange={valueField.onChange}
+                      disabled={disabled}
+                    />
+                  ) : (
+                    <Input value={valueField.value} onChange={valueField.onChange} disabled={disabled} />
+                  )
+                }
+              />
+            </div>
+            <Controller
+              control={control}
+              name={`${name}.${ei}.Secret`}
+              render={({ field: secretField }) => (
+                <label className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    ref={secretField.ref}
+                    checked={secretField.value}
+                    onChange={(e) => secretField.onChange(e.target.checked)}
+                    disabled={disabled}
+                  />
+                  {t("admin.exEnv.secret")}
+                </label>
+              )}
+            />
+            {!disabled && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label={`remove-envvar-${ei}`}
+                onClick={() => remove(ei)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
