@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Bell, Users, ChevronDown, ChevronRight } from "lucide-react"
+import { LayoutDashboard, Bell, Users, Puzzle, ChevronDown, ChevronRight } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -20,6 +20,7 @@ type Section = { divider?: boolean; items: Item[] }
 const SECTIONS: Section[] = [
   { items: [{ href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard }] },
   { divider: true, items: [{ href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" }] },
+  { divider: true, items: [{ href: "/exercises", label: "admin.nav.exercises", icon: Puzzle, perm: "exercises.read" }] },
   {
     divider: true,
     items: [{
