@@ -7,9 +7,15 @@
   align-items: center;
   justify-content: center;
   line-height: 0;
-  /* Ice-cyan by default; inherited (e.g. white) inside buttons via the rule below.
-     Override anywhere with --ice-loader-color or a text-color utility. */
-  color: var(--ice-loader-color, #63c1f7);
+}
+/* The default color lives in @layer components so Tailwind's utilities layer
+   (e.g. .text-white) still wins: unlayered author CSS would otherwise always
+   beat layered utilities regardless of order. Ice-cyan by default; override
+   anywhere with --ice-loader-color or a text-color utility. The unlayered
+   `button .ice-loader` rule below stays unlayered so it beats this layered
+   default and lets the cube inherit the button's text color. */
+@layer components {
+  .ice-loader { color: var(--ice-loader-color, #63c1f7); }
 }
 .ice-loader svg {
   width: 1em;
