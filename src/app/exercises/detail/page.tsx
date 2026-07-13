@@ -7,9 +7,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { getExercise, updateExercise, deleteExercise, type Exercise } from "@/api/exercises/catalog"
+import {
+  listVersions, publishDraft, discardDraft, rollbackToVersion, type VersionListItem,
+} from "@/api/exercises/versions"
 import { identitySchema, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { TagInput } from "@/components/exercises/TagInput"
+import { VersionsTable } from "@/components/exercises/VersionsTable"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -130,6 +134,138 @@ function DeleteCard({ exercise }: { exercise: Exercise }) {
   )
 }
 
+type LifecycleAction =
+  | { kind: "publish" }
+  | { kind: "discard" }
+  | { kind: "rollback"; versionId: string }
+
+function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: () => void }) {
+  const { can } = useRole()
+  const [versions, setVersions] = useState<VersionListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<LifecycleAction | null>(null)
+
+  // loadVersions never sets state synchronously in its own body (only inside the
+  // promise callbacks) so the mount effect below stays clear of
+  // react-hooks/set-state-in-effect; a refetch that also wants the loading
+  // spinner (confirmPending) sets `loading` itself before calling this.
+  const loadVersions = useCallback(() => {
+    return listVersions(exercise.ID)
+      .then(setVersions)
+      .catch(() => setError(t("admin.ex.loadError")))
+      .finally(() => setLoading(false))
+  }, [exercise.ID])
+
+  useEffect(() => { loadVersions() }, [loadVersions])
+
+  async function confirmPending() {
+    if (!pending) return
+    setBusy(true); setError(null)
+    try {
+      if (pending.kind === "publish") await publishDraft(exercise.ID)
+      if (pending.kind === "discard") await discardDraft(exercise.ID)
+      if (pending.kind === "rollback") await rollbackToVersion(exercise.ID, pending.versionId)
+      setPending(null)
+      setLoading(true)
+      await loadVersions()
+      onChanged()
+    } catch (e) {
+      // Publish errors (topology validation etc.) are shown in the block below.
+      setError(exerciseErrorMessage(e))
+      setPending(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const hasDraft = exercise.DraftVersionID !== null
+  const hasPublished = exercise.PublishedVersionID !== null
+
+  return (
+    <section className="frost-panel rounded-lg p-5">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {t("admin.exDetail.status.title")}
+      </h2>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm">
+          {hasDraft ? t("admin.exDetail.status.hasDraft") : t("admin.exDetail.status.noDraft")}
+          {" · "}
+          {hasPublished ? t("admin.exDetail.status.hasPublished") : t("admin.exDetail.status.noPublished")}
+        </span>
+        {can("exercises.write") && (
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/exercises/draft?id=${exercise.ID}`}>{t("admin.exDetail.editDraft")}</Link>
+          </Button>
+        )}
+        {hasDraft && can("exercises.publish") && (
+          <>
+            <Button size="sm" disabled={busy} onClick={() => setPending({ kind: "publish" })}>
+              {t("admin.exDetail.publish")}
+            </Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => setPending({ kind: "discard" })}>
+              {t("admin.exDetail.discard")}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-3">
+          <AlertDescription>
+            <span className="font-medium">{t("admin.exDetail.publishError")}</span>: {error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {t("admin.exVersions.title")}
+      </h3>
+      {loading ? (
+        <div className="flex justify-center py-6"><Spinner label={t("admin.loading")} /></div>
+      ) : (
+        <VersionsTable
+          exerciseId={exercise.ID}
+          versions={versions}
+          busy={busy}
+          onPublish={() => setPending({ kind: "publish" })}
+          onDiscard={() => setPending({ kind: "discard" })}
+          onRollback={(versionId) => setPending({ kind: "rollback", versionId })}
+        />
+      )}
+
+      <Dialog open={pending !== null} onOpenChange={(open) => { if (!open) setPending(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pending?.kind === "publish" && t("admin.exDetail.publish.title")}
+              {pending?.kind === "discard" && t("admin.exDetail.discard.title")}
+              {pending?.kind === "rollback" && t("admin.exVersions.rollback.title")}
+            </DialogTitle>
+            <DialogDescription>
+              {pending?.kind === "publish" && t("admin.exDetail.publish.body")}
+              {pending?.kind === "discard" && t("admin.exDetail.discard.body")}
+              {pending?.kind === "rollback" && t("admin.exVersions.rollback.body")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setPending(null)}>
+              {t("admin.exDetail.cancel")}
+            </Button>
+            <Button disabled={busy} onClick={confirmPending}>
+              {pending?.kind === "publish" && t("admin.exDetail.publish")}
+              {pending?.kind === "discard" && t("admin.exDetail.discard")}
+              {pending?.kind === "rollback" && t("admin.exVersions.rollback")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  )
+}
+
 function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
@@ -178,7 +314,7 @@ function Detail() {
       {/* keyed remount: after reload the form gets fresh defaultValues */}
       <IdentityCard key={exercise.UpdatedAt} exercise={exercise} onSaved={load} />
 
-      {/* SECTION:VERSIONS — Task 5 inserts the status block and versions table here */}
+      <VersionsCard exercise={exercise} onChanged={load} />
 
       <DeleteCard exercise={exercise} />
     </div>
