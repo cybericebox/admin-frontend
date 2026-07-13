@@ -1,5 +1,5 @@
 /**
- * versions.test.ts — пути lifecycle-роутов и normalize версии/варианта.
+ * versions.test.ts — lifecycle route paths and normalize for version/variant.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 

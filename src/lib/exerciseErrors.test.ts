@@ -1,6 +1,6 @@
 /**
- * exerciseErrors.test.ts — словарь FullCode → i18n-ключ.
- * t мокается «ключ → ключ», чтобы проверять именно выбор ключа.
+ * exerciseErrors.test.ts — FullCode → i18n key dictionary.
+ * t is mocked as "key → key" so we can check the key choice specifically.
  */
 import { describe, it, expect, vi } from 'vitest'
 

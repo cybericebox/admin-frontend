@@ -1,9 +1,9 @@
 /**
- * catalog.ts — типизированный клиент каталога exercises.
+ * catalog.ts — typed client for the exercises catalog.
  *
- * Роуты: GET/POST /api/exercises, GET/PATCH/DELETE /api/exercises/:id.
- * JSON PascalCase; envelope {Status,Data} разворачивает client.ts.
- * Пагинация: cursor + pageSize (бэкенд биндит form:"pageSize").
+ * Routes: GET/POST /api/exercises, GET/PATCH/DELETE /api/exercises/:id.
+ * JSON PascalCase; envelope {Status,Data} unwrapped by client.ts.
+ * Pagination: cursor + pageSize (backend binds form:"pageSize").
  */
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/api/client"
 

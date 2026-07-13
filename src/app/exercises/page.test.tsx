@@ -1,12 +1,12 @@
 /**
- * page.test.tsx — каталог exercises: рендер списка, debounce-поиск, фильтр тегов,
- * плюс create-диалог (RBAC-гейт, happy path, error path).
+ * page.test.tsx — exercises catalog: list render, debounced search, tag filter,
+ * plus the create dialog (RBAC gate, happy path, error path).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 
-// Мутируемое состояние моков, поднятое над vi.mock: `canWrite` переключает
-// RBAC-гейт кнопки создания, `push` — стабильный шпион next/navigation.
+// Mutable mock state hoisted above vi.mock: `canWrite` toggles the RBAC gate
+// on the create button, `push` is a stable spy for next/navigation.
 const h = vi.hoisted(() => ({ canWrite: true, push: vi.fn() }))
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -32,7 +32,7 @@ import Page from './page'
 const mockList = vi.mocked(listExercises)
 const mockCreate = vi.mocked(createExercise)
 
-// jsdom не имеет IntersectionObserver — инфскролл-сентинел получает заглушку.
+// jsdom has no IntersectionObserver — the infinite-scroll sentinel gets a stub.
 class IO {
   observe() {}
   unobserve() {}

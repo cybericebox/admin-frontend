@@ -1,10 +1,10 @@
 /**
- * exerciseSchemas.ts — zod-зеркало доменной валидации exercise-версий
- * (внутри internal/model/exercise бэкенда) + form-типы и фабрики редактора.
+ * exerciseSchemas.ts — zod mirror of the domain validation for exercise versions
+ * (inside the backend's internal/model/exercise) + editor form types and factories.
  *
- * Валидация здесь ловит ошибки ДО запроса; сервер всё равно главный.
- * Схемы описывают DraftFormValues (форма 1:1 с SaveDraftInput; отличие одно:
- * External в форме — {Enabled, Port, Protocol} вместо nullable-объекта).
+ * Validation here catches errors BEFORE the request; the server is still authoritative.
+ * The schemas describe DraftFormValues (form is 1:1 with SaveDraftInput; one difference:
+ * External in the form is {Enabled, Port, Protocol} instead of a nullable object).
  */
 import { z } from "zod"
 import { t } from "@/i18n/t"
@@ -18,14 +18,14 @@ import type {
   Protocol,
 } from "@/api/exercises/versions"
 
-// ── Регексы и парсеры (зеркало домена) ─────────────────────────────────────────
+// ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
 export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
-// MAC требует ОДИН согласованный разделитель на все октеты (все ":" ИЛИ все "-"):
-// net.ParseMAC отвергает смешанные разделители вроде "02:42-ac:11:00:02".
+// MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
+// net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
-// Строгий октет: 0–255 без ведущих нулей (Go netip отвергает "010.0.0.1").
-// Регекс сам гарантирует диапазон, поэтому ручная проверка "≤255" не нужна.
+// Strict octet: 0–255 with no leading zeros (Go netip rejects "010.0.0.1").
+// The regex itself enforces the range, so a manual "≤255" check isn't needed.
 const OCTET = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
 const IPV4_RE = new RegExp(`^${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}$`)
 const CIDR_RE = new RegExp(`^${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}\\/(\\d{1,2})$`)
@@ -40,7 +40,7 @@ export function isValidCIDR(v: string): boolean {
   return Number(m[5]) <= 32
 }
 
-// ── Form-типы ──────────────────────────────────────────────────────────────────
+// ── Form types ─────────────────────────────────────────────────────────────────
 
 export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Protocol }
 export type DeviceFormValues = Omit<NormalizedDevice, "External"> & { External: ExternalFormValues }
@@ -72,7 +72,7 @@ export const identitySchema = z.object({
 })
 export type IdentityFormValues = z.infer<typeof identitySchema>
 
-// ── снапшот драфта ─────────────────────────────────────────────────────────────
+// ── draft snapshot ───────────────────────────────────────────────────────────────
 
 const networkSchema = z.object({ Enabled: z.boolean(), DHCP: z.boolean() })
 
@@ -159,8 +159,8 @@ const endpointSchema = z
         ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
       }
     } else {
-      // vpn/internet-концы не ссылаются на устройство: DeviceID и Interface должны быть
-      // пусты (бэк — ErrConnectionEndpointsInvalid, topology.go).
+      // vpn/internet endpoints don't reference a device: DeviceID and Interface must be
+      // empty (backend — ErrConnectionEndpointsInvalid, topology.go).
       if (ep.DeviceID !== "" || ep.Interface !== "") {
         ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointGateway") })
       }
@@ -224,7 +224,7 @@ export const draftSchema = z
     Variants: z.array(variantSchema).min(1, t("admin.ex.val.variantRequired")),
   })
   .superRefine((draft, ctx) => {
-    // Доменный инвариант ErrTaskCountMismatch: у всех вариантов одинаковое число задач.
+    // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
     const expected = draft.Variants[0]?.Tasks.length ?? 0
     draft.Variants.forEach((variant, i) => {
       if (variant.Tasks.length !== expected) {
@@ -237,7 +237,7 @@ export const draftSchema = z
     })
   })
 
-// ── Фабрики пустых значений ────────────────────────────────────────────────────
+// ── Empty-value factories ────────────────────────────────────────────────────────
 
 export function emptyTask(): TaskFormValues {
   return {
@@ -259,7 +259,7 @@ export function emptyInterface(): NormalizedInterface {
 
 export function emptyDevice(): DeviceFormValues {
   return {
-    ID: crypto.randomUUID(), // клиентский ID: на него сразу могут ссылаться Connections/LinkedDeviceID
+    ID: crypto.randomUUID(), // client-side ID: Connections/LinkedDeviceID can reference it immediately
     Name: "",
     Type: "container",
     Image: "",

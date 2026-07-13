@@ -1,5 +1,5 @@
 /**
- * files.test.ts — multipart-загрузка мимо JSON-клиента + download URL.
+ * files.test.ts — multipart upload bypassing the JSON client + download URL.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
@@ -37,7 +37,7 @@ describe('uploadExerciseFile', () => {
     expect(init.credentials).toBe('include')
     expect(init.body).toBeInstanceOf(FormData)
     expect((init.body as FormData).get('file')).toBe(file)
-    // Content-Type НЕ задаётся вручную — boundary ставит браузер.
+    // Content-Type is NOT set manually — the browser sets the boundary.
     expect(init.headers).toBeUndefined()
     expect(result).toEqual({ FileID: FILE_ID, Name: 'notes.pdf', Size: 123 })
   })

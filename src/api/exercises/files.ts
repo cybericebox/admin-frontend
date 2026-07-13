@@ -1,9 +1,9 @@
 /**
- * files.ts — загрузка вложений (multipart) и download-URL.
+ * files.ts — attachment upload (multipart) and download URL.
  *
- * НЕ через apiPost: request() в client.ts всегда ставит Content-Type:
- * application/json, что ломает multipart boundary. Здесь собственный fetch
- * с credentials: "include" и тем же envelope-unwrap.
+ * NOT via apiPost: request() in client.ts always sets Content-Type:
+ * application/json, which breaks the multipart boundary. This uses its own fetch
+ * with credentials: "include" and the same envelope-unwrap.
  */
 import { ApiError } from "@/api/client"
 
@@ -13,12 +13,12 @@ const FILES = "/api/exercises/files"
 
 export type UploadedFile = { FileID: string; Name: string; Size: number }
 
-/** URL для скачивания (GET /api/exercises/files/:fileID, cookie-auth — годится для <a href>). */
+/** Download URL (GET /api/exercises/files/:fileID, cookie-auth — suitable for <a href>). */
 export function exerciseFileURL(fileId: string): string {
   return `${BASE_URL}${FILES}/${fileId}`
 }
 
-/** POST /api/exercises/files (multipart, поле "file"). */
+/** POST /api/exercises/files (multipart, field "file"). */
 export async function uploadExerciseFile(file: File): Promise<UploadedFile> {
   const form = new FormData()
   form.append("file", file)

@@ -1,6 +1,6 @@
 /**
- * exerciseSchemas.test.ts — табличные тесты zod-зеркала домена.
- * t мокается «ключ → ключ»: сообщения не проверяем на язык, только на факт ошибки.
+ * exerciseSchemas.test.ts — table-driven tests for the domain's zod mirror.
+ * t is mocked as "key → key": we don't check message language, only that an error occurred.
  */
 import { describe, it, expect, vi } from 'vitest'
 
@@ -20,7 +20,7 @@ import {
   type DraftFormValues,
 } from './exerciseSchemas'
 
-// ── Регексы и парсеры ──────────────────────────────────────────────────────────
+// ── Regexes and parsers ──────────────────────────────────────────────────────────
 
 describe('DNS_LABEL_RE', () => {
   it.each([
@@ -47,7 +47,7 @@ describe('MAC_RE', () => {
     ['02:42:ac:11:00:02:99', false],
     ['0242ac110002', false],
     ['gg:42:ac:11:00:02', false],
-    ['02:42-ac:11:00:02', false], // смешанные разделители: net.ParseMAC отвергает
+    ['02:42-ac:11:00:02', false], // mixed separators: net.ParseMAC rejects
   ])('%s → %s', (input, ok) => {
     expect(MAC_RE.test(input)).toBe(ok)
   })
@@ -61,7 +61,7 @@ describe('isValidCIDR', () => {
     ['10.0.0.0', false],
     ['10.0.0.0/33', false],
     ['256.0.0.0/24', false],
-    ['010.0.0.0/24', false], // ведущий ноль в октете: Go netip отвергает
+    ['010.0.0.0/24', false], // leading zero in an octet: Go netip rejects
     ['10.0.0/24', false],
     ['abc/24', false],
   ])('%s → %s', (input, ok) => {
@@ -74,7 +74,7 @@ describe('isValidIPv4', () => {
     ['10.0.0.1', true],
     ['255.255.255.255', true],
     ['256.0.0.1', false],
-    ['010.0.0.1', false], // ведущий ноль в октете: Go netip отвергает
+    ['010.0.0.1', false], // leading zero in an octet: Go netip rejects
     ['10.0.0.1/24', false],
     ['', false],
   ])('%s → %s', (input, ok) => {
@@ -166,7 +166,7 @@ describe('draftSchema', () => {
     const device = emptyDevice()
     device.Name = 'sw1'
     device.Type = 'unmanaged-switch'
-    // emptyDevice() кладёт один дефолтный интерфейс — свитч обязан быть «голым»
+    // emptyDevice() adds one default interface — a switch must be "bare"
     expect(device.Interfaces.length).toBeGreaterThan(0)
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
@@ -301,7 +301,7 @@ describe('draftSchema', () => {
   })
 })
 
-// ── Фабрики ────────────────────────────────────────────────────────────────────
+// ── Factories ──────────────────────────────────────────────────────────────────
 
 describe('factories', () => {
   it('emptyDevice generates a client-side uuid', () => {

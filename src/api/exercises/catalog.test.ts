@@ -1,6 +1,6 @@
 /**
- * catalog.test.ts — пути, query-параметры и normalize клиента каталога.
- * vi.mock('@/api/client') перехватывает все HTTP-вызовы.
+ * catalog.test.ts — paths, query params and normalize for the catalog client.
+ * vi.mock('@/api/client') intercepts all HTTP calls.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 

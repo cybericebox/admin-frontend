@@ -4,8 +4,8 @@ import { useState } from "react"
 import { X } from "lucide-react"
 
 /**
- * TagInput — chip-ввод списка строк (теги задания, фильтр каталога).
- * Enter/запятая/blur добавляет чип, Backspace на пустом поле удаляет последний.
+ * TagInput — chip input for a list of strings (task tags, catalog filter).
+ * Enter/comma/blur adds a chip, Backspace on an empty field removes the last one.
  */
 export function TagInput({
   value,

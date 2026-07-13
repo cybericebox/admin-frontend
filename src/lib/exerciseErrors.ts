@@ -1,12 +1,12 @@
 /**
- * exerciseErrors.ts — словарь FullCode → i18n-ключ для доменных ошибок
- * exercise (objectCode 9) и media (objectCode 10).
+ * exerciseErrors.ts — FullCode → i18n key dictionary for the domain errors of
+ * exercise (objectCode 9) and media (objectCode 10).
  *
  * FullCode = informCode*10000 + objectCode*100 + detailCode
  * (inform: 2=InvalidData, 3=NotFound, 4=Exists, 7=Conflict).
- * Источник: AP Backend internal/model/exercise/errors.go, internal/model/media/errors.go.
- * Неизвестный код → generic + Status.Message бэка. 401/403 сюда не попадают
- * (их перехватывает client.ts / RBAC-гейты).
+ * Source: AP Backend internal/model/exercise/errors.go, internal/model/media/errors.go.
+ * Unknown code → generic + backend Status.Message. 401/403 never reach here
+ * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
 import { t } from "@/i18n/t"
@@ -53,7 +53,7 @@ const CODE_TO_KEY: Record<number, string> = {
   // exercise: placeholders
   20925: "admin.ex.err.placeholderInvalid",
   20926: "admin.ex.err.placeholderNode",
-  // media (вложения)
+  // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",
   71003: "admin.ex.err.storageNotConfigured",
@@ -61,7 +61,7 @@ const CODE_TO_KEY: Record<number, string> = {
 
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
 
-/** FullCode из тела ошибки или null (не ApiError / нет envelope). */
+/** FullCode from the error body, or null (not an ApiError / no envelope). */
 export function exerciseErrorCode(e: unknown): number | null {
   if (!(e instanceof ApiError)) return null
   const body = e.body as EnvelopeBody | null | undefined
@@ -69,7 +69,7 @@ export function exerciseErrorCode(e: unknown): number | null {
   return typeof code === "number" ? code : null
 }
 
-/** Человекочитаемое (украинское) сообщение для любой ошибки API exercises. */
+/** Human-readable (Ukrainian) message for any exercises API error. */
 export function exerciseErrorMessage(e: unknown): string {
   const code = exerciseErrorCode(e)
   if (code !== null) {
