@@ -318,6 +318,7 @@
   "admin.ex.val.gatewayStaticOnly": "Шлюз дозволений лише для статичного IP",
   "admin.ex.val.port": "Порт має бути в межах 1–65535",
   "admin.ex.val.endpointDevice": "Оберіть пристрій для цього кінця зʼєднання",
+  "admin.ex.val.endpointGateway": "Кінець VPN/Інтернет не має пристрою чи інтерфейсу",
   "admin.ex.val.connectionArity": "Зʼєднання має рівно два кінці",
   "admin.ex.val.lastOctet": "Останній октет — 0–255",
   "admin.ex.val.placeholderIPRef": "Оберіть джерело IP: VPN, Інтернет або статичні октети",

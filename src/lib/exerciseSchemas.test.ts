@@ -47,6 +47,7 @@ describe('MAC_RE', () => {
     ['02:42:ac:11:00:02:99', false],
     ['0242ac110002', false],
     ['gg:42:ac:11:00:02', false],
+    ['02:42-ac:11:00:02', false], // смешанные разделители: net.ParseMAC отвергает
   ])('%s → %s', (input, ok) => {
     expect(MAC_RE.test(input)).toBe(ok)
   })
@@ -60,6 +61,7 @@ describe('isValidCIDR', () => {
     ['10.0.0.0', false],
     ['10.0.0.0/33', false],
     ['256.0.0.0/24', false],
+    ['010.0.0.0/24', false], // ведущий ноль в октете: Go netip отвергает
     ['10.0.0/24', false],
     ['abc/24', false],
   ])('%s → %s', (input, ok) => {
@@ -72,6 +74,7 @@ describe('isValidIPv4', () => {
     ['10.0.0.1', true],
     ['255.255.255.255', true],
     ['256.0.0.1', false],
+    ['010.0.0.1', false], // ведущий ноль в октете: Go netip отвергает
     ['10.0.0.1/24', false],
     ['', false],
   ])('%s → %s', (input, ok) => {
@@ -262,6 +265,20 @@ describe('draftSchema', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
     draft.Variants[0].Topology.Connections[0].Endpoints[0].DeviceID = 'some-uuid'
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('a vpn/internet endpoint must have no device or interface', () => {
+    const draft = validDraft()
+    draft.Variants[0].Topology.Connections = [{
+      Endpoints: [
+        { Kind: 'device', DeviceID: 'some-uuid', Interface: '' },
+        { Kind: 'vpn', DeviceID: 'some-uuid', Interface: '' },
+      ],
+    }]
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+
+    draft.Variants[0].Topology.Connections[0].Endpoints[1] = { Kind: 'vpn', DeviceID: '', Interface: '' }
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 

@@ -318,6 +318,7 @@
   "admin.ex.val.gatewayStaticOnly": "Gateway is allowed only with static IP",
   "admin.ex.val.port": "Port must be between 1 and 65535",
   "admin.ex.val.endpointDevice": "Choose a device for this endpoint",
+  "admin.ex.val.endpointGateway": "A VPN/Internet endpoint has no device or interface",
   "admin.ex.val.connectionArity": "A connection has exactly two endpoints",
   "admin.ex.val.lastOctet": "Last octet must be 0–255",
   "admin.ex.val.placeholderIPRef": "Choose an IP source: VPN, Internet or static octets",

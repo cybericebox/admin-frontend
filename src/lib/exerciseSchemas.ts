@@ -21,19 +21,22 @@ import type {
 // ── Регексы и парсеры (зеркало домена) ─────────────────────────────────────────
 
 export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
-export const MAC_RE = /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/
-const CIDR_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/
-const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+// MAC требует ОДИН согласованный разделитель на все октеты (все ":" ИЛИ все "-"):
+// net.ParseMAC отвергает смешанные разделители вроде "02:42-ac:11:00:02".
+export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
+// Строгий октет: 0–255 без ведущих нулей (Go netip отвергает "010.0.0.1").
+// Регекс сам гарантирует диапазон, поэтому ручная проверка "≤255" не нужна.
+const OCTET = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
+const IPV4_RE = new RegExp(`^${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}$`)
+const CIDR_RE = new RegExp(`^${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}\\/(\\d{1,2})$`)
 
 export function isValidIPv4(v: string): boolean {
-  const m = IPV4_RE.exec(v)
-  return m !== null && m.slice(1).every((o) => Number(o) <= 255)
+  return IPV4_RE.test(v)
 }
 
 export function isValidCIDR(v: string): boolean {
   const m = CIDR_RE.exec(v)
   if (!m) return false
-  if (m.slice(1, 5).some((o) => Number(o) > 255)) return false
   return Number(m[5]) <= 32
 }
 
@@ -151,8 +154,16 @@ const endpointSchema = z
     Interface: z.string(),
   })
   .superRefine((ep, ctx) => {
-    if (ep.Kind === "device" && ep.DeviceID === "") {
-      ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
+    if (ep.Kind === "device") {
+      if (ep.DeviceID === "") {
+        ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
+      }
+    } else {
+      // vpn/internet-концы не ссылаются на устройство: DeviceID и Interface должны быть
+      // пусты (бэк — ErrConnectionEndpointsInvalid, topology.go).
+      if (ep.DeviceID !== "" || ep.Interface !== "") {
+        ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointGateway") })
+      }
     }
   })
 
