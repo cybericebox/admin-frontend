@@ -13,6 +13,7 @@ import {
 } from "@/lib/exerciseSchemas"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { VariantTabs } from "@/components/exercises/VariantTabs"
+import { TaskAccordion } from "@/components/exercises/TaskAccordion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -173,7 +174,9 @@ function DraftEditor() {
           <VariantTabs
             disabled={disabled}
             renderVariant={(variantIndex) => (
-              <div className="space-y-6" data-variant-sections data-variant-index={variantIndex} />
+              <div className="space-y-6" data-variant-sections data-variant-index={variantIndex}>
+                <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
+              </div>
             )}
           />
         </section>
