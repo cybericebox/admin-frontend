@@ -341,6 +341,7 @@
   "admin.ex.val.endpointDevice": "Оберіть пристрій для цього кінця зʼєднання",
   "admin.ex.val.endpointGateway": "Кінець VPN/Інтернет не має пристрою чи інтерфейсу",
   "admin.ex.val.connectionArity": "Зʼєднання має рівно два кінці",
+  "admin.ex.val.endpointUnresolved": "Зʼєднання посилається на пристрій або інтерфейс, якого більше немає",
   "admin.ex.val.lastOctet": "Останній октет — 0–255",
   "admin.ex.val.placeholderIPRef": "Оберіть джерело IP: VPN, Інтернет або статичні октети",
   "admin.ex.val.placeholderDevice": "Оберіть пристрій із зовнішнім доступом",

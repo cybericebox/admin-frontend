@@ -259,6 +259,9 @@ describe('draftSchema', () => {
 
   it('device endpoint requires a chosen device', () => {
     const draft = validDraft()
+    const web = emptyDevice()
+    web.Name = 'web' // container with a default eth0 interface
+    draft.Variants[0].Topology.Devices.push(web)
     draft.Variants[0].Topology.Connections = [{
       Endpoints: [
         { Kind: 'device', DeviceID: '', Interface: '' },
@@ -267,21 +270,85 @@ describe('draftSchema', () => {
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    draft.Variants[0].Topology.Connections[0].Endpoints[0].DeviceID = 'some-uuid'
+    draft.Variants[0].Topology.Connections[0].Endpoints[0] =
+      { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' }
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
   it('a vpn/internet endpoint must have no device or interface', () => {
     const draft = validDraft()
+    const web = emptyDevice()
+    web.Name = 'web'
+    draft.Variants[0].Topology.Devices.push(web)
     draft.Variants[0].Topology.Connections = [{
       Endpoints: [
-        { Kind: 'device', DeviceID: 'some-uuid', Interface: '' },
-        { Kind: 'vpn', DeviceID: 'some-uuid', Interface: '' },
+        { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
+        { Kind: 'vpn', DeviceID: web.ID, Interface: '' },
       ],
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
     draft.Variants[0].Topology.Connections[0].Endpoints[1] = { Kind: 'vpn', DeviceID: '', Interface: '' }
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('rejects a device endpoint whose device is not in the topology (endpointUnresolved)', () => {
+    const draft = validDraft()
+    const web = emptyDevice()
+    web.Name = 'web'
+    draft.Variants[0].Topology.Devices.push(web)
+    draft.Variants[0].Topology.Connections = [{
+      Endpoints: [
+        { Kind: 'device', DeviceID: 'missing-uuid', Interface: 'eth0' },
+        { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
+      ],
+    }]
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    const paths = result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+    expect(paths).toContain('Variants.0.Topology.Connections.0.Endpoints.0.DeviceID')
+  })
+
+  it('rejects a container endpoint whose interface is not on the device (endpointUnresolved)', () => {
+    const draft = validDraft()
+    const web = emptyDevice()
+    web.Name = 'web' // container with only eth0
+    draft.Variants[0].Topology.Devices.push(web)
+    draft.Variants[0].Topology.Connections = [{
+      Endpoints: [
+        { Kind: 'device', DeviceID: web.ID, Interface: 'eth9' },
+        { Kind: 'vpn', DeviceID: '', Interface: '' },
+      ],
+    }]
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    const paths = result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+    expect(paths).toContain('Variants.0.Topology.Connections.0.Endpoints.0.Interface')
+  })
+
+  it('accepts resolved endpoints: device+interface, bare switch, and vpn/internet kinds', () => {
+    const draft = validDraft()
+    const web = emptyDevice()
+    web.Name = 'web' // container with eth0
+    const sw = emptyDevice()
+    sw.Name = 'sw1'
+    sw.Type = 'unmanaged-switch'
+    sw.Interfaces = []
+    draft.Variants[0].Topology.Devices.push(web, sw)
+    draft.Variants[0].Topology.Connections = [
+      {
+        Endpoints: [
+          { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
+          { Kind: 'device', DeviceID: sw.ID, Interface: '' }, // switch endpoint: no interface by design
+        ],
+      },
+      {
+        Endpoints: [
+          { Kind: 'vpn', DeviceID: '', Interface: '' },
+          { Kind: 'internet', DeviceID: '', Interface: '' },
+        ],
+      },
+    ]
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 

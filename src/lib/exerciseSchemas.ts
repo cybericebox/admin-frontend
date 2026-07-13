@@ -183,12 +183,43 @@ const connectionSchema = z.object({
   Endpoints: z.array(endpointSchema).length(2, t("admin.ex.val.connectionArity")),
 })
 
-const topologySchema = z.object({
-  VPN: networkSchema,
-  Internet: networkSchema,
-  Devices: z.array(deviceSchema),
-  Connections: z.array(connectionSchema),
-})
+const topologySchema = z
+  .object({
+    VPN: networkSchema,
+    Internet: networkSchema,
+    Devices: z.array(deviceSchema),
+    Connections: z.array(connectionSchema),
+  })
+  .superRefine((topology, ctx) => {
+    // Endpoint resolution (mirrors backend ErrEndpointUnresolved): a device endpoint
+    // must reference a device that still exists, and — for non-forwarding devices
+    // (container/vm) — an interface that still exists on it. Switch/hub devices carry
+    // no interfaces, so their endpoints leave Interface empty by design. This check
+    // lives at the topology level because it needs both Devices and Connections in
+    // scope; endpointSchema alone can't see the device list.
+    topology.Connections.forEach((connection, ci) => {
+      connection.Endpoints.forEach((ep, side) => {
+        if (ep.Kind !== "device") return
+        const device = topology.Devices.find((d) => d.ID === ep.DeviceID)
+        if (!device) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Connections", ci, "Endpoints", side, "DeviceID"],
+            message: t("admin.ex.val.endpointUnresolved"),
+          })
+          return
+        }
+        const forwarding = device.Type === "unmanaged-switch" || device.Type === "hub"
+        if (!forwarding && !device.Interfaces.some((iface) => iface.Name === ep.Interface)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Connections", ci, "Endpoints", side, "Interface"],
+            message: t("admin.ex.val.endpointUnresolved"),
+          })
+        }
+      })
+    })
+  })
 
 const placeholderSchema = z
   .object({
