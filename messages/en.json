@@ -428,6 +428,7 @@
   "admin.exTopo.endpoint.vpn": "VPN",
   "admin.exTopo.endpoint.internet": "Internet",
   "admin.exTopo.endpoint.placeholder": "Choose an endpoint…",
+  "admin.exTopo.diagram": "Diagram",
   "admin.exTask.add": "Add task",
   "admin.exTask.remove": "Remove task",
   "admin.exTask.untitled": "Task",

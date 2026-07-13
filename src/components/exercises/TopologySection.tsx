@@ -1,6 +1,6 @@
 "use client"
 
-import { useFieldArray, useFormContext } from "react-hook-form"
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { NetworkToggles } from "./NetworkToggles"
 import { DeviceCard } from "./DeviceCard"
 import { ConnectionList } from "./ConnectionList"
+import { TopologyDiagram } from "./TopologyDiagram"
 
 /** TopologySection — a variant's whole topology: networks, devices, connections. */
 export function TopologySection({
@@ -22,6 +23,7 @@ export function TopologySection({
     control,
     name: `Variants.${variantIndex}.Topology.Devices`,
   })
+  const topology = useWatch({ control, name: `Variants.${variantIndex}.Topology` })
 
   return (
     <section className="space-y-4">
@@ -54,7 +56,12 @@ export function TopologySection({
 
       <ConnectionList variantIndex={variantIndex} disabled={disabled} />
 
-      {/* SECTION:DIAGRAM */}
+      {topology && (
+        <div>
+          <h4 className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.diagram")}</h4>
+          <TopologyDiagram topology={topology} />
+        </div>
+      )}
     </section>
   )
 }
