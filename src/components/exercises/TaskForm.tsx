@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import RichTextEditor from "@/components/notifications/editor/RichTextEditor"
+import { AttachmentList } from "./AttachmentList"
 import { FlagInput } from "./FlagInput"
 import { PlaceholderList } from "./PlaceholderList"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
@@ -103,7 +104,7 @@ export function TaskForm({
         )} />
       </div>
 
-      {/* SECTION:ATTACHMENTS */}
+      <AttachmentList variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
 
       <PlaceholderList variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
     </div>
