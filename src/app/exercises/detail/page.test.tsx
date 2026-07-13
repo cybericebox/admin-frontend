@@ -5,9 +5,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 
+// Mutable mock state hoisted above vi.mock: `canDelete` toggles the RBAC gate on
+// the DeleteCard so a single useRole mock can serve both the gated and ungated tests.
+const h = vi.hoisted(() => ({ canDelete: true }))
+
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 vi.mock('@/lib/useRole', () => ({
-  useRole: () => ({ me: null, role: 'admin', isLoading: false, permissions: ['*'], can: () => true }),
+  useRole: () => ({
+    me: null,
+    role: 'admin',
+    isLoading: false,
+    permissions: ['*'],
+    can: (p: string) => (p === 'exercises.delete' ? h.canDelete : true),
+  }),
 }))
 const push = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -27,11 +37,12 @@ vi.mock('@/api/exercises/versions', () => ({
 }))
 
 import { ApiError } from '@/api/client'
-import { getExercise, updateExercise } from '@/api/exercises/catalog'
+import { getExercise, updateExercise, deleteExercise } from '@/api/exercises/catalog'
 import Page from './page'
 
 const mockGet = vi.mocked(getExercise)
 const mockUpdate = vi.mocked(updateExercise)
+const mockDelete = vi.mocked(deleteExercise)
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const exercise = {
@@ -50,6 +61,7 @@ const exercise = {
 describe('exercise detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    h.canDelete = true
     mockGet.mockResolvedValue(exercise)
   })
 
@@ -85,5 +97,52 @@ describe('exercise detail page', () => {
     mockGet.mockRejectedValue(new ApiError(404, { Status: { Code: 30901 } }, 'nf'))
     render(<Page />)
     expect(await screen.findByText('admin.exDetail.notFound')).toBeInTheDocument()
+  })
+
+  // ── DeleteCard ──────────────────────────────────────────────────────────────
+
+  it('hides the delete action when the caller lacks exercises.delete', async () => {
+    h.canDelete = false
+    render(<Page />)
+    // Wait for the exercise to load so the card region is rendered, not the spinner.
+    await screen.findByDisplayValue('SQLi basics')
+    expect(screen.queryByText('admin.exDetail.delete.button')).not.toBeInTheDocument()
+  })
+
+  it('deletes the exercise and returns to the catalog on confirm', async () => {
+    mockDelete.mockResolvedValue(undefined)
+    render(<Page />)
+    await screen.findByDisplayValue('SQLi basics')
+
+    // Open the confirm dialog, then confirm.
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exDetail.delete.button' }))
+    const confirm = await screen.findByRole('button', { name: 'admin.exDetail.delete.confirm' })
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledTimes(1))
+    expect(mockDelete).toHaveBeenCalledWith(EX_ID)
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/exercises'))
+  })
+
+  it('shows an inline error and stays put when delete fails', async () => {
+    mockDelete.mockRejectedValue(
+      new ApiError(500, { Status: { Code: 99999, Message: 'boom' } }, 'boom'),
+    )
+    render(<Page />)
+    await screen.findByDisplayValue('SQLi basics')
+
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exDetail.delete.button' }))
+    const confirm = await screen.findByRole('button', { name: 'admin.exDetail.delete.confirm' })
+    fireEvent.click(confirm)
+
+    // exerciseErrorMessage (real, not mocked) maps the unknown code to the generic
+    // key and appends the backend message — proves the error path rendered it.
+    expect(await screen.findByText('admin.ex.err.generic: boom')).toBeInTheDocument()
+    // No navigation on failure.
+    expect(push).not.toHaveBeenCalled()
+    // Busy state reset: the confirm button is re-enabled and the dialog stays open.
+    const confirmAfter = screen.getByRole('button', { name: 'admin.exDetail.delete.confirm' })
+    expect(confirmAfter).toBeInTheDocument()
+    expect(confirmAfter).not.toBeDisabled()
   })
 })
