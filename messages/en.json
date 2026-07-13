@@ -431,6 +431,7 @@
   "admin.exSecret.stored": "Value is stored",
   "admin.exSecret.replace": "Replace",
   "admin.exSecret.keep": "Leave empty to keep the stored value",
+  "admin.exSecret.lockedHint": "Replace the value to change this",
   "admin.exTopo.connections": "Connections",
   "admin.exTopo.addConnection": "Add connection",
   "admin.exTopo.endpoint.vpn": "VPN",

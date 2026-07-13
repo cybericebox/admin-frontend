@@ -431,6 +431,7 @@
   "admin.exSecret.stored": "Значення збережено",
   "admin.exSecret.replace": "Замінити",
   "admin.exSecret.keep": "Залиште порожнім, щоб зберегти чинне значення",
+  "admin.exSecret.lockedHint": "Замініть значення, щоб змінити",
   "admin.exTopo.connections": "Зʼєднання",
   "admin.exTopo.addConnection": "Додати зʼєднання",
   "admin.exTopo.endpoint.vpn": "VPN",

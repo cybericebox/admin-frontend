@@ -189,6 +189,12 @@ function EnvVarsList({
       {fields.map((field, ei) => {
         const isSecret = rows[ei]?.Secret ?? false
         const hasValue = rows[ei]?.HasValue ?? false
+        const value = rows[ei]?.Value ?? ""
+        // A stored-but-untouched secret (Secret+HasValue, empty Value) must stay a secret:
+        // its plaintext is never available client-side, so un-secretting it would silently
+        // downgrade/overwrite the stored value. Lock the checkbox checked until the admin
+        // supplies a fresh value via SecretInput's "Replace" (Value !== "").
+        const lockSecret = isSecret && hasValue && value === ""
         return (
           <div key={field.id} className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
             <FormField control={control} name={`${name}.${ei}.Name`} render={({ field: nameField }) => (
@@ -226,9 +232,12 @@ function EnvVarsList({
                     ref={secretField.ref}
                     checked={secretField.value}
                     onChange={(e) => secretField.onChange(e.target.checked)}
-                    disabled={disabled}
+                    disabled={disabled || lockSecret}
                   />
                   {t("admin.exEnv.secret")}
+                  {lockSecret && (
+                    <span className="text-[0.7rem] text-muted-foreground/80">{t("admin.exSecret.lockedHint")}</span>
+                  )}
                 </label>
               )}
             />
