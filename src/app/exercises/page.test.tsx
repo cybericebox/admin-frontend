@@ -118,7 +118,12 @@ describe('exercises catalog — create dialog', () => {
   })
 
   it('submits the identity form (PascalCase) and routes to the new exercise', async () => {
-    const created = { ...item, ID: 'ffffffff-0000-1111-2222-333333333333', Name: 'Buffer overflow', Description: 'Smash the stack', Tags: ['pwn'] }
+    const created = {
+      ID: 'ffffffff-0000-1111-2222-333333333333',
+      Name: 'Buffer overflow', Description: 'Smash the stack', Tags: ['pwn'],
+      DraftVersionID: null, PublishedVersionID: null,
+      CreatedAt: item.CreatedAt, CreatedBy: null, UpdatedAt: item.UpdatedAt, UpdatedBy: null,
+    }
     mockCreate.mockResolvedValue(created)
 
     render(<Page />)
