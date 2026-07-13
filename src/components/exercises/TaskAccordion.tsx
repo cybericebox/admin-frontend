@@ -56,7 +56,7 @@ export function TaskAccordion({
           {open === ti && (
             <div className="space-y-3 border-t border-border p-3">
               <TaskForm variantIndex={variantIndex} taskIndex={ti} disabled={disabled} />
-              {!disabled && (
+              {!disabled && fields.length > 1 && (
                 <Button type="button" variant="destructive" size="sm" onClick={() => { remove(ti); setOpen(null) }}>
                   <Trash2 className="mr-1 h-4 w-4" />
                   {t("admin.exTask.remove")}
