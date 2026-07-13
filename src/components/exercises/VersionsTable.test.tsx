@@ -62,12 +62,16 @@ describe('VersionsTable', () => {
     expect(onDiscard).toHaveBeenCalledOnce()
   })
 
-  it('unpublished row: rollback + view link with versionId', () => {
+  it('unpublished row: rollback + view link with versionId, no draft-only actions', () => {
     renderTable([version({ ID: 'v2', Status: 'unpublished', PublishedAt: '2026-01-05T00:00:00Z' })])
     fireEvent.click(screen.getByText('admin.exVersions.rollback'))
     expect(onRollback).toHaveBeenCalledWith('v2')
     expect(screen.getByText('admin.exVersions.view').closest('a'))
       .toHaveAttribute('href', `/exercises/draft?id=${EX_ID}&versionId=v2`)
+    // Draft-only actions must be absent on an unpublished row.
+    expect(screen.queryByText('admin.exVersions.edit')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.exDetail.publish')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.exDetail.discard')).not.toBeInTheDocument()
   })
 
   it('published row: view only (no rollback/publish/discard)', () => {
