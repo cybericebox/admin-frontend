@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { t } from "@/i18n/t"
@@ -47,11 +47,12 @@ export function EventDialog({ open, onOpenChange, event, onSaved }: Props) {
   const currentIdentity = open ? (event?.ID ?? "__create__") : null
   if (currentIdentity !== prevAppliedIdentity) {
     setPrevAppliedIdentity(currentIdentity)
-    if (open) {
-      form.reset(toDefaults(event))
-      setError(null)
-    }
+    if (open) setError(null)
   }
+
+  useEffect(() => {
+    if (open) form.reset(toDefaults(event))
+  }, [open, form, event])
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null)
