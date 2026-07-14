@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { t } from "@/i18n/t"
@@ -35,20 +35,23 @@ function toDefaults(event?: Event): EventFormValues {
 export function EventDialog({ open, onOpenChange, event, onSaved }: Props) {
   const isEdit = event !== undefined
   const [error, setError] = useState<string | null>(null)
+  const [prevAppliedIdentity, setPrevAppliedIdentity] = useState<string | null>(null)
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: toDefaults(event),
   })
   const busy = form.formState.isSubmitting
 
-  // Re-seed the form each time the dialog opens for a (possibly different) event.
-  useEffect(() => {
+  // Re-seed the form at render time when the dialog opens for a (possibly different) event.
+  // This uses the "store previous prop" pattern to avoid react-hooks/set-state-in-effect.
+  const currentIdentity = open ? (event?.ID ?? "__create__") : null
+  if (currentIdentity !== prevAppliedIdentity) {
+    setPrevAppliedIdentity(currentIdentity)
     if (open) {
       form.reset(toDefaults(event))
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(null)
     }
-  }, [open, event, form])
+  }
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null)
