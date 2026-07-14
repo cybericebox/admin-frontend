@@ -57,6 +57,8 @@ export default function Page() {
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
+  const firstPageReq = useRef(0)
+
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search.trim()), 300)
     return () => clearTimeout(id)
@@ -79,19 +81,27 @@ export default function Page() {
   }
 
   const reload = useCallback(() => {
+    const myReq = ++firstPageReq.current
     setLoading(true); setError(false)
     listEvents(buildFilter(""))
-      .then((d) => { setRows(d.Events); setCursor(d.NextCursor); setHasMore(d.HasMore) })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+      .then((d) => {
+        if (myReq !== firstPageReq.current) return
+        setRows(d.Events); setCursor(d.NextCursor); setHasMore(d.HasMore)
+      })
+      .catch(() => { if (myReq === firstPageReq.current) setError(true) })
+      .finally(() => { if (myReq === firstPageReq.current) setLoading(false) })
   }, [buildFilter])
 
   useEffect(() => {
     let cancelled = false
+    const myReq = ++firstPageReq.current
     listEvents(buildFilter(""))
-      .then((d) => { if (!cancelled) { setRows(d.Events); setCursor(d.NextCursor); setHasMore(d.HasMore) } })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+      .then((d) => {
+        if (cancelled || myReq !== firstPageReq.current) return
+        setRows(d.Events); setCursor(d.NextCursor); setHasMore(d.HasMore)
+      })
+      .catch(() => { if (!cancelled && myReq === firstPageReq.current) setError(true) })
+      .finally(() => { if (!cancelled && myReq === firstPageReq.current) setLoading(false) })
     return () => { cancelled = true }
   }, [buildFilter])
 
