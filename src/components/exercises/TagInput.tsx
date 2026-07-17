@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X } from "lucide-react"
+import { t } from "@/i18n/t"
 
 /**
  * TagInput — chip input for a list of strings (task tags, catalog filter).
@@ -56,7 +57,7 @@ export function TagInput({
           }
         }}
         onBlur={commit}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("admin.ex.tagHint")}
         className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>

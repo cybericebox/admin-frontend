@@ -15,6 +15,7 @@ import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { VariantTabs } from "@/components/exercises/VariantTabs"
 import { TaskAccordion } from "@/components/exercises/TaskAccordion"
 import { TopologySection } from "@/components/exercises/TopologySection"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -135,11 +136,11 @@ function DraftEditor() {
         )}
 
         {/* "Settings" section: AdminNote + RegenerateFlagsOnPublish (per-snapshot). */}
-        <section className="frost-panel space-y-3 rounded-lg p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <details className="frost-panel rounded-lg p-5">
+          <summary className="cursor-pointer select-none text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             {t("admin.exDraft.settings.title")}
-          </h2>
-          <div className="max-w-xl space-y-3">
+          </summary>
+          <div className="mt-3 max-w-xl space-y-3">
             <div>
               <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground" htmlFor="admin-note">
                 {t("admin.exDraft.adminNote")}
@@ -169,15 +170,29 @@ function DraftEditor() {
               )}
             />
           </div>
-        </section>
+        </details>
 
         <section className="frost-panel rounded-lg p-5">
           <VariantTabs
             disabled={disabled}
             renderVariant={(variantIndex) => (
-              <div className="space-y-6" data-variant-sections data-variant-index={variantIndex}>
-                <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
-                <TopologySection variantIndex={variantIndex} disabled={disabled} />
+              // Within a variant, Tasks and Topology are two focus tabs so the
+              // admin sees one at a time (a variant has one topology, many tasks).
+              // forceMount keeps both mounted — inactive is hidden, not unmounted,
+              // so react-hook-form never loses the hidden section's values.
+              <div data-variant-sections data-variant-index={variantIndex}>
+                <Tabs defaultValue="tasks">
+                  <TabsList>
+                    <TabsTrigger value="tasks">{t("admin.exDraft.tab.tasks")}</TabsTrigger>
+                    <TabsTrigger value="topology">{t("admin.exDraft.tab.topology")}</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="tasks" forceMount className="data-[state=inactive]:hidden">
+                    <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
+                  </TabsContent>
+                  <TabsContent value="topology" forceMount className="data-[state=inactive]:hidden">
+                    <TopologySection variantIndex={variantIndex} disabled={disabled} />
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           />
