@@ -147,6 +147,7 @@
   "admin.notif.tpl.email": "Шаблони email",
   "admin.notif.tpl.new": "Новий шаблон",
   "admin.notif.tpl.edit": "Редагувати",
+  "admin.notif.tpl.readonlyHint": "Тільки перегляд. Натисніть «Редагувати», щоб внести зміни — створиться чернетка, а опублікована версія лишиться активною, доки ви не опублікуєте нову.",
   "admin.notif.tpl.delete": "Видалити",
   "admin.notif.tpl.activate": "Активувати",
   "admin.notif.tpl.deactivate": "Зробити чернеткою",

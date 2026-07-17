@@ -29,6 +29,7 @@ import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
 import {
   getEmailTemplate,
+  listEmailTemplates,
   createEmailTemplate,
   updateEmailTemplate,
   publishEmailTemplate,
@@ -221,6 +222,31 @@ function Detail() {
     }
   }
 
+  // handleEdit is the non-destructive edit entry for a published/unpublished
+  // template: open this type's draft, creating a copy of the current content if
+  // no draft exists yet. The published version stays live until the draft is
+  // published — unlike Rollback, which takes it offline.
+  async function handleEdit() {
+    if (!template) return
+    setBusy(true)
+    setSaveError(false)
+    try {
+      const existing = await listEmailTemplates({ type: template.NotificationType, status: "draft" })
+      const draft = existing.Templates[0] ?? await createEmailTemplate({
+        NotificationType: template.NotificationType,
+        Subject: subject,
+        Preheader: preheader,
+        Body: body,
+        Styling: styling,
+      })
+      router.replace(`/notifications/templates/email/detail?id=${draft.ID}`)
+    } catch {
+      setSaveError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleSavePreset(blocks: EmailBodyBlock[], name: string) {
     await createBlockPreset({ Name: name, Description: "", Blocks: blocks })
     const fresh = await listBlockPresets()
@@ -296,6 +322,12 @@ function Detail() {
           {isDraft && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
+            </Button>
+          )}
+          {/* Edit: published/unpublished → open (or create) the type's draft */}
+          {isReadOnly && (
+            <Button onClick={() => void handleEdit()} disabled={busy}>
+              {t("admin.notif.tpl.edit")}
             </Button>
           )}
           {/* Rollback: shown for published or unpublished */}
@@ -385,8 +417,7 @@ function Detail() {
                 data-testid="body-readonly"
                 className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground"
               >
-                {body.length} {body.length === 1 ? "block" : "blocks"} — read-only while{" "}
-                {template ? t(statusLabelKey(template.Status)) : ""}. {t("admin.notif.tpl.rollback")} to edit.
+                {t("admin.notif.tpl.readonlyHint")}
               </div>
             ) : (
               <BlockEditor

@@ -147,6 +147,7 @@
   "admin.notif.tpl.email": "Email templates",
   "admin.notif.tpl.new": "New template",
   "admin.notif.tpl.edit": "Edit",
+  "admin.notif.tpl.readonlyHint": "View-only. Click Edit to make changes — a draft is created and the published version stays live until you publish the new one.",
   "admin.notif.tpl.delete": "Delete",
   "admin.notif.tpl.activate": "Activate",
   "admin.notif.tpl.deactivate": "Set draft",
