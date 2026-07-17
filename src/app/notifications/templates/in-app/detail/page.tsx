@@ -41,6 +41,7 @@ import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { notifTypeLabel } from "@/utils/notifType"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { ICONS, TONES, SURFACES } from "@/components/notifications/editor/inAppOptions"
@@ -311,20 +312,14 @@ function Detail() {
           <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
             {t("admin.notif.tpl.type")}
           </label>
-          <select
+          <SelectMenu
             value={notificationType}
-            onChange={(e) => setNotificationType(e.target.value)}
-            className="rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">{t("admin.notif.tpl.choose")}</option>
-            {notifTypes
+            onChange={setNotificationType}
+            placeholder={t("admin.notif.tpl.choose")}
+            options={notifTypes
               .filter((nt) => nt.Channels.includes("in_app"))
-              .map((nt) => (
-                <option key={nt.Type} value={nt.Type}>
-                  {notifTypeLabel(nt.Type)}
-                </option>
-              ))}
-          </select>
+              .map((nt) => ({ value: nt.Type, label: notifTypeLabel(nt.Type) }))}
+          />
         </div>
       )}
 
