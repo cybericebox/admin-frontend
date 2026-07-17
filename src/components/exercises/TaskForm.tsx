@@ -31,16 +31,17 @@ export function TaskForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
         <FormField control={control} name={`${base}.Name`} render={({ field }) => (
-          <FormItem>
+          <FormItem className="min-w-56 flex-1">
             <FormLabel>{t("admin.exTask.name")}</FormLabel>
             <FormControl><Input {...field} disabled={disabled} /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
         <FormField control={control} name={`${base}.Difficulty`} render={({ field }) => (
-          <FormItem>
+          <FormItem className="w-40">
             <FormLabel>{t("admin.exTask.difficulty")}</FormLabel>
             <FormControl>
               <SelectMenu
@@ -78,9 +79,10 @@ export function TaskForm({
         )}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Flag device (grows) + the env var name it lands in (short — sized to content). */}
         <FormField control={control} name={`${base}.LinkedDeviceID`} render={({ field }) => (
-          <FormItem>
+          <FormItem className="min-w-56 flex-1">
             <FormLabel>{t("admin.exTask.linkedDevice")}</FormLabel>
             <FormControl>
               <SelectMenu
@@ -97,7 +99,7 @@ export function TaskForm({
           </FormItem>
         )} />
         <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
-          <FormItem>
+          <FormItem className="w-56">
             <FormLabel>{t("admin.exTask.deviceFlagVar")}</FormLabel>
             <FormControl><Input {...field} disabled={disabled} placeholder="FLAG" /></FormControl>
           </FormItem>
