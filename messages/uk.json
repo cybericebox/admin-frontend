@@ -461,6 +461,7 @@
   "admin.exDraft.settings.title": "Налаштування",
   "admin.exDraft.tab.tasks": "Задачі",
   "admin.exDraft.tab.topology": "Топологія",
+  "admin.exDraft.variantNote": "Нотатка варіанта (не для учасників)",
   "admin.exDraft.adminNote": "Нотатка адміністратора",
   "admin.exDraft.regenFlags": "Перегенерувати прапорці під час публікації",
   "admin.exDraft.regenFlags.hint": "Фіксовані значення прапорців зберігаються; випадкові генеруються заново при кожній публікації.",

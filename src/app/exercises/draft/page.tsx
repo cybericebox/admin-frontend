@@ -141,12 +141,6 @@ function DraftEditor() {
             {t("admin.exDraft.settings.title")}
           </summary>
           <div className="mt-3 max-w-xl space-y-3">
-            <div>
-              <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground" htmlFor="admin-note">
-                {t("admin.exDraft.adminNote")}
-              </label>
-              <Input id="admin-note" {...form.register("AdminNote")} disabled={disabled} />
-            </div>
             <Controller
               control={form.control}
               name="RegenerateFlagsOnPublish"
@@ -181,6 +175,17 @@ function DraftEditor() {
               // forceMount keeps both mounted — inactive is hidden, not unmounted,
               // so react-hook-form never loses the hidden section's values.
               <div data-variant-sections data-variant-index={variantIndex}>
+                {/* Optional per-variant admin note (replaces the old global one). */}
+                <details className="mb-3">
+                  <summary className="cursor-pointer select-none text-xs uppercase tracking-wider text-muted-foreground">
+                    {t("admin.exDraft.variantNote")}
+                  </summary>
+                  <Input
+                    className="mt-2"
+                    {...form.register(`Variants.${variantIndex}.Note`)}
+                    disabled={disabled}
+                  />
+                </details>
                 <Tabs defaultValue="tasks">
                   <TabsList>
                     <TabsTrigger value="tasks">{t("admin.exDraft.tab.tasks")}</TabsTrigger>

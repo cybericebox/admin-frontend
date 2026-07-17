@@ -406,6 +406,7 @@ function loadedVersion(): Version {
     Variants: [{
       ID: 'var1',
       Index: 1,
+      Note: '',
       Tasks: [{
         ID: 'task1',
         Name: 'Find the flag',

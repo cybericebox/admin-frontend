@@ -99,6 +99,7 @@ export type TaskDTO = {
 export type VariantDTO = {
   ID?: string
   Index: number // decorative number; identity = ID
+  Note?: string
   Tasks: TaskDTO[]
   Topology: TopologyDTO
 }
@@ -164,6 +165,7 @@ export type NormalizedTopology = {
 export type NormalizedVariant = {
   ID: string
   Index: number
+  Note: string
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
 }
@@ -244,6 +246,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
   return {
     ID: raw.ID ?? "",
     Index: raw.Index,
+    Note: raw.Note ?? "",
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
   }

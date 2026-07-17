@@ -256,6 +256,7 @@ const taskSchema = z.object({
 const variantSchema = z.object({
   ID: z.string(),
   Index: z.number().int(),
+  Note: z.string(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
 })
@@ -320,6 +321,7 @@ export function emptyVariant(index: number): VariantFormValues {
   return {
     ID: "",
     Index: index,
+    Note: "",
     Tasks: [emptyTask()],
     Topology: {
       VPN: { Enabled: false, DHCP: true },
@@ -345,6 +347,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
     Variants: version.Variants.map((v) => ({
       ID: v.ID,
       Index: v.Index,
+      Note: v.Note ?? "",
       Tasks: v.Tasks.map((task) => ({
         ...task,
         Placeholders: task.Placeholders.map((p) => ({
@@ -451,6 +454,7 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   const variants: VariantDTO[] = values.Variants.map((v, i) => ({
     ...(v.ID ? { ID: v.ID } : {}),
     Index: i + 1,
+    Note: v.Note,
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
   }))

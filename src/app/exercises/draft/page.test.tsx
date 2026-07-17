@@ -40,7 +40,7 @@ const version: Version = {
   RegenerateFlagsOnPublish: false,
   CreatedAt: '2026-01-01T00:00:00Z', CreatedBy: null, PublishedAt: null,
   Variants: [{
-    ID: 'var1', Index: 1,
+    ID: 'var1', Index: 1, Note: '',
     Tasks: [{
       ID: 't1', Name: 'Find the flag', Description: null, Difficulty: 'easy',
       Flag: [], LinkedDeviceID: '', DeviceFlagVar: '', Attachments: [], Placeholders: [],

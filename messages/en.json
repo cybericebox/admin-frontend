@@ -461,6 +461,7 @@
   "admin.exDraft.settings.title": "Settings",
   "admin.exDraft.tab.tasks": "Tasks",
   "admin.exDraft.tab.topology": "Topology",
+  "admin.exDraft.variantNote": "Variant note (not shown to participants)",
   "admin.exDraft.adminNote": "Admin note",
   "admin.exDraft.regenFlags": "Regenerate flags on publish",
   "admin.exDraft.regenFlags.hint": "Fixed flag values are kept; random ones are regenerated on every publish.",
