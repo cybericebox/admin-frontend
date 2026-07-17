@@ -1,4 +1,5 @@
 {
+  "error.generic": "Щось пішло не так",
   "error.notFound": "Сторінку не знайдено",
   "error.notFoundDescription": "Сторінка, яку ви шукаєте, не існує.",
   "error.goHome": "На головну",

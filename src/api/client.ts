@@ -14,7 +14,10 @@ export class ApiError extends Error {
     message?: string,
     // Sign-in URL advertised by the backend via the X-Sign-In-URL header on 401,
     // so callers can redirect without computing the address.
-    public readonly signInUrl?: string
+    public readonly signInUrl?: string,
+    // Stable numeric FullCode from the envelope (Status.Code). This — not the
+    // English message — is the i18n key callers localize against (see i18n/apiError).
+    public readonly code?: number
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
@@ -108,7 +111,7 @@ async function request<T>(
   // Message }, Data }. Unwrap it here so callers receive the payload directly.
   const envelope =
     parsed && typeof parsed === "object"
-      ? (parsed as { Status?: { Message?: string }; Data?: unknown })
+      ? (parsed as { Status?: { Code?: number; Message?: string }; Data?: unknown })
       : undefined
 
   if (!res.ok) {
@@ -116,7 +119,8 @@ async function request<T>(
       res.status,
       parsed,
       envelope?.Status?.Message,
-      res.headers.get("X-Sign-In-URL") ?? undefined
+      res.headers.get("X-Sign-In-URL") ?? undefined,
+      envelope?.Status?.Code
     )
   }
 
