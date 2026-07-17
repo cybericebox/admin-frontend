@@ -30,7 +30,7 @@ import {
   statusLabelKey,
 } from "@/lib/templateStatus"
 import { useUserNames } from "@/lib/userNames"
-import { formatNotifType } from "@/utils/notifType"
+import { notifTypeLabel } from "@/utils/notifType"
 
 // ── Helper: pick the most relevant version for row link ──────────────────────
 
@@ -167,7 +167,7 @@ function EmailTemplateList() {
                         href={rowHref}
                         className="font-medium text-foreground hover:text-primary hover:underline"
                       >
-                        {formatNotifType(entry.NotificationType)}
+                        {notifTypeLabel(entry.NotificationType)}
                       </Link>
                     </td>
 

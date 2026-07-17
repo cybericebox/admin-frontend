@@ -40,6 +40,7 @@ import { VariableRichText } from "@/components/notifications/editor/VariableRich
 import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
+import { notifTypeLabel } from "@/utils/notifType"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { ICONS, TONES, SURFACES } from "@/components/notifications/editor/inAppOptions"
@@ -267,7 +268,7 @@ function Detail() {
 
         <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
           <h1 className="text-xl font-semibold text-foreground truncate">
-            {notificationType || t("admin.notif.tpl.choose")}
+            {notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose")}
           </h1>
           {template && <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} />}
         </div>
@@ -320,7 +321,7 @@ function Detail() {
               .filter((nt) => nt.Channels.includes("in_app"))
               .map((nt) => (
                 <option key={nt.Type} value={nt.Type}>
-                  {nt.Type}
+                  {notifTypeLabel(nt.Type)}
                 </option>
               ))}
           </select>

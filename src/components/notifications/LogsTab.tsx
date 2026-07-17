@@ -2,13 +2,14 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/api/client"
+import type { OffsetPage } from "@/api/pagination"
 import { t } from "@/i18n/t"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useUserNames } from "@/lib/userNames"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
-import { formatNotifType } from "@/utils/notifType"
+import { notifTypeLabel } from "@/utils/notifType"
 import { Spinner } from "@/components/ui/spinner"
 
 type Dispatch = {
@@ -21,7 +22,7 @@ type Dispatch = {
 }
 type Target = { Channel: string; Status: string; Error: string; Attempts: number; UpdatedAt: string }
 type DispatchDetail = Dispatch & { Targets: Target[] }
-type ListResp = { Dispatches: Dispatch[]; Total: number }
+type ListResp = OffsetPage<Dispatch>
 
 const PAGE = 25
 const STATUSES = ["pending", "started", "done"]
@@ -64,7 +65,7 @@ export function LogsTab() {
   }
 
   const total = data?.Total ?? 0
-  const rows = data?.Dispatches ?? []
+  const rows = data?.Items ?? []
   const names = useUserNames(rows.map(r => r.RecipientUserID))
 
   return (
@@ -119,7 +120,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground">{formatNotifType(d.NotificationType)}</td>
+                  <td className="px-3 py-2 font-medium text-foreground">{notifTypeLabel(d.NotificationType)}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       {names[d.RecipientUserID] ? (

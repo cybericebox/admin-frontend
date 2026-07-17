@@ -4,7 +4,7 @@ import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { StatusPill } from "./StatusPill"
-import { formatNotifType } from "@/utils/notifType"
+import { notifTypeLabel, notifChannelLabel } from "@/utils/notifType"
 import { Spinner } from "@/components/ui/spinner"
 
 type KeyCount = { Key: string; Count: number }
@@ -77,7 +77,7 @@ export function StatisticsTab() {
               {stats.ByType.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
                 stats.ByType.map((s) => (
                   <div key={s.Key} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{formatNotifType(s.Key)}</span><span className="font-medium text-foreground">{s.Count}</span>
+                    <span className="text-muted-foreground">{notifTypeLabel(s.Key)}</span><span className="font-medium text-foreground">{s.Count}</span>
                   </div>
                 ))}
             </CardContent>
@@ -89,7 +89,7 @@ export function StatisticsTab() {
               {stats.ByChannel.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
                 stats.ByChannel.map((c, i) => (
                   <div key={`${c.Channel}-${c.Status}-${i}`} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{c.Channel}</span>
+                    <span className="text-muted-foreground">{notifChannelLabel(c.Channel)}</span>
                     <span className="flex items-center gap-2"><StatusPill status={c.Status} /><span className="font-medium text-foreground">{c.Count}</span></span>
                   </div>
                 ))}

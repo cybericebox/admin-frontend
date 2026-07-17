@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { t } from "@/i18n/t"
-import { formatNotifType } from "@/utils/notifType"
+import { notifTypeLabel } from "@/utils/notifType"
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ export function TestNotificationModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {formatNotifType(notificationType)} {t("admin.notif.test.title")}
+            {notifTypeLabel(notificationType)} {t("admin.notif.test.title")}
           </DialogTitle>
         </DialogHeader>
 
