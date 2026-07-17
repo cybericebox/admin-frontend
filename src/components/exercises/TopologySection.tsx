@@ -42,7 +42,9 @@ export function TopologySection({
           </Button>
         )}
       </div>
-      <div className="grid gap-3 xl:grid-cols-2">
+      {/* Full-width stack, not a 2-col grid: device cards have variable height
+          (interfaces, env vars), so a rigid grid would leave uneven empty columns. */}
+      <div className="space-y-3">
         {fields.map((field, di) => (
           <DeviceCard
             key={field.id}
