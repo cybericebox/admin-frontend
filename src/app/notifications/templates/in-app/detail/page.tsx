@@ -30,6 +30,7 @@ import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
 import {
   getInAppTemplate,
+  listInAppTemplates,
   createInAppTemplate,
   updateInAppTemplate,
   publishInAppTemplate,
@@ -207,6 +208,35 @@ function Detail() {
     }
   }
 
+  // handleEdit opens this type's draft for a published/unpublished template,
+  // creating a copy of the current content if no draft exists. The published
+  // version stays live until the draft is published (unlike Rollback).
+  async function handleEdit() {
+    if (!template) return
+    setBusy(true)
+    setSaveError(false)
+    try {
+      const existing = await listInAppTemplates({ type: template.NotificationType, status: "draft" })
+      const draft = existing.Templates[0] ?? await createInAppTemplate({
+        NotificationType: template.NotificationType,
+        Title:         title,
+        Body:          body,
+        Link:          link,
+        Icon:          icon,
+        Tone:          tone,
+        AccentColor:   accentColor,
+        Surface:       surface,
+        AutoDismissMs: autoDismissMs,
+        Actions:       actions,
+      })
+      router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
+    } catch {
+      setSaveError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // ── Actions helpers ───────────────────────────────────────────────────────
 
   function addAction() {
@@ -292,6 +322,12 @@ function Detail() {
           {isDraft && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
+            </Button>
+          )}
+          {/* Edit: published/unpublished → open (or create) the type's draft */}
+          {isReadOnly && (
+            <Button onClick={() => void handleEdit()} disabled={busy}>
+              {t("admin.notif.tpl.edit")}
             </Button>
           )}
           {/* Rollback: shown for published or unpublished */}
