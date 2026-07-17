@@ -18,6 +18,7 @@ import React, { useRef, useState } from "react";
 import { ChevronUp, ChevronDown, Trash2, Save } from "lucide-react";
 
 import { cn } from "@/utils/cn";
+import { t } from "@/i18n/t";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
@@ -43,20 +44,28 @@ export type BlockEditorProps = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const BLOCK_LABELS: Record<EmailBodyBlock["type"], string> = {
-  rich_text: "Text",
-  button: "Button",
-  image: "Image",
-  divider: "Divider",
-  preset: "Preset",
+const BLOCK_LABEL_KEYS: Record<EmailBodyBlock["type"], string> = {
+  rich_text: "admin.notif.editor.block.richText",
+  button: "admin.notif.editor.block.button",
+  image: "admin.notif.editor.block.image",
+  divider: "admin.notif.editor.block.divider",
+  preset: "admin.notif.editor.block.preset",
+};
+
+const ADD_BLOCK_ARIA_KEYS: Record<EmailBodyBlock["type"], string> = {
+  rich_text: "admin.notif.editor.addTextBlock",
+  button: "admin.notif.editor.addButtonBlock",
+  image: "admin.notif.editor.addImageBlock",
+  divider: "admin.notif.editor.addDividerBlock",
+  preset: "admin.notif.editor.block.preset",
 };
 
 const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
-  rich_text: "bg-teal-100 text-teal-800",
-  button:    "bg-amber-100 text-amber-800",
-  image:     "bg-rose-100 text-rose-800",
+  rich_text: "bg-primary/10 text-primary",
+  button:    "bg-secondary text-secondary-foreground",
+  image:     "bg-muted text-muted-foreground",
   divider:   "bg-muted text-muted-foreground",
-  preset:    "bg-teal-100 text-teal-800",
+  preset:    "bg-primary/10 text-primary",
 };
 
 const ADD_BLOCK_TYPES: Array<EmailBodyBlock["type"]> = [
@@ -176,14 +185,14 @@ export function BlockEditor({
       {selectedIdxs.size > 0 && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-foreground text-background px-4 py-2.5">
           <span className="text-sm font-medium flex-1">
-            {selectedIdxs.size} block{selectedIdxs.size !== 1 ? "s" : ""} selected
+            {t("admin.notif.editor.blocksSelected")}: {selectedIdxs.size}
           </span>
           <button
             type="button"
             onClick={() => { setSelectedIdxs(new Set()); setShowSaveForm(false); }}
             className="text-xs opacity-70 hover:opacity-100"
           >
-            Clear
+            {t("admin.notif.editor.clearSelection")}
           </button>
 
           {!showSaveForm ? (
@@ -192,17 +201,17 @@ export function BlockEditor({
               variant="secondary"
               size="sm"
               onClick={() => setShowSaveForm(true)}
-              aria-label="Save as preset"
+              aria-label={t("admin.notif.editor.savePreset")}
             >
               <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save as preset
+              {t("admin.notif.editor.savePreset")}
             </Button>
           ) : (
             <div className="flex items-center gap-2">
               <Input
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
-                placeholder="Preset name…"
+                placeholder={t("admin.notif.editor.presetNamePlaceholder")}
                 className="h-7 w-40 text-xs"
                 onKeyDown={(e) => { if (e.key === "Enter") void handleSavePreset(); }}
               />
@@ -211,18 +220,18 @@ export function BlockEditor({
                 size="sm"
                 disabled={savingPreset || !presetName.trim()}
                 onClick={() => void handleSavePreset()}
-                aria-label="Save"
+                aria-label={t("admin.notif.editor.save")}
               >
-                {savingPreset ? "Saving…" : "Save"}
+                {savingPreset ? t("admin.notif.editor.saving") : t("admin.notif.editor.save")}
               </Button>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={cancelSaveForm}
-                aria-label="Cancel"
+                aria-label={t("admin.notif.editor.cancel")}
               >
-                Cancel
+                {t("admin.notif.editor.cancel")}
               </Button>
             </div>
           )}
@@ -270,7 +279,7 @@ export function BlockEditor({
                     BLOCK_PILL_STYLES[block.type] ?? "bg-muted text-muted-foreground"
                   )}
                 >
-                  {BLOCK_LABELS[block.type] ?? block.type}
+                  {t(BLOCK_LABEL_KEYS[block.type] ?? block.type)}
                 </span>
               </div>
 
@@ -280,7 +289,7 @@ export function BlockEditor({
                   type="button"
                   onClick={() => moveBlock(i, "up")}
                   disabled={i === 0}
-                  aria-label="Move block up"
+                  aria-label={t("admin.notif.editor.moveBlockUp")}
                   className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
                 >
                   <ChevronUp className="h-3.5 w-3.5" />
@@ -289,7 +298,7 @@ export function BlockEditor({
                   type="button"
                   onClick={() => moveBlock(i, "down")}
                   disabled={i === value.length - 1}
-                  aria-label="Move block down"
+                  aria-label={t("admin.notif.editor.moveBlockDown")}
                   className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
@@ -297,7 +306,7 @@ export function BlockEditor({
                 <button
                   type="button"
                   onClick={() => removeBlock(i)}
-                  aria-label="Remove block"
+                  aria-label={t("admin.notif.editor.removeBlock")}
                   className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -317,7 +326,7 @@ export function BlockEditor({
                   })
                 }
                 variables={variables}
-                placeholder="Type text, use {{variable}}, or format with the toolbar…"
+                placeholder={t("admin.notif.editor.richTextPlaceholder")}
               />
             )}
 
@@ -328,7 +337,7 @@ export function BlockEditor({
                   onChange={(e) =>
                     updateBlock(i, { ...(block as ButtonBlock), label: e.target.value })
                   }
-                  placeholder="Button label…"
+                  placeholder={t("admin.notif.editor.buttonLabelPlaceholder")}
                 />
                 <Input
                   value={(block as ButtonBlock).url}
@@ -338,7 +347,7 @@ export function BlockEditor({
                   placeholder="https://…"
                 />
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">Alignment</span>
+                  <span className="text-muted-foreground">{t("admin.notif.editor.alignment")}</span>
                   <select
                     value={(block as ButtonBlock).align ?? 'center'}
                     onChange={(e) =>
@@ -349,9 +358,9 @@ export function BlockEditor({
                     }
                     className="mt-1 w-full rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
+                    <option value="left">{t("admin.notif.editor.alignLeft")}</option>
+                    <option value="center">{t("admin.notif.editor.alignCenter")}</option>
+                    <option value="right">{t("admin.notif.editor.alignRight")}</option>
                   </select>
                 </label>
               </div>
@@ -376,7 +385,7 @@ export function BlockEditor({
                   onChange={(e) =>
                     updateBlock(i, { ...(block as ImageBlock), alt: e.target.value })
                   }
-                  placeholder="Alt text…"
+                  placeholder={t("admin.notif.editor.altPlaceholder")}
                 />
               </div>
             )}
@@ -394,12 +403,12 @@ export function BlockEditor({
                       name: preset.Name,
                     });
                   }}
-                  className="w-full rounded border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+                  className="w-full rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="">Select a preset…</option>
+                  <option value="">{t("admin.notif.editor.selectPreset")}</option>
                   {presets.map((p) => (
                     <option key={p.ID} value={p.ID}>
-                      {p.Name} · {p.Blocks.length} blocks
+                      {p.Name} · {p.Blocks.length} {t("admin.notif.editor.blocksCount")}
                     </option>
                   ))}
                 </select>
@@ -412,18 +421,18 @@ export function BlockEditor({
       {/* ── Add block tray ── */}
       <div className="mt-4 rounded-xl border border-dashed border-border p-4">
         <div className="text-[10px] font-bold tracking-[0.08em] uppercase text-muted-foreground mb-3">
-          Add block
+          {t("admin.notif.editor.addBlock")}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           {ADD_BLOCK_TYPES.map((type) => (
             <button
               key={type}
               type="button"
-              aria-label={`Add ${BLOCK_LABELS[type]} block`}
+              aria-label={t(ADD_BLOCK_ARIA_KEYS[type])}
               onClick={() => addBlock(type)}
               className="px-2.5 py-1 rounded text-xs font-medium border border-border bg-white hover:bg-muted transition-colors"
             >
-              {BLOCK_LABELS[type]}
+              {t(BLOCK_LABEL_KEYS[type])}
             </button>
           ))}
         </div>
@@ -431,7 +440,7 @@ export function BlockEditor({
         {presets.length > 0 && (
           <div className="border-t border-border pt-3">
             <div className="text-[10px] font-bold tracking-[0.08em] uppercase text-muted-foreground mb-2">
-              Shared presets
+              {t("admin.notif.editor.sharedPresets")}
             </div>
             <div className="flex flex-wrap gap-2">
               {presets.map((preset) => (
@@ -441,7 +450,7 @@ export function BlockEditor({
                   onClick={() => addPresetBlock(preset)}
                   className="px-2.5 py-1 rounded text-xs font-medium border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition-colors"
                 >
-                  {preset.Name} · {preset.Blocks.length} blocks
+                  {preset.Name} · {preset.Blocks.length} {t("admin.notif.editor.blocksCount")}
                 </button>
               ))}
             </div>

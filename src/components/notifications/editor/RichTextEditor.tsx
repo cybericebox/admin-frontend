@@ -85,6 +85,7 @@ import {
   Heading3,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { t } from "@/i18n/t";
 import { type VariableDef } from "./variableUtils";
 
 // ---------------------------------------------------------------------------
@@ -432,13 +433,13 @@ function ToolbarPlugin({
         ? "H2"
         : blockType === "h3"
           ? "H3"
-          : "Heading";
+          : t("admin.notif.editor.heading");
 
   return (
     <div className="border-b border-input bg-muted/30">
       {/* Row 1 — inline formatting + actions */}
       <div className="flex flex-wrap items-center gap-0.5 px-3 py-2">
-        <Tooltip label="Bold">
+        <Tooltip label={t("admin.notif.editor.bold")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -451,7 +452,7 @@ function ToolbarPlugin({
           </button>
         </Tooltip>
 
-        <Tooltip label="Italic">
+        <Tooltip label={t("admin.notif.editor.italic")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -464,7 +465,7 @@ function ToolbarPlugin({
           </button>
         </Tooltip>
 
-        <Tooltip label="Underline">
+        <Tooltip label={t("admin.notif.editor.underline")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -477,7 +478,7 @@ function ToolbarPlugin({
           </button>
         </Tooltip>
 
-        <Tooltip label="Strikethrough">
+        <Tooltip label={t("admin.notif.editor.strikethrough")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -490,7 +491,7 @@ function ToolbarPlugin({
           </button>
         </Tooltip>
 
-        <Tooltip label="Inline code">
+        <Tooltip label={t("admin.notif.editor.inlineCode")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -507,9 +508,9 @@ function ToolbarPlugin({
 
         {(
           [
-            { value: "left", title: "Align left", Icon: AlignLeft },
-            { value: "center", title: "Align center", Icon: AlignCenter },
-            { value: "right", title: "Align right", Icon: AlignRight },
+            { value: "left", title: t("admin.notif.editor.alignLeftTitle"), Icon: AlignLeft },
+            { value: "center", title: t("admin.notif.editor.alignCenterTitle"), Icon: AlignCenter },
+            { value: "right", title: t("admin.notif.editor.alignRightTitle"), Icon: AlignRight },
           ] as const
         ).map(({ value: alignValue, title, Icon }) => (
           <Tooltip key={alignValue} label={title}>
@@ -528,7 +529,7 @@ function ToolbarPlugin({
 
         <div className="w-px h-5 bg-border mx-1 shrink-0" />
 
-        <Tooltip label="Blockquote">
+        <Tooltip label={t("admin.notif.editor.blockquote")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -542,7 +543,7 @@ function ToolbarPlugin({
         </Tooltip>
 
         <div className="relative flex items-center gap-1">
-          <Tooltip label="Insert link">
+          <Tooltip label={t("admin.notif.editor.insertLink")}>
             <button
               type="button"
               onMouseDown={(e) => {
@@ -584,7 +585,7 @@ function ToolbarPlugin({
 
         <div className="w-px h-5 bg-border mx-1 shrink-0" />
 
-        <Tooltip label="Clear formatting">
+        <Tooltip label={t("admin.notif.editor.clearFormatting")}>
           <button
             type="button"
             onMouseDown={(e) => {
@@ -601,7 +602,7 @@ function ToolbarPlugin({
           <>
             <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <div className="relative" ref={varsRef}>
-              <Tooltip label="Insert variable">
+              <Tooltip label={t("admin.notif.editor.insertVariable")}>
                 <button
                   type="button"
                   onMouseDown={(e) => {
@@ -663,9 +664,9 @@ function ToolbarPlugin({
             <div className="absolute left-0 top-full mt-1 z-20 bg-popover rounded-xl border border-input shadow-md py-1 min-w-[120px]">
               {(
                 [
-                  { tag: "h1" as const, Icon: Heading1, label: "Heading 1" },
-                  { tag: "h2" as const, Icon: Heading2, label: "Heading 2" },
-                  { tag: "h3" as const, Icon: Heading3, label: "Heading 3" },
+                  { tag: "h1" as const, Icon: Heading1, label: t("admin.notif.editor.heading1") },
+                  { tag: "h2" as const, Icon: Heading2, label: t("admin.notif.editor.heading2") },
+                  { tag: "h3" as const, Icon: Heading3, label: t("admin.notif.editor.heading3") },
                 ] as const
               ).map(({ tag, Icon, label }) => (
                 <button
@@ -700,7 +701,7 @@ function ToolbarPlugin({
           className={blockType === "paragraph" ? chipActiveStyle : chipInactive}
         >
           <Pilcrow size={12} aria-hidden />
-          Paragraph
+          {t("admin.notif.editor.paragraph")}
         </button>
 
         <button
@@ -712,7 +713,7 @@ function ToolbarPlugin({
           className={blockType === "ul" ? chipActiveStyle : chipInactive}
         >
           <List size={12} aria-hidden />
-          Bullet List
+          {t("admin.notif.editor.bulletList")}
         </button>
 
         <button
@@ -724,7 +725,7 @@ function ToolbarPlugin({
           className={blockType === "ol" ? chipActiveStyle : chipInactive}
         >
           <ListOrdered size={12} aria-hidden />
-          Numbered List
+          {t("admin.notif.editor.numberedList")}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pipette } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { t } from "@/i18n/t";
 
 interface Props {
   value: string;
@@ -219,7 +220,7 @@ export function ColorPicker({ value, onChange, label }: Props) {
           onClick={() => setOpen((v) => !v)}
           className="w-6 h-6 rounded-md border border-border shadow-sm"
           style={{ background: hex }}
-          aria-label="Open color picker"
+          aria-label={t("admin.notif.editor.openColorPicker")}
         />
         <input
           type="text"
@@ -314,7 +315,7 @@ export function ColorPicker({ value, onChange, label }: Props) {
               )}
             >
               <Pipette size={14} />
-              Pick from screen
+              {t("admin.notif.editor.pickFromScreen")}
             </button>
           )}
         </div>

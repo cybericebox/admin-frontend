@@ -536,7 +536,7 @@ function Detail() {
                       value={action.label}
                       onChange={(e) => updateAction(i, "label", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionLabel")}
-                      aria-label={`Action ${i + 1} label`}
+                      aria-label={`${t("admin.notif.inapp.actionLabel")} ${i + 1}`}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <input
@@ -544,7 +544,7 @@ function Detail() {
                       value={action.href}
                       onChange={(e) => updateAction(i, "href", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionHref")}
-                      aria-label={`Action ${i + 1} href`}
+                      aria-label={`${t("admin.notif.inapp.actionHref")} ${i + 1}`}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <Button

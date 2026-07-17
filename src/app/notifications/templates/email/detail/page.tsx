@@ -442,28 +442,28 @@ function Detail() {
               className={`grid grid-cols-2 gap-4${isReadOnly ? " opacity-60" : ""}`}
             >
               <ColorPicker
-                label="CTA Background"
+                label={t("admin.notif.editor.ctaBackground")}
                 value={ctaBgColor}
                 onChange={(v) => setStylingKey("cta_bg_color", v)}
               />
               <ColorPicker
-                label="CTA Text"
+                label={t("admin.notif.editor.ctaText")}
                 value={ctaTextColor}
                 onChange={(v) => setStylingKey("cta_text_color", v)}
               />
               <ColorPicker
-                label="Text Color"
+                label={t("admin.notif.editor.textColor")}
                 value={textColor}
                 onChange={(v) => setStylingKey("text_color", v)}
               />
               <ColorPicker
-                label="Heading Color"
+                label={t("admin.notif.editor.headingColor")}
                 value={headingColor}
                 onChange={(v) => setStylingKey("heading_color", v)}
               />
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  CTA Border Radius (px)
+                  {t("admin.notif.editor.ctaBorderRadius")}
                 </span>
                 <input
                   type="number"
@@ -474,13 +474,13 @@ function Detail() {
                     setStylingKey("cta_border_radius", `${parseInt(e.target.value, 10) || 0}px`)
                   }
                   disabled={isReadOnly}
-                  aria-label="CTA border radius"
+                  aria-label={t("admin.notif.editor.ctaBorderRadius")}
                   className="w-20 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
                 />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  CTA Font Size (px)
+                  {t("admin.notif.editor.ctaFontSize")}
                 </span>
                 <input
                   type="number"
@@ -491,7 +491,7 @@ function Detail() {
                     setStylingKey("cta_font_size", `${parseInt(e.target.value, 10) || 14}px`)
                   }
                   disabled={isReadOnly}
-                  aria-label="CTA font size"
+                  aria-label={t("admin.notif.editor.ctaFontSize")}
                   className="w-20 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
                 />
               </label>
