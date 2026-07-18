@@ -13,6 +13,7 @@ import {
 } from "@/lib/exerciseSchemas"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { VariantTabs } from "@/components/exercises/VariantTabs"
+import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { TaskAccordion } from "@/components/exercises/TaskAccordion"
 import { TopologySection } from "@/components/exercises/TopologySection"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -35,6 +36,11 @@ function DraftEditor() {
   const [loadError, setLoadError] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  // The loaded/saved version's own id (the URL param is empty for the draft) —
+  // needed to address the per-variant test-deploy endpoint.
+  const [loadedVersionId, setLoadedVersionId] = useState("")
+  // Which variant's test-deploy dialog is open (null = closed).
+  const [deployVariantIndex, setDeployVariantIndex] = useState<number | null>(null)
 
   const form = useForm<DraftFormValues>({
     resolver: zodResolver(draftSchema),
@@ -61,7 +67,10 @@ function DraftEditor() {
             version = await getVersion(exerciseId, exercise.DraftVersionID)
           }
         }
-        if (!cancelled) form.reset(toDraftFormValues(version))
+        if (!cancelled) {
+          form.reset(toDraftFormValues(version))
+          if (version) setLoadedVersionId(version.ID)
+        }
       } catch {
         if (!cancelled) setLoadError(true)
       } finally {
@@ -88,6 +97,7 @@ function DraftEditor() {
     try {
       const savedVersion = await saveDraft(exerciseId, toSaveDraftInput(values))
       form.reset(toDraftFormValues(savedVersion)) // resets isDirty, pulls in server-assigned IDs
+      setLoadedVersionId(savedVersion.ID)
       setSaved(true)
     } catch (e) {
       setSaveError(exerciseErrorMessage(e))
@@ -188,6 +198,26 @@ function DraftEditor() {
                     disabled={disabled}
                   />
                 </details>
+                {/* Test-deploy this variant's saved topology; requires a saved,
+                    non-dirty variant (the backend loads the persisted version). */}
+                {!disabled && (
+                  <div className="mb-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!form.getValues(`Variants.${variantIndex}.ID`) || isDirty}
+                      title={
+                        !form.getValues(`Variants.${variantIndex}.ID`) || isDirty
+                          ? t("admin.exDeploy.saveFirst")
+                          : undefined
+                      }
+                      onClick={() => setDeployVariantIndex(variantIndex)}
+                    >
+                      {t("admin.exDeploy.test")}
+                    </Button>
+                  </div>
+                )}
                 <Tabs defaultValue="tasks">
                   <TabsList>
                     <TabsTrigger value="tasks">{t("admin.exDraft.tab.tasks")}</TabsTrigger>
@@ -205,6 +235,17 @@ function DraftEditor() {
           />
         </section>
       </form>
+
+      {deployVariantIndex !== null && (
+        <DeployTestDialog
+          open
+          onClose={() => setDeployVariantIndex(null)}
+          exerciseId={exerciseId}
+          versionId={loadedVersionId}
+          variantId={form.getValues(`Variants.${deployVariantIndex}.ID`) ?? ""}
+          tasks={form.getValues(`Variants.${deployVariantIndex}.Tasks`) ?? []}
+        />
+      )}
     </Form>
   )
 }
