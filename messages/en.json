@@ -471,6 +471,8 @@
   "admin.exTopo.internet": "Internet",
   "admin.exTopo.enabled": "Enabled",
   "admin.exTopo.devices": "Devices",
+  "admin.exTopo.noDevices": "No devices yet",
+  "admin.exTopo.noConnections": "No connections yet",
   "admin.exTopo.addDevice": "Add device",
   "admin.exTopo.deviceName": "Name (DNS label)",
   "admin.exTopo.deviceType": "Type",

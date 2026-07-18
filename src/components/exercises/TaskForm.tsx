@@ -34,7 +34,7 @@ export function TaskForm({
       <div className="flex flex-wrap items-end gap-3">
         {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
         <FormField control={control} name={`${base}.Name`} render={({ field }) => (
-          <FormItem className="min-w-56 flex-1">
+          <FormItem className="min-w-56 max-w-md flex-1">
             <FormLabel>{t("admin.exTask.name")}</FormLabel>
             <FormControl><Input {...field} disabled={disabled} /></FormControl>
             <FormMessage />

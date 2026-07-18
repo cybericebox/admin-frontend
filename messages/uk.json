@@ -471,6 +471,8 @@
   "admin.exTopo.internet": "Інтернет",
   "admin.exTopo.enabled": "Увімкнено",
   "admin.exTopo.devices": "Пристрої",
+  "admin.exTopo.noDevices": "Пристроїв ще немає",
+  "admin.exTopo.noConnections": "Зʼєднань ще немає",
   "admin.exTopo.addDevice": "Додати пристрій",
   "admin.exTopo.deviceName": "Імʼя (DNS-мітка)",
   "admin.exTopo.deviceType": "Тип",

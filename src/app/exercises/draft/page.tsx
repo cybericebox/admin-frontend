@@ -110,7 +110,9 @@ function DraftEditor() {
 
   return (
     <Form {...form}>
-      <form onSubmit={onSubmit} className="frost-in space-y-4">
+      {/* Centered, capped width — on a wide monitor a full-bleed editor reads as
+          stretched and hard to scan; ~896px keeps fields at a comfortable size. */}
+      <form onSubmit={onSubmit} className="frost-in mx-auto max-w-4xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link href={`/exercises/detail?id=${exerciseId}`} className="text-xs text-primary hover:underline">

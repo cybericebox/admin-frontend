@@ -68,13 +68,25 @@ export function ConnectionList({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h4 className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.connections")}</h4>
-        {!disabled && (
+        {!disabled && fields.length > 0 && (
           <Button type="button" variant="outline" size="sm" onClick={addConnection}>
             <Plus className="mr-1 h-4 w-4" />
             {t("admin.exTopo.addConnection")}
           </Button>
         )}
       </div>
+
+      {fields.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center">
+          <p className="mb-3 text-sm text-muted-foreground">{t("admin.exTopo.noConnections")}</p>
+          {!disabled && (
+            <Button type="button" variant="outline" size="sm" onClick={addConnection}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("admin.exTopo.addConnection")}
+            </Button>
+          )}
+        </div>
+      )}
 
       {fields.map((field, ci) => (
         <div key={field.id} className="flex flex-wrap items-center gap-2">

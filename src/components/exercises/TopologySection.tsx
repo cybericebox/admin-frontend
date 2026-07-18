@@ -35,30 +35,46 @@ export function TopologySection({
 
       <div className="flex items-center justify-between">
         <h4 className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.devices")}</h4>
-        {!disabled && (
+        {!disabled && fields.length > 0 && (
           <Button type="button" variant="outline" size="sm" onClick={() => append(emptyDevice())}>
             <Plus className="mr-1 h-4 w-4" />
             {t("admin.exTopo.addDevice")}
           </Button>
         )}
       </div>
-      {/* Full-width stack, not a 2-col grid: device cards have variable height
-          (interfaces, env vars), so a rigid grid would leave uneven empty columns. */}
-      <div className="space-y-3">
-        {fields.map((field, di) => (
-          <DeviceCard
-            key={field.id}
-            variantIndex={variantIndex}
-            deviceIndex={di}
-            disabled={disabled}
-            onRemove={() => remove(di)}
-          />
-        ))}
-      </div>
+      {fields.length === 0 ? (
+        // Empty state: a centered prompt reads better than a lone right-aligned
+        // button over blank space.
+        <div className="rounded-lg border border-dashed border-border p-6 text-center">
+          <p className="mb-3 text-sm text-muted-foreground">{t("admin.exTopo.noDevices")}</p>
+          {!disabled && (
+            <Button type="button" variant="outline" size="sm" onClick={() => append(emptyDevice())}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("admin.exTopo.addDevice")}
+            </Button>
+          )}
+        </div>
+      ) : (
+        // Full-width stack, not a 2-col grid: device cards have variable height
+        // (interfaces, env vars), so a rigid grid would leave uneven empty columns.
+        <div className="space-y-3">
+          {fields.map((field, di) => (
+            <DeviceCard
+              key={field.id}
+              variantIndex={variantIndex}
+              deviceIndex={di}
+              disabled={disabled}
+              onRemove={() => remove(di)}
+            />
+          ))}
+        </div>
+      )}
 
       <ConnectionList variantIndex={variantIndex} disabled={disabled} />
 
-      {topology && (
+      {/* Diagram only once there is something to draw — an empty canvas is just
+          a large blank box. */}
+      {topology && fields.length > 0 && (
         <div>
           <h4 className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.diagram")}</h4>
           <TopologyDiagram topology={topology} />
