@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
@@ -9,6 +8,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { EmptyState } from "@/components/ui/empty-state"
 import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { availableDevicePorts, GATEWAY_PORT, shortForwardingPort } from "@/lib/topologyPorts"
 import { RemoveAction } from "./RemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 
@@ -20,7 +20,7 @@ export function encodeEndpoint(ep: NormalizedEndpoint): string {
 
 export function decodeEndpoint(value: string): NormalizedEndpoint {
   if (value === "vpn" || value === "internet") {
-    return { Kind: value, DeviceID: "", Interface: "" }
+    return { Kind: value, DeviceID: "", Interface: GATEWAY_PORT }
   }
   const rest = value.slice("device:".length)
   const sep = rest.indexOf(":")
@@ -30,18 +30,18 @@ export function decodeEndpoint(value: string): NormalizedEndpoint {
 /**
  * ConnectionList — pairs of endpoints ("device/interface" | VPN | Internet).
  * Devices are addressed by ID (new devices already have a client-side uuid);
- * a switch/hub endpoint has no interface (domain rule).
+ * a switch/hub endpoint names one of 48 logical forwarding ports.
  */
 export function ConnectionList({
   variantIndex,
   disabled,
-  pendingPair,
-  onCanvasConnected,
+  selectedIndex,
+  onSelectIndex,
 }: {
   variantIndex: number
   disabled: boolean
-  pendingPair?: [string, string] | null
-  onCanvasConnected?: () => void
+  selectedIndex?: number | null
+  onSelectIndex?: (index: number) => void
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Topology.Connections` as const
@@ -51,34 +51,16 @@ export function ConnectionList({
   const vpnEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN.Enabled` })
   const internetEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
 
-  function optionsForNode(key: string) {
-    if (key === "vpn" || key === "internet") {
-      return connections.some((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === key))
-        ? [] : [{ value: key, label: t(`admin.exTopo.endpoint.${key}`) }]
-    }
-    const device = devices.find((candidate) => candidate.ID === key)
-    if (!device) return []
-    const label = device.Name || device.ID.slice(0, 8)
-    if (device.Type === "unmanaged-switch" || device.Type === "hub") return [{ value: `device:${key}:`, label }]
-    return device.Interfaces.map((iface) => ({ value: `device:${key}:${iface.Name}`, label: `${label} · ${iface.Name}` }))
-  }
-
-  const endpointOptions = [
-    ...(vpnEnabled ? [{ value: "vpn", label: t("admin.exTopo.endpoint.vpn") }] : []),
-    ...(internetEnabled ? [{ value: "internet", label: t("admin.exTopo.endpoint.internet") }] : []),
-    ...devices.flatMap((d) => {
-      const label = d.Name || d.ID.slice(0, 8)
-      if (d.Type === "unmanaged-switch" || d.Type === "hub") {
-        return [{ value: `device:${d.ID}:`, label }]
-      }
-      return d.Interfaces.map((iface) => ({
-        value: `device:${d.ID}:${iface.Name}`,
-        label: `${label} · ${iface.Name}`,
-      }))
-    }),
-  ]
-
   function optionsForEndpoint(connectionIndex: number, side: number) {
+    const endpointOptions = [
+      ...(vpnEnabled ? [{ value: "vpn", label: `${t("admin.exTopo.endpoint.vpn")} · ${GATEWAY_PORT}` }] : []),
+      ...(internetEnabled ? [{ value: "internet", label: `${t("admin.exTopo.endpoint.internet")} · ${GATEWAY_PORT}` }] : []),
+      ...devices.flatMap((d) => {
+        const label = d.Name || d.ID.slice(0, 8)
+        return availableDevicePorts({ Connections: connections }, d, { connectionIndex, side })
+          .map((port) => ({ value: `device:${d.ID}:${port}`, label: `${label} · ${shortForwardingPort(port)}` }))
+      }),
+    ]
     return endpointOptions.filter((option) => {
       if (option.value !== "vpn" && option.value !== "internet") return true
       return !connections.some((connection, ci) => connection.Endpoints.some((endpoint, si) =>
@@ -97,12 +79,6 @@ export function ConnectionList({
 
   return (
     <div className="space-y-2">
-      {pendingPair && !disabled && <CanvasConnectionChoice key={pendingPair.join(':')}
-        firstOptions={optionsForNode(pendingPair[0])} secondOptions={optionsForNode(pendingPair[1])}
-        onAdd={(first, second) => {
-          append({ Endpoints: [decodeEndpoint(first), decodeEndpoint(second)] })
-          onCanvasConnected?.()
-        }} onCancel={onCanvasConnected ?? (() => {})} />}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5"><h4 className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.connections")}</h4><FieldHelp text={t("admin.exTopo.connectionsHelp")} /></div>
         {!disabled && fields.length > 0 && (
@@ -126,7 +102,8 @@ export function ConnectionList({
       )}
 
       {fields.map((field, ci) => (
-        <div key={field.id} className="flex flex-wrap items-center gap-2">
+        <div key={field.id} data-testid={`connection-row-${ci}`} onClick={() => onSelectIndex?.(ci)}
+          className={`flex flex-wrap items-center gap-2 rounded-md px-2 pt-2 ${selectedIndex === ci ? "bg-accent" : "hover:bg-muted/60"}`}>
           {([0, 1] as const).map((side) => (
             <Controller
               key={side}
@@ -164,29 +141,4 @@ export function ConnectionList({
       ))}
     </div>
   )
-}
-
-function CanvasConnectionChoice({ firstOptions, secondOptions, onAdd, onCancel }: {
-  firstOptions: { value: string; label: string }[]
-  secondOptions: { value: string; label: string }[]
-  onAdd: (first: string, second: string) => void
-  onCancel: () => void
-}) {
-  const [first, setFirst] = useState(firstOptions.length === 1 ? firstOptions[0].value : "")
-  const [second, setSecond] = useState(secondOptions.length === 1 ? secondOptions[0].value : "")
-  if (firstOptions.length === 0 || secondOptions.length === 0) return <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-    <p role="status" className="text-sm text-muted-foreground">{t("admin.exTopo.gatewayAlreadyConnected")}</p>
-    <Button type="button" variant="outline" size="sm" onClick={onCancel}>{t("admin.exTopo.canvasCancel")}</Button>
-  </div>
-  return <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
-    <p className="text-sm font-medium text-foreground">{t("admin.exTopo.canvasChooseInterfaces")}</p>
-    <div className="grid gap-2 sm:grid-cols-2">
-      <SelectMenu value={first} onChange={setFirst} options={firstOptions} placeholder={t("admin.exTopo.endpoint.placeholder")} className="w-full" />
-      <SelectMenu value={second} onChange={setSecond} options={secondOptions} placeholder={t("admin.exTopo.endpoint.placeholder")} className="w-full" />
-    </div>
-    <div className="flex justify-end gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={onCancel}>{t("admin.exTopo.canvasCancel")}</Button>
-      <Button type="button" size="sm" disabled={!first || !second} onClick={() => onAdd(first, second)}>{t("admin.exTopo.canvasConnect")}</Button>
-    </div>
-  </div>
 }

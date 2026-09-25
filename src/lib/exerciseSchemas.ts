@@ -10,6 +10,7 @@ import { z } from "zod"
 import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
+import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
 import type {
   ConnectionDTO,
   DeviceDTO,
@@ -226,9 +227,8 @@ const endpointSchema = z
         ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
       }
     } else {
-      // vpn/internet endpoints don't reference a device: DeviceID and Interface must be
-      // empty (backend — ErrConnectionEndpointsInvalid, topology.go).
-      if (ep.DeviceID !== "" || ep.Interface !== "") {
+      // VPN and Internet expose exactly one logical port.
+      if (ep.DeviceID !== "" || ep.Interface !== GATEWAY_PORT) {
         ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointGateway") })
       }
     }
@@ -262,12 +262,9 @@ const topologySchema = z
       }
       usedGateways.add(ep.Kind)
     }))
-    // Endpoint resolution (mirrors backend ErrEndpointUnresolved): a device endpoint
-    // must reference a device that still exists, and — for non-forwarding devices
-    // (container) — an interface that still exists on it. Switch/hub devices carry
-    // no interfaces, so their endpoints leave Interface empty by design. This check
-    // lives at the topology level because it needs both Devices and Connections in
-    // scope; endpointSchema alone can't see the device list.
+    // Device endpoints must resolve to a declared container interface or a
+    // fixed logical forwarding port, occupied by at most one connection.
+    const usedPorts = new Set<string>()
     topology.Connections.forEach((connection, ci) => {
       connection.Endpoints.forEach((ep, side) => {
         if (ep.Kind !== "device") return
@@ -281,13 +278,23 @@ const topologySchema = z
           return
         }
         const forwarding = device.Type === "unmanaged-switch" || device.Type === "hub"
-        if (!forwarding && !device.Interfaces.some((iface) => iface.Name === ep.Interface)) {
+        if (forwarding ? !isForwardingPort(ep.Interface) : !device.Interfaces.some((iface) => iface.Name === ep.Interface)) {
           ctx.addIssue({
             code: "custom",
             path: ["Connections", ci, "Endpoints", side, "Interface"],
             message: t("admin.ex.val.endpointUnresolved"),
           })
+          return
         }
+        const key = `${ep.DeviceID}\0${ep.Interface}`
+        if (usedPorts.has(key)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Connections", ci, "Endpoints", side, "Interface"],
+            message: t("admin.ex.val.portInUse"),
+          })
+        }
+        usedPorts.add(key)
       })
     })
   })
@@ -567,7 +574,7 @@ function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
     Endpoints: c.Endpoints.map((ep) =>
       ep.Kind === "device"
         ? { Kind: ep.Kind, DeviceID: ep.DeviceID, ...(ep.Interface ? { Interface: ep.Interface } : {}) }
-        : { Kind: ep.Kind },
+        : { Kind: ep.Kind, Interface: GATEWAY_PORT },
     ),
   }))
   return {

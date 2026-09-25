@@ -287,7 +287,7 @@ describe('draftSchema', () => {
     device.Name = 'web'
     draft.Variants[0].Topology.Devices.push(device)
     const connection = { Endpoints: [
-      { Kind: 'vpn' as const, DeviceID: '', Interface: '' },
+      { Kind: 'vpn' as const, DeviceID: '', Interface: 'eth0' },
       { Kind: 'device' as const, DeviceID: device.ID, Interface: 'eth0' },
     ] }
     draft.Variants[0].Topology.Connections = [connection, connection]
@@ -514,7 +514,7 @@ describe('draftSchema', () => {
     draft.Variants[0].Topology.Connections = [{
       Endpoints: [
         { Kind: 'device', DeviceID: '', Interface: '' },
-        { Kind: 'vpn', DeviceID: '', Interface: '' },
+        { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
       ],
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
@@ -524,7 +524,7 @@ describe('draftSchema', () => {
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
-  it('a vpn/internet endpoint must have no device or interface', () => {
+  it('a vpn/internet endpoint must not reference a device', () => {
     const draft = validDraft()
     draft.Variants[0].Topology.VPN.Enabled = true
     const web = emptyDevice()
@@ -533,13 +533,30 @@ describe('draftSchema', () => {
     draft.Variants[0].Topology.Connections = [{
       Endpoints: [
         { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
-        { Kind: 'vpn', DeviceID: web.ID, Interface: '' },
+        { Kind: 'vpn', DeviceID: web.ID, Interface: 'eth0' },
       ],
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    draft.Variants[0].Topology.Connections[0].Endpoints[1] = { Kind: 'vpn', DeviceID: '', Interface: '' }
+    draft.Variants[0].Topology.Connections[0].Endpoints[1] = { Kind: 'vpn', DeviceID: '', Interface: 'eth0' }
     expect(draftSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('allows only the named eth0 port on a new gateway connection', () => {
+    const draft = validDraft()
+    draft.Variants[0].Topology.VPN.Enabled = true
+    const host = emptyDevice()
+    host.Name = 'host'
+    draft.Variants[0].Topology.Devices = [host]
+    draft.Variants[0].Topology.Connections = [{ Endpoints: [
+      { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
+      { Kind: 'device', DeviceID: host.ID, Interface: 'eth0' },
+    ] }]
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    draft.Variants[0].Topology.Connections[0].Endpoints[0].Interface = ''
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    draft.Variants[0].Topology.Connections[0].Endpoints[0].Interface = 'eth1'
+    expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
   it('rejects a device endpoint whose device is not in the topology (endpointUnresolved)', () => {
@@ -567,7 +584,7 @@ describe('draftSchema', () => {
     draft.Variants[0].Topology.Connections = [{
       Endpoints: [
         { Kind: 'device', DeviceID: web.ID, Interface: 'eth9' },
-        { Kind: 'vpn', DeviceID: '', Interface: '' },
+        { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
       ],
     }]
     const result = draftSchema.safeParse(draft)
@@ -576,7 +593,7 @@ describe('draftSchema', () => {
     expect(paths).toContain('Variants.0.Topology.Connections.0.Endpoints.0.Interface')
   })
 
-  it('accepts resolved endpoints: device+interface, bare switch, and vpn/internet kinds', () => {
+  it('accepts resolved endpoints: device+interface, switch port, and vpn/internet kinds', () => {
     const draft = validDraft()
     draft.Variants[0].Topology.VPN.Enabled = true
     draft.Variants[0].Topology.Internet.Enabled = true
@@ -591,17 +608,38 @@ describe('draftSchema', () => {
       {
         Endpoints: [
           { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
-          { Kind: 'device', DeviceID: sw.ID, Interface: '' }, // switch endpoint: no interface by design
+          { Kind: 'device', DeviceID: sw.ID, Interface: 'GigabitEthernet0/1' },
         ],
       },
       {
         Endpoints: [
-          { Kind: 'vpn', DeviceID: '', Interface: '' },
-          { Kind: 'internet', DeviceID: '', Interface: '' },
+          { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
+          { Kind: 'internet', DeviceID: '', Interface: 'eth0' },
         ],
       },
     ]
     expect(draftSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('rejects a reused switch port at its second endpoint', () => {
+    const draft = validDraft()
+    const sw = emptyDevice()
+    sw.Name = 'sw1'
+    sw.Type = 'unmanaged-switch'
+    sw.Interfaces = []
+    const first = emptyDevice()
+    first.Name = 'first'
+    const second = emptyDevice()
+    second.Name = 'second'
+    draft.Variants[0].Topology.Devices = [sw, first, second]
+    draft.Variants[0].Topology.Connections = [
+      { Endpoints: [{ Kind: 'device', DeviceID: sw.ID, Interface: 'GigabitEthernet0/1' }, { Kind: 'device', DeviceID: first.ID, Interface: 'eth0' }] },
+      { Endpoints: [{ Kind: 'device', DeviceID: sw.ID, Interface: 'GigabitEthernet0/1' }, { Kind: 'device', DeviceID: second.ID, Interface: 'eth0' }] },
+    ]
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.')))
+      .toContain('Variants.0.Topology.Connections.1.Endpoints.0.Interface')
   })
 
   it('ip placeholder requires a known IPReference; external.link requires a device', () => {
@@ -689,7 +727,7 @@ function loadedVersion(): Version {
         }],
         Connections: [{
           Endpoints: [
-            { Kind: 'vpn', DeviceID: '', Interface: '' },
+            { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
             { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' },
           ],
         }],
@@ -700,6 +738,10 @@ function loadedVersion(): Version {
 }
 
 describe('toDraftFormValues', () => {
+  it('keeps the named gateway port when reopening a connection', () => {
+    const values = toDraftFormValues(loadedVersion())
+    expect(values.Variants[0].Topology.Connections[0].Endpoints[0].Interface).toBe('eth0')
+  })
   it('keeps dynamic network settings and canvas positions when reopening a draft', () => {
     const loaded = loadedVersion()
     loaded.Variants[0].Topology.VisualRender = { version: 1, positions: { [DEV_ID]: { x: 0.3, y: 0.4 } } }
@@ -735,13 +777,25 @@ describe('toDraftFormValues', () => {
 })
 
 describe('toSaveDraftInput', () => {
+  it('persists the named singleton port on a newly selected gateway endpoint', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Topology.VPN.Enabled = true
+    const host = emptyDevice()
+    host.Name = 'host'
+    draft.Variants[0].Topology.Devices = [host]
+    draft.Variants[0].Topology.Connections = [{ Endpoints: [
+      { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
+      { Kind: 'device', DeviceID: host.ID, Interface: 'eth0' },
+    ] }]
+    expect(toSaveDraftInput(draft).Variants[0].Topology.Connections?.[0].Endpoints[0]).toEqual({ Kind: 'vpn', Interface: 'eth0' })
+  })
   it('sends the mask choice for a subnet placeholder to the API', () => {
     const draft = emptyDraft()
     draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_subnet', Kind: 'vpn.subnet', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: true, DeviceName: '' }]
     expect(toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders).toEqual([{ Key: 'ph_subnet', Kind: 'vpn.subnet', ShowMask: true }])
   })
 
-  it('round-trips a loaded version 1:1 (saved IDs go back out)', () => {
+  it('round-trips a loaded version with saved IDs and an explicit gateway port', () => {
     const input = toSaveDraftInput(toDraftFormValues(loadedVersion()))
     expect(input).toEqual({
       AdminNote: 'wip',
@@ -774,7 +828,7 @@ describe('toSaveDraftInput', () => {
           }],
           Connections: [{
             Endpoints: [
-              { Kind: 'vpn' },
+              { Kind: 'vpn', Interface: 'eth0' },
               { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' },
             ],
           }],
