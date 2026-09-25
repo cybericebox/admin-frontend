@@ -8,9 +8,9 @@ import type { TopologyFormValues } from "@/lib/exerciseSchemas"
  * TopologyDiagram — topology canvas. Positions are stored in VisualRender while
  * the device/connection form remains the authoritative topology model.
  *
- * Form values are the source of truth: the component is pure, values arrive
- * from the parent's useWatch. Layout is deterministic: every node is placed
- * evenly around a circle until an editor moves them. No external libraries.
+ * Form values are the source of truth. Automatic positions follow the network
+ * reading order (uplinks → forwarding devices → containers); editor positions
+ * override them. No external graph library or second topology model.
  */
 
 type NodeKind = "device" | "forwarding" | "vpn" | "internet"
@@ -18,11 +18,16 @@ type DiagramNode = { key: string; label: string; kind: NodeKind }
 type DiagramEdge = { key: string; a: string; b: string; labelA: string; labelB: string }
 type Point = { x: number; y: number }
 
-const W = 480
-const H = 360
-const CX = W / 2
-const CY = H / 2
-const R = Math.min(W, H) / 2 - 52
+const W = 960
+const H = 560
+const MIN_X = 90
+const MAX_X = W - MIN_X
+const MIN_Y = 58
+const MAX_Y = H - 58
+
+function clampPoint(point: Point): Point {
+  return { x: Math.max(MIN_X, Math.min(MAX_X, point.x)), y: Math.max(MIN_Y, Math.min(MAX_Y, point.y)) }
+}
 
 function storedPosition(visual: Record<string, unknown> | null, key: string): Point | null {
   const positions = visual?.positions
@@ -31,21 +36,35 @@ function storedPosition(visual: Record<string, unknown> | null, key: string): Po
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null
   const { x, y } = candidate as Record<string, unknown>
   return typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1 && typeof y === "number" && Number.isFinite(y) && y >= 0 && y <= 1
-    ? { x: x * W, y: y * H } : null
+    ? clampPoint({ x: x * W, y: y * H }) : null
 }
 
 function layout(nodes: DiagramNode[], visual: Record<string, unknown> | null): Map<string, Point> {
   const pos = new Map<string, Point>()
-  const n = nodes.length
-  nodes.forEach((node, i) => {
-    if (n === 1) {
-      pos.set(node.key, storedPosition(visual, node.key) ?? { x: CX, y: CY })
-      return
-    }
-    const angle = (2 * Math.PI * i) / n - Math.PI / 2
-    pos.set(node.key, storedPosition(visual, node.key) ?? { x: CX + R * Math.cos(angle), y: CY + R * Math.sin(angle) })
+  const gateways = nodes.filter((node) => node.kind === "vpn" || node.kind === "internet")
+  const forwarding = nodes.filter((node) => node.kind === "forwarding")
+  const containers = nodes.filter((node) => node.kind === "device")
+  const place = (group: DiagramNode[], y: number, rowSize = 5) => group.forEach((node, index) => {
+    const row = Math.floor(index / rowSize)
+    const count = Math.min(rowSize, group.length - row * rowSize)
+    const column = index % rowSize
+    const x = ((column + 1) * W) / (count + 1)
+    pos.set(node.key, storedPosition(visual, node.key) ?? clampPoint({ x, y: y + row * 105 }))
   })
+  place(gateways, 105, 2)
+  place(forwarding, 260, 4)
+  place(containers, forwarding.length ? 415 : 325, 5)
   return pos
+}
+
+function edgePort(from: Point, to: Point, kind: NodeKind): Point {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  if (!dx && !dy) return from
+  const halfWidth = kind === "device" ? 76 : kind === "forwarding" ? 66 : 70
+  const halfHeight = kind === "device" ? 34 : kind === "forwarding" ? 30 : 26
+  const scale = Math.min(halfWidth / (Math.abs(dx) || 1), halfHeight / (Math.abs(dy) || 1))
+  return { x: from.x + dx * scale, y: from.y + dy * scale }
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, selectedNodes = [] }: {
@@ -83,11 +102,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, sele
 
   function pointerPoint(event: PointerEvent<SVGSVGElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect()
-    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return drag?.point ?? { x: CX, y: CY }
-    return {
-      x: Math.max(32, Math.min(W - 32, ((event.clientX - rect.left) / (rect.width || W)) * W)),
-      y: Math.max(28, Math.min(H - 28, ((event.clientY - rect.top) / (rect.height || H)) * H)),
-    }
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return drag?.point ?? { x: W / 2, y: H / 2 }
+    return clampPoint({
+      x: ((event.clientX - rect.left) / (rect.width || W)) * W,
+      y: ((event.clientY - rect.top) / (rect.height || H)) * H,
+    })
   }
 
   function commitPosition(key: string, point: Point) {
@@ -95,11 +114,12 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, sele
   }
 
   return (
+    <div className="min-w-0 overflow-x-auto rounded-md border border-border bg-background">
     <svg
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-label={t("admin.exTopo.diagram")}
-      className={onPositionChange ? "w-full max-w-2xl rounded-md border border-border bg-background" : "w-full max-w-xl rounded-md border border-border bg-background"}
+      className="block w-full min-w-[680px]"
       onPointerMove={(event) => {
         if (!drag) return
         setDrag({ key: drag.key, point: pointerPoint(event), moved: true })
@@ -116,23 +136,27 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, sele
       }}
       onPointerCancel={() => setDrag(null)}
     >
+      <defs><pattern id="topology-grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" className="fill-border/70" /></pattern></defs>
+      <rect width={W} height={H} fill="url(#topology-grid)" />
       {/* Edges — drawn under the nodes */}
       {edges.map((edge) => {
         const pa = pos.get(edge.a)!
         const pb = pos.get(edge.b)!
+        const kindA = nodes.find((node) => node.key === edge.a)!.kind
+        const kindB = nodes.find((node) => node.key === edge.b)!.kind
+        const start = edgePort(pa, pb, kindA)
+        const end = edgePort(pb, pa, kindB)
         return (
           <g key={edge.key}>
-            <line
-              x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
-              className="stroke-muted-foreground/70"
-              strokeWidth={1.5}
-            />
+            <path data-edge={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`} className="fill-none stroke-muted-foreground/70" strokeWidth={2} />
+            <circle cx={start.x} cy={start.y} r={4} className="fill-background stroke-primary" strokeWidth={1.5} />
+            <circle cx={end.x} cy={end.y} r={4} className="fill-background stroke-primary" strokeWidth={1.5} />
             {edge.labelA && (
               <text
-                x={pa.x + (pb.x - pa.x) * 0.25}
-                y={pa.y + (pb.y - pa.y) * 0.25 - 4}
-                className="fill-muted-foreground"
-                fontSize={9}
+                x={start.x + (end.x - start.x) * 0.17}
+                y={start.y + (end.y - start.y) * 0.17 - 9}
+                className="fill-foreground"
+                fontSize={11}
                 textAnchor="middle"
               >
                 {edge.labelA}
@@ -140,10 +164,10 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, sele
             )}
             {edge.labelB && (
               <text
-                x={pa.x + (pb.x - pa.x) * 0.75}
-                y={pa.y + (pb.y - pa.y) * 0.75 - 4}
-                className="fill-muted-foreground"
-                fontSize={9}
+                x={start.x + (end.x - start.x) * 0.83}
+                y={start.y + (end.y - start.y) * 0.83 - 9}
+                className="fill-foreground"
+                fontSize={11}
                 textAnchor="middle"
               >
                 {edge.labelB}
@@ -178,45 +202,37 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, sele
               const delta = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key]
               if (!delta) return
               event.preventDefault()
-              commitPosition(node.key, { x: Math.max(32, Math.min(W - 32, p.x + delta[0])), y: Math.max(28, Math.min(H - 28, p.y + delta[1])) })
+              commitPosition(node.key, clampPoint({ x: p.x + delta[0], y: p.y + delta[1] }))
             }}>
-            {node.kind === "forwarding" ? (
-              <rect
-                x={p.x - 14} y={p.y - 14} width={28} height={28} rx={3}
-                className={selectedNodes.includes(node.key) ? "fill-primary/20 stroke-primary" : "fill-secondary stroke-border"}
-                strokeWidth={1.5}
-              />
-            ) : node.kind === "vpn" || node.kind === "internet" ? (
-              <rect
-                x={p.x - 28} y={p.y - 12} width={56} height={24} rx={12}
-                className={
-                  selectedNodes.includes(node.key)
-                    ? "fill-primary/20 stroke-primary"
-                    : node.kind === "vpn"
-                      ? "fill-primary/20 stroke-primary"
-                      : "fill-accent/30 stroke-foreground/50"
-                }
-                strokeWidth={1.5}
-              />
-            ) : (
-              <circle
-                cx={p.x} cy={p.y} r={16}
-                className={selectedNodes.includes(node.key) ? "fill-primary/20 stroke-primary" : "fill-card stroke-primary"}
-                strokeWidth={1.5}
-              />
-            )}
+            <title>{node.label}</title>
+            {node.kind === "device" && <>
+              <rect x={p.x - 76} y={p.y - 34} width={152} height={68} rx={10}
+                className={selectedNodes.includes(node.key) ? "fill-primary/10 stroke-primary" : "fill-card stroke-border"} strokeWidth={selectedNodes.includes(node.key) ? 2.5 : 1.5} />
+              <rect x={p.x - 76} y={p.y - 34} width={152} height={5} rx={2} className="fill-primary" />
+              <rect x={p.x - 61} y={p.y - 10} width={22} height={20} rx={3} className="fill-primary/15 stroke-primary" strokeWidth={1.5} />
+              <circle cx={p.x - 55} cy={p.y - 3} r={1.5} className="fill-primary" /><circle cx={p.x - 55} cy={p.y + 3} r={1.5} className="fill-primary" />
+            </>}
+            {node.kind === "forwarding" && <>
+              <rect x={p.x - 66} y={p.y - 30} width={132} height={60} rx={8}
+                className={selectedNodes.includes(node.key) ? "fill-primary/10 stroke-primary" : "fill-secondary stroke-border"} strokeWidth={selectedNodes.includes(node.key) ? 2.5 : 1.5} />
+              {[-30, -12, 6, 24].map((offset) => <rect key={offset} x={p.x + offset} y={p.y + 13} width={10} height={7} rx={1} className="fill-background stroke-muted-foreground" strokeWidth={1} />)}
+            </>}
+            {(node.kind === "vpn" || node.kind === "internet") && <rect x={p.x - 70} y={p.y - 26} width={140} height={52} rx={26}
+              className={selectedNodes.includes(node.key) ? "fill-primary/15 stroke-primary" : "fill-accent/30 stroke-primary/60"} strokeWidth={selectedNodes.includes(node.key) ? 2.5 : 1.5} />}
             <text
-              x={p.x}
-              y={node.kind === "vpn" || node.kind === "internet" ? p.y + 4 : p.y + 30}
+              x={node.kind === "device" ? p.x - 28 : p.x}
+              y={node.kind === "forwarding" ? p.y + 2 : p.y + 5}
               className="fill-foreground"
-              fontSize={11}
-              textAnchor="middle"
+              fontSize={14}
+              fontWeight={600}
+              textAnchor={node.kind === "device" ? "start" : "middle"}
             >
-              {node.label}
+              {node.label.length > 17 ? `${node.label.slice(0, 16)}…` : node.label}
             </text>
           </g>
         )
       })}
     </svg>
+    </div>
   )
 }

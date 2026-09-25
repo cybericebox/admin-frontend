@@ -131,7 +131,7 @@ describe('TaskAccordion', () => {
 
   it('shows a missing linked-device error without erasing entered flags', () => {
     const linked = task('linked')
-    linked.LinkedDeviceID = 'removed-vm-id'
+    linked.LinkedDeviceID = 'removed-container-id'
     linked.Flag = ['ICE{retained}']
     render(<Harness tasks={[linked]} />)
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable')).toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('TaskAccordion', () => {
     expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
   })
 
-  it('identifies a linked VM or container by both name and full ID', () => {
+  it('identifies a linked container by both name and full ID', () => {
     render(<NamedDeviceHarness />)
     expect(screen.getByRole('button', { name: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
   })

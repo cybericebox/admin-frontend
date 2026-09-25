@@ -154,6 +154,7 @@ describe("new exercise page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }))
     expect(screen.queryByText("admin.exTask.flagDelivery")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.tasks" }))
     expect(screen.getByText("admin.exTask.flagDelivery")).toBeInTheDocument()
@@ -165,6 +166,7 @@ describe("new exercise page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }))
     fireEvent.change(screen.getByRole("textbox", { name: /admin.exTask.name/ }), { target: { value: "Find the flag" } })
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
     fireEvent.change(screen.getByRole("textbox", { name: /admin.exTopo.deviceName/ }), { target: { value: "web" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.interfaces" }))
@@ -248,6 +250,7 @@ describe("new exercise page", () => {
     fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Recover me" } })
     fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }), { button: 0 })
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.interfaces" }))
 

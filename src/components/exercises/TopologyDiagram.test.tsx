@@ -35,22 +35,22 @@ const topology: TopologyFormValues = {
 describe('TopologyDiagram', () => {
   it('renders a node per device plus enabled networks', () => {
     render(<TopologyDiagram topology={topology} />)
-    expect(screen.getByText('web')).toBeInTheDocument()
-    expect(screen.getByText('sw1')).toBeInTheDocument()
-    expect(screen.getByText('admin.exTopo.vpn')).toBeInTheDocument() // VPN enabled
+    expect(screen.getByText('web', { selector: 'text' })).toBeInTheDocument()
+    expect(screen.getByText('sw1', { selector: 'text' })).toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.vpn', { selector: 'text' })).toBeInTheDocument() // VPN enabled
     expect(screen.queryByText('admin.exTopo.internet')).not.toBeInTheDocument() // Internet disabled
   })
 
-  it('draws shapes by kind: circle for container, square for switch, pill for vpn', () => {
+  it('draws network device cards, switch ports and a gateway capsule', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
-    expect(container.querySelector('[data-testid="node-d1"] circle')).not.toBeNull()
-    expect(container.querySelector('[data-testid="node-d2"] rect')).not.toBeNull()
-    expect(container.querySelector('[data-testid="node-vpn"] rect')).not.toBeNull()
+    expect(container.querySelector('[data-testid="node-d1"] rect[width="152"]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-testid="node-d2"] rect[width="10"]')).toHaveLength(4)
+    expect(container.querySelector('[data-testid="node-vpn"] rect[rx="26"]')).not.toBeNull()
   })
 
   it('draws a line per resolvable connection and labels interfaces', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
-    expect(container.querySelectorAll('line')).toHaveLength(2)
+    expect(container.querySelectorAll('[data-edge]')).toHaveLength(2)
     expect(screen.getByText('eth0')).toBeInTheDocument()
   })
 
@@ -60,7 +60,7 @@ describe('TopologyDiagram', () => {
       Connections: [{ Endpoints: [{ Kind: 'device', DeviceID: 'ghost', Interface: '' }, { Kind: 'vpn', DeviceID: '', Interface: '' }] }],
     }
     const { container } = render(<TopologyDiagram topology={broken} />)
-    expect(container.querySelectorAll('line')).toHaveLength(0)
+    expect(container.querySelectorAll('[data-edge]')).toHaveLength(0)
   })
 
   it('renders without crashing for an empty topology', () => {
@@ -73,14 +73,14 @@ describe('TopologyDiagram', () => {
     }
     const { container } = render(<TopologyDiagram topology={empty} />)
     expect(container.querySelector('svg')).not.toBeNull()
-    expect(container.querySelectorAll('line')).toHaveLength(0)
+    expect(container.querySelectorAll('[data-edge]')).toHaveLength(0)
   })
 
   it('uses saved positions and lets an editor move a node with the keyboard', () => {
     const moved = { ...topology, VisualRender: { version: 1, positions: { d1: { x: 0.2, y: 0.4 } } } }
     const onPositionChange = vi.fn()
     const { container } = render(<TopologyDiagram topology={moved} onPositionChange={onPositionChange} />)
-    expect(container.querySelector('[data-testid="node-d1"] circle')).toHaveAttribute('cx', '96')
+    expect(container.querySelector('[data-testid="node-d1"] rect[width="152"]')).toHaveAttribute('x', '116')
     fireEvent.keyDown(screen.getByRole('button', { name: 'web' }), { key: 'ArrowRight' })
     expect(onPositionChange).toHaveBeenCalledWith('d1', expect.objectContaining({ x: expect.any(Number), y: 0.4 }))
     expect(onPositionChange.mock.calls[0][1].x).toBeGreaterThan(0.2)
@@ -90,10 +90,10 @@ describe('TopologyDiagram', () => {
     const onPositionChange = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onPositionChange={onPositionChange} />)
     const svg = container.querySelector('svg')!
-    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 480, height: 360 } as DOMRect)
-    fireEvent(screen.getByRole('button', { name: 'web' }), new MouseEvent('pointerdown', { bubbles: true, clientX: 240, clientY: 36 }))
-    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 192, clientY: 180 }))
-    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 192, clientY: 180 }))
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    fireEvent(screen.getByRole('button', { name: 'web' }), new MouseEvent('pointerdown', { bubbles: true, clientX: 480, clientY: 56 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 384, clientY: 280 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 384, clientY: 280 }))
     expect(onPositionChange).toHaveBeenCalledWith('d1', { x: 0.4, y: 0.5 })
   })
 })

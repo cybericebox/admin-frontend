@@ -18,6 +18,7 @@
 - Resource fields are optional Kubernetes Quantity strings; each present value must be positive, and a paired request must not exceed its limit.
 - Routes exist only for static IP; each has required `Dst` CIDR and `Via` IP of the same family.
 - Keep VPN/Internet, DHCP, connections, canvas coordinates, secrets, external exposure, and test deployment behavior unchanged. Do not add test-list UI or API.
+- User addendum: task owns `LinkedDeviceID`/`DeviceFlagVar`; device env shows a derived read-only task-flag binding. Reject a name collision with ordinary env vars or a second task target, and use Ukrainian «прапор» in the transfer copy.
 - Match existing restrained palette, typography, accessible labels and focus behavior; verify wide, intermediate, and narrow screens visually.
 
 ## File/ownership map
@@ -37,6 +38,7 @@
 3. A route such as IPv6 `2001:db8:1::/64` via `2001:db8::1` must pass, while a mixed-family pair must fail (Tasks 2, 4).
 4. A forwarding device with resource values must be rejected by API even if a forged client sends them (Task 2).
 5. Selecting another device must keep the available horizontal subtab; selecting a switch while on a container-only subtab must show Basic with usable focus (Task 6).
+6. A flag target name colliding with a regular device env var or another task must be rejected before save, while bindings to different devices remain independent (Tasks 2, 4, 7).
 
 ---
 
@@ -100,9 +102,9 @@ func TestNetConfigStaticRoute(t *testing.T) {
 
 ### Task 2: Validate resources, routes, and single-address semantics in the backend model
 
-**Files:** Modify `AP Backend/internal/model/exercise/{topology.go,errors.go,topology_test.go}`; use direct `k8s.io/apimachinery/pkg/api/resource` dependency in `go.mod`/`go.sum` only if required by Go tooling.
+**Files:** Modify `AP Backend/internal/model/exercise/{topology.go,version.go,errors.go,topology_test.go}`; use direct `k8s.io/apimachinery/pkg/api/resource` dependency in `go.mod`/`go.sum` only if required by Go tooling.
 
-**Interfaces:** Produce `Device.Resources *DeviceResources`, `DeviceResources{CPURequest,MemoryRequest,CPULimit,MemoryLimit string}`, `IPConfig.Routes []Route`, `Route{Dst,Via string}`. Existing `Topology.validateStructure() error` performs the checks used by save/publish. Add distinct `ErrDeviceResourcesInvalid`, `ErrDeviceRouteInvalid`, `ErrDeviceStaticAddressCountInvalid` detail codes not already used.
+**Interfaces:** Produce `Device.Resources *DeviceResources`, `DeviceResources{CPURequest,MemoryRequest,CPULimit,MemoryLimit string}`, `IPConfig.Routes []Route`, `Route{Dst,Via string}`. Existing `Topology.validateStructure() error` performs the checks used by save/publish. Add distinct `ErrDeviceResourcesInvalid`, `ErrDeviceRouteInvalid`, `ErrDeviceStaticAddressCountInvalid` detail codes not already used. The user addendum adds `ErrFlagEnvironmentConflict`, checked by `ExerciseVersion.ValidateStructure` on draft save and publish.
 
 - [ ] **Step 1: Extend `topology_test.go` with table cases using the existing `dev()` and `publishVariant()` helpers.** Include: old omitted fields; valid partial resource (`250m`,`256Mi`); zero/negative/malformed quantity; CPU request greater than limit; memory request greater than limit; forwarding device with resources; static zero/two CIDRs; static IPv4 and IPv6 routes; invalid destination/next hop/mixed family; non-static carrying a route/gateway/address; `DeviceType("vm")`. Assert `errors.Is(err, wantErr)` and exact offending device context where existing tests do so. The table should use this exact assertion pattern:
 
@@ -128,7 +130,8 @@ if d.Resources.CPULimit != "" && request.Cmp(limit) > 0 { return ErrDeviceResour
 ```
 
 - [ ] **Step 4: Run `go test ./internal/model/exercise -count=1`, `go run ./tools/checkerrorcodes internal pkg`, and `git diff --check`; expect pass.**
-- [ ] **Step 5: Commit only owned backend model files and any `go.mod`/`go.sum` change: `git add internal/model/exercise/topology.go internal/model/exercise/errors.go internal/model/exercise/topology_test.go go.mod go.sum && git commit -m 'feat(exercise): validate topology resources and routes'` (omit unchanged module files).**
+- [ ] **Step 5: Add red tests for a linked task targeting an ordinary env var and for two tasks targeting the same device+env name. Implement `Topology.validateFlagEnvTargets(tasks)` from `ExerciseVersion.ValidateStructure()` and return `ErrFlagEnvironmentConflict` with task/device/env context. Run both red and green tests.**
+- [ ] **Step 6: Commit only owned backend model files and any `go.mod`/`go.sum` change: `git add internal/model/exercise/topology.go internal/model/exercise/version.go internal/model/exercise/errors.go internal/model/exercise/topology_test.go go.mod go.sum && git commit -m 'feat(exercise): validate topology resources routes and flag targets'` (omit unchanged module files).**
 
 ### Task 3: Roundtrip the API and carry settings into LabSpec
 
@@ -161,7 +164,7 @@ type labResources struct { CPURequest string `json:"cpuRequest,omitempty"`; Memo
 
 **Interfaces:** Add `Resources?: DeviceResourcesDTO` with four optional quantity strings, `Routes?: RouteDTO[]` to `IPConfigDTO`; normalized form objects use four concrete `""` strings and `Routes: []`. `emptyDevice`/`emptyInterface`, normalization, and `toSaveDraftInput` preserve these fields with empty objects omitted. Reject `vm` as new form data.
 
-- [ ] **Step 1: Add tests to `exerciseSchemas.test.ts` for legacy DTO normalization, exact serialization of partial resources and two routes, omission of fully empty resources, one static CIDR, forwarding-device resources, and clearing non-static address/gateway/routes. Add IPv4 and IPv6 route family cases, including mixed-family rejection, and `vm` rejection.** Example shape:
+- [ ] **Step 1: Add tests to `exerciseSchemas.test.ts` for legacy DTO normalization, exact serialization of partial resources and two routes, omission of fully empty resources, one static CIDR, forwarding-device resources, and clearing non-static address/gateway/routes. Add IPv4 and IPv6 route family cases, including mixed-family rejection, and `vm` rejection. Add task flag target conflicts (ordinary device env or another task), plus a same-name binding on two different devices that is allowed.** Example shape:
 
 ```ts
 const d = emptyDevice()
@@ -205,13 +208,13 @@ setValue(`${name}.${ii}.IP.Routes`, [], { shouldDirty: true })
 
 ### Task 6: Compact topology layout and remove VM from adjacent UI/copy
 
-**Files:** Modify `admin-frontend/src/components/exercises/{TopologySection,NetworkToggles,DeviceCard,TaskForm,FlagInput}.tsx`, `src/app/globals.css`, `messages/{uk,en}.json`, tests `TopologySection.test.tsx`, `DeviceCard.test.tsx`, `NetworkToggles.test.tsx`, `TaskAccordion.test.tsx`, `FlagInput.test.tsx`, and affected TaskForm tests. `FlagInput.tsx`, `FlagInput.test.tsx`, and both locale files already contain user changes: inspect each diff and touch only VM-related hunks.
+**Files:** Modify `admin-frontend/src/components/exercises/{TopologySection,TopologyDiagram,NetworkToggles,DeviceCard,TaskForm,FlagInput}.tsx`, `src/app/globals.css`, `messages/{uk,en}.json`, tests `TopologySection.test.tsx`, `TopologyDiagram.test.tsx`, `DeviceCard.test.tsx`, `NetworkToggles.test.tsx`, `TaskAccordion.test.tsx`, `FlagInput.test.tsx`, and affected TaskForm tests. `FlagInput.tsx`, `FlagInput.test.tsx`, and both locale files already contain user changes: inspect each diff and touch only VM-related hunks.
 
-**Interfaces:** One `exercise-settings-layout` left navigation + one right bordered panel; DeviceCard horizontal subsection tabs. Preserve `useEditorPosition("topologySection")` and `useEditorPosition("devicePanel")` persistence. Supported type select has only container/switch/hub; linked flag device list only containers.
+**Interfaces:** One vertical grouped navigation with General, Devices (device list and add action), Connections, Diagram; no second top tab strip. One right bordered panel holds the selected section, including the graph. DeviceCard alone has horizontal subsection tabs. Diagram uses current topology and VisualRender positions; attachment to tasks is deferred. Preserve `useEditorPosition("topologySection")` and `useEditorPosition("devicePanel")` persistence. Supported type select has only container/switch/hub; linked flag device list only containers.
 
-- [ ] **Step 1: Add tests asserting one outer settings border, no nested DeviceCard border/third column, add-device action in left nav header, gateway rows without cards, selected/hover/focus classes, horizontal tab list, subtab persistence across two containers and Basic fallback on switch, and no `vm` in device select or linked-device help.**
+- [ ] **Step 1: Add tests asserting one vertical grouped navigation and no top tab strip, a separate diagram panel with no connection list, a connection-list panel with no diagram, one outer settings border, no nested DeviceCard border/third column, add-device action in the device group header, gateway rows without cards, selected/hover/focus classes, horizontal device subtab list, subtab persistence across two containers and Basic fallback on switch, and no `vm` in device select or linked-device help. Add graph tests for device/forwarding/gateway shapes, readable endpoint labels, and stored-position drag.**
 - [ ] **Step 2: Run focused tests with `npm test -- src/components/exercises/TopologySection.test.tsx src/components/exercises/DeviceCard.test.tsx src/components/exercises/NetworkToggles.test.tsx`; expect new assertions to fail.**
-- [ ] **Step 3: Move the `TopologySection` title and Add Device into the left nav header; wrap right content in one bordered panel with responsive padding. Remove DeviceCard's own outer border and `.exercise-device-layout` third column; use a horizontal, wrapping/scroll-safe subsection tab row. Remove duplicated removal/action headings; keep device removal only in left list. Convert gateway cards to flat rows. Restrict DeviceCard type choices and TaskForm linked devices to container; revise adjacent VM references in help/errors, comments, and tests. In particular, update `staticTypeHelp`/`unlinkedTypeHelp`, `linkedDeviceHelp`/`linkedDeviceUnavailable`, and both dirty `FlagInput` and `TaskAccordion` tests without staging pre-existing edits. Delete unused `exercise-device-layout` CSS.** Layout anchor:
+- [ ] **Step 3: Build one vertical grouped navigation with General, Devices and its entries, Connections, Diagram; do not add a top tab strip. Put add-device action into Devices group header; wrap the selected content in one right bordered panel. Render Diagram separately from Connections, with the remaining main-column width, and improve graph layout/shapes/port labels while keeping drag and VisualRender persistence. Remove DeviceCard's own outer border and `.exercise-device-layout` third column; use a horizontal, wrapping/scroll-safe subsection tab row. Remove duplicated removal/action headings; keep device removal only in left list. Convert gateway cards to flat rows. Restrict DeviceCard type choices and TaskForm linked devices to container; revise adjacent VM references in help/errors, comments, and tests. In particular, update `staticTypeHelp`/`unlinkedTypeHelp`, `linkedDeviceHelp`/`linkedDeviceUnavailable`, and both dirty `FlagInput` and `TaskAccordion` tests without staging pre-existing edits. Delete unused `exercise-device-layout` CSS.** Layout anchor:
 
 ```tsx
 const topologyNavClass = "min-w-0 rounded-md border border-border p-2"
@@ -221,9 +224,19 @@ const deviceTabsClass = "flex min-w-0 flex-wrap gap-1 border-b border-border pb-
 - [ ] **Step 4: Run focused tests, `npm test`, `npm run lint`, `npm run build`. Inspect in a browser at approximately 1440, 900, and 390 px; verify long names, multiple interfaces/routes, keyboard focus, empty state, and no horizontal clipping. Expect pass and record any environment-specific inability to do a browser check.**
 - [ ] **Step 5: Stage only Task 6 files/hunks and commit `refactor(exercises): compact topology editor and remove vm copy`.**
 
-### Task 7: Cross-repository acceptance and drift audit
+### Task 7: Show task-owned flag bindings on the device and align copy
 
-**Files:** No product-file edits unless a failed check points to a Task 1–6 owner. Record verification evidence in the final handoff; do not generate an extra status artifact.
+**Files:** Modify `admin-frontend/src/components/exercises/{DeviceCard,TaskForm}.tsx`, `DeviceCard.test.tsx` and `TaskForm.test.tsx`, `messages/{uk,en}.json`; retain any pre-existing dirty flag-help changes in those locale files.
+
+**Interfaces:** The task remains the only editor for `LinkedDeviceID`/`DeviceFlagVar`; `EnvVarsList` receives `variantIndex`/`deviceIndex` and derives bound tasks from form state. A read-only binding row names the task and variable and navigates to that task. Backend Task 2 and frontend Task 4 reject conflicting names on save.
+
+- [ ] **Step 1: Add a component test with one linked task and one ordinary env var. Open the device Env tab; assert the task flag binding and variable name are visible and read-only, and activating the task reference selects that task. Add a test that a conflicting name shows a field-level error beside `DeviceFlagVar`. Run the tests to see them fail.**
+- [ ] **Step 2: Implement the derived display from `useWatch` task and device state without appending it to `EnvVars`, and connect the task reference through the existing editor position/navigation mechanism. Keep ordinary env var editing unchanged. Update the transfer section and tooltip copy from «прапорець» to «прапор» in both locale files where applicable; use natural English in `en.json`.**
+- [ ] **Step 3: Run `npm test -- src/components/exercises/DeviceCard.test.tsx src/components/exercises/TaskForm.test.tsx src/lib/exerciseSchemas.test.ts`, `npx tsc --noEmit`, and `npm run lint`. Stage only owned changes/hunks; commit `feat(exercises): show task flag bindings on devices`.**
+
+### Task 8: Cross-repository acceptance and drift audit
+
+**Files:** No product-file edits unless a failed check points to a Task 1–7 owner. Record verification evidence in the final handoff; do not generate an extra status artifact.
 
 **Interfaces:** One saved draft roundtrip on current API and one generated LabSpec fixture prove that an author-entered resource and route survive all three layers; no new endpoint or SQL migration.
 

@@ -28,12 +28,16 @@ export function TopologySection({
     name: `Variants.${variantIndex}.Topology.Devices`,
   })
   const topology = useWatch({ control, name: `Variants.${variantIndex}.Topology` })
+  const devices = (topology?.Devices ?? []).slice(0, fields.length)
   const [selectedNodes, setSelectedNodes] = useState<string[]>([])
   const [activeSection, setActiveSection] = useEditorPosition("topologySection")
-  const selectedDeviceIndex = topology?.Devices.findIndex((device) => `device:${device.ID}` === activeSection) ?? -1
-  const visibleSection = activeSection.startsWith("device:") && selectedDeviceIndex < 0 ? "gateways" : activeSection
+  const requestedDeviceIndex = devices.findIndex((device) => `device:${device.ID}` === activeSection)
+  const visibleSection = (activeSection === "devices" || (activeSection.startsWith("device:") && requestedDeviceIndex < 0)) && devices[0]
+    ? `device:${devices[0].ID}` : activeSection
+  const selectedDeviceIndex = devices.findIndex((device) => `device:${device.ID}` === visibleSection)
+  const activeTab = visibleSection === "gateways" ? "general" : visibleSection === "connections" || visibleSection === "diagram" ? visibleSection : "devices"
   const availableNodes = new Set([
-    ...(topology?.Devices.map((device) => device.ID) ?? []),
+    ...devices.map((device) => device.ID),
     ...(topology?.VPN.Enabled ? ["vpn"] : []),
     ...(topology?.Internet.Enabled ? ["internet"] : []),
   ])
@@ -55,77 +59,61 @@ export function TopologySection({
 
   function removeDevice(index: number) {
     remove(index)
-    setActiveSection("gateways")
+    setActiveSection("devices")
   }
 
   return (
-    <section className="space-y-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        {t("admin.exDraft.topology.title")}
-      </h3>
-      <div className="exercise-settings-layout min-w-0 gap-4">
-        <nav aria-label={t("admin.exDraft.topology.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
-          <button type="button" aria-current={visibleSection === "gateways" ? "page" : undefined}
-            onClick={() => setActiveSection("gateways")}
-            className={`w-full rounded-md px-3 py-2 text-left text-sm ${visibleSection === "gateways" ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-            {t("admin.exTopo.gateways")}
-          </button>
-          <div className="flex items-center justify-between px-3 pt-3 pb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.devices")}</span>
+    <section className="exercise-settings-layout min-w-0 gap-4">
+      <nav aria-label={t("admin.exDraft.topology.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
+        <button type="button" aria-current={activeTab === "general" ? "page" : undefined} onClick={() => setActiveSection("gateways")}
+          className={`w-full rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary ${activeTab === "general" ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{t("admin.exTopo.general")}</button>
+        <div className="border-t border-border pt-2">
+          <div className="flex items-center justify-between gap-1 px-1">
+            <button type="button" aria-current={activeTab === "devices" ? "page" : undefined}
+              onClick={() => setActiveSection(devices[0] ? `device:${devices[0].ID}` : "devices")}
+              className={`min-w-0 flex-1 rounded-md px-2 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary ${activeTab === "devices" ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{t("admin.exTopo.devices")}</button>
+            {!disabled && <Button type="button" variant="ghost" size="sm" aria-label={t("admin.exTopo.addDevice")} onClick={addDevice}><Plus className="h-4 w-4" /></Button>}
           </div>
-          {topology?.Devices.map((device, index) => (
-            <div key={device.ID} className="group flex min-w-0 items-center gap-1">
+          {devices.map((device, index) => <div key={device.ID} className="group flex min-w-0 items-center gap-1 rounded-md hover:bg-muted/60 focus-within:bg-muted/60">
             <button type="button" aria-current={visibleSection === `device:${device.ID}` ? "page" : undefined}
               onClick={() => setActiveSection(`device:${device.ID}`)}
-              className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${visibleSection === `device:${device.ID}` ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+              className={`min-w-0 flex-1 truncate rounded-md px-4 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary ${visibleSection === `device:${device.ID}` ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               {device.Name || `${t("admin.exTopo.unnamedDevice")} ${index + 1}`}
             </button>
             {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeDevice")} onClick={() => removeDevice(index)} className="h-8 w-8 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}
-            </div>
-          ))}
-          {!disabled && fields.length > 0 && <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={addDevice}>
-            <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}
-          </Button>}
-          <div className="border-t border-border pt-2">
-            <button type="button" aria-current={visibleSection === "connections" ? "page" : undefined}
-              onClick={() => setActiveSection("connections")}
-              className={`w-full rounded-md px-3 py-2 text-left text-sm ${visibleSection === "connections" ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-              {t("admin.exTopo.connections")}
-            </button>
-          </div>
-        </nav>
-        <div className="min-w-0">
-          {visibleSection === "gateways" && <div className="space-y-4">
-            <NetworkToggles variantIndex={variantIndex} disabled={disabled} />
-            {fields.length === 0 && <div className="rounded-lg border border-dashed border-border py-2">
-              <EmptyState message={t("admin.exTopo.noDevices")} compact />
-              {!disabled && <Button type="button" variant="outline" size="sm" className="mx-auto mb-3 flex" onClick={addDevice}>
-                <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}
-              </Button>}
-            </div>}
-          </div>}
-          {selectedDeviceIndex >= 0 && visibleSection.startsWith("device:") && <DeviceCard
-            key={fields[selectedDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={selectedDeviceIndex}
-            disabled={disabled} />}
-          {visibleSection === "connections" && <div className="space-y-4">
-            {topology && availableNodes.size > 1 && <div>
-              <h4 className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exTopo.diagram")}</h4>
-              <TopologyDiagram topology={topology} onPositionChange={disabled ? undefined : moveNode}
-                selectedNodes={validSelection}
-                onNodeSelect={disabled ? undefined : (key) => setSelectedNodes((current) => {
-                  const selected = current.filter((item) => availableNodes.has(item))
-                  if (selected.length === 0 || selected.length === 2) return [key]
-                  if (selected[0] === key) return []
-                  return [selected[0], key]
-                })} />
-              {!disabled && <p className="mt-2 text-xs text-muted-foreground">{validSelection.length === 1 ? t("admin.exTopo.canvasSelectSecond") : t("admin.exTopo.canvasHint")}</p>}
-            </div>}
-            {(availableNodes.size > 1 || (topology?.Connections.length ?? 0) > 0) && <ConnectionList variantIndex={variantIndex} disabled={disabled}
-              pendingPair={validSelection.length === 2 ? validSelection as [string, string] : null}
-              onCanvasConnected={() => setSelectedNodes([])} />}
-            {availableNodes.size <= 1 && (topology?.Connections.length ?? 0) === 0 && <EmptyState message={t("admin.exTopo.noConnections")} compact />}
-          </div>}
+          </div>)}
         </div>
+        <div className="border-t border-border pt-2">
+          {(["connections", "diagram"] as const).map((section) => <button key={section} type="button" aria-current={activeTab === section ? "page" : undefined}
+            onClick={() => setActiveSection(section)}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary ${activeTab === section ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{t(`admin.exTopo.${section}`)}</button>)}
+        </div>
+      </nav>
+      <div className="min-w-0 rounded-md border border-border p-3">
+        {activeTab === "general" && <NetworkToggles variantIndex={variantIndex} disabled={disabled} />}
+        {activeTab === "devices" && <>
+          {selectedDeviceIndex >= 0 && <DeviceCard key={fields[selectedDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={selectedDeviceIndex} disabled={disabled} />}
+          {fields.length === 0 && <EmptyState message={t("admin.exTopo.noDevices")} compact />}
+        </>}
+        {activeTab === "connections" && <>
+        {(availableNodes.size > 1 || (topology?.Connections.length ?? 0) > 0) ? <ConnectionList variantIndex={variantIndex} disabled={disabled}
+          pendingPair={validSelection.length === 2 ? validSelection as [string, string] : null}
+          onCanvasConnected={() => setSelectedNodes([])} /> : <EmptyState message={t("admin.exTopo.noConnections")} compact />}
+        </>}
+        {activeTab === "diagram" && <div className="min-w-0 space-y-3">
+        {topology && availableNodes.size > 0 ? <TopologyDiagram topology={topology} onPositionChange={disabled ? undefined : moveNode}
+          selectedNodes={validSelection}
+          onNodeSelect={disabled ? undefined : (key) => setSelectedNodes((current) => {
+            const selected = current.filter((item) => availableNodes.has(item))
+            if (selected.length === 0 || selected.length === 2) return [key]
+            if (selected[0] === key) return []
+            return [selected[0], key]
+          })} /> : <EmptyState message={t("admin.exTopo.noDevices")} compact />}
+        {!disabled && availableNodes.size > 1 && <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">{validSelection.length === 1 ? t("admin.exTopo.canvasSelectSecond") : t("admin.exTopo.canvasHint")}</p>
+          {validSelection.length === 2 && <Button type="button" size="sm" onClick={() => setActiveSection("connections")}>{t("admin.exTopo.addConnection")}</Button>}
+        </div>}
+        </div>}
       </div>
     </section>
   )

@@ -66,9 +66,9 @@ export function DeviceCard({
   }
 
   return (
-    <div className="rounded-md border border-border p-3">
-      <div className="exercise-device-layout gap-4">
-        <nav aria-label={t("admin.exTopo.deviceSettings")} className="flex min-w-0 flex-wrap content-start gap-1 border-b border-border pb-3 xl:flex-col xl:border-b-0 xl:border-r xl:pb-0 xl:pr-3">
+    <div className="min-w-0">
+      <div className="min-w-0 space-y-4">
+        <nav aria-label={t("admin.exTopo.deviceSettings")} className="flex min-w-0 flex-wrap gap-1 border-b border-border pb-2">
           {sections.map((section) => {
             const labelKey = section === "basic" ? "admin.exTopo.basic" : section === "interfaces" ? "admin.exTopo.interfaces" : section === "env" ? "admin.exEnv.title" : "admin.exTopo.external"
             return <button key={section} type="button" aria-current={visiblePanel === section ? "page" : undefined}

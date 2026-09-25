@@ -20,7 +20,7 @@ export function NetworkToggles({
   ] as const
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="divide-y divide-border">
       {nets.map((net) => (
         <NetworkToggle key={net.key} variantIndex={variantIndex} disabled={disabled} network={net.key} label={net.label} />
       ))}
@@ -38,7 +38,7 @@ function NetworkToggle({ variantIndex, disabled, network, label }: {
   const enabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.${network}.Enabled` })
   const help = network === "VPN" ? "admin.exTopo.vpnHelp" : "admin.exTopo.internetHelp"
   const dhcpLabel = network === "VPN" ? "admin.exTopo.vpnDhcp" : "admin.exTopo.internetDhcp"
-  return <div className="min-w-52 space-y-3 rounded-md border border-border px-3 py-2">
+  return <div className="min-w-0 space-y-2 py-3 first:pt-0 last:pb-0">
     <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-1.5"><span className="text-sm font-medium">{label}</span><FieldHelp text={t(help)} /></div>
       <Controller control={control} name={`Variants.${variantIndex}.Topology.${network}.Enabled`}
