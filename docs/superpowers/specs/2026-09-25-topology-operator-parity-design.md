@@ -2,7 +2,7 @@
 
 **Дата:** 2026-09-25
 
-**Статус:** на проверке пользователя
+**Статус:** утверждено пользователем
 
 **Репозитории:** `admin-frontend` (`feature/base-redesign`), `AP Backend` (`feature/superadmin-infrastructure-read`), `laboratory` (`feature/lab-access-acl`). Работа идёт в текущих ветках; существующие незакоммиченные файлы не перезаписываются.
 
