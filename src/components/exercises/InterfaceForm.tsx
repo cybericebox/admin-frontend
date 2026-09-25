@@ -20,43 +20,56 @@ const IP_TYPES = [
   { value: "none", labelKey: "admin.exTopo.ip.none" },
 ]
 
-/** List of CIDR addresses on an interface (static IP config only). */
-function AddressList({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string[]
-  onChange: (v: string[]) => void
+/** One static address and optional explicit routes for a single interface. */
+function StaticIPFields({ name, disabled }: {
+  name: `Variants.${number}.Topology.Devices.${number}.Interfaces.${number}`
   disabled: boolean
 }) {
+  const { control } = useFormContext<DraftFormValues>()
+  const routesName = `${name}.IP.Routes` as const
+  const { fields, append, remove } = useFieldArray({ control, name: routesName })
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <ExerciseFieldLabel labelKey="admin.exTopo.addresses" helpKey="admin.exTopo.addressesHelp" required />
-        {!disabled && (
-          <Button type="button" variant="outline" size="sm" onClick={() => onChange([...value, ""])}>
-            <Plus className="mr-1 h-3 w-3" />
-            {t("admin.exTopo.addAddress")}
-          </Button>
-        )}
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField control={control} name={`${name}.IP.Addresses`} render={({ field, fieldState }) => (
+          <FormItem>
+            <ExerciseFieldLabel labelKey="admin.exTopo.addresses" helpKey="admin.exTopo.addressesHelp" required form />
+            <FormControl><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>
+            <p className="min-h-5 text-[0.8rem] font-medium leading-5 text-destructive">{fieldState.error?.message ?? fieldState.error?.root?.message}</p>
+          </FormItem>
+        )} />
+        <FormField control={control} name={`${name}.IP.Gateway`} render={({ field }) => (
+          <FormItem>
+            <ExerciseFieldLabel labelKey="admin.exTopo.gateway" helpKey="admin.exTopo.gatewayHelp" form />
+            <FormControl><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>
+            <FormMessage className="min-h-5 leading-5" />
+          </FormItem>
+        )} />
       </div>
-      {value.map((addr, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Input
-            value={addr}
-            placeholder="10.0.0.2/24"
-            disabled={disabled}
-            onChange={(e) => onChange(value.map((v, j) => (j === i ? e.target.value : v)))}
-          />
-          {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeAddress")} onClick={() => onChange(value.filter((_, j) => j !== i))} />}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.exTopo.routes")}</span><FieldHelp text={t("admin.exTopo.routesHelp")} /></div>
+          {!disabled && <Button type="button" variant="outline" size="sm" onClick={() => append({ Dst: "", Via: "" })}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addRoute")}</Button>}
         </div>
-      ))}
+        {fields.map((route, index) => <div key={route.id} className="group grid items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <FormField control={control} name={`${routesName}.${index}.Dst`} render={({ field }) => <FormItem>
+            <ExerciseFieldLabel labelKey="admin.exTopo.routeDst" helpKey="admin.exTopo.routeDstHelp" required form />
+            <FormControl><Input {...field} disabled={disabled} placeholder="10.1.0.0/16" /></FormControl>
+            <FormMessage />
+          </FormItem>} />
+          <FormField control={control} name={`${routesName}.${index}.Via`} render={({ field }) => <FormItem>
+            <ExerciseFieldLabel labelKey="admin.exTopo.routeVia" helpKey="admin.exTopo.routeViaHelp" required form />
+            <FormControl><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>
+            <FormMessage />
+          </FormItem>} />
+          {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeRoute")} onClick={() => remove(index)} className="mt-7" />}
+        </div>)}
+      </div>
     </div>
   )
 }
 
-/** InterfaceForm — a container/vm device's interfaces: name, MAC, IP config. */
+/** InterfaceForm — a container's interfaces: name, MAC, IP config. */
 export function InterfaceForm({
   variantIndex,
   deviceIndex,
@@ -134,6 +147,9 @@ export function InterfaceForm({
                         if (value !== "static") {
                           setValue(`${name}.${ii}.IP.Addresses`, [], { shouldDirty: true })
                           setValue(`${name}.${ii}.IP.Gateway`, "", { shouldDirty: true })
+                          setValue(`${name}.${ii}.IP.Routes`, [], { shouldDirty: true })
+                        } else if (rows[ii]?.IP?.Addresses.length === 0) {
+                          setValue(`${name}.${ii}.IP.Addresses`, [""], { shouldDirty: true })
                         }
                       }}
                       disabled={disabled}
@@ -146,29 +162,7 @@ export function InterfaceForm({
               </div>
             </div>
 
-            {ipType === "static" && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Controller
-                  control={control}
-                  name={`${name}.${ii}.IP.Addresses`}
-                  render={({ field: addrField, fieldState }) => (
-                    <div>
-                      <AddressList value={addrField.value} onChange={addrField.onChange} disabled={disabled} />
-                      <p className="min-h-5 text-[0.8rem] font-medium leading-5 text-destructive">
-                        {fieldState.error?.message ?? fieldState.error?.root?.message}
-                      </p>
-                    </div>
-                  )}
-                />
-                <FormField control={control} name={`${name}.${ii}.IP.Gateway`} render={({ field: gwField }) => (
-                  <FormItem>
-                    <ExerciseFieldLabel labelKey="admin.exTopo.gateway" helpKey="admin.exTopo.gatewayHelp" form />
-                    <FormControl><Input {...gwField} disabled={disabled} placeholder="10.0.0.1" /></FormControl>
-                    <FormMessage className="min-h-5 leading-5" />
-                  </FormItem>
-                )} />
-              </div>
-            )}
+            {ipType === "static" && <StaticIPFields name={`${name}.${ii}`} disabled={disabled} />}
 
           </div>
         )

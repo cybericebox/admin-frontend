@@ -56,6 +56,7 @@ export function DeviceCard({
       setValue(`${base}.EnvVars`, [])
       setValue(`${base}.External`, { Enabled: false, Port: 80, Protocol: "http" })
       setValue(`${base}.SecurityPreset`, "")
+      setValue(`${base}.Resources`, { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }, { shouldDirty: true })
       setPanel("basic")
     } else if (getValues(`${base}.Interfaces`).length === 0) {
       // Changing a forwarding device back into a compute device must restore
@@ -122,6 +123,19 @@ export function DeviceCard({
           )} />
         </>}
         </div>}
+        {visiblePanel === "basic" && !forwarding && <section className="mt-4 space-y-2 border-t border-border pt-4">
+          <div className="flex items-center gap-1.5"><h4 className="text-sm font-medium">{t("admin.exTopo.resources")}</h4><FieldHelp text={t("admin.exTopo.resourcesHelp")} /></div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {(["CPURequest", "CPULimit", "MemoryRequest", "MemoryLimit"] as const).map((resource) => {
+              const key = `admin.exTopo.${resource.replace(/^CPU/, "cpu").replace(/^Memory/, "memory")}`
+              return <FormField key={resource} control={control} name={`${base}.Resources.${resource}`} render={({ field }) => <FormItem>
+                <ExerciseFieldLabel labelKey={key} helpKey={`${key}Help`} form />
+                <FormControl><Input {...field} disabled={disabled} placeholder={resource.startsWith("CPU") ? "250m" : "512Mi"} /></FormControl>
+                <FormMessage />
+              </FormItem>} />
+            })}
+          </div>
+        </section>}
 
         {visiblePanel === "interfaces" &&
           <InterfaceForm variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} />
@@ -186,7 +200,7 @@ export function DeviceCard({
   )
 }
 
-/** EnvVarsList — container/vm environment variables; secrets go through SecretInput. */
+/** EnvVarsList — container environment variables; secrets go through SecretInput. */
 function EnvVarsList({
   variantIndex,
   deviceIndex,

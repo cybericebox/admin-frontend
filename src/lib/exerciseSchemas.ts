@@ -137,9 +137,8 @@ const ipConfigSchema = z
       }
       ip.Routes.forEach((route, index) => {
         const family = cidrFamily(route.Dst)
-        if (!family || ipFamily(route.Via) !== family) {
-          ctx.addIssue({ code: "custom", path: ["Routes", index], message: t("admin.ex.val.route") })
-        }
+        if (!family) ctx.addIssue({ code: "custom", path: ["Routes", index, "Dst"], message: t("admin.ex.val.routeDst") })
+        if (!ipFamily(route.Via) || (family && ipFamily(route.Via) !== family)) ctx.addIssue({ code: "custom", path: ["Routes", index, "Via"], message: t("admin.ex.val.routeVia") })
       })
     } else {
       if (ip.Addresses.length > 0) {

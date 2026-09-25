@@ -3,12 +3,18 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { useForm, FormProvider } from 'react-hook-form'
+import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
+
+function DeviceValues() {
+  const { control } = useFormContext<DraftFormValues>()
+  const device = useWatch({ control, name: 'Variants.0.Topology.Devices.0' })
+  return <output data-testid="device-values">{JSON.stringify(device)}</output>
+}
 
 function Harness({ device }: { device: DeviceFormValues }) {
   const draft = emptyDraft()
@@ -17,11 +23,57 @@ function Harness({ device }: { device: DeviceFormValues }) {
   return (
     <FormProvider {...form}>
       <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} />
+      <DeviceValues />
     </FormProvider>
   )
 }
 
 describe('DeviceCard', () => {
+  it('edits container resource request and limit values', () => {
+    const device = emptyDevice()
+    device.Name = 'web'
+    render(<Harness device={device} />)
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' }), { target: { value: '250m' } })
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toHaveValue('250m')
+  })
+
+  it('shows one static address field and editable route rows', () => {
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '', Routes: [] }
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
+    expect(screen.getByRole('textbox', { name: /admin.exTopo.addresses/ })).toHaveValue('10.0.0.2/24')
+    expect(screen.queryByRole('button', { name: 'admin.exTopo.addAddress' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.addRoute' }))
+    expect(screen.getByRole('textbox', { name: /admin.exTopo.routeDst/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /admin.exTopo.routeVia/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.removeRoute' }))
+    expect(screen.queryByRole('textbox', { name: 'admin.exTopo.routeDst' })).not.toBeInTheDocument()
+  })
+
+  it('clears static addresses and routes when changing IP mode', () => {
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [{ Dst: '10.1.0.0/16', Via: '10.0.0.1' }] }
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.ipType' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin.exTopo.ip.dhcp / }))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Interfaces[0].IP).toEqual({ Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] })
+  })
+
+  it('clears resource settings when changing a container to a switch', () => {
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Resources.CPURequest = '250m'
+    render(<Harness device={device} />)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.deviceType' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /admin.exTopo.type.switch/ }))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources).toEqual({ CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' })
+  })
   it('container: shows one selected settings section at a time', () => {
     const device = emptyDevice()
     device.Name = 'web'
