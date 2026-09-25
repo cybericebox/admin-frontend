@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
+import { isServiceDown, onServiceRestored } from "@/lib/serviceStatus"
 
 export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
@@ -27,23 +28,27 @@ const RoleContext = createContext<RoleState>({
   can: () => false,
 })
 
+const noPermissions: string[] = []
+
 export function RoleProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Me | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    fetchMe()
-      .then((m) => { if (!cancelled) setMe(m) })
-      .catch(() => { if (!cancelled) setMe(null) })
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
+    const load = () => {
+      void fetchMe()
+        .then((m) => { if (!cancelled) setMe(m) })
+        .catch(() => { if (!cancelled && !isServiceDown()) setMe(null) })
+        .finally(() => { if (!cancelled && !isServiceDown()) setIsLoading(false) })
+    }
+    load()
+    const unsubscribe = onServiceRestored(load)
+    return () => { cancelled = true; unsubscribe() }
   }, [])
 
   const role = (me?.Role as Role | undefined) ?? null
-  // Me (from the DS-verbatim lib/auth.ts) has no Permissions field, but the
-  // /api/auth/me payload carries it — read it through an augmented view.
-  const permissions = ((me as unknown as { Permissions?: string[] } | null)?.Permissions) ?? []
+  const permissions = me?.Permissions ?? noPermissions
   const can = useCallback(
     (required: string) => permissions.some((h) => covers(h, required)),
     [permissions],

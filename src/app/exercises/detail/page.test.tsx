@@ -34,6 +34,8 @@ vi.mock('@/api/exercises/versions', () => ({
   publishDraft: vi.fn(),
   discardDraft: vi.fn(),
   rollbackToVersion: vi.fn(),
+  restoreVersion: vi.fn(),
+  createCheckpoint: vi.fn(),
 }))
 // The versions table resolves author names via useUserNames; stub it so the
 // lifecycle tests never hit the network. Empty map → the row falls back to the
@@ -42,7 +44,7 @@ vi.mock('@/lib/userNames', () => ({ useUserNames: () => ({}) }))
 
 import { ApiError } from '@/api/client'
 import { getExercise, updateExercise, deleteExercise } from '@/api/exercises/catalog'
-import { listVersions, publishDraft, discardDraft, rollbackToVersion } from '@/api/exercises/versions'
+import { listVersions, publishDraft, discardDraft, restoreVersion, createCheckpoint } from '@/api/exercises/versions'
 import type { VersionListItem } from '@/api/exercises/versions'
 import Page from './page'
 
@@ -52,7 +54,8 @@ const mockDelete = vi.mocked(deleteExercise)
 const mockList = vi.mocked(listVersions)
 const mockPublish = vi.mocked(publishDraft)
 const mockDiscard = vi.mocked(discardDraft)
-const mockRollback = vi.mocked(rollbackToVersion)
+const mockRestore = vi.mocked(restoreVersion)
+const mockCheckpoint = vi.mocked(createCheckpoint)
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const exercise = {
@@ -79,6 +82,7 @@ describe('exercise detail page', () => {
     render(<Page />)
     await waitFor(() => expect(screen.getByDisplayValue('SQLi basics')).toBeInTheDocument())
     expect(screen.getByDisplayValue('Intro')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Intro').tagName).toBe('TEXTAREA')
     expect(screen.getByText('web')).toBeInTheDocument()
   })
 
@@ -215,7 +219,7 @@ describe('exercise detail page', () => {
     }
     mockGet.mockResolvedValue({ ...exercise, PublishedVersionID: 'v3' })
     mockList.mockResolvedValue([unpublished])
-    mockRollback.mockResolvedValue({} as never)
+    mockRestore.mockResolvedValue({} as never)
 
     render(<Page />)
     await screen.findByDisplayValue('SQLi basics')
@@ -227,8 +231,19 @@ describe('exercise detail page', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exVersions.rollback' }))
 
-    await waitFor(() => expect(mockRollback).toHaveBeenCalledWith(EX_ID, 'v2'))
+    await waitFor(() => expect(mockRestore).toHaveBeenCalledWith(EX_ID, 'v2'))
     await waitFor(() => expect(mockList.mock.calls.length).toBeGreaterThan(listCalls))
+  })
+
+  it('creates a deliberate checkpoint without publishing the draft', async () => {
+    mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
+    mockList.mockResolvedValue([draftVersion])
+    mockCheckpoint.mockResolvedValue({} as never)
+    render(<Page />)
+    await screen.findByDisplayValue('SQLi basics')
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.exVersions.checkpoint' }))
+    await waitFor(() => expect(mockCheckpoint).toHaveBeenCalledWith(EX_ID))
+    expect(mockPublish).not.toHaveBeenCalled()
   })
 
   it('shows the mapped error and re-enables the action when publish fails', async () => {

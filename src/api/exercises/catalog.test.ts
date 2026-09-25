@@ -9,6 +9,8 @@ vi.mock('@/api/client')
 import * as client from '@/api/client'
 import {
   listExercises,
+  listExercisesPage,
+  listExerciseTags,
   getExercise,
   createExercise,
   updateExercise,
@@ -50,30 +52,50 @@ describe('listExercises', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('calls apiGet with the bare base path when no filter', async () => {
-    mockApiGet.mockResolvedValueOnce({ Exercises: [], NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0 })
     await listExercises()
     expect(mockApiGet.mock.calls[0][0]).toBe('/api/exercises')
   })
 
   it('builds search, repeated tags, cursor and pageSize params', async () => {
-    mockApiGet.mockResolvedValueOnce({ Exercises: [], NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0 })
     await listExercises({ search: 'sql', tags: ['web', 'crypto'], cursor: EX_ID, pageSize: 50 })
     const [path] = mockApiGet.mock.calls[0]
     expect(path).toBe(`/api/exercises?search=sql&tags=web&tags=crypto&cursor=${EX_ID}&pageSize=50`)
   })
 
   it('normalises null Exercises and null Tags', async () => {
-    mockApiGet.mockResolvedValueOnce({ Exercises: null, NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: null, Total: 0 })
     const empty = await listExercises()
-    expect(empty.Exercises).toEqual([])
+    expect(empty.Items).toEqual([])
 
     mockApiGet.mockResolvedValueOnce({
-      Exercises: [{ ...rawListItem, Tags: null }],
-      NextCursor: '',
-      HasMore: false,
+      Items: [{ ...rawListItem, Tags: null }],
+      Total: 1,
     })
     const result = await listExercises()
-    expect(result.Exercises[0].Tags).toEqual([])
+    expect(result.Items[0].Tags).toEqual([])
+  })
+})
+
+describe('listExercisesPage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('sends offset, sort and filters and normalizes tags', async () => {
+    mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, Tags: null }], Total: 51, Page: 2, PageSize: 25 })
+    const page = await listExercisesPage({ search: 'sql', tags: ['web'], status: 'draft', page: 2, pageSize: 25, sortBy: 'name', sortDir: 'asc' })
+    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?search=sql&tags=web&status=draft&page=2&pageSize=25&sortBy=name&sortDir=asc')
+    expect(page).toMatchObject({ Total: 51, Page: 2, PageSize: 25, Items: [{ Tags: [] }] })
+  })
+})
+
+describe('listExerciseTags', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('requests prefix-matching catalog tags and keeps their exercise counts', async () => {
+    mockApiGet.mockResolvedValueOnce([{ Tag: 'crypto', Count: 12 }])
+    expect(await listExerciseTags('cr')).toEqual([{ Tag: 'crypto', Count: 12 }])
+    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises/tags?prefix=cr')
   })
 })
 

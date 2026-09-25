@@ -23,10 +23,12 @@ import { apiGet, ApiError } from "@/api/client"
 // ---------------------------------------------------------------------------
 
 export interface Me {
+  ID: string
   FirstName: string
   LastName: string
   Email: string
   Role: string
+  Permissions: string[]
   // Avatar URL — the backend's UserInfo field is "Picture".
   Picture?: string
 }

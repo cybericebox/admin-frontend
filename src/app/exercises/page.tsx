@@ -1,27 +1,21 @@
 "use client"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
-import { listExercises, createExercise, type ExerciseListItem } from "@/api/exercises/catalog"
-import { identitySchema, type IdentityFormValues } from "@/lib/exerciseSchemas"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { listExercisesPage, type ExerciseListItem } from "@/api/exercises/catalog"
 import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Form, FormField, FormItem, FormLabel, FormControl, FormMessage,
-} from "@/components/ui/form"
-
-const PAGE = 50
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { TablePagination } from "@/components/ui/table-pagination"
+import { SortableHeader } from "@/components/ui/sortable-header"
+import { SelectMenu } from "@/components/ui/select-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { localDraftStorageKey, parseLocalDraft, type LocalExerciseDraft } from "@/lib/localExerciseDraft"
+import { Trash2 } from "lucide-react"
 
 function StatusBadges({ item }: { item: ExerciseListItem }) {
   return (
@@ -37,197 +31,157 @@ function StatusBadges({ item }: { item: ExerciseListItem }) {
   )
 }
 
-function CreateExerciseDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const form = useForm<IdentityFormValues>({
-    resolver: zodResolver(identitySchema),
-    defaultValues: { Name: "", Description: "", Tags: [] },
-  })
-  const busy = form.formState.isSubmitting
-
-  const onSubmit = form.handleSubmit(async (values) => {
-    setError(null)
-    try {
-      const created = await createExercise(values)
-      router.push(`/exercises/detail?id=${created.ID}`)
-    } catch (e) {
-      setError(exerciseErrorMessage(e))
-    }
-  })
-
-  function handleOpenChange(next: boolean) {
-    onOpenChange(next)
-    if (!next) {
-      form.reset()
-      setError(null)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.ex.create.title")}</DialogTitle>
-          <DialogDescription>{t("admin.ex.create.description")}</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={onSubmit} className="space-y-3">
-            <FormField control={form.control} name="Name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("admin.ex.field.name")}</FormLabel>
-                <FormControl><Input {...field} disabled={busy} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="Description" render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("admin.ex.field.description")}</FormLabel>
-                <FormControl><Input {...field} disabled={busy} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="Tags" render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("admin.ex.field.tags")}</FormLabel>
-                <FormControl>
-                  <TagInput value={field.value} onChange={field.onChange} disabled={busy} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            {error && (
-              <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
-            )}
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={busy} onClick={() => handleOpenChange(false)}>
-                {t("admin.ex.create.cancel")}
-              </Button>
-              <Button type="submit" disabled={busy}>{t("admin.ex.create.submit")}</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export default function Page() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [debounced, setDebounced] = useState("")
   const [tags, setTags] = useState<string[]>([])
+  const [status, setStatus] = useState("all")
   const [rows, setRows] = useState<ExerciseListItem[]>([])
-  const [cursor, setCursor] = useState("")
-  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [total, setTotal] = useState(0)
+  const [sortBy, setSortBy] = useState("updated")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [localDraft, setLocalDraft] = useState<LocalExerciseDraft | null>(null)
+  const [draftDialog, setDraftDialog] = useState<"create" | "delete" | null>(null)
+  const [draftActionError, setDraftActionError] = useState(false)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
 
-  const { can } = useRole()
+  const { can, me } = useRole()
+  const storageKey = me?.ID ? localDraftStorageKey(me.ID) : null
 
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(search.trim()), 300)
-    return () => clearTimeout(id)
-  }, [search])
+    if (!storageKey) return
+    const refresh = () => {
+      try { setLocalDraft(parseLocalDraft(window.localStorage.getItem(storageKey))) }
+      catch { setLocalDraft(null) }
+    }
+    const onStorage = (event: StorageEvent) => { if (event.key === storageKey) refresh() }
+    const onVisible = () => { if (document.visibilityState === "visible") refresh() }
+    refresh()
+    window.addEventListener("storage", onStorage)
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("storage", onStorage)
+      window.removeEventListener("focus", refresh)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [storageKey])
 
-  const buildFilter = useCallback(
-    (cur: string) => ({
-      ...(debounced ? { search: debounced } : {}),
-      ...(tags.length > 0 ? { tags } : {}),
-      ...(cur ? { cursor: cur } : {}),
-      pageSize: PAGE,
-    }),
-    [debounced, tags],
-  )
+  function createExercise() {
+    if (storageKey) {
+      try {
+        const stored = parseLocalDraft(window.localStorage.getItem(storageKey))
+        if (stored) {
+          setLocalDraft(stored)
+          setDraftActionError(false)
+          setDraftDialog("create")
+          return
+        }
+      } catch { /* No accessible browser draft; open the editor. */ }
+    }
+    router.push("/exercises/new")
+  }
 
-  // Reset pagination state synchronously during render when the filter changes
-  // (React's "adjusting state when a prop changes" pattern) rather than inside
-  // the fetch effect below, which may only set state from the async callbacks.
-  const filterKey = `${debounced} ${tags.join(" ")}`
-  const [appliedFilterKey, setAppliedFilterKey] = useState(filterKey)
-  if (filterKey !== appliedFilterKey) {
-    setAppliedFilterKey(filterKey)
-    setLoading(true); setError(false); setRows([]); setCursor(""); setHasMore(false)
+  function clearBrowserDraft(): boolean {
+    if (!storageKey) return false
+    try {
+      window.localStorage.removeItem(storageKey)
+      setLocalDraft(null)
+      setDraftActionError(false)
+      setDraftDialog(null)
+      return true
+    } catch {
+      setDraftActionError(true)
+      return false
+    }
   }
 
   useEffect(() => {
-    let cancelled = false
-    listExercises(buildFilter(""))
-      .then((d) => {
-        if (!cancelled) { setRows(d.Exercises); setCursor(d.NextCursor); setHasMore(d.HasMore) }
-      })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [buildFilter])
+    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
+    return () => clearTimeout(id)
+  }, [search])
 
-  const loadMore = useCallback(() => {
-    if (!hasMore || loadingMore || !cursor) return
-    setLoadingMore(true)
-    listExercises(buildFilter(cursor))
-      .then((d) => {
-        setRows((prev) => [...prev, ...d.Exercises])
-        setCursor(d.NextCursor)
-        setHasMore(d.HasMore)
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMore(false))
-  }, [hasMore, loadingMore, cursor, buildFilter])
-
-  const loadMoreRef = useRef(loadMore)
-  useEffect(() => { loadMoreRef.current = loadMore })
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) loadMoreRef.current() },
-      { rootMargin: "200px" },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
+    let active = true
+    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    listExercisesPage({ search: debounced, tags, status: status === "all" ? "" : status, page, pageSize, sortBy, sortDir })
+      .then((data) => { if (active) { setRows(data.Items); setTotal(data.Total) } })
+      .catch(() => { if (active) setError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [debounced, tags, status, page, pageSize, sortBy, sortDir, reloadKey])
+
+  function goToPage(next: number) {
+    if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
+    setLoading(true)
+    setPage(next)
+  }
+
+  function sort(field: string) {
+    setSortDir(field === sortBy ? sortDir === "asc" ? "desc" : "asc" : field === "updated" ? "desc" : "asc")
+    setSortBy(field)
+    goToPage(1)
+  }
 
   return (
-    <div className="frost-panel frost-in rounded-lg p-6">
+    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Input
-          type="text"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("admin.ex.search")}
-          className="max-w-sm"
+          aria-label={t("admin.ex.search")}
+          className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm"
         />
         <div className="min-w-64 max-w-md flex-1">
-          <TagInput value={tags} onChange={setTags} placeholder={t("admin.ex.filterTags.placeholder")} />
+          <TagInput value={tags} onChange={(value) => { setTags(value); goToPage(1) }} placeholder={t("admin.ex.filterTags.placeholder")} className="min-h-10" />
         </div>
+        <SelectMenu value={status} onChange={(value) => { setStatus(value); goToPage(1) }}
+          options={[{ value: "all", label: t("admin.ex.filterStatusAll") }, { value: "draft", label: t("admin.ex.status.draft") }, { value: "published", label: t("admin.ex.status.published") }, { value: "none", label: t("admin.ex.filterStatusNone") }]}
+          ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
         {can("exercises.write") && (
-          <Button onClick={() => setCreateOpen(true)}>{t("admin.ex.create.button")}</Button>
+          <Button type="button" onClick={createExercise} className="ml-auto h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>
         )}
       </div>
 
-      <CreateExerciseDialog open={createOpen} onOpenChange={setCreateOpen} />
-
-      {error ? (
-        <p className="py-8 text-center text-sm text-destructive">{t("admin.ex.loadError")}</p>
-      ) : loading ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
-      ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.ex.empty")}</p>
+      <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
+      {error && rows.length === 0 && !localDraft ? (
+        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.ex.retry")}</Button></div>
+      ) : loading && rows.length === 0 && !localDraft ? (
+        <LoadingArea label={t("admin.loading")} />
+      ) : rows.length === 0 && !localDraft ? (
+        <EmptyState message={t(debounced || tags.length > 0 || status !== "all" ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
       ) : (
-        <div className="overflow-x-auto">
+        <div>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-3 py-2 font-medium">{t("admin.ex.col.name")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.ex.col.tags")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.ex.col.status")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.ex.col.updated")}</th>
+            <thead className="sticky top-0 z-10 bg-card">
+              <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.ex.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort} />
               </tr>
             </thead>
             <tbody>
-              {rows.map((item) => (
+              {localDraft && <tr className="border-b border-amber-300/70 bg-amber-50/70 dark:border-amber-700/50 dark:bg-amber-950/25">
+                <td className="border-l-2 border-l-amber-400 px-3 py-2">
+                  <Link href="/exercises/new" className="block">
+                    <span className="font-medium text-foreground">{localDraft.identity.Name || t("admin.ex.localDraft.untitled")}</span>
+                    {localDraft.identity.Description && <span className="block max-w-md truncate text-xs text-muted-foreground">{localDraft.identity.Description}</span>}
+                  </Link>
+                </td>
+                <td className="px-3 py-2"><span className="flex flex-wrap gap-1">{localDraft.identity.Tags.map((tag) => <span key={tag} className="rounded-full bg-secondary/40 px-2 py-0.5 text-xs">{tag}</span>)}</span></td>
+                <td className="px-3 py-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">{t("admin.ex.localDraft.badge")}</span></td>
+                <td className="px-3 py-2"><div className="flex items-center justify-between gap-2"><time className="whitespace-nowrap text-muted-foreground" dateTime={new Date(localDraft.updatedAt).toISOString()}>{new Date(localDraft.updatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><Button type="button" variant="ghost" size="icon" aria-label={t("admin.ex.localDraft.delete")} className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => { setDraftActionError(false); setDraftDialog("delete") }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button></div></td>
+              </tr>}
+              {rows.filter((item) => item.ID !== localDraft?.createdId).map((item) => (
                 <tr key={item.ID} className="border-b border-border/50 transition-colors hover:bg-accent/10">
                   <td className="px-3 py-2">
                     <Link href={`/exercises/detail?id=${item.ID}`} className="block">
@@ -245,8 +199,8 @@ export default function Page() {
                     </span>
                   </td>
                   <td className="px-3 py-2"><StatusBadges item={item} /></td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleDateString() : "—"}
+                  <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                    {item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
                   </td>
                 </tr>
               ))}
@@ -254,12 +208,24 @@ export default function Page() {
           </table>
         </div>
       )}
-
-      <div ref={sentinelRef} className="h-6" />
-      {loadingMore && <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.ex.loadingMore")}</p>}
-      {!loading && !hasMore && rows.length > 0 && (
-        <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.ex.endOfList")}</p>
-      )}
+      {error && (rows.length > 0 || localDraft) && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.ex.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.ex.retry")}</Button></div>}
+      </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
+        onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
+      <Dialog open={draftDialog !== null} onOpenChange={(open) => { if (!open) setDraftDialog(null) }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteTitle" : "admin.ex.localDraft.confirmTitle")}</DialogTitle>
+            <DialogDescription>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteDescription" : "admin.ex.localDraft.confirmDescription")}</DialogDescription>
+          </DialogHeader>
+          {draftActionError && <p role="alert" className="text-sm text-destructive">{t("admin.ex.localDraft.deleteError")}</p>}
+          <DialogFooter className="flex-wrap gap-2 sm:space-x-0">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDraftDialog(null)}>{t("admin.ex.create.cancel")}</Button>
+            {draftDialog === "create" && <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => { setDraftDialog(null); router.push("/exercises/new") }}>{t("admin.ex.localDraft.continue")}</Button>}
+            <Button type="button" variant={draftDialog === "delete" ? "destructive" : "default"} className="w-full max-w-full whitespace-normal text-center sm:w-auto" onClick={() => { if (clearBrowserDraft() && draftDialog === "create") router.push("/exercises/new") }}>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteConfirm" : "admin.ex.localDraft.reset")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

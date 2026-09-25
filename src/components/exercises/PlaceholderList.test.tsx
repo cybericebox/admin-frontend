@@ -18,7 +18,7 @@ function Harness({ placeholders, devices }: {
   draft.Variants[0].Tasks[0].Placeholders = placeholders
   if (devices) {
     draft.Variants[0].Topology.Devices = [{
-      ID: 'd1', Name: 'web', Type: 'container', Image: '', Interfaces: [], EnvVars: [],
+      ID: 'd1', Name: 'web', Type: 'container', SecurityPreset: '', Image: '', Interfaces: [], EnvVars: [],
       External: { Enabled: devices.withExternal, Port: 80, Protocol: 'http' },
     }]
   }

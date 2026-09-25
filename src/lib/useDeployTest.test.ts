@@ -59,4 +59,49 @@ describe("useDeployTest", () => {
     expect(mocked.destroyDeploy).toHaveBeenCalledWith("g1")
     expect(result.current.deployId).toBeNull()
   })
+
+  it("tears down a deploy whose start request finishes after close", async () => {
+    let finishStart!: (value: deployApi.DeployResponse) => void
+    mocked.deployVariant.mockReturnValue(new Promise((resolve) => { finishStart = resolve }))
+
+    const { result } = renderHook(() => useDeployTest())
+    let start!: Promise<void>
+    act(() => { start = result.current.start("ex", "ver", "var") })
+    act(() => { result.current.close() })
+    await act(async () => { finishStart({ DeployID: "late-deploy", Lab: "lab" }); await start })
+
+    expect(mocked.destroyDeploy).toHaveBeenCalledOnce()
+    expect(mocked.destroyDeploy).toHaveBeenCalledWith("late-deploy")
+    expect(mocked.deployStatus).not.toHaveBeenCalled()
+    expect(result.current.deployId).toBeNull()
+  })
+
+  it("tears down a deploy whose start request finishes after unmount", async () => {
+    let finishStart!: (value: deployApi.DeployResponse) => void
+    mocked.deployVariant.mockReturnValue(new Promise((resolve) => { finishStart = resolve }))
+
+    const { result, unmount } = renderHook(() => useDeployTest())
+    let start!: Promise<void>
+    act(() => { start = result.current.start("ex", "ver", "var") })
+    unmount()
+    await act(async () => { finishStart({ DeployID: "unmounted-deploy", Lab: "lab" }); await start })
+
+    expect(mocked.destroyDeploy).toHaveBeenCalledOnce()
+    expect(mocked.destroyDeploy).toHaveBeenCalledWith("unmounted-deploy")
+    expect(mocked.deployStatus).not.toHaveBeenCalled()
+  })
+
+  it("tears down the previous deploy when testing another variant", async () => {
+    mocked.deployVariant
+      .mockResolvedValueOnce({ DeployID: "first-deploy", Lab: "lab" })
+      .mockResolvedValueOnce({ DeployID: "second-deploy", Lab: "lab" })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+
+    const { result } = renderHook(() => useDeployTest())
+    await act(async () => { await result.current.start("ex", "ver", "first") })
+    await act(async () => { await result.current.start("ex", "ver", "second") })
+
+    expect(mocked.destroyDeploy).toHaveBeenCalledWith("first-deploy")
+    expect(result.current.deployId).toBe("second-deploy")
+  })
 })

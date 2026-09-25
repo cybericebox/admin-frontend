@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import type { TaskDTO } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { resolvePlaceholders } from "@/lib/placeholderResolve"
 import { useDeployTest } from "@/lib/useDeployTest"
@@ -43,6 +43,7 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
 
   const status = deploy.status
   const ready = status?.Ready ?? false
+  const failed = status?.Phase === "Failed"
 
   return (
     <Dialog
@@ -56,14 +57,14 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
           <DialogTitle>{t("admin.exDeploy.title")}</DialogTitle>
         </DialogHeader>
 
-        {deploy.error ? (
-          <p className="text-sm text-destructive">
-            {t("admin.exDeploy.failed")}: {deploy.error}
+        {deploy.error || failed ? (
+          <p role="alert" className="text-sm text-destructive">
+            {t("admin.exDeploy.failed")}{deploy.error ? `: ${deploy.error}` : ""}
           </p>
         ) : !ready ? (
-          <div className="flex items-center gap-3 py-8">
-            <Spinner size="md" />
-            <span className="text-sm text-muted-foreground">
+          <div className="space-y-2 text-center">
+            <LoadingArea compact label={t("admin.exDeploy.provisioning")} />
+            <span className="block text-sm text-muted-foreground">
               {status?.Phase && status.Phase !== "Ready" ? status.Phase : t("admin.exDeploy.provisioning")}
             </span>
           </div>

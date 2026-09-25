@@ -1,22 +1,22 @@
 import { cn } from "@/utils/cn"
+import { CREST_SRC } from "@/components/brand/Logo"
 import "./spinner.css"
 
 const SIZE_CLASS = {
-  sm: "ice-loader-sm",
-  md: "ice-loader-md",
-  lg: "ice-loader-lg",
+  sm: "crest-loader-sm",
+  md: "crest-loader-md",
+  lg: "crest-loader-lg",
+  auto: "crest-loader-auto",
 } as const
 
-// Branded isometric ice-cube loader ("ICE Box"): the cube melts into a puddle
-// then refreezes on a loop. Size scales off font-size (svg is 1em square);
-// color is currentColor (ice-cyan by default, inherited inside buttons).
+// The original CyberICEBox crest remains the loading mark across apps.
 // `label` is announced to screen readers; without it a generic aria-label is used.
 export function Spinner({
   size = "sm",
   label,
   className,
 }: {
-  size?: "sm" | "md" | "lg"
+  size?: "sm" | "md" | "lg" | "auto"
   label?: string
   className?: string
 }) {
@@ -24,25 +24,28 @@ export function Spinner({
     <span
       role="status"
       aria-label={label ? undefined : "loading"}
-      className={cn("ice-loader", SIZE_CLASS[size], className)}
+      className={cn("inline-flex items-center justify-center leading-none", className)}
     >
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <ellipse className="ice-pud" cx="12" cy="19" rx="7" ry="1.8" fill="currentColor" />
-        <path className="ice-side" d="M4 8 L12 12 L12 20 L4 16 Z" fill="currentColor" opacity=".55" />
-        <path className="ice-side ice-side-r" d="M20 8 L12 12 L12 20 L20 16 Z" fill="currentColor" opacity=".8" />
-        <path className="ice-top" d="M12 4 L20 8 L12 12 L4 8 Z" fill="currentColor" opacity=".95" />
-        <path className="ice-shine" d="M12 5.4 L16.5 7.6 L12 9.9 L7.5 7.6 Z" fill="#fff" opacity="0" />
-      </svg>
+      <span aria-hidden="true" className={cn("crest-loader", SIZE_CLASS[size])} style={{ ["--crest-src" as string]: `url(${CREST_SRC})` }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={CREST_SRC} alt="" />
+      </span>
       {label ? <span className="sr-only">{label}</span> : null}
     </span>
   )
 }
 
+// Block-level loading state: the crest is centered in the area being loaded
+// and scales with that area's inline size instead of inheriting a page-wide size.
+export function LoadingArea({ label, compact = false, className }: { label?: string; compact?: boolean; className?: string }) {
+  return <div className={cn("loading-area", compact ? "loading-area-compact" : "loading-area-panel", className)}><Spinner size="auto" label={label} /></div>
+}
+
 // Full-screen centered loader for page-level loading states.
 export function PageLoader({ label }: { label?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-      <Spinner size="lg" label={label} />
+    <div className="loading-area loading-area-page fixed inset-0 z-50 bg-background">
+      <Spinner size="auto" label={label} />
     </div>
   )
 }

@@ -2,13 +2,13 @@
 
 import { useRef, useState } from "react"
 import { useFieldArray, useFormContext } from "react-hook-form"
-import { Paperclip, Trash2 } from "lucide-react"
+import { Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { uploadExerciseFile, exerciseFileURL } from "@/api/exercises/files"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { RemoveAction } from "./RemoveAction"
 
 /**
  * AttachmentList — task attachments. Upload: POST /api/exercises/files
@@ -30,6 +30,7 @@ export function AttachmentList({
   const { fields, append, remove } = useFieldArray({ control, name })
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function onPicked(e: React.ChangeEvent<HTMLInputElement>) {
@@ -37,14 +38,16 @@ export function AttachmentList({
     e.target.value = "" // allow picking the same file again
     if (!file) return
     setUploading(true)
+    setProgress(0)
     setError(null)
     try {
-      const uploaded = await uploadExerciseFile(file)
+      const uploaded = await uploadExerciseFile(file, setProgress)
       append({ FileID: uploaded.FileID, Name: uploaded.Name })
     } catch (err) {
       setError(exerciseErrorMessage(err))
     } finally {
       setUploading(false)
+      setProgress(null)
     }
   }
 
@@ -76,15 +79,14 @@ export function AttachmentList({
       </div>
 
       {uploading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Spinner label={t("admin.exFiles.uploading")} />
+        <div className="space-y-1.5" aria-live="polite">
+          <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress ?? 0}%</span></div>
+          <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0} className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress ?? 0}%` }} /></div>
         </div>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {fields.length === 0 && !uploading ? (
-        <p className="text-xs text-muted-foreground">{t("admin.exFiles.empty")}</p>
-      ) : (
+      {fields.length > 0 && (
         <ul className="space-y-1">
           {fields.map((field, ai) => (
             <li key={field.id} className="flex items-center gap-2 text-sm">
@@ -96,15 +98,7 @@ export function AttachmentList({
                 {field.Name}
               </a>
               {!disabled && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={`remove-attachment-${ai}`}
-                  onClick={() => remove(ai)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <RemoveAction ariaLabel={t("admin.exFiles.remove")} onClick={() => remove(ai)} />
               )}
             </li>
           ))}

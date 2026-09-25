@@ -74,10 +74,30 @@ describe('VersionsTable', () => {
     expect(screen.queryByText('admin.exDetail.discard')).not.toBeInTheDocument()
   })
 
-  it('published row: view only (no rollback/publish/discard)', () => {
+  it('published row can be restored into a draft without republishing', () => {
     renderTable([version({ ID: 'v3', Status: 'published' })])
-    expect(screen.queryByText('admin.exVersions.rollback')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('admin.exVersions.rollback'))
+    expect(onRollback).toHaveBeenCalledWith('v3')
     expect(screen.queryByText('admin.exDetail.publish')).not.toBeInTheDocument()
     expect(screen.getByText('admin.exVersions.view')).toBeInTheDocument()
+  })
+
+  it('checkpoint row can be restored without exposing draft-only actions', () => {
+    renderTable([version({ ID: 'cp1', Status: 'checkpoint' })])
+    fireEvent.click(screen.getByText('admin.exVersions.rollback'))
+    expect(onRollback).toHaveBeenCalledWith('cp1')
+    expect(screen.queryByText('admin.exDetail.publish')).not.toBeInTheDocument()
+    expect(screen.getByText('admin.ex.status.checkpoint')).toBeInTheDocument()
+  })
+
+  it('shows version dates in the Ukrainian locale with seconds', () => {
+    const publishedAt = '2026-09-24T20:25:10Z'
+    renderTable([version({ Status: 'published', PublishedAt: publishedAt })])
+
+    const expected = new Date(publishedAt).toLocaleString('uk-UA', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    })
+    expect(screen.getByText(expected)).toBeInTheDocument()
   })
 })

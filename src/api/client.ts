@@ -4,8 +4,9 @@
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
-const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN ?? ""
-const BASE_URL = DOMAIN ? `https://api.${DOMAIN}` : ""
+import { apiOrigin } from "@/lib/origins"
+import { isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
   constructor(
@@ -68,6 +69,12 @@ function redirectToSignInPage(signInUrl: string | null): void {
   window.location.replace(signInUrl || portless(window.location.origin) + "/sign-in")
 }
 
+/** Shared by JSON requests and the progress-reporting multipart upload. */
+export function redirectRequiredAuth(signInUrl: string | null): void {
+  writeReturnToCookie()
+  redirectToSignInPage(signInUrl)
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -75,22 +82,28 @@ async function request<T>(
 ): Promise<T> {
   const url = `${BASE_URL}${path}`
 
-  const res = await fetch(url, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    })
+  } catch (error) {
+    reportServiceUnavailable()
+    throw error
+  }
+  if (isUnavailableStatus(res.status)) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the
   // caller's success/catch paths from running while the browser navigates away.
   // required:false → fall through to throw ApiError so callers treat it as anon.
   if (res.status === 401 && (opts.required ?? true)) {
-    writeReturnToCookie()
-    redirectToSignInPage(res.headers.get("X-Sign-In-URL"))
+    redirectRequiredAuth(res.headers.get("X-Sign-In-URL"))
     return new Promise<never>(() => {})
   }
 
@@ -161,4 +174,10 @@ export function apiPatch<T>(
 
 export function apiDelete<T>(path: string, init?: RequestInit, opts?: ApiOptions): Promise<T> {
   return request<T>(path, { ...init, method: "DELETE" }, opts)
+}
+
+// Avatar paths returned by the API are relative to the API host.
+export function mediaUrl(src: string | undefined | null): string | undefined {
+  if (!src) return undefined
+  return src.startsWith("/") ? `${BASE_URL}${src}` : src
 }

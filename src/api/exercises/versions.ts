@@ -17,16 +17,17 @@
  *    several → chosen on deployment;
  *  - EnvVar.Value is write-only: empty in responses, HasValue=true if a value
  *    is stored; an empty Value on save means "keep the stored one";
- *  - VisualRender is neither read nor written.
+ *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 
 const BASE = "/api/exercises"
 
-export type VersionStatus = "draft" | "published" | "unpublished"
+export type VersionStatus = "draft" | "published" | "unpublished" | "checkpoint"
 export type Difficulty = "trivial" | "easy" | "medium" | "hard" | "insane"
 export type DeviceType = "container" | "vm" | "unmanaged-switch" | "hub"
-export type IPType = "static" | "dhcp" | "none"
+export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
+export type SecurityPreset = "" | "basic" | "service" | "net" | "debug"
 export type EndpointKind = "device" | "vpn" | "internet"
 export type Protocol = "http" | "https"
 export type PlaceholderKind = "vpn.subnet" | "internet.subnet" | "ip" | "external.link"
@@ -66,6 +67,7 @@ export type DeviceDTO = {
   ID?: string
   Name: string // DNS label
   Type: DeviceType
+  SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
@@ -81,7 +83,7 @@ export type TopologyDTO = {
   Internet: NetworkDTO
   Devices?: DeviceDTO[]
   Connections?: ConnectionDTO[]
-  VisualRender?: Record<string, unknown> // reserved, not used
+  VisualRender?: Record<string, unknown>
 }
 
 export type TaskDTO = {
@@ -146,6 +148,7 @@ export type NormalizedDevice = {
   ID: string
   Name: string
   Type: DeviceType
+  SecurityPreset: SecurityPreset
   Image: string
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
@@ -160,6 +163,7 @@ export type NormalizedTopology = {
   Internet: NetworkDTO
   Devices: NormalizedDevice[]
   Connections: NormalizedConnection[]
+  VisualRender: Record<string, unknown> | null
 }
 
 export type NormalizedVariant = {
@@ -215,6 +219,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     ID: raw.ID ?? "",
     Name: raw.Name,
     Type: raw.Type,
+    SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",
     Interfaces: (raw.Interfaces ?? []).map(normalizeInterface),
     EnvVars: (raw.EnvVars ?? []).map((ev) => ({
@@ -239,6 +244,7 @@ function normalizeTopology(raw: TopologyDTO | null | undefined): NormalizedTopol
         Interface: ep.Interface ?? "",
       })),
     })),
+    VisualRender: raw?.VisualRender ?? null,
   }
 }
 
@@ -292,5 +298,17 @@ export function discardDraft(exerciseId: string): Promise<void> {
 /** POST /api/exercises/:id/versions/:versionID/rollback */
 export async function rollbackToVersion(exerciseId: string, versionId: string): Promise<Version> {
   const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/versions/${versionId}/rollback`, {})
+  return normalizeVersion(raw)
+}
+
+/** POST /api/exercises/:id/checkpoints — explicit history snapshot. */
+export async function createCheckpoint(exerciseId: string): Promise<Version> {
+  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/checkpoints`, {})
+  return normalizeVersion(raw)
+}
+
+/** POST /api/exercises/:id/versions/:versionID/restore — preserves the current draft. */
+export async function restoreVersion(exerciseId: string, versionId: string): Promise<Version> {
+  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/versions/${versionId}/restore`, {})
   return normalizeVersion(raw)
 }

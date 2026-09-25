@@ -14,6 +14,7 @@ import {
 export interface SelectMenuOption {
   value: string
   label: string
+  description?: string
 }
 
 interface SelectMenuProps {
@@ -23,21 +24,23 @@ interface SelectMenuProps {
   disabled?: boolean
   placeholder?: string
   className?: string
+  ariaLabel?: string
 }
 
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
+          aria-label={ariaLabel}
           variant="outline"
           disabled={disabled}
-          className={cn("justify-between font-normal", className)}
+          className={cn("h-10 justify-between font-normal", className)}
         >
           <span className="truncate">{selected ? selected.label : (placeholder ?? "")}</span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
@@ -47,7 +50,10 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value}>
-              {o.label}
+              {o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
+                <span className="font-medium">{o.label}</span>
+                <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>
+              </span> : o.label}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

@@ -1,18 +1,18 @@
 /**
- * page.test.tsx — exercises catalog: list render, debounced search, tag filter,
- * plus the create dialog (RBAC gate, happy path, error path).
+ * page.test.tsx — exercises catalog table and create link.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { emptyDraft } from '@/lib/exerciseSchemas'
+import { DEFAULT_EDITOR_POSITION, localDraftStorageKey, makeLocalDraft } from '@/lib/localExerciseDraft'
 
-// Mutable mock state hoisted above vi.mock: `canWrite` toggles the RBAC gate
-// on the create button, `push` is a stable spy for next/navigation.
-const h = vi.hoisted(() => ({ canWrite: true, push: vi.fn() }))
+// Mutable permission state for the create link.
+const h = vi.hoisted(() => ({ canWrite: true, userId: 'editor-1', push: vi.fn() }))
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 vi.mock('@/lib/useRole', () => ({
   useRole: () => ({
-    me: null,
+    me: { ID: h.userId },
     role: 'admin',
     isLoading: false,
     permissions: ['*'],
@@ -21,24 +21,23 @@ vi.mock('@/lib/useRole', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock('@/api/exercises/catalog', () => ({
-  listExercises: vi.fn(),
-  createExercise: vi.fn(),
+  listExercisesPage: vi.fn(),
 }))
 
-import { listExercises, createExercise } from '@/api/exercises/catalog'
-import { ApiError } from '@/api/client'
+import { listExercisesPage } from '@/api/exercises/catalog'
 import Page from './page'
 
-const mockList = vi.mocked(listExercises)
-const mockCreate = vi.mocked(createExercise)
+const mockList = vi.mocked(listExercisesPage)
 
-// jsdom has no IntersectionObserver — the infinite-scroll sentinel gets a stub.
-class IO {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+function resetStorage() {
+  const storage = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => { storage.set(key, String(value)) },
+    removeItem: (key: string) => { storage.delete(key) },
+    clear: () => { storage.clear() },
+  } })
 }
-vi.stubGlobal('IntersectionObserver', IO)
 
 const item = {
   ID: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
@@ -54,8 +53,10 @@ const item = {
 describe('exercises catalog page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetStorage()
+    mockList.mockReset()
     h.canWrite = true
-    mockList.mockResolvedValue({ Exercises: [item], NextCursor: '', HasMore: false })
+    mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
   it('renders a row with name, tags and draft status', async () => {
@@ -64,23 +65,32 @@ describe('exercises catalog page', () => {
     expect(screen.getByText('web')).toBeInTheDocument()
     expect(screen.getByText('sql')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.draft')).toBeInTheDocument()
+    expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
     const link = screen.getByText('SQLi basics').closest('a')
     expect(link).toHaveAttribute('href', `/exercises/detail?id=${item.ID}`)
   })
 
   it('renders the empty state', async () => {
-    mockList.mockResolvedValue({ Exercises: [], NextCursor: '', HasMore: false })
+    mockList.mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 })
     render(<Page />)
     expect(await screen.findByText('admin.ex.empty')).toBeInTheDocument()
+    expect(screen.getByText('admin.ex.empty').closest('[data-empty-state]')?.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('keeps column headings above rows within the scrolling table', async () => {
+    const { container } = render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
   })
 
   it('debounces search and passes it to listExercises', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
+    expect(screen.getByPlaceholderText('admin.ex.search')).toHaveAttribute('type', 'search')
     fireEvent.change(screen.getByPlaceholderText('admin.ex.search'), { target: { value: 'sql' } })
     await waitFor(() => {
       const calls = mockList.mock.calls
-      expect(calls[calls.length - 1][0]).toMatchObject({ search: 'sql' })
+      expect(calls[calls.length - 1][0]).toMatchObject({ search: 'sql', page: 1 })
     })
   })
 
@@ -95,77 +105,148 @@ describe('exercises catalog page', () => {
       expect(calls[calls.length - 1][0]).toMatchObject({ tags: ['crypto'] })
     })
   })
-})
 
-describe('exercises catalog — create dialog', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    h.canWrite = true
-    mockList.mockResolvedValue({ Exercises: [item], NextCursor: '', HasMore: false })
+  it('offers a retry after the first page fails', async () => {
+    mockList.mockRejectedValueOnce(new Error('offline'))
+    render(<Page />)
+    expect(await screen.findByText('admin.ex.loadError')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.retry' }))
+    expect(await screen.findByText('SQLi basics')).toBeInTheDocument()
   })
 
-  it('hides the create button without exercises.write permission', async () => {
+  it('keeps old rows while sorting and sorts through the API', async () => {
+    let resolveSorted: ((page: { Items: typeof item[]; Total: number; Page: number; PageSize: number }) => void) | undefined
+    mockList.mockImplementation((filter) => filter.sortBy === 'name'
+      ? new Promise((resolve) => { resolveSorted = resolve })
+      : Promise.resolve({ Items: [item], Total: 2, Page: 1, PageSize: 50 }))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.name' }))
+    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+    await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ sortBy: 'name', sortDir: 'asc' })))
+    await act(async () => resolveSorted?.({ Items: [{ ...item, ID: 'sorted', Name: 'Crypto basics' }], Total: 2, Page: 1, PageSize: 50 }))
+    expect(screen.getByText('Crypto basics')).toBeInTheDocument()
+  })
+
+  it('shows total, changes page size, and keeps pagination below rows', async () => {
+    mockList.mockResolvedValue({ Items: [item], Total: 75, Page: 1, PageSize: 50 })
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.getByText('admin.table.total: 75')).toBeInTheDocument()
+    expect(screen.getByText('admin.table.page 1 admin.table.of 2')).toBeInTheDocument()
+    const selector = screen.getByRole('button', { name: 'admin.table.perPage' })
+    fireEvent.keyDown(selector, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: '25' }))
+    await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 25 })))
+    expect(screen.queryByText('admin.ex.endOfList')).not.toBeInTheDocument()
+  })
+
+  it('keeps search, tag filter, status filter, and create action at the same minimum height', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.getByPlaceholderText('admin.ex.search')).toHaveClass('h-10')
+    expect(screen.getByPlaceholderText('admin.ex.filterTags.placeholder').parentElement).toHaveClass('min-h-10')
+    expect(screen.getByRole('button', { name: 'admin.ex.filterStatus' })).toHaveClass('h-10')
+    expect(screen.getByRole('button', { name: 'admin.ex.create.button' })).toHaveClass('h-10')
+  })
+
+  it('ignores a stale next page after the tag filter changes', async () => {
+    let resolveOldPage: ((page: { Items: typeof item[]; Total: number; Page: number; PageSize: number }) => void) | undefined
+    const fresh = { ...item, ID: 'fresh', Name: 'Crypto basics', Tags: ['crypto'] }
+    const stale = { ...item, ID: 'stale', Name: 'Old SQLi' }
+    mockList.mockImplementation((filter) => {
+      if (filter.page === 2) return new Promise((resolve) => { resolveOldPage = resolve })
+      if (filter.tags?.includes('crypto')) return Promise.resolve({ Items: [fresh], Total: 1, Page: 1, PageSize: 50 })
+      return Promise.resolve({ Items: [item], Total: 51, Page: 1, PageSize: 50 })
+    })
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    await waitFor(() => expect(resolveOldPage).toBeDefined())
+    const tagBox = screen.getByPlaceholderText('admin.ex.filterTags.placeholder')
+    fireEvent.change(tagBox, { target: { value: 'crypto' } })
+    fireEvent.keyDown(tagBox, { key: 'Enter' })
+    expect(await screen.findByText('Crypto basics')).toBeInTheDocument()
+    await act(async () => resolveOldPage?.({ Items: [stale], Total: 51, Page: 2, PageSize: 50 }))
+    expect(screen.queryByText('Old SQLi')).not.toBeInTheDocument()
+  })
+
+  it('retries a failed next page without discarding the loaded rows', async () => {
+    mockList.mockResolvedValueOnce({ Items: [item], Total: 51, Page: 1, PageSize: 50 })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ Items: [{ ...item, ID: 'second', Name: 'Crypto basics' }], Total: 51, Page: 2, PageSize: 50 })
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('admin.ex.loadError')
+    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.retry' }))
+    expect(await screen.findByText('Crypto basics')).toBeInTheDocument()
+  })
+})
+
+describe('exercises catalog — create link', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    mockList.mockReset()
+    h.canWrite = true
+    mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
+  })
+
+  it('hides the create action without exercises.write permission', async () => {
     h.canWrite = false
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.queryByText('admin.ex.create.button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.ex.create.button' })).not.toBeInTheDocument()
   })
 
-  it('shows the create button with exercises.write permission', async () => {
+  it('opens the dedicated creation page when there is no browser draft', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByText('admin.ex.create.button')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
+    expect(h.push).toHaveBeenCalledWith('/exercises/new')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('submits the identity form (PascalCase) and routes to the new exercise', async () => {
-    const created = {
-      ID: 'ffffffff-0000-1111-2222-333333333333',
-      Name: 'Buffer overflow', Description: 'Smash the stack', Tags: ['pwn'],
-      DraftVersionID: null, PublishedVersionID: null,
-      CreatedAt: item.CreatedAt, CreatedBy: null, UpdatedAt: item.UpdatedAt, UpdatedBy: null,
-    }
-    mockCreate.mockResolvedValue(created)
-
+  it('pins the browser draft before server rows despite filters and lets it be deleted', async () => {
+    window.localStorage.setItem(localDraftStorageKey(h.userId), JSON.stringify(makeLocalDraft(
+      { Name: 'Browser draft', Description: 'Local description', Tags: ['web'] },
+      emptyDraft(), DEFAULT_EDITOR_POSITION, null,
+    )))
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByText('admin.ex.create.button'))
-
-    const dialog = await screen.findByRole('dialog')
-    const nameInput = within(dialog).getByLabelText('admin.ex.field.name')
-    const descInput = within(dialog).getByLabelText('admin.ex.field.description')
-    fireEvent.change(nameInput, { target: { value: 'Buffer overflow' } })
-    fireEvent.change(descInput, { target: { value: 'Smash the stack' } })
-
-    // TagInput's inner <input> has no label/placeholder — it's the third textbox.
-    const tagInput = within(dialog).getAllByRole('textbox').find((el) => el !== nameInput && el !== descInput)!
-    fireEvent.change(tagInput, { target: { value: 'pwn' } })
-    fireEvent.keyDown(tagInput, { key: 'Enter' })
-
-    fireEvent.click(within(dialog).getByText('admin.ex.create.submit'))
-
-    await waitFor(() => {
-      expect(mockCreate).toHaveBeenCalledTimes(1)
-      expect(mockCreate).toHaveBeenCalledWith({ Name: 'Buffer overflow', Description: 'Smash the stack', Tags: ['pwn'] })
-    })
-    await waitFor(() => {
-      expect(h.push).toHaveBeenCalledWith(`/exercises/detail?id=${created.ID}`)
-    })
+    const draftRow = screen.getByText('Browser draft').closest('tr')
+    expect(draftRow).toBe(screen.getAllByRole('row')[1])
+    expect(draftRow).toHaveTextContent('admin.ex.localDraft.badge')
+    expect(draftRow?.querySelector('a')).toHaveAttribute('href', '/exercises/new')
+    fireEvent.change(screen.getByPlaceholderText('admin.ex.search'), { target: { value: 'different' } })
+    expect(screen.getByText('Browser draft')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.deleteConfirm' }))
+    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).toBeNull()
+    expect(screen.queryByText('Browser draft')).not.toBeInTheDocument()
   })
 
-  it('renders the mapped error and does not route when createExercise rejects', async () => {
-    // FullCode 40903 → admin.ex.err.exists (exerciseErrorMessage runs for real).
-    mockCreate.mockRejectedValue(new ApiError(409, { Status: { Code: 40903 } }))
-
+  it('offers continue or reset before creating another exercise', async () => {
+    window.localStorage.setItem(localDraftStorageKey(h.userId), JSON.stringify(makeLocalDraft(
+      { Name: 'Existing draft', Description: '', Tags: [] },
+      emptyDraft(), DEFAULT_EDITOR_POSITION, null,
+    )))
     render(<Page />)
-    await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByText('admin.ex.create.button'))
-
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('admin.ex.field.name'), { target: { value: 'Duplicate name' } })
-    fireEvent.change(within(dialog).getByLabelText('admin.ex.field.description'), { target: { value: 'x' } })
-    fireEvent.click(within(dialog).getByText('admin.ex.create.submit'))
-
-    expect(await within(dialog).findByText('admin.ex.err.exists')).toBeInTheDocument()
-    expect(h.push).not.toHaveBeenCalled()
+    await screen.findByText('Existing draft')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('admin.ex.localDraft.confirmTitle')
+    expect(dialog).toHaveClass('max-w-xl')
+    expect(screen.getByRole('button', { name: 'admin.ex.localDraft.reset' }).parentElement).toHaveClass('flex-wrap')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.continue' }))
+    expect(h.push).toHaveBeenCalledWith('/exercises/new')
+    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).not.toBeNull()
+    h.push.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.reset' }))
+    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).toBeNull()
+    expect(h.push).toHaveBeenCalledWith('/exercises/new')
   })
 })

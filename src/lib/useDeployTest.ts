@@ -27,6 +27,7 @@ export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeId = useRef<string | null>(null)
+  const requestSequence = useRef(0)
 
   const clearTimer = () => {
     if (timer.current) {
@@ -54,14 +55,21 @@ export function useDeployTest() {
 
   const start = useCallback(
     async (exerciseId: string, versionId: string, variantId: string) => {
+      const sequence = ++requestSequence.current
       clearTimer()
+      const previousId = activeId.current
       activeId.current = null
+      if (previousId) void Promise.resolve(destroyDeploy(previousId)).catch(() => {})
       setState({ ...IDLE, busy: true })
       let deployID: string
       try {
         ;({ DeployID: deployID } = await deployVariant(exerciseId, versionId, variantId))
       } catch (e) {
-        setState({ ...IDLE, error: (e as Error).message })
+        if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message })
+        return
+      }
+      if (sequence !== requestSequence.current) {
+        void Promise.resolve(destroyDeploy(deployID)).catch(() => {})
         return
       }
       activeId.current = deployID
@@ -72,6 +80,7 @@ export function useDeployTest() {
   )
 
   const close = useCallback(() => {
+    ++requestSequence.current
     clearTimer()
     const id = activeId.current
     activeId.current = null
@@ -82,6 +91,7 @@ export function useDeployTest() {
   // Tear the deploy down if the component unmounts mid-flight.
   useEffect(
     () => () => {
+      ++requestSequence.current
       clearTimer()
       const id = activeId.current
       activeId.current = null

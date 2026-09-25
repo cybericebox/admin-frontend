@@ -1,46 +1,62 @@
 "use client"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { useForm, Controller } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { getExercise } from "@/api/exercises/catalog"
+import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import { getVersion, saveDraft, type Version } from "@/api/exercises/versions"
 import {
   draftSchema, toDraftFormValues, toSaveDraftInput, type DraftFormValues,
 } from "@/lib/exerciseSchemas"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
-import { VariantTabs } from "@/components/exercises/VariantTabs"
+import { DraftSettings, DraftVariants } from "@/components/exercises/DraftFields"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
-import { TaskAccordion } from "@/components/exercises/TaskAccordion"
-import { TopologySection } from "@/components/exercises/TopologySection"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
 import { Form } from "@/components/ui/form"
+import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
+import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/localExerciseDraft"
+import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
+import { existingDraftStorageKey, parseExistingDraft } from "@/lib/localExerciseDraft"
+import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 function DraftEditor() {
   const params = useSearchParams()
   const exerciseId = params.get("id") ?? ""
   const versionId = params.get("versionId") ?? ""
   const readOnly = versionId !== ""
-  const { can } = useRole()
+  const { can, me } = useRole()
   const disabled = readOnly || !can("exercises.write")
+  const positionKey = !readOnly && me?.ID && exerciseId ? editorPositionStorageKey(me.ID, exerciseId) : null
+  const workingKey = !readOnly && me?.ID && exerciseId ? existingDraftStorageKey(me.ID, exerciseId) : null
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveQueue = useRef<Promise<void>>(Promise.resolve())
+  const changeSequence = useRef(0)
+  const acknowledgedSequence = useRef(0)
+  const suppressWatch = useRef(false)
+  const lastContentSignature = useRef("")
+  const leaveOpenRef = useRef(false)
   // The loaded/saved version's own id (the URL param is empty for the draft) —
   // needed to address the per-variant test-deploy endpoint.
   const [loadedVersionId, setLoadedVersionId] = useState("")
   // Which variant's test-deploy dialog is open (null = closed).
   const [deployVariantIndex, setDeployVariantIndex] = useState<number | null>(null)
+  const [laboratoriesAvailable, setLaboratoriesAvailable] = useState(false)
+  const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
+  const positionRef = useRef(position)
+  const { formRef, focusField } = useEditorValidationFocus()
 
   const form = useForm<DraftFormValues>({
     resolver: zodResolver(draftSchema),
@@ -48,6 +64,120 @@ function DraftEditor() {
     mode: "onBlur",
   })
   const { isDirty, isSubmitting } = form.formState
+  const leave = useExerciseLeaveGuard(!disabled && isDirty)
+
+  useEffect(() => {
+    leaveOpenRef.current = Boolean(leave.destination)
+    if (leave.destination) {
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    } else if (!loading && !disabled && changeSequence.current !== acknowledgedSequence.current && saveTimer.current === null) {
+      saveTimer.current = setTimeout(() => {
+        saveTimer.current = null
+        void queueSaveRef.current().catch(() => undefined)
+      }, 5000)
+    }
+  }, [leave.destination, loading, disabled])
+
+  const persistWorkingCopy = useCallback(() => {
+    if (!workingKey || changeSequence.current === acknowledgedSequence.current) return
+    try {
+      window.localStorage.setItem(workingKey, JSON.stringify({ version: 1, draft: form.getValues(), updatedAt: Date.now() }))
+    } catch { /* The save error remains visible; editing can continue. */ }
+  }, [workingKey, form])
+
+  const clearWorkingCopy = useCallback(() => {
+    if (!workingKey) return
+    try { window.localStorage.removeItem(workingKey) } catch { /* Storage may be unavailable. */ }
+  }, [workingKey])
+
+  const persistPosition = useCallback((next: EditorPosition) => {
+    if (!positionKey) return
+    try { window.localStorage.setItem(positionKey, JSON.stringify(next)) } catch { /* UI location is best-effort. */ }
+  }, [positionKey])
+
+  function updatePosition<K extends keyof EditorPosition>(key: K, value: EditorPosition[K]) {
+    const next = { ...positionRef.current, [key]: value }
+    positionRef.current = next
+    setPosition(next)
+    persistPosition(next)
+  }
+
+  useEffect(() => {
+    if (!positionKey) return
+    let restored: EditorPosition | null = null
+    try { restored = parseEditorPosition(window.localStorage.getItem(positionKey)) } catch { /* Storage may be unavailable. */ }
+    if (restored) {
+      positionRef.current = restored
+      setPosition(restored)
+    }
+  }, [positionKey])
+
+  useEffect(() => {
+    if (loading || !positionKey) return
+    const root = document.querySelector<HTMLElement>("[data-admin-scroll-root]")
+    if (!root) return
+    const frame = window.requestAnimationFrame(() => { root.scrollTop = positionRef.current.scrollTop })
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const onScroll = () => {
+      positionRef.current = { ...positionRef.current, scrollTop: root.scrollTop }
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => persistPosition(positionRef.current), 350)
+    }
+    const flush = () => persistPosition(positionRef.current)
+    root.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("beforeunload", flush)
+    return () => {
+      root.removeEventListener("scroll", onScroll)
+      window.removeEventListener("beforeunload", flush)
+      window.cancelAnimationFrame(frame)
+      if (timer) clearTimeout(timer)
+      flush()
+    }
+  }, [loading, positionKey, persistPosition])
+
+  // Serialize full-snapshot writes. A slow response can update server-assigned
+  // IDs, but must not reset fields changed while that request was in flight.
+  function queueSave(force = false): Promise<void> {
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    const next = saveQueue.current.catch(() => undefined).then(async () => {
+      if (!force && changeSequence.current === acknowledgedSequence.current) return
+      const values = form.getValues()
+      if (!draftSchema.safeParse(values).success) return
+      const sequence = changeSequence.current
+      setSaveError(null)
+      setAutoSaving(true)
+      try {
+        const savedVersion = await saveDraft(exerciseId, toSaveDraftInput(values))
+        const serverValues = toDraftFormValues(savedVersion)
+        suppressWatch.current = true
+        if (changeSequence.current === sequence) {
+          form.reset(serverValues)
+          setSaved(true)
+        } else {
+          // Preserve edits made during the request; untouched IDs and other
+          // server-assigned fields still flow into the next snapshot.
+          form.reset(serverValues, { keepDirtyValues: true })
+        }
+        lastContentSignature.current = JSON.stringify(form.getValues())
+        suppressWatch.current = false
+        acknowledgedSequence.current = sequence
+        if (changeSequence.current === sequence) clearWorkingCopy()
+        else persistWorkingCopy()
+        setLoadedVersionId(savedVersion.ID)
+      } catch (cause) {
+        setSaveError(exerciseErrorMessage(cause))
+        throw cause
+      } finally {
+        setAutoSaving(false)
+      }
+    })
+    saveQueue.current = next
+    return next
+  }
+  const queueSaveRef = useRef(queueSave)
+  queueSaveRef.current = queueSave
 
   useEffect(() => {
     let cancelled = false
@@ -68,7 +198,16 @@ function DraftEditor() {
           }
         }
         if (!cancelled) {
-          form.reset(toDraftFormValues(version))
+          const serverValues = toDraftFormValues(version)
+          form.reset(serverValues)
+          if (!readOnly && workingKey) {
+            let recovered: ReturnType<typeof parseExistingDraft> = null
+            try { recovered = parseExistingDraft(window.localStorage.getItem(workingKey)) } catch { /* Storage may be unavailable. */ }
+            if (recovered && JSON.stringify(recovered.draft) !== JSON.stringify(serverValues)) {
+              form.reset(recovered.draft, { keepDefaultValues: true })
+              changeSequence.current = 1
+            } else if (recovered) clearWorkingCopy()
+          }
           if (version) setLoadedVersionId(version.ID)
         }
       } catch {
@@ -81,31 +220,92 @@ function DraftEditor() {
     return () => { cancelled = true }
     // form is stable across renders (useForm); the effect only depends on the params.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId, versionId])
+  }, [exerciseId, versionId, readOnly, workingKey, clearWorkingCopy])
 
-  // Dirty-guard: warn the browser when navigating away with unsaved changes.
   useEffect(() => {
-    if (!isDirty || readOnly) return
-    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault() }
-    window.addEventListener("beforeunload", onBeforeUnload)
-    return () => window.removeEventListener("beforeunload", onBeforeUnload)
-  }, [isDirty, readOnly])
+    if (disabled) return
+    let cancelled = false
+    getExerciseCapabilities()
+      .then((capabilities) => { if (!cancelled) setLaboratoriesAvailable(capabilities.Laboratories) })
+      .catch(() => { if (!cancelled) setLaboratoriesAvailable(false) })
+    return () => { cancelled = true }
+  }, [disabled])
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    setSaveError(null)
-    setSaved(false)
+  useEffect(() => {
+    if (loading || disabled) return
+    lastContentSignature.current = JSON.stringify(form.getValues())
+    const subscription = form.watch(() => {
+      if (suppressWatch.current) return
+      const signature = JSON.stringify(form.getValues())
+      if (signature === lastContentSignature.current) return
+      lastContentSignature.current = signature
+      changeSequence.current += 1
+      persistWorkingCopy()
+      setSaved(false)
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+      if (!leaveOpenRef.current) saveTimer.current = setTimeout(() => {
+        saveTimer.current = null
+        void queueSaveRef.current().catch(() => undefined)
+      }, 5000)
+    })
+    return () => {
+      subscription.unsubscribe()
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+  }, [loading, disabled, form, persistWorkingCopy])
+
+  // A reload keeps the local copy and never invokes a native leave prompt.
+  useEffect(() => {
+    if (readOnly) return
+    window.addEventListener("beforeunload", persistWorkingCopy)
+    return () => window.removeEventListener("beforeunload", persistWorkingCopy)
+  }, [readOnly, persistWorkingCopy])
+
+  async function saveAndLeave() {
+    const values = form.getValues()
+    const parsed = draftSchema.safeParse(values)
+    if (!parsed.success) {
+      setSaveError(t("admin.ex.leaveExisting.invalid"))
+      const issue = parsed.error.issues[0]
+      if (issue) {
+        const next = positionForDraftIssue(positionRef.current, values, issue.path)
+        positionRef.current = next
+        setPosition(next)
+        focusField(issue.path)
+      }
+      leave.cancelLeave()
+      return
+    }
     try {
-      const savedVersion = await saveDraft(exerciseId, toSaveDraftInput(values))
-      form.reset(toDraftFormValues(savedVersion)) // resets isDirty, pulls in server-assigned IDs
-      setLoadedVersionId(savedVersion.ID)
-      setSaved(true)
-    } catch (e) {
-      setSaveError(exerciseErrorMessage(e))
+      await queueSave(true)
+      if (changeSequence.current === acknowledgedSequence.current) leave.finishLeave()
+    } catch { /* The editor keeps the local copy and shows the save error. */ }
+  }
+
+  function discardAndLeave() {
+    if (autoSaving) return
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+    changeSequence.current = acknowledgedSequence.current
+    clearWorkingCopy()
+    leave.finishLeave()
+  }
+
+  const onSubmit = form.handleSubmit(async () => {
+    try { await queueSave(true) } catch { /* queueSave displays the error. */ }
+  }, () => {
+    const parsed = draftSchema.safeParse(form.getValues())
+    if (!parsed.success && parsed.error.issues[0]) {
+      const next = positionForDraftIssue(positionRef.current, form.getValues(), parsed.error.issues[0].path)
+      positionRef.current = next
+      setPosition(next)
+      persistPosition(next)
+      focusField(parsed.error.issues[0].path)
     }
   })
 
   if (loading) {
-    return <div className="flex justify-center py-12"><Spinner label={t("admin.loading")} /></div>
+    return <LoadingArea label={t("admin.loading")} />
   }
   if (loadError) {
     return (
@@ -119,10 +319,24 @@ function DraftEditor() {
   }
 
   return (
+    <EditorPositionProvider position={position} onChange={updatePosition}>
+    <Dialog open={Boolean(leave.destination)} onOpenChange={(open) => { if (!open) leave.cancelLeave() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("admin.ex.leaveExisting.title")}</DialogTitle>
+          <DialogDescription>{t("admin.ex.leaveExisting.description")}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={leave.cancelLeave}>{t("admin.ex.leave.stay")}</Button>
+          <Button type="button" variant="outline" disabled={autoSaving} onClick={discardAndLeave}>{t("admin.ex.leaveExisting.discard")}</Button>
+          <Button type="button" disabled={autoSaving} onClick={() => void saveAndLeave()}>{t("admin.ex.leaveExisting.save")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Form {...form}>
       {/* Centered, capped width — on a wide monitor a full-bleed editor reads as
           stretched and hard to scan; ~896px keeps fields at a comfortable size. */}
-      <form onSubmit={onSubmit} className="frost-in mx-auto max-w-4xl space-y-4">
+      <form ref={formRef} noValidate onSubmit={onSubmit} className="frost-in mx-auto max-w-4xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link href={`/exercises/detail?id=${exerciseId}`} className="text-xs text-primary hover:underline">
@@ -135,6 +349,7 @@ function DraftEditor() {
           {!readOnly && (
             <div className="flex items-center gap-3">
               {isDirty && <span className="text-xs text-muted-foreground">{t("admin.exDraft.unsaved")}</span>}
+              {autoSaving && <span role="status" className="text-xs text-muted-foreground">{t("admin.exDraft.autoSaving")}</span>}
               {saved && !isDirty && <span className="text-xs text-muted-foreground">{t("admin.exDraft.savedNote")}</span>}
               <Button type="submit" disabled={disabled || isSubmitting}>
                 {t("admin.exDraft.save")}
@@ -147,93 +362,9 @@ function DraftEditor() {
           <Alert variant="destructive"><AlertDescription>{saveError}</AlertDescription></Alert>
         )}
 
-        {/* "Settings" section: AdminNote + RegenerateFlagsOnPublish (per-snapshot). */}
-        <details className="frost-panel rounded-lg p-5">
-          <summary className="cursor-pointer select-none text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("admin.exDraft.settings.title")}
-          </summary>
-          <div className="mt-3 max-w-xl space-y-3">
-            <Controller
-              control={form.control}
-              name="RegenerateFlagsOnPublish"
-              render={({ field }) => (
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    id="regen-flags"
-                    ref={field.ref}
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    onBlur={field.onBlur}
-                    disabled={disabled}
-                  />
-                  <div>
-                    <label htmlFor="regen-flags" className="text-sm text-foreground">
-                      {t("admin.exDraft.regenFlags")}
-                    </label>
-                    <p className="text-xs text-muted-foreground">{t("admin.exDraft.regenFlags.hint")}</p>
-                  </div>
-                </div>
-              )}
-            />
-          </div>
-        </details>
-
-        <section className="frost-panel rounded-lg p-5">
-          <VariantTabs
-            disabled={disabled}
-            renderVariant={(variantIndex) => (
-              // Within a variant, Tasks and Topology are two focus tabs so the
-              // admin sees one at a time (a variant has one topology, many tasks).
-              // forceMount keeps both mounted — inactive is hidden, not unmounted,
-              // so react-hook-form never loses the hidden section's values.
-              <div data-variant-sections data-variant-index={variantIndex}>
-                {/* Optional per-variant admin note (replaces the old global one). */}
-                <details className="mb-3">
-                  <summary className="cursor-pointer select-none text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("admin.exDraft.variantNote")}
-                  </summary>
-                  <Input
-                    className="mt-2"
-                    {...form.register(`Variants.${variantIndex}.Note`)}
-                    disabled={disabled}
-                  />
-                </details>
-                {/* Test-deploy this variant's saved topology; requires a saved,
-                    non-dirty variant (the backend loads the persisted version). */}
-                {!disabled && (
-                  <div className="mb-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!form.getValues(`Variants.${variantIndex}.ID`) || isDirty}
-                      title={
-                        !form.getValues(`Variants.${variantIndex}.ID`) || isDirty
-                          ? t("admin.exDeploy.saveFirst")
-                          : undefined
-                      }
-                      onClick={() => setDeployVariantIndex(variantIndex)}
-                    >
-                      {t("admin.exDeploy.test")}
-                    </Button>
-                  </div>
-                )}
-                <Tabs defaultValue="tasks">
-                  <TabsList>
-                    <TabsTrigger value="tasks">{t("admin.exDraft.tab.tasks")}</TabsTrigger>
-                    <TabsTrigger value="topology">{t("admin.exDraft.tab.topology")}</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="tasks" forceMount className="data-[state=inactive]:hidden">
-                    <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
-                  </TabsContent>
-                  <TabsContent value="topology" forceMount className="data-[state=inactive]:hidden">
-                    <TopologySection variantIndex={variantIndex} disabled={disabled} />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-          />
-        </section>
+        <DraftSettings form={form} disabled={disabled} />
+        <DraftVariants form={form} disabled={disabled} onTestVariant={setDeployVariantIndex}
+          canTestVariant={(index) => laboratoriesAvailable && form.getValues(`Variants.${index}.Topology.Devices`).length > 0} />
       </form>
 
       {deployVariantIndex !== null && (
@@ -247,12 +378,13 @@ function DraftEditor() {
         />
       )}
     </Form>
+    </EditorPositionProvider>
   )
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="flex justify-center py-12"><Spinner label={t("admin.loading")} /></div>}>
+    <Suspense fallback={<LoadingArea label={t("admin.loading")} />}>
       <DraftEditor />
     </Suspense>
   )

@@ -23,7 +23,7 @@ describe('encode/decodeEndpoint', () => {
   })
 })
 
-function Harness() {
+function Harness({ existingVPN = true }: { existingVPN?: boolean } = {}) {
   const draft = emptyDraft()
   const web = emptyDevice()
   web.Name = 'web' // container with eth0
@@ -32,12 +32,13 @@ function Harness() {
   sw.Type = 'unmanaged-switch'
   sw.Interfaces = []
   draft.Variants[0].Topology.Devices = [web, sw]
-  draft.Variants[0].Topology.Connections = [{
+  draft.Variants[0].Topology.VPN.Enabled = true
+  draft.Variants[0].Topology.Connections = existingVPN ? [{
     Endpoints: [
       { Kind: 'vpn', DeviceID: '', Interface: '' },
       { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
     ],
-  }]
+  }] : []
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
@@ -59,5 +60,20 @@ describe('ConnectionList', () => {
     render(<Harness />)
     fireEvent.click(screen.getByText('admin.exTopo.addConnection'))
     expect(screen.getAllByText('admin.exTopo.endpoint.placeholder').length).toBeGreaterThan(0)
+  })
+
+  it('does not offer an already-connected VPN or a disabled Internet gateway', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByText('admin.exTopo.addConnection'))
+    fireEvent.keyDown(screen.getAllByRole('button', { name: 'admin.exTopo.endpoint.first' })[1], { key: 'ArrowDown' })
+    expect(screen.queryByRole('menuitemradio', { name: 'admin.exTopo.endpoint.vpn' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: 'admin.exTopo.endpoint.internet' })).not.toBeInTheDocument()
+  })
+
+  it('offers an enabled VPN when it is not connected yet', () => {
+    render(<Harness existingVPN={false} />)
+    fireEvent.click(screen.getByText('admin.exTopo.addConnection'))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.endpoint.first' }), { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitemradio', { name: 'admin.exTopo.endpoint.vpn' })).toBeInTheDocument()
   })
 })

@@ -8,15 +8,16 @@ import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { getExercise, updateExercise, deleteExercise, type Exercise } from "@/api/exercises/catalog"
 import {
-  listVersions, publishDraft, discardDraft, rollbackToVersion, type VersionListItem,
+  listVersions, publishDraft, discardDraft, createCheckpoint, restoreVersion, type VersionListItem,
 } from "@/api/exercises/versions"
 import { identitySchema, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { TagInput } from "@/components/exercises/TagInput"
 import { VersionsTable } from "@/components/exercises/VersionsTable"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
@@ -65,7 +66,7 @@ function IdentityCard({ exercise, onSaved }: { exercise: Exercise; onSaved: () =
           <FormField control={form.control} name="Description" render={({ field }) => (
             <FormItem>
               <FormLabel>{t("admin.ex.field.description")}</FormLabel>
-              <FormControl><Input {...field} disabled={busy || readOnly} /></FormControl>
+              <FormControl><Textarea {...field} disabled={busy || readOnly} rows={4} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -166,7 +167,7 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
     try {
       if (pending.kind === "publish") await publishDraft(exercise.ID)
       if (pending.kind === "discard") await discardDraft(exercise.ID)
-      if (pending.kind === "rollback") await rollbackToVersion(exercise.ID, pending.versionId)
+      if (pending.kind === "rollback") await restoreVersion(exercise.ID, pending.versionId)
       setPending(null)
       setLoading(true)
       await loadVersions()
@@ -183,6 +184,19 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
   const hasDraft = exercise.DraftVersionID !== null
   const hasPublished = exercise.PublishedVersionID !== null
 
+  async function checkpoint() {
+    setBusy(true); setError(null)
+    try {
+      await createCheckpoint(exercise.ID)
+      setLoading(true)
+      await loadVersions()
+    } catch (cause) {
+      setError(exerciseErrorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="frost-panel rounded-lg p-5">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -198,6 +212,11 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
         {can("exercises.write") && (
           <Button asChild variant="outline" size="sm">
             <Link href={`/exercises/draft?id=${exercise.ID}`}>{t("admin.exDetail.editDraft")}</Link>
+          </Button>
+        )}
+        {hasDraft && can("exercises.write") && (
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void checkpoint()}>
+            {t("admin.exVersions.checkpoint")}
           </Button>
         )}
         {hasDraft && can("exercises.publish") && (
@@ -224,7 +243,7 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
         {t("admin.exVersions.title")}
       </h3>
       {loading ? (
-        <div className="flex justify-center py-6"><Spinner label={t("admin.loading")} /></div>
+        <LoadingArea compact label={t("admin.loading")} />
       ) : (
         <VersionsTable
           exerciseId={exercise.ID}
@@ -287,7 +306,7 @@ function Detail() {
   useEffect(() => { load() }, [load])
 
   if (loading) {
-    return <div className="flex justify-center py-12"><Spinner label={t("admin.loading")} /></div>
+    return <LoadingArea label={t("admin.loading")} />
   }
   if (notFound || !exercise) {
     return (
@@ -323,7 +342,7 @@ function Detail() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="flex justify-center py-12"><Spinner label={t("admin.loading")} /></div>}>
+    <Suspense fallback={<LoadingArea label={t("admin.loading")} />}>
       <Detail />
     </Suspense>
   )

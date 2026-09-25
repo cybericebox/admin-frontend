@@ -1,13 +1,16 @@
 "use client"
 
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { emptyPlaceholder, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { RemoveAction } from "./RemoveAction"
+import { FieldHelp } from "@/components/ui/field-help"
+import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 
 const KIND_OPTIONS = [
   { value: "vpn.subnet", labelKey: "admin.exPh.kind.vpnSubnet" },
@@ -47,7 +50,7 @@ export function PlaceholderList({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exPh.title")}</span>
+        <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exPh.title")}<FieldHelp text={t("admin.exPh.titleHelp")} /></span>
         {!disabled && (
           <Button type="button" variant="outline" size="sm" onClick={() => append(emptyPlaceholder())}>
             <Plus className="mr-1 h-4 w-4" />
@@ -63,7 +66,7 @@ export function PlaceholderList({
           <div key={field.id} className="space-y-2 rounded-md border border-border p-3">
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exPh.kind")}</span>
+                <ExerciseFieldLabel labelKey="admin.exPh.kind" helpKey="admin.exPh.kindHelp" required />
                 <Controller
                   control={control}
                   name={`${name}.${pi}.Kind`}
@@ -79,22 +82,14 @@ export function PlaceholderList({
                 />
               </div>
               {!disabled && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={`remove-placeholder-${pi}`}
-                  onClick={() => remove(pi)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <RemoveAction ariaLabel={t("admin.exPh.remove")} onClick={() => remove(pi)} />
               )}
             </div>
 
             {kind === "ip" && (
               <div className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exPh.ipref")}</span>
+                  <ExerciseFieldLabel labelKey="admin.exPh.ipref" helpKey="admin.exPh.iprefHelp" required />
                   <Controller
                     control={control}
                     name={`${name}.${pi}.IPReference`}
@@ -110,7 +105,7 @@ export function PlaceholderList({
                   />
                 </div>
                 <div>
-                  <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exPh.lastOctet")}</span>
+                  <ExerciseFieldLabel labelKey="admin.exPh.lastOctet" helpKey="admin.exPh.lastOctetHelp" required />
                   <Controller
                     control={control}
                     name={`${name}.${pi}.LastOctet`}
@@ -128,7 +123,7 @@ export function PlaceholderList({
                 </div>
                 {ipRef === "static" && (
                   <div>
-                    <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exPh.octets")}</span>
+                    <ExerciseFieldLabel labelKey="admin.exPh.octets" helpKey="admin.exPh.octetsHelp" required />
                     <Controller
                       control={control}
                       name={`${name}.${pi}.Octets1to3`}
@@ -155,13 +150,14 @@ export function PlaceholderList({
                       />
                     )}
                   />
+                  <FieldHelp text={t("admin.exPh.showMaskHelp")} />
                 </div>
               </div>
             )}
 
             {kind === "external.link" && (
               <div>
-                <span className="mb-1 block text-xs text-muted-foreground">{t("admin.exPh.device")}</span>
+                <ExerciseFieldLabel labelKey="admin.exPh.device" helpKey="admin.exPh.deviceHelp" required />
                 <Controller
                   control={control}
                   name={`${name}.${pi}.DeviceName`}

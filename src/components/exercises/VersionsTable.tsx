@@ -5,6 +5,7 @@ import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { useUserNames } from "@/lib/userNames"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import type { VersionListItem } from "@/api/exercises/versions"
 
 function StatusPill({ status }: { status: VersionListItem["Status"] }) {
@@ -40,7 +41,7 @@ export function VersionsTable({
   const names = useUserNames(versions.map((v) => v.CreatedBy))
 
   if (versions.length === 0) {
-    return <p className="py-4 text-center text-sm text-muted-foreground">{t("admin.exVersions.empty")}</p>
+    return <EmptyState message={t("admin.exVersions.empty")} compact />
   }
 
   return (
@@ -63,7 +64,10 @@ export function VersionsTable({
               <tr key={v.ID} className="border-b border-border/50">
                 <td className="px-3 py-2"><StatusPill status={v.Status} /></td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {new Date(v.PublishedAt ?? v.CreatedAt).toLocaleString()}
+                  {new Date(v.PublishedAt ?? v.CreatedAt).toLocaleString("uk-UA", {
+                    day: "2-digit", month: "long", year: "numeric",
+                    hour: "2-digit", minute: "2-digit", second: "2-digit",
+                  })}
                 </td>
                 <td className="px-3 py-2">
                   {author ? (
@@ -89,7 +93,7 @@ export function VersionsTable({
                         </Button>
                       </>
                     )}
-                    {v.Status === "unpublished" && can("exercises.publish") && (
+                    {v.Status !== "draft" && can("exercises.write") && (
                       <Button variant="outline" size="sm" disabled={busy} onClick={() => onRollback(v.ID)}>
                         {t("admin.exVersions.rollback")}
                       </Button>

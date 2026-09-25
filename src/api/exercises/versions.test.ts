@@ -13,6 +13,8 @@ import {
   publishDraft,
   discardDraft,
   rollbackToVersion,
+  createCheckpoint,
+  restoreVersion,
   normalizeVariant,
   type VariantDTO,
 } from './versions'
@@ -80,6 +82,18 @@ describe('versions API paths', () => {
     await rollbackToVersion(EX_ID, VER_ID)
     expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/versions/${VER_ID}/rollback`)
   })
+
+  it('creates a checkpoint separately from autosaving the draft', async () => {
+    mockApiPost.mockResolvedValueOnce({ ...rawVersion, Status: 'checkpoint' })
+    await createCheckpoint(EX_ID)
+    expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/checkpoints`)
+  })
+
+  it('restores a historical version while preserving the current draft', async () => {
+    mockApiPost.mockResolvedValueOnce(rawVersion)
+    await restoreVersion(EX_ID, VER_ID)
+    expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/versions/${VER_ID}/restore`)
+  })
 })
 
 describe('normalizeVariant', () => {
@@ -111,6 +125,7 @@ describe('normalizeVariant', () => {
       ID: DEV_ID,
       Name: 'web',
       Type: 'container',
+      SecurityPreset: '',
       Image: '',
       Interfaces: [],
       EnvVars: [],

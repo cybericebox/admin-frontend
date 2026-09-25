@@ -1,26 +1,26 @@
 /**
- * spinner.test.tsx — the ice-cube Spinner renders an accessible status,
+ * spinner.test.tsx — the crest Spinner renders an accessible status,
  * honors size, and PageLoader wraps a large one.
  */
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { Spinner, PageLoader } from "./spinner"
+import { Spinner, LoadingArea, PageLoader } from "./spinner"
 
 describe("Spinner", () => {
-  it("renders a status role containing an svg", () => {
+  it("renders a status role containing the original crest", () => {
     const { container } = render(<Spinner />)
     expect(screen.getByRole("status")).toBeInTheDocument()
-    expect(container.querySelector("svg")).toBeInTheDocument()
+    expect(container.querySelector(".crest-loader img")).toBeInTheDocument()
   })
 
   it("defaults to the sm size class", () => {
     render(<Spinner />)
-    expect(screen.getByRole("status").className).toContain("ice-loader-sm")
+    expect(document.querySelector(".crest-loader-sm")).toBeInTheDocument()
   })
 
   it("applies the requested size class", () => {
     render(<Spinner size="lg" />)
-    expect(screen.getByRole("status").className).toContain("ice-loader-lg")
+    expect(document.querySelector(".crest-loader-lg")).toBeInTheDocument()
   })
 
   it("exposes label as sr-only text (and no aria-label when labelled)", () => {
@@ -42,9 +42,17 @@ describe("Spinner", () => {
 })
 
 describe("PageLoader", () => {
-  it("renders a large centered spinner", () => {
+  it("renders a centered spinner sized by the screen", () => {
     const { container } = render(<PageLoader label="Loading" />)
-    expect(screen.getByRole("status").className).toContain("ice-loader-lg")
+    expect(container.querySelector(".loading-area-page .crest-loader-auto")).toBeInTheDocument()
     expect(container.querySelector(".fixed.inset-0")).toBeInTheDocument()
+  })
+})
+
+describe("LoadingArea", () => {
+  it("centers the crest in its own panel and uses responsive sizing", () => {
+    const { container } = render(<LoadingArea label="Loading this panel" />)
+    expect(container.querySelector(".loading-area-panel .crest-loader-auto")).toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent("Loading this panel")
   })
 })

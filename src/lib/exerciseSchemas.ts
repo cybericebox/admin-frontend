@@ -33,6 +33,7 @@ export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
 // MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
 // net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
+const FLAG_RE = /^ICE\{[^\p{White_Space}\p{Cc}{}]+\}$/u
 // Strict octet: 0–255 with no leading zeros (Go netip rejects "010.0.0.1").
 // The regex itself enforces the range, so a manual "≤255" check isn't needed.
 const OCTET = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
@@ -90,7 +91,7 @@ const networkSchema = z.object({ Enabled: z.boolean(), DHCP: z.boolean() })
 
 const ipConfigSchema = z
   .object({
-    Type: z.enum(["static", "dhcp", "none"]),
+    Type: z.enum(["static", "dhcp", "dhcp-preset", "none"]),
     Addresses: z.array(z.string()),
     Gateway: z.string(),
   })
@@ -128,6 +129,10 @@ const envVarSchema = z.object({
   Value: z.string(),
   Secret: z.boolean(),
   HasValue: z.boolean(),
+}).superRefine((variable, ctx) => {
+  if (variable.Secret && !variable.HasValue && variable.Value === "") {
+    ctx.addIssue({ code: "custom", path: ["Value"], message: t("admin.ex.val.secretValue") })
+  }
 })
 
 const externalSchema = z
@@ -147,6 +152,7 @@ const deviceSchema = z
     ID: z.string(),
     Name: z.string().regex(DNS_LABEL_RE, t("admin.ex.val.deviceName")),
     Type: z.enum(["container", "vm", "unmanaged-switch", "hub"]),
+    SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
@@ -154,8 +160,11 @@ const deviceSchema = z
   })
   .superRefine((d, ctx) => {
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled)) {
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
+    }
+    if (!forwarding && d.Interfaces.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
     }
   })
 
@@ -189,8 +198,24 @@ const topologySchema = z
     Internet: networkSchema,
     Devices: z.array(deviceSchema),
     Connections: z.array(connectionSchema),
+    VisualRender: z.custom<Record<string, unknown> | null>((value) => value === null || (typeof value === "object" && !Array.isArray(value))),
   })
   .superRefine((topology, ctx) => {
+    // The backend exposes VPN/Internet as singleton gateways: each may occur
+    // in at most one connection, even when both endpoints are in the same row.
+    const usedGateways = new Set<string>()
+    topology.Connections.forEach((connection, ci) => connection.Endpoints.forEach((ep, side) => {
+      if (ep.Kind !== "vpn" && ep.Kind !== "internet") return
+      const enabled = ep.Kind === "vpn" ? topology.VPN.Enabled : topology.Internet.Enabled
+      if (!enabled || usedGateways.has(ep.Kind)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["Connections", ci, "Endpoints", side],
+          message: t(!enabled ? "admin.ex.val.gatewayDisabled" : "admin.ex.val.gatewayAlreadyConnected"),
+        })
+      }
+      usedGateways.add(ep.Kind)
+    }))
     // Endpoint resolution (mirrors backend ErrEndpointUnresolved): a device endpoint
     // must reference a device that still exists, and — for non-forwarding devices
     // (container/vm) — an interface that still exists on it. Switch/hub devices carry
@@ -246,7 +271,7 @@ const taskSchema = z.object({
     (v) => v === null || (typeof v === "object" && v !== null && !Array.isArray(v)),
   ),
   Difficulty: z.enum(["trivial", "easy", "medium", "hard", "insane"]),
-  Flag: z.array(z.string().refine((v) => v.trim() !== "", t("admin.ex.val.flagBlank"))),
+  Flag: z.array(z.string().refine((v) => FLAG_RE.test(v), t("admin.ex.val.flagFormat"))),
   LinkedDeviceID: z.string(),
   DeviceFlagVar: z.string(),
   Attachments: z.array(z.object({ FileID: z.string(), Name: z.string() })),
@@ -271,6 +296,25 @@ export const draftSchema = z
     // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
     const expected = draft.Variants[0]?.Tasks.length ?? 0
     draft.Variants.forEach((variant, i) => {
+      variant.Tasks.forEach((task, taskIndex) => {
+        if (task.LinkedDeviceID) {
+          const device = variant.Topology.Devices.find((candidate) => candidate.ID === task.LinkedDeviceID)
+          if (!device || device.Type === "unmanaged-switch" || device.Type === "hub") {
+            ctx.addIssue({
+              code: "custom",
+              path: ["Variants", i, "Tasks", taskIndex, "LinkedDeviceID"],
+              message: t("admin.ex.val.linkedDeviceUnavailable"),
+            })
+          }
+        }
+        if (task.LinkedDeviceID && !task.DeviceFlagVar.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Variants", i, "Tasks", taskIndex, "DeviceFlagVar"],
+            message: t("admin.ex.val.deviceFlagVarRequired"),
+          })
+        }
+      })
       if (variant.Tasks.length !== expected) {
         ctx.addIssue({
           code: "custom",
@@ -278,6 +322,16 @@ export const draftSchema = z
           message: t("admin.ex.val.taskCountMismatch"),
         })
       }
+      if (i > 0) variant.Tasks.forEach((task, taskIndex) => {
+        const canonical = draft.Variants[0].Tasks[taskIndex]
+        if (canonical && task.Difficulty !== canonical.Difficulty) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Variants", i, "Tasks", taskIndex, "Difficulty"],
+            message: t("admin.ex.val.taskDifficultyMismatch"),
+          })
+        }
+      })
     })
   })
 
@@ -306,6 +360,7 @@ export function emptyDevice(): DeviceFormValues {
     ID: crypto.randomUUID(), // client-side ID: Connections/LinkedDeviceID can reference it immediately
     Name: "",
     Type: "container",
+    SecurityPreset: "",
     Image: "",
     Interfaces: [emptyInterface()],
     EnvVars: [],
@@ -328,6 +383,7 @@ export function emptyVariant(index: number): VariantFormValues {
       Internet: { Enabled: false, DHCP: true },
       Devices: [],
       Connections: [],
+      VisualRender: null,
     },
   }
 }
@@ -369,6 +425,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
             : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
         })),
         Connections: v.Topology.Connections,
+        VisualRender: v.Topology.VisualRender,
       },
     })),
   }
@@ -425,6 +482,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
   if (d.Type === "unmanaged-switch" || d.Type === "hub") return base // switch/hub is "bare"
   return {
     ...base,
+    ...(d.SecurityPreset ? { SecurityPreset: d.SecurityPreset } : {}),
     ...(d.Image ? { Image: d.Image } : {}),
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
@@ -445,7 +503,7 @@ function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
     Internet: topology.Internet,
     Devices: topology.Devices.map(deviceToDTO),
     Connections: connections,
-    // VisualRender is not written (reserved for the canvas).
+    ...(topology.VisualRender ? { VisualRender: topology.VisualRender } : {}),
   }
 }
 
@@ -454,7 +512,7 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   const variants: VariantDTO[] = values.Variants.map((v, i) => ({
     ...(v.ID ? { ID: v.ID } : {}),
     Index: i + 1,
-    Note: v.Note,
+    ...(v.Note ? { Note: v.Note } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
   }))

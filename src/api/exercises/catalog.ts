@@ -3,9 +3,11 @@
  *
  * Routes: GET/POST /api/exercises, GET/PATCH/DELETE /api/exercises/:id.
  * JSON PascalCase; envelope {Status,Data} unwrapped by client.ts.
- * Pagination: cursor + pageSize (backend binds form:"pageSize").
+ * Pagination: cursor + pageSize for existing consumers, or page + pageSize
+ * with total/sort/filter options for the platform admin catalog.
  */
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/api/client"
+import type { CursorPage, OffsetPage } from "@/api/pagination"
 
 const BASE = "/api/exercises"
 
@@ -18,12 +20,6 @@ export type ExerciseListItem = {
   HasPublished: boolean
   CreatedAt: string
   UpdatedAt: string
-}
-
-export type ExercisesListResponse = {
-  Exercises: ExerciseListItem[]
-  NextCursor: string
-  HasMore: boolean
 }
 
 export type Exercise = {
@@ -45,6 +41,14 @@ export type ExerciseIdentityInput = {
   Tags: string[]
 }
 
+export type ExerciseTagSuggestion = { Tag: string; Count: number }
+
+/** Existing tags only; no separate tag registry or empty tags. */
+export async function listExerciseTags(prefix: string): Promise<ExerciseTagSuggestion[]> {
+  const params = new URLSearchParams({ prefix })
+  return apiGet<ExerciseTagSuggestion[]>(`${BASE}/tags?${params}`)
+}
+
 export type ExercisesFilter = {
   search?: string
   tags?: string[]
@@ -52,12 +56,17 @@ export type ExercisesFilter = {
   pageSize?: number
 }
 
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags"> & { Tags: string[] | null }
-type RawListResponse = {
-  Exercises: RawExerciseListItem[] | null
-  NextCursor: string
-  HasMore: boolean
+export type ExercisesPageFilter = {
+  search?: string
+  tags?: string[]
+  status?: string
+  page: number
+  pageSize: number
+  sortBy: string
+  sortDir: "asc" | "desc"
 }
+
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags"> & { Tags: string[] | null }
 type RawExercise = Omit<Exercise, "Tags"> & { Tags: string[] | null }
 
 function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
@@ -78,14 +87,28 @@ function buildListQuery(filter?: ExercisesFilter): string {
 }
 
 /** GET /api/exercises?search=&tags=&cursor=&pageSize= */
-export async function listExercises(filter?: ExercisesFilter): Promise<ExercisesListResponse> {
+export async function listExercises(filter?: ExercisesFilter): Promise<CursorPage<ExerciseListItem>> {
   const qs = buildListQuery(filter)
-  const raw = await apiGet<RawListResponse>(qs ? `${BASE}?${qs}` : BASE)
+  const raw = await apiGet<CursorPage<RawExerciseListItem>>(qs ? `${BASE}?${qs}` : BASE)
   return {
-    Exercises: (raw.Exercises ?? []).map(normalizeListItem),
+    Items: (raw.Items ?? []).map(normalizeListItem),
+    Total: raw.Total ?? 0,
     NextCursor: raw.NextCursor,
-    HasMore: raw.HasMore,
   }
+}
+
+/** Offset-page catalog for the platform admin; the cursor API remains available. */
+export async function listExercisesPage(filter: ExercisesPageFilter): Promise<OffsetPage<ExerciseListItem>> {
+  const p = new URLSearchParams()
+  if (filter.search) p.set("search", filter.search)
+  for (const tag of filter.tags ?? []) p.append("tags", tag)
+  if (filter.status) p.set("status", filter.status)
+  p.set("page", String(filter.page))
+  p.set("pageSize", String(filter.pageSize))
+  p.set("sortBy", filter.sortBy)
+  p.set("sortDir", filter.sortDir)
+  const raw = await apiGet<OffsetPage<RawExerciseListItem>>(`${BASE}?${p}`)
+  return { Items: (raw.Items ?? []).map(normalizeListItem), Total: raw.Total ?? 0, Page: raw.Page, PageSize: raw.PageSize }
 }
 
 /** GET /api/exercises/:id */
