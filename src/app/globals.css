@@ -190,3 +190,7 @@
 		stroke-dashoffset: var(--draw-len, 600);
 	}
 }
+@keyframes notification-countdown {
+	from { transform: scaleX(1); }
+	to { transform: scaleX(0); }
+}
