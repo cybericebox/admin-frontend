@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { t } from "@/i18n/t"
-import { notifTypeLabel } from "@/utils/notifType"
+import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ export function TestNotificationModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {notifTypeLabel(notificationType)} {t("admin.notif.test.title")}
@@ -124,7 +124,7 @@ function TestNotificationSession({
               {availableChannels.map((ch) => (
                 <Checkbox
                   key={ch}
-                  label={ch}
+                  label={notifChannelLabel(ch)}
                   checked={selectedChannels.includes(ch)}
                   onChange={() => toggleChannel(ch)}
                 />

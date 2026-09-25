@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { VariableRichText } from './VariableRichText'
+import { t } from '@/i18n/t'
 
 describe('VariableRichText', () => {
   it('renders without crashing', () => {
@@ -29,6 +30,15 @@ describe('VariableRichText', () => {
     const pill = document.querySelector('[data-var="Name"]')
     expect(pill).toBeInTheDocument()
     expect(pill?.textContent).toBe('Name')
+  })
+
+  it('highlights an existing token when the variable catalog arrives later', () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<VariableRichText value="Hello {{.Name}}" onChange={onChange} dotted variables={[]} />)
+    expect(document.querySelector('[data-var="Name"]')).toBeNull()
+    rerender(<VariableRichText value="Hello {{.Name}}" onChange={onChange} dotted variables={[{ name: 'Name' }]} />)
+    expect(document.querySelector('[data-var="Name"]')).toHaveClass('var-pill')
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('works with dotted=false (non-dotted vars like {{Name}})', () => {
@@ -86,5 +96,46 @@ describe('VariableRichText', () => {
     expect(() =>
       render(<VariableRichText value="plain text" onChange={onChange} />)
     ).not.toThrow()
+  })
+
+  it('inserts a chosen variable into the active field', () => {
+    const onChange = vi.fn()
+    render(<VariableRichText value="Hello " onChange={onChange} dotted variables={[{ name: 'Name', description: 'User name', example: 'Alex' }]} />)
+    fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
+    fireEvent.mouseDown(screen.getByRole('button', { name: /\{\{\.Name\}\}/ }))
+    expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
+    expect(document.querySelector('[data-var="Name"]')).toBeInTheDocument()
+  })
+
+  it('inserts at the cursor inside existing text', () => {
+    const onChange = vi.fn()
+    render(<VariableRichText value="Hi there" onChange={onChange} dotted variables={[{ name: 'Name', description: 'User name' }]} />)
+    const editor = screen.getByRole('textbox')
+    const range = document.createRange()
+    range.setStart(editor.firstChild!, 3)
+    range.collapse(true)
+    const selection = window.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+    fireEvent.keyUp(editor)
+    fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
+    fireEvent.mouseDown(screen.getByRole('button', { name: /\{\{\.Name\}\}/ }))
+    expect(onChange).toHaveBeenLastCalledWith('Hi {{.Name}}there')
+  })
+
+  it('undoes and redoes insertion while retaining the yellow variable marker', () => {
+    const onChange = vi.fn()
+    render(<VariableRichText value="Hello " onChange={onChange} dotted variables={[{ name: 'Name' }]} />)
+    const editor = screen.getByRole('textbox')
+    fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
+    fireEvent.mouseDown(screen.getByRole('button', { name: /\{\{\.Name\}\}/ }))
+    expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('var-pill')
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
+    expect(onChange).toHaveBeenLastCalledWith('Hello ')
+    expect(editor.querySelector('[data-var]')).toBeNull()
+    fireEvent.keyDown(editor, { key: 'y', ctrlKey: true })
+    expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('var-pill')
   })
 })

@@ -32,6 +32,7 @@ import {
 } from "@/lib/templateStatus"
 import { useUserNames } from "@/lib/userNames"
 import { notifTypeLabel } from "@/utils/notifType"
+import { useRole } from "@/lib/useRole"
 
 // ── Helper: pick the most relevant version for row link ──────────────────────
 
@@ -66,8 +67,10 @@ function pickUpdatedBy(entry: LatestEntry): string | null {
 // ── Inner component (needs Suspense wrapper for static export) ────────────────
 
 function EmailTemplateList() {
+  const canWrite = useRole().can("notifications.templates.write")
   const [entries, setEntries] = useState<LatestEntry[] | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     latestEmailTemplates()
@@ -100,7 +103,7 @@ function EmailTemplateList() {
     )
   }
 
-  const list = entries ?? []
+  const list = [...(entries ?? [])].filter((entry) => notifTypeLabel(entry.NotificationType).toLocaleLowerCase().includes(search.toLocaleLowerCase()) || entry.NotificationType.toLowerCase().includes(search.toLowerCase())).sort((a, b) => notifTypeLabel(a.NotificationType).localeCompare(notifTypeLabel(b.NotificationType), "uk"))
 
   return (
     <div className="frost-in space-y-4">
@@ -109,13 +112,16 @@ function EmailTemplateList() {
         <h1 className="text-lg font-semibold text-foreground">
           {t("admin.notif.list.title")}
         </h1>
-        <Link
+        {canWrite && <Link
           href="/notifications/templates/email/detail"
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           + {t("admin.notif.list.new")}
-        </Link>
+        </Link>}
       </div>
+      <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+        aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")}
+        className="h-9 w-full max-w-sm rounded-md border border-border bg-background px-3 text-sm text-foreground" />
 
       {/* Empty state */}
       {list.length === 0 ? (
@@ -155,7 +161,7 @@ function EmailTemplateList() {
 
                 const rowHref = version
                   ? `/notifications/templates/email/detail?id=${version.ID}`
-                  : `/notifications/templates/email/detail`
+                  : `/notifications/templates/email/detail?type=${encodeURIComponent(entry.NotificationType)}`
 
                 return (
                   <tr
@@ -164,12 +170,12 @@ function EmailTemplateList() {
                   >
                     {/* Type */}
                     <td className="px-4 py-3">
-                      <Link
+                      {version || canWrite ? <Link
                         href={rowHref}
                         className="font-medium text-foreground hover:text-primary hover:underline"
                       >
                         {notifTypeLabel(entry.NotificationType)}
-                      </Link>
+                      </Link> : <span className="font-medium text-foreground">{notifTypeLabel(entry.NotificationType)}</span>}
                     </td>
 
                     {/* Status */}
@@ -181,12 +187,16 @@ function EmailTemplateList() {
                             label={t(statusLabelKey(status))}
                           />
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">{t("admin.notif.tpl.notConfigured")}</span>
                         )}
                         {draftPending && (
                           <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                             {t("admin.notif.list.draftPending")}
                           </span>
+                        )}
+                        {[entry.Draft, entry.Published, entry.Unpublished].filter((item): item is EmailTemplate => Boolean(item)).map((item) =>
+                          <Link key={item.ID} href={`/notifications/templates/email/detail?id=${item.ID}`}
+                            className="text-xs text-primary underline-offset-2 hover:underline">{t(`admin.notif.tpl.version.${item.Status}`)}</Link>,
                         )}
                       </div>
                     </td>

@@ -9,14 +9,27 @@ import { useRole } from "@/lib/useRole"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { onServiceRestored } from "@/lib/serviceStatus"
+import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
+import { accentOf } from "@/components/notifications/editor/inAppOptions"
 
 type Message = {
   ID: string
   Title: string
   Body: string
   Link: string
+  Icon?: string
+  Tone?: string
+  AccentColor?: string
+  Actions?: { label: string; href: string }[] | null
   ReadAt: string | null
   CreatedAt: string
+}
+
+function safeHref(value: string): string | null {
+  const href = value.trim()
+  if (href.startsWith("/") && !href.startsWith("//")) return href
+  if (href.startsWith("#") || /^https?:\/\/|^mailto:/i.test(href)) return href
+  return null
 }
 
 export function InboxButton() {
@@ -65,6 +78,7 @@ export function InboxButton() {
 
   const unread = items.filter((item) => !item.ReadAt).length
   const active = items.find((item) => item.ID === selected)
+  const activeAccent = active ? accentOf({ Tone: active.Tone ?? "neutral", AccentColor: active.AccentColor ?? "" }) : ""
   const title = unread ? `Вхідні: ${unread} непрочитаних` : "Вхідні"
 
   async function openMessage(item: Message) {
@@ -114,12 +128,23 @@ export function InboxButton() {
         </div>
         {error && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
         {active ? <section className="min-h-0 overflow-y-auto p-4" aria-label="Повідомлення">
-          <time className="block text-xs text-muted-foreground" dateTime={active.CreatedAt}>{new Date(active.CreatedAt).toLocaleString("uk-UA")}</time>
-          <div className="mt-4 break-words text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(active.Body ?? "") }} />
-          {active.Link && /^https?:\/\/|^\/(?!\/)/i.test(active.Link) && <a className="mt-4 inline-block text-sm font-medium text-primary hover:underline" href={active.Link}>Відкрити</a>}
+          <NotificationMessageCard
+            icon={active.Icon}
+            tone={active.Tone}
+            accentColor={active.AccentColor}
+            body={<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(active.Body ?? "") }} />}
+            timestamp={<time dateTime={active.CreatedAt}>{new Date(active.CreatedAt).toLocaleString("uk-UA")}</time>}
+            actions={(safeHref(active.Link ?? "") || (Array.isArray(active.Actions) && active.Actions.some((action) => action.label && safeHref(action.href ?? "")))) ? <>
+              {safeHref(active.Link ?? "") && <a className="text-sm font-medium text-primary hover:underline" href={safeHref(active.Link)!}>Відкрити</a>}
+              {Array.isArray(active.Actions) && active.Actions.slice(0, 1).map((action, index) => {
+                const href = safeHref(action.href ?? "")
+                return href && action.label ? <a key={`${href}-${index}`} href={href} className="inline-flex min-h-9 items-center rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent">{action.label}</a> : null
+              })}
+            </> : undefined}
+          />
         </section> : <>
           <div className="min-h-0 overflow-y-auto">
-            {loading ? <LoadingArea compact label="Завантаження повідомлень" /> : items.length === 0 ? <EmptyState message="Повідомлень поки немає." inbox /> : <ul className="divide-y divide-border">{items.map((item) => <li key={item.ID}><button type="button" onClick={() => void openMessage(item)} className="flex w-full flex-col gap-1 px-4 py-3 text-left text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><span className="flex w-full items-center gap-2"><span className={`min-w-0 flex-1 truncate ${item.ReadAt ? "" : "font-semibold"}`}>{item.Title}</span>{!item.ReadAt && <span aria-label="Непрочитане" className="h-2 w-2 shrink-0 rounded-full bg-primary" />}</span><time className="text-xs text-muted-foreground" dateTime={item.CreatedAt}>{new Date(item.CreatedAt).toLocaleString("uk-UA")}</time></button></li>)}</ul>}
+            {loading ? <LoadingArea compact label="Завантаження повідомлень" /> : items.length === 0 ? <EmptyState message="Повідомлень поки немає." inbox /> : <ul className="divide-y divide-border">{items.map((item) => <li key={item.ID}><button type="button" onClick={() => void openMessage(item)} className="w-full px-4 py-3 text-left hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><NotificationMessageCard icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title} body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined} unread={!item.ReadAt} compact timestamp={<time dateTime={item.CreatedAt}>{new Date(item.CreatedAt).toLocaleString("uk-UA")}</time>} /></button></li>)}</ul>}
           </div>
         </>}
       </Popover.Content>

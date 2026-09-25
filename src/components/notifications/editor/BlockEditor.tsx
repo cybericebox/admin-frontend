@@ -40,6 +40,7 @@ export type BlockEditorProps = {
   variables?: VariableDef[];
   presets: BlockPreset[];
   onSavePreset: (blocks: EmailBodyBlock[], name: string) => Promise<void>;
+  showPresetSave?: boolean;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export function BlockEditor({
   variables,
   presets,
   onSavePreset,
+  showPresetSave = true,
 }: BlockEditorProps) {
   // Keys follow internal add/remove/reorder operations. For a parent-initiated
   // length change, adjust them before rendering children so mounted editors keep
@@ -183,7 +185,7 @@ export function BlockEditor({
     <div className="space-y-3">
 
       {/* ── Selection toolbar (appears when ≥1 block selected) ── */}
-      {selectedIdxs.size > 0 && (
+      {showPresetSave && selectedIdxs.size > 0 && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-foreground text-background px-4 py-2.5">
           <span className="text-sm font-medium flex-1">
             {t("admin.notif.editor.blocksSelected")}: {selectedIdxs.size}
@@ -249,15 +251,13 @@ export function BlockEditor({
             data-testid="block-item"
             className={cn(
               "group rounded-xl border p-4",
-              block.type === "preset"
-                ? "border-teal-200 bg-teal-50/30"
-                : "border-border bg-card"
+              "border-border bg-card"
             )}
           >
             {/* Block header row */}
             <div className="flex items-center gap-2 mb-3">
               {/* Selection checkbox */}
-              <label className="flex items-center cursor-pointer">
+              {showPresetSave && <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={selectedIdxs.has(i)}
@@ -269,7 +269,7 @@ export function BlockEditor({
                   }}
                   className="rounded"
                 />
-              </label>
+              </label>}
 
               {/* Type pill */}
               <div className="flex-1">
@@ -318,6 +318,8 @@ export function BlockEditor({
 
             {block.type === "rich_text" && (
               <RichTextEditor
+                showVariableNames
+                className="[&_[data-notif-variable]]:border-amber-300 [&_[data-notif-variable]]:bg-amber-100 [&_[data-notif-variable]]:text-amber-950 dark:[&_[data-notif-variable]]:border-amber-700 dark:[&_[data-notif-variable]]:bg-amber-900/40 dark:[&_[data-notif-variable]]:text-amber-200"
                 value={block.content}
                 onChange={(state) =>
                   updateBlock(i, {
@@ -430,7 +432,7 @@ export function BlockEditor({
                   key={preset.ID}
                   type="button"
                   onClick={() => addPresetBlock(preset)}
-                  className="px-2.5 py-1 rounded text-xs font-medium border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition-colors"
+                  className="rounded-md border border-border bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                 >
                   {preset.Name} · {preset.Blocks.length} {t("admin.notif.editor.blocksCount")}
                 </button>

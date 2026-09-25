@@ -9,7 +9,7 @@ export default function Page() {
       perm="notifications.templates.read"
       fallback={<div className="frost-panel frost-in rounded-lg p-8 text-center text-sm text-muted-foreground">{t("admin.notif.noAccess")}</div>}
     >
-      <div className="frost-in"><LogsTab /></div>
+      <LogsTab />
     </RequirePermission>
   )
 }

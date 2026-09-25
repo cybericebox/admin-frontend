@@ -34,6 +34,10 @@ describe('inAppOptions', () => {
   it('accentOf returns AccentColor when non-empty (ignores Tone)', () => {
     expect(accentOf({ Tone: 'info', AccentColor: '#abc' })).toBe('#abc')
   })
+
+  it('ignores an invalid saved accent value', () => {
+    expect(accentOf({ Tone: 'warning', AccentColor: 'var(--unexpected)' })).toBe(toneColor('warning'))
+  })
 })
 
 // ── InAppPreview tests ────────────────────────────────────────────────────────
@@ -64,6 +68,18 @@ describe('InAppPreview', () => {
     expect(container.textContent).not.toContain('{{.Name}}')
   })
 
+  it('renders example values in formatted body markup', () => {
+    const { container } = render(<InAppPreview {...defaultProps} body="<strong>Привіт, {{.Name}}</strong>" previewValues={{ Name: 'Олена' }} />)
+    expect(container.querySelector('strong')).toHaveTextContent('Привіт, Олена')
+    expect(container.textContent).not.toContain('{{.Name}}')
+  })
+
+  it('escapes sample values inside HTML like the backend renderer', () => {
+    const { container } = render(<InAppPreview {...defaultProps} body="<strong>{{.Name}}</strong>" previewValues={{ Name: '<b>Alex</b>' }} />)
+    expect(container.querySelector('strong')).toHaveTextContent('<b>Alex</b>')
+    expect(container.querySelector('strong b')).toBeNull()
+  })
+
   it('also substitutes bare {{Name}} syntax', () => {
     const { container } = render(
       <InAppPreview
@@ -87,6 +103,8 @@ describe('InAppPreview', () => {
     const card = container.querySelector('[data-accent]')
     expect(card).not.toBeNull()
     expect(card!.getAttribute('data-accent')).toBe('#AB1234')
+    expect((card as HTMLElement).style.borderLeft).toBe('')
+    expect(card!.querySelector('span[aria-hidden="true"] svg')).not.toBeNull()
   })
 
   it('card uses toneColor when accentColor is empty (data-accent = danger hex)', () => {
@@ -102,15 +120,14 @@ describe('InAppPreview', () => {
     expect(card!.getAttribute('data-accent')).toBe('#DC2626')
   })
 
-  it('shows auto-hide hint when autoDismissMs=5000', () => {
+  it('does not promise auto-hide for a legacy template', () => {
     const { container } = render(
       <InAppPreview
         {...defaultProps}
         autoDismissMs={5000}
       />,
     )
-    // The hint includes the seconds value (5s format)
-    expect(container.textContent).toContain('5s')
+    expect(container.textContent).not.toContain('5s')
   })
 
   it('does NOT show auto-hide hint when autoDismissMs is null', () => {
@@ -125,7 +142,7 @@ describe('InAppPreview', () => {
     expect(container.textContent).not.toMatch(/\b5s\b/)
   })
 
-  it('renders one button/link per action', () => {
+  it('shows at most one optional action button', () => {
     const { container } = render(
       <InAppPreview
         {...defaultProps}
@@ -136,7 +153,7 @@ describe('InAppPreview', () => {
       />,
     )
     const links = container.querySelectorAll('a[href="/foo"], a[href="/bar"]')
-    expect(links.length).toBe(2)
+    expect(links.length).toBe(1)
   })
 
   it('renders action label text', () => {

@@ -34,6 +34,22 @@ describe("top-bar inbox", () => {
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
   })
 
+  it("shows the saved notification icon in the inbox", async () => {
+    api.get.mockResolvedValue([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Icon: "calendar", Tone: "info", AccentColor: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    expect(await screen.findByRole("button", { name: /Подія/ })).toContainHTML("lucide-calendar-days")
+  })
+
+  it("shows safe template actions in the opened message", async () => {
+    api.get.mockResolvedValue([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }, { label: "Небезпечно", href: "javascript:alert(1)" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Подія/ }))
+    expect(screen.getByRole("link", { name: "Перейти" })).toHaveAttribute("href", "/events")
+    expect(screen.queryByRole("link", { name: "Небезпечно" })).not.toBeInTheDocument()
+  })
+
   it("centers the unframed shared icon and disables read-all when the inbox is empty", async () => {
     api.get.mockResolvedValue([])
     render(<InboxButton />)

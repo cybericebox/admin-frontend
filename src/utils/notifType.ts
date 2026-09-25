@@ -35,3 +35,11 @@ export function notifChannelLabel(channel: string): string {
   const label = t(key)
   return label === key ? channel : label
 }
+
+// The API keeps variable names stable for rendering. Translate only their
+// explanatory text in the admin UI; new variables retain the API description.
+export function notifVariableDescription(name: string, fallback: string): string {
+  const key = `admin.notif.variable.${name}`
+  const label = t(key)
+  return label === key ? fallback : label
+}

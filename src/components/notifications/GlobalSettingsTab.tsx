@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
-import { notifTypeLabel } from "@/utils/notifType"
+import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 
@@ -66,7 +66,7 @@ export function GlobalSettingsTab() {
             {rows.map((s) => (
               <tr key={rowKey(s)} className="border-b border-border/50">
                 <td className="px-3 py-2 font-medium text-foreground">{notifTypeLabel(s.NotificationType)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{s.Channel}</td>
+                <td className="px-3 py-2 text-muted-foreground">{notifChannelLabel(s.Channel)}</td>
                 <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} onCheckedChange={(v) => toggle(s, "Enabled", v)} /></td>
                 <td className="px-3 py-2 text-center"><Switch checked={s.UserCanChange} onCheckedChange={(v) => toggle(s, "UserCanChange", v)} /></td>
                 <td className="px-3 py-2 text-center"><Switch checked={s.UserDefault} onCheckedChange={(v) => toggle(s, "UserDefault", v)} /></td>

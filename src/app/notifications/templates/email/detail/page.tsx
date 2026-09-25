@@ -13,8 +13,8 @@
  *
  * Status rules:
  *   draft       → editable; Save + Publish buttons shown
- *   published   → READ-ONLY; Rollback button shown
- *   unpublished → READ-ONLY; Rollback button shown
+ *   published   → READ-ONLY; edit into a new draft
+ *   unpublished → READ-ONLY; restore as a new draft
  *   (new)       → editable; Save button; type selector visible
  */
 
@@ -42,8 +42,9 @@ import type {
   EmailTemplate,
   BlockPreset,
 } from "@/api/notifications/emailTemplates"
-import type { EmailBodyBlock } from "@/components/notifications/editor/previewHtml"
+import type { EmailBodyBlock, PresetBlock } from "@/components/notifications/editor/previewHtml"
 import { BlockEditor } from "@/components/notifications/editor/BlockEditor"
+import { EmailFooterEditor } from "@/components/notifications/editor/EmailFooterEditor"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
 import { EmailPreview } from "@/components/notifications/editor/EmailPreview"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
@@ -52,11 +53,13 @@ import { notifTypeLabel } from "@/utils/notifType"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
+import { useRole } from "@/lib/useRole"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
-function Detail({ id }: { id: string }) {
+function Detail({ id, initialType = "" }: { id: string; initialType?: string }) {
   const router = useRouter()
+  const canWrite = useRole().can("notifications.templates.write")
 
   // ── Remote state ──────────────────────────────────────────────────────────
   const [template, setTemplate] = useState<EmailTemplate | null>(null)
@@ -77,11 +80,22 @@ function Detail({ id }: { id: string }) {
   const testChannels = useMemo(() => ["email"], [])
 
   // ── Form state (source of truth after first load) ─────────────────────────
-  const [notificationType, setNotificationType] = useState("")
+  const [notificationType, setNotificationType] = useState(initialType)
   const [subject, setSubject] = useState("")
   const [preheader, setPreheader] = useState("")
   const [body, setBody] = useState<EmailBodyBlock[]>([])
   const [styling, setStyling] = useState<Record<string, unknown>>({})
+  const footer = body.find((block): block is PresetBlock => block.type === "preset" && block.placement === "footer")
+  const bodyContent = body.filter((block) => !(block.type === "preset" && block.placement === "footer"))
+
+  function setBodyContent(blocks: EmailBodyBlock[]) {
+    setBody(footer ? [...blocks, footer] : blocks)
+  }
+
+  function setFooter(id: string) {
+    const selected = presets.find((preset) => preset.ID === id)
+    setBody(selected ? [...bodyContent, { type: "preset", preset_id: selected.ID, name: selected.Name, placement: "footer" }] : bodyContent)
+  }
 
   // ── Presets ───────────────────────────────────────────────────────────────
   const [presets, setPresets] = useState<BlockPreset[]>([])
@@ -122,7 +136,7 @@ function Detail({ id }: { id: string }) {
   const emailVariables = useMemo(() => {
     const entry = notifTypes.find((nt) => nt.Type === notificationType)
     if (!entry || !entry.Channels.includes("email")) return []
-    return entry.Variables.map((v) => ({ name: v.Name, description: v.Description }))
+    return entry.Variables.map((v) => ({ name: v.Name, description: v.Description, example: v.Default }))
   }, [notifTypes, notificationType])
 
   // ── Derived: preview values (each variable's Default from catalog) ─────────
@@ -143,10 +157,10 @@ function Detail({ id }: { id: string }) {
     setStyling((prev) => ({ ...prev, [key]: val }))
   }
 
-  const ctaBgColor    = (styling.cta_bg_color     as string  | undefined) ?? "#000000"
+  const ctaBgColor    = (styling.cta_bg_color     as string  | undefined) ?? "#4F46E5"
   const ctaTextColor  = (styling.cta_text_color   as string  | undefined) ?? "#ffffff"
   const textColor     = (styling.text_color        as string  | undefined) ?? "#333333"
-  const headingColor  = (styling.heading_color     as string  | undefined) ?? "#000000"
+  const headingColor  = (styling.heading_color     as string  | undefined) ?? "#111111"
   const ctaBorderRadius = parseInt(String(styling.cta_border_radius ?? '4px'), 10) || 0
   const ctaFontSize   = parseInt(String(styling.cta_font_size ?? '14px'), 10) || 14
 
@@ -211,6 +225,7 @@ function Detail({ id }: { id: string }) {
       setBody(updated.Body)
       setStyling(updated.Styling)
       setLoadNonce((n) => n + 1)
+      router.replace(`/notifications/templates/email/detail?id=${updated.ID}`)
     } catch {
       setSaveError(true)
     } finally {
@@ -249,6 +264,12 @@ function Detail({ id }: { id: string }) {
     setPresets(fresh)
   }
 
+  async function handleCreateFooter(name: string, blocks: EmailBodyBlock[]) {
+    const created = await createBlockPreset({ Name: name, Description: "Email footer", Blocks: blocks })
+    setPresets((current) => [...current, created])
+    setBody([...bodyContent, { type: "preset", preset_id: created.ID, name: created.Name, placement: "footer" }])
+  }
+
   // ── Render states ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -272,7 +293,7 @@ function Detail({ id }: { id: string }) {
   }
 
   const isNew      = !id || !template
-  const isReadOnly = template?.Status === "published" || template?.Status === "unpublished"
+  const isReadOnly = !canWrite || template?.Status === "published" || template?.Status === "unpublished"
   const isDraft    = template?.Status === "draft"
 
   // ── Main layout ───────────────────────────────────────────────────────────
@@ -298,7 +319,7 @@ function Detail({ id }: { id: string }) {
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Send test: shown when a template is loaded */}
-          {template !== null && (
+          {template !== null && canWrite && (
             <Button variant="outline" onClick={() => setTestOpen(true)}>
               <Send className="h-4 w-4 mr-1" />
               {t("admin.notif.test.button")}
@@ -306,24 +327,24 @@ function Detail({ id }: { id: string }) {
           )}
           {/* Save: shown when not published/unpublished */}
           {!isReadOnly && (
-            <Button onClick={() => void handleSave()} disabled={busy}>
+            <Button onClick={() => void handleSave()} disabled={busy || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
           {/* Publish: shown for draft */}
-          {isDraft && (
+          {isDraft && canWrite && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
-          {isReadOnly && (
+          {canWrite && isReadOnly && (
             <Button onClick={() => void handleEdit()} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
           {/* Rollback: shown for published or unpublished */}
-          {(template?.Status === "published" || template?.Status === "unpublished") && (
+          {canWrite && template?.Status === "unpublished" && (
             <Button variant="outline" onClick={() => void handleRollback()} disabled={busy}>
               {t("admin.notif.tpl.rollback")}
             </Button>
@@ -352,10 +373,11 @@ function Detail({ id }: { id: string }) {
       )}
 
       {/* ── Two-column editor layout ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,45%)]">
 
         {/* ── Left column: editor fields ── */}
         <div className="space-y-5 min-w-0">
+
 
           {/* Subject */}
           <div>
@@ -414,14 +436,17 @@ function Detail({ id }: { id: string }) {
             ) : (
               <BlockEditor
                 key={`body-${loadNonce}`}
-                value={body}
-                onChange={setBody}
+                value={bodyContent}
+                onChange={setBodyContent}
                 variables={emailVariables}
                 presets={presets}
                 onSavePreset={handleSavePreset}
               />
             )}
           </div>
+
+          <EmailFooterEditor presetId={footer?.preset_id ?? ""} presets={presets} variables={emailVariables}
+            readOnly={isReadOnly} onSelect={setFooter} onCreate={handleCreateFooter} />
 
           {/* Styling */}
           <div>
@@ -487,6 +512,40 @@ function Detail({ id }: { id: string }) {
                   className="w-20 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
                 />
               </label>
+              <details className="col-span-2 rounded-md border border-border p-3">
+                <summary className="cursor-pointer text-sm font-medium text-foreground">{t("admin.notif.editor.advancedStyling")}</summary>
+                <p className="mt-2 text-xs text-muted-foreground">{t("admin.notif.editor.advancedStylingHelp")}</p>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    {t("admin.notif.editor.fontFamily")}
+                    <select value={String(styling.font_family ?? "sans-serif")} onChange={(e) => setStylingKey("font_family", e.target.value)}
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground">
+                      <option value="sans-serif">Sans-serif</option>
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="Georgia, serif">Georgia</option>
+                      <option value="Verdana, sans-serif">Verdana</option>
+                    </select>
+                  </label>
+                  {([
+                    ["text_font_size", "admin.notif.editor.textFontSize", "14px", 8, 32, "px"],
+                    ["text_line_height", "admin.notif.editor.textLineHeight", "1.5", 1, 3, ""],
+                    ["heading_line_height", "admin.notif.editor.headingLineHeight", "1.3", 1, 3, ""],
+                    ["paragraph_bottom_margin", "admin.notif.editor.paragraphSpacing", "12px", 0, 64, "px"],
+                    ["heading_top_margin", "admin.notif.editor.headingTopSpacing", "16px", 0, 64, "px"],
+                    ["heading_bottom_margin", "admin.notif.editor.headingBottomSpacing", "8px", 0, 64, "px"],
+                    ["cta_vertical_padding", "admin.notif.editor.buttonVerticalPadding", "10px", 0, 48, "px"],
+                    ["cta_horizontal_padding", "admin.notif.editor.buttonHorizontalPadding", "20px", 0, 80, "px"],
+                  ] as const).map(([key, label, fallback, min, max, unit]) =>
+                    <label key={key} className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                      {t(label)}
+                      <input type="number" min={min} max={max} step={unit ? 1 : 0.1}
+                        value={parseFloat(String(styling[key] ?? fallback))}
+                        onChange={(e) => setStylingKey(key, `${e.target.value}${unit}`)}
+                        className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground" />
+                    </label>,
+                  )}
+                </div>
+              </details>
             </div>
           </div>
         </div>
@@ -498,6 +557,8 @@ function Detail({ id }: { id: string }) {
           </div>
           <div className="sticky top-4">
             <EmailPreview
+              subject={subject}
+              preheader={preheader}
               body={body}
               styling={styling}
               presets={presetsMap}
@@ -525,8 +586,10 @@ function Detail({ id }: { id: string }) {
 // ── Page export (Suspense boundary required for useSearchParams in static export) ──
 
 function RouteDetail() {
-  const id = useSearchParams().get("id") ?? ""
-  return <Detail key={id} id={id} />
+  const params = useSearchParams()
+  const id = params.get("id") ?? ""
+  const initialType = params.get("type") ?? ""
+  return <Detail key={`${id}:${initialType}`} id={id} initialType={initialType} />
 }
 
 export default function Page() {

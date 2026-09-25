@@ -204,4 +204,17 @@ describe('LogsTab', () => {
       expect(calls.every(([url]) => !(url as string).includes('user='))).toBe(true)
     })
   })
+
+  it('requests the next cursor page', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.endsWith('/types')) return Promise.resolve([])
+      if (url.includes('cursor=next-id')) return Promise.resolve({ Items: [DISPATCH_ROW], Total: 50 })
+      return Promise.resolve({ Items: [DISPATCH_ROW], Total: 50, NextCursor: 'next-id' })
+    })
+    render(<LogsTab />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'admin.table.next' })).not.toBeDisabled())
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('cursor=next-id')))
+    expect(screen.getByText('admin.table.page 2 admin.table.of 2')).toBeInTheDocument()
+  })
 })

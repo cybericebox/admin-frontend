@@ -110,7 +110,8 @@ const VariablePreviewContext = createContext<{
   unavailableLabels: Record<string, string>;
   onEdit?: (name: string) => void;
   highlight: boolean;
-}>({ definitions: new Map(), unavailableLabels: {}, highlight: true });
+  showNames: boolean;
+}>({ definitions: new Map(), unavailableLabels: {}, highlight: true, showNames: false });
 
 export interface RichTextEditorProps {
   value: LexicalState | null;
@@ -122,6 +123,7 @@ export interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  showVariableNames?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,10 +221,10 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
 }
 
 function VariablePreview({ name, formats }: { name: string; formats: TextFormatType[] }): JSX.Element {
-  const { definitions, unavailableLabels, onEdit, highlight } = useContext(VariablePreviewContext);
+  const { definitions, unavailableLabels, onEdit, highlight, showNames } = useContext(VariablePreviewContext);
   const definition = definitions.get(name);
   const missing = name.startsWith("ph_") && !definition;
-  const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : definition?.example ?? `{{${name}}}`;
+  const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : showNames ? `{{${name}}}` : definition?.example ?? `{{${name}}}`;
   const marked = highlight || missing;
   const style = cn(marked ? "inline-flex items-baseline rounded border px-1 align-baseline leading-[inherit]" : "inline align-baseline leading-[inherit]",
     missing ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
@@ -234,6 +236,7 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
     onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button>;
   return (
       <span
+        data-notif-variable={showNames ? name : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}
@@ -736,6 +739,7 @@ function ToolbarPlugin({
                           {v.description}
                         </span>
                       )}
+                      {v.example && <span className="block text-[10px] font-sans text-muted-foreground">{t("admin.notif.editor.variableExample")}: {v.example}</span>}
                     </button>
                   ))}
                 </div>
@@ -1077,6 +1081,7 @@ export function RichTextEditor({
   placeholder,
   className,
   disabled = false,
+  showVariableNames = false,
 }: RichTextEditorProps): JSX.Element {
   const [highlightVariables, setHighlightVariables] = useState(!onInsertVariable);
   const initialConfig = {
@@ -1106,7 +1111,7 @@ export function RichTextEditor({
   );
 
   return (
-    <VariablePreviewContext.Provider value={{ definitions: new Map(variables.map((variable) => [variable.name, variable])), unavailableLabels, onEdit: disabled ? undefined : onEditVariable, highlight: highlightVariables }}>
+    <VariablePreviewContext.Provider value={{ definitions: new Map(variables.map((variable) => [variable.name, variable])), unavailableLabels, onEdit: disabled ? undefined : onEditVariable, highlight: highlightVariables, showNames: showVariableNames }}>
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(

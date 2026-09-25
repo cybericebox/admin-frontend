@@ -76,6 +76,7 @@ function makeEntryWithDraftAndPublished(): InAppLatestEntry {
       AccentColor: '',
       Surface: '',
       AutoDismissMs: null,
+      Dismissible: true,
       Actions: [],
       PublishedAt: '2024-06-01T00:00:00Z',
       UpdatedByUserID: 'u1',
@@ -94,6 +95,7 @@ function makeEntryWithDraftAndPublished(): InAppLatestEntry {
       AccentColor: '',
       Surface: '',
       AutoDismissMs: null,
+      Dismissible: true,
       Actions: [],
       PublishedAt: null,
       UpdatedByUserID: 'u1',
@@ -183,12 +185,13 @@ describe('In-app templates grouped list page', () => {
     }
     vi.mocked(latestInAppTemplates).mockResolvedValue([entryNoVersions])
     render(<Page />)
-    // pickVersion returns null → rowHref should be /notifications/templates/in-app/detail (no ?id=)
+    // Missing templates open a new editor with the type already selected.
     await waitFor(() => {
       const createLink = document.querySelector(
-        `a[href="/notifications/templates/in-app/detail"]`,
+        `a[href="/notifications/templates/in-app/detail?type=user.password_reset"]`,
       )
       expect(createLink).not.toBeNull()
+      expect(screen.getByText('admin.notif.tpl.notConfigured')).toBeInTheDocument()
     })
   })
 })

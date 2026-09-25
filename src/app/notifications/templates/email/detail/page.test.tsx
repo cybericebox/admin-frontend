@@ -229,9 +229,9 @@ describe('Email template editor page', () => {
 
   // ── Published state ───────────────────────────────────────────────────────
 
-  it('shows Rollback button and read-only body for a published template', async () => {
+  it('shows restore button and read-only body for an unpublished template', async () => {
     vi.mocked(getEmailTemplate).mockResolvedValue(
-      makeDraftTemplate({ Status: 'published' }),
+      makeDraftTemplate({ Status: 'unpublished' }),
     )
     render(<Page />)
     await waitFor(() => {
@@ -364,9 +364,9 @@ describe('Email template editor page', () => {
   // ── Rollback re-renders editors ───────────────────────────────────────────
 
   it('re-renders BlockEditor with rolled-back content after Rollback', async () => {
-    // Start with a published template (body-readonly shown, no BlockEditor)
+    // Start with an unpublished template (body-readonly shown, no BlockEditor)
     vi.mocked(getEmailTemplate).mockResolvedValue(
-      makeDraftTemplate({ Status: 'published' }),
+      makeDraftTemplate({ Status: 'unpublished' }),
     )
     // Rollback returns a draft template so editors become editable again
     vi.mocked(rollbackEmailTemplate).mockResolvedValue(
@@ -375,7 +375,7 @@ describe('Email template editor page', () => {
 
     render(<Page />)
 
-    // Published state: body-readonly shown, BlockEditor NOT rendered
+    // Archived state: body-readonly shown, BlockEditor NOT rendered
     await waitFor(() => {
       expect(screen.getByTestId('body-readonly')).toBeInTheDocument()
       expect(screen.queryByTestId('block-editor')).not.toBeInTheDocument()

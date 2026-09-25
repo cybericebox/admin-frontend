@@ -7,15 +7,13 @@
  * No dynamic [id] segment — compatible with Next.js static export.
  *
  * Layout:
- *   Left  — Title/Body/Link (VariableRichText dotted), Icon/Tone selects,
- *            AccentColor (ColorPicker), Surface select, AutoDismissMs input,
- *            Actions (repeatable label+href rows)
+ *   Left  — Title/Body/Link, semantic appearance, optional second action.
  *   Right — InAppPreview (live, fed from current form state)
  *
  * Status rules:
  *   draft       → editable; Save + Publish buttons shown
- *   published   → READ-ONLY; Rollback button shown
- *   unpublished → READ-ONLY; Rollback button shown
+ *   published   → READ-ONLY; edit into a new draft
+ *   unpublished → READ-ONLY; restore as a new draft
  *   (new)       → editable; Save button; type selector visible
  */
 
@@ -39,19 +37,21 @@ import {
 } from "@/api/notifications/inAppTemplates"
 import type { InAppTemplate, InAppAction } from "@/api/notifications/inAppTemplates"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
+import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
 import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
-import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
+import { NotificationAppearancePicker } from "@/components/notifications/editor/NotificationAppearancePicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { notifTypeLabel } from "@/utils/notifType"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
-import { ICONS, TONES, SURFACES } from "@/components/notifications/editor/inAppOptions"
+import { useRole } from "@/lib/useRole"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
-function Detail({ id }: { id: string }) {
+function Detail({ id, initialType = "" }: { id: string; initialType?: string }) {
   const router = useRouter()
+  const canWrite = useRole().can("notifications.templates.write")
 
   // ── Remote state ──────────────────────────────────────────────────────────
   const [template, setTemplate] = useState<InAppTemplate | null>(null)
@@ -59,6 +59,7 @@ function Detail({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [formError, setFormError] = useState(false)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText) to remount
@@ -71,16 +72,16 @@ function Detail({ id }: { id: string }) {
   const testChannels = useMemo(() => ["in_app"], [])
 
   // ── Form state (source of truth after first load) ─────────────────────────
-  const [notificationType, setNotificationType] = useState("")
+  const [notificationType, setNotificationType] = useState(initialType)
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [link, setLink] = useState("")
-  const [icon, setIcon] = useState("info")
+  const [icon, setIcon] = useState("bell")
   const [tone, setTone] = useState("neutral")
   const [accentColor, setAccentColor] = useState("")
   const [surface, setSurface] = useState("inbox")
   const [autoDismissMs, setAutoDismissMs] = useState<number | null>(null)
-  const [autoDismissInput, setAutoDismissInput] = useState("")
+  const [dismissible, setDismissible] = useState(true)
   const [actions, setActions] = useState<InAppAction[]>([])
 
   // ── Notification type catalog ─────────────────────────────────────────────
@@ -103,7 +104,7 @@ function Detail({ id }: { id: string }) {
         setAccentColor(tpl.AccentColor)
         setSurface(tpl.Surface)
         setAutoDismissMs(tpl.AutoDismissMs)
-        setAutoDismissInput(tpl.AutoDismissMs !== null ? String(tpl.AutoDismissMs) : "")
+        setDismissible(tpl.Dismissible ?? true)
         setActions(tpl.Actions)
         setLoadNonce((n) => n + 1)
       })
@@ -117,7 +118,7 @@ function Detail({ id }: { id: string }) {
   const inAppVariables = useMemo(() => {
     const entry = notifTypes.find((nt) => nt.Type === notificationType)
     if (!entry || !entry.Channels.includes("in_app")) return []
-    return entry.Variables.map((v) => ({ name: v.Name, description: v.Description }))
+    return entry.Variables.map((v) => ({ name: v.Name, description: v.Description, example: v.Default }))
   }, [notifTypes, notificationType])
 
   // ── Derived: preview values (each variable's Default from catalog) ─────────
@@ -130,6 +131,11 @@ function Detail({ id }: { id: string }) {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function handleSave() {
+    if (actions.length > 1 || actions.some((action) => !action.label.trim() || !/^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(action.href.trim()) || action.href.includes("{{"))) {
+      setFormError(true)
+      return
+    }
+    setFormError(false)
     setBusy(true)
     setSaveError(false)
     try {
@@ -142,6 +148,7 @@ function Detail({ id }: { id: string }) {
         AccentColor:   accentColor,
         Surface:       surface,
         AutoDismissMs: autoDismissMs,
+        Dismissible:   dismissible,
         Actions:       actions,
       }
       if (!template?.ID) {
@@ -194,9 +201,10 @@ function Detail({ id }: { id: string }) {
       setAccentColor(updated.AccentColor)
       setSurface(updated.Surface)
       setAutoDismissMs(updated.AutoDismissMs)
-      setAutoDismissInput(updated.AutoDismissMs !== null ? String(updated.AutoDismissMs) : "")
+      setDismissible(updated.Dismissible ?? true)
       setActions(updated.Actions)
       setLoadNonce((n) => n + 1)
+      router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
     } catch {
       setSaveError(true)
     } finally {
@@ -223,6 +231,7 @@ function Detail({ id }: { id: string }) {
         AccentColor:   accentColor,
         Surface:       surface,
         AutoDismissMs: autoDismissMs,
+        Dismissible:   dismissible,
         Actions:       actions,
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
@@ -264,7 +273,7 @@ function Detail({ id }: { id: string }) {
           href="/notifications/templates/in-app"
           className="text-sm text-primary hover:underline"
         >
-          ← {t("admin.notif.tpl.inApp")}
+          ← {t("admin.notif.tpl.inapp")}
         </Link>
         <EmptyState message={t("admin.notif.tpl.empty")} />
       </div>
@@ -272,7 +281,7 @@ function Detail({ id }: { id: string }) {
   }
 
   const isNew      = !id || !template
-  const isReadOnly = template?.Status === "published" || template?.Status === "unpublished"
+  const isReadOnly = !canWrite || template?.Status === "published" || template?.Status === "unpublished"
   const isDraft    = template?.Status === "draft"
 
   // ── Main layout ───────────────────────────────────────────────────────────
@@ -286,7 +295,7 @@ function Detail({ id }: { id: string }) {
           href="/notifications/templates/in-app"
           className="text-sm text-primary hover:underline shrink-0"
         >
-          ← {t("admin.notif.tpl.inApp")}
+          ← {t("admin.notif.tpl.inapp")}
         </Link>
 
         <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
@@ -298,7 +307,7 @@ function Detail({ id }: { id: string }) {
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Send test: shown when a template is loaded */}
-          {template !== null && (
+          {template !== null && canWrite && (
             <Button variant="outline" onClick={() => setTestOpen(true)}>
               <Send className="h-4 w-4 mr-1" />
               {t("admin.notif.test.button")}
@@ -306,24 +315,24 @@ function Detail({ id }: { id: string }) {
           )}
           {/* Save: shown when not read-only */}
           {!isReadOnly && (
-            <Button onClick={() => void handleSave()} disabled={busy}>
+            <Button onClick={() => void handleSave()} disabled={busy || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
           {/* Publish: shown for draft */}
-          {isDraft && (
+          {isDraft && canWrite && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
-          {isReadOnly && (
+          {canWrite && isReadOnly && (
             <Button onClick={() => void handleEdit()} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
           {/* Rollback: shown for published or unpublished */}
-          {(template?.Status === "published" || template?.Status === "unpublished") && (
+          {canWrite && template?.Status === "unpublished" && (
             <Button variant="outline" onClick={() => void handleRollback()} disabled={busy}>
               {t("admin.notif.tpl.rollback")}
             </Button>
@@ -331,6 +340,7 @@ function Detail({ id }: { id: string }) {
           {saveError && (
             <span className="text-sm text-destructive">{t("admin.notif.tpl.saveError")}</span>
           )}
+          {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
         </div>
       </div>
 
@@ -353,10 +363,11 @@ function Detail({ id }: { id: string }) {
       )}
 
       {/* ── Two-column editor layout ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]">
 
         {/* ── Left column: editor fields ── */}
         <div className="space-y-5 min-w-0">
+
 
           {/* Editable fields wrapper — inert when read-only */}
           <div
@@ -385,13 +396,12 @@ function Detail({ id }: { id: string }) {
               <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t("admin.notif.tpl.body")}
               </label>
-              <VariableRichText
+              <InAppBodyEditor
                 key={`body-${loadNonce}`}
                 value={body}
                 onChange={setBody}
                 variables={inAppVariables}
-                placeholder={t("admin.notif.tpl.body")}
-                dotted
+                disabled={isReadOnly}
               />
             </div>
 
@@ -408,73 +418,14 @@ function Detail({ id }: { id: string }) {
                 placeholder={t("admin.notif.tpl.link")}
                 dotted
               />
+              <p className="mt-1 text-xs text-muted-foreground">{t("admin.notif.inapp.linkHelp")}</p>
             </div>
 
-            {/* Icon */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.inapp.icon")}
-              </label>
-              <SelectMenu value={icon} onChange={setIcon} ariaLabel={t("admin.notif.inapp.icon")} options={ICONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
-            </div>
+            <NotificationAppearancePicker icon={icon} tone={tone} accentColor={accentColor}
+              onChange={(next) => { setIcon(next.icon); setTone(next.tone); setAccentColor(next.accentColor) }} />
 
-            {/* Tone */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.inapp.tone")}
-              </label>
-              <SelectMenu value={tone} onChange={setTone} ariaLabel={t("admin.notif.inapp.tone")} options={TONES.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
-            </div>
-
-            {/* AccentColor */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.inapp.accentColor")}
-              </label>
-              <div className="flex items-center gap-2">
-                <ColorPicker
-                  label={t("admin.notif.inapp.accentColor")}
-                  value={accentColor || "#000000"}
-                  onChange={setAccentColor}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={() => setAccentColor("")}
-                >
-                  {t("admin.notif.inapp.accentClear")}
-                </Button>
-              </div>
-            </div>
-
-            {/* Surface */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.inapp.surface")}
-              </label>
-              <SelectMenu value={surface} onChange={setSurface} ariaLabel={t("admin.notif.inapp.surface")} options={SURFACES.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
-            </div>
-
-            {/* AutoDismissMs */}
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.inapp.autoDismissMs")}
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={autoDismissInput}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  setAutoDismissInput(raw)
-                  setAutoDismissMs(raw === "" ? null : (parseInt(raw, 10) || 0))
-                }}
-                placeholder={t("admin.notif.inapp.autoDismissPlaceholder")}
-                aria-label={t("admin.notif.inapp.autoDismissMs")}
-                className="w-32 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">{t("admin.notif.inapp.deliveryHint")}</p>
+            {surface !== "inbox" && <p className="text-xs text-amber-700 dark:text-amber-400">{t("admin.notif.inapp.legacySurface")}</p>}
 
             {/* Actions */}
             <div>
@@ -487,10 +438,12 @@ function Detail({ id }: { id: string }) {
                   size="sm"
                   onClick={addAction}
                   type="button"
+                  disabled={actions.length >= 1}
                 >
                   {t("admin.notif.inapp.addAction")}
                 </Button>
               </div>
+              <p className="mb-2 text-xs text-muted-foreground">{t("admin.notif.inapp.actionsHelp")}</p>
               <div className="space-y-2">
                 {actions.map((action, i) => (
                   <div key={i} className="flex gap-2 items-center">
@@ -529,7 +482,7 @@ function Detail({ id }: { id: string }) {
         {/* ── Right column: live in-app preview ── */}
         <div className="min-w-0">
           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-            {t("admin.notif.editor.previewTitle")}
+            {t("admin.notif.editor.previewInApp")}
           </div>
           <div className="sticky top-4">
             <InAppPreview
@@ -566,8 +519,10 @@ function Detail({ id }: { id: string }) {
 // ── Page export (Suspense boundary required for useSearchParams in static export) ──
 
 function RouteDetail() {
-  const id = useSearchParams().get("id") ?? ""
-  return <Detail key={id} id={id} />
+  const params = useSearchParams()
+  const id = params.get("id") ?? ""
+  const initialType = params.get("type") ?? ""
+  return <Detail key={`${id}:${initialType}`} id={id} initialType={initialType} />
 }
 
 export default function Page() {

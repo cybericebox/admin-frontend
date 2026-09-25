@@ -169,6 +169,7 @@ describe('createInAppTemplate', () => {
       AccentColor:      '#f59e0b',
       Surface:          'banner',
       AutoDismissMs:    null,
+      Dismissible:      true,
       Actions:          [],
     })
     expect(mockApiPost).toHaveBeenCalledOnce()
@@ -180,7 +181,7 @@ describe('createInAppTemplate', () => {
     const result = await createInAppTemplate({
       NotificationType: 'account_alert',
       Title: 'Alert!', Body: '', Link: '', Icon: '', Tone: '', AccentColor: '', Surface: '',
-      AutoDismissMs: null, Actions: [],
+      AutoDismissMs: null, Dismissible: true, Actions: [],
     })
     expect(result.Actions).toEqual([])
   })
@@ -195,7 +196,7 @@ describe('updateInAppTemplate', () => {
     mockApiPut.mockResolvedValueOnce(rawTemplate)
     await updateInAppTemplate(TEMPLATE_ID, {
       Title: 'Updated', Body: '', Link: '', Icon: '', Tone: '', AccentColor: '', Surface: '',
-      AutoDismissMs: null, Actions: [],
+      AutoDismissMs: null, Dismissible: true, Actions: [],
     })
     expect(mockApiPut).toHaveBeenCalledOnce()
     expect(mockApiPut.mock.calls[0][0]).toBe(`/api/notifications/templates/inapp/${TEMPLATE_ID}`)

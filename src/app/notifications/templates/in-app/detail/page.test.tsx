@@ -163,6 +163,7 @@ function makeDraftTemplate(overrides?: Partial<InAppTemplate>): InAppTemplate {
     AccentColor:      '',
     Surface:          'inbox',
     AutoDismissMs:    null,
+    Dismissible:      true,
     Actions:          [],
     PublishedAt:      null,
     UpdatedByUserID:  null,
@@ -219,12 +220,11 @@ describe('In-app template editor page', () => {
     })
   })
 
-  it('renders styled Icon, Tone, Surface menus after load', async () => {
+  it('renders a unified appearance picker after load', async () => {
     render(<Page />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'admin.notif.inapp.icon' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'admin.notif.inapp.tone' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'admin.notif.inapp.surface' })).toBeInTheDocument()
+      expect(screen.getByRole('radiogroup', { name: 'admin.notif.inapp.appearance' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /admin.notif.inapp.appearanceMore/ })).toBeInTheDocument()
     })
   })
 
@@ -260,9 +260,9 @@ describe('In-app template editor page', () => {
 
   // ── Published state ───────────────────────────────────────────────────────
 
-  it('shows Rollback button for a published template', async () => {
+  it('shows restore button for an unpublished template', async () => {
     vi.mocked(getInAppTemplate).mockResolvedValue(
-      makeDraftTemplate({ Status: 'published' }),
+      makeDraftTemplate({ Status: 'unpublished' }),
     )
     render(<Page />)
     await waitFor(() => {
@@ -324,6 +324,7 @@ describe('In-app template editor page', () => {
 
   it('calls updateInAppTemplate (not a second create) on second Save after new-template create', async () => {
     mockSearchParams.delete('id')
+    mockSearchParams.set('type', 'user.welcome')
     const createdTpl = makeDraftTemplate({ ID: 'tpl-new' })
     vi.mocked(createInAppTemplate).mockResolvedValue(createdTpl)
     vi.mocked(updateInAppTemplate).mockResolvedValue(createdTpl)
@@ -355,14 +356,14 @@ describe('In-app template editor page', () => {
 
   it('re-renders InAppPreview with rolled-back title after Rollback', async () => {
     vi.mocked(getInAppTemplate).mockResolvedValue(
-      makeDraftTemplate({ Status: 'published', Title: 'Old Title' }),
+      makeDraftTemplate({ Status: 'unpublished', Title: 'Old Title' }),
     )
     const rolledBackTpl = makeDraftTemplate({ Status: 'draft', Title: 'New Title after rollback' })
     vi.mocked(rollbackInAppTemplate).mockResolvedValue(rolledBackTpl)
 
     render(<Page />)
 
-    // Wait for published state — preview shows old title, Rollback button visible
+    // Wait for unpublished state — preview shows old title, restore button visible
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' })).toBeInTheDocument()
       expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Old Title')
@@ -404,7 +405,7 @@ describe('In-app template editor page', () => {
 
   // ── AccentColor clear button ──────────────────────────────────────────────
 
-  it('clicking accent Clear button resets accentColor to "" (ColorPicker falls back to #000000)', async () => {
+  it('clears the custom accent and returns to the tone color', async () => {
     vi.mocked(getInAppTemplate).mockResolvedValue(
       makeDraftTemplate({ AccentColor: '#ff0000' }),
     )
@@ -419,10 +420,10 @@ describe('In-app template editor page', () => {
     // Click the Clear / "Use tone color" button
     fireEvent.click(screen.getByRole('button', { name: 'admin.notif.inapp.accentClear' }))
 
-    // After clear: accentColor="" → value prop becomes "" || "#000000" = "#000000"
+    // After clear, the selected info tone determines the color.
     await waitFor(() => {
       const picker = screen.getByTestId('color-picker-admin.notif.inapp.accentColor')
-      expect(picker).toHaveTextContent('#000000')
+      expect(picker).toHaveTextContent('#0091EA')
     })
   })
 

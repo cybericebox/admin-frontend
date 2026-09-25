@@ -41,6 +41,7 @@ export type InAppTemplate = {
   AccentColor:      string
   Surface:          string
   AutoDismissMs:    number | null
+  Dismissible:      boolean
   Actions:          InAppAction[]
   PublishedAt:      string | null
   UpdatedByUserID:  string | null
@@ -74,6 +75,7 @@ export type InAppCreateInput = {
   AccentColor:      string
   Surface:          string
   AutoDismissMs:    number | null
+  Dismissible:      boolean
   Actions:          InAppAction[]
 }
 
@@ -81,8 +83,9 @@ export type InAppUpdateInput = Omit<InAppCreateInput, 'NotificationType'>
 
 // ── Raw response types (backend may emit null for json.RawMessage fields) ────────
 
-type RawInAppTemplate = Omit<InAppTemplate, 'Actions'> & {
+type RawInAppTemplate = Omit<InAppTemplate, 'Actions' | 'Dismissible'> & {
   Actions: InAppAction[] | null
+  Dismissible?: boolean
 }
 
 type RawInAppListResponse = {
@@ -103,6 +106,7 @@ function normalizeTemplate(raw: RawInAppTemplate): InAppTemplate {
   return {
     ...raw,
     Actions: raw.Actions ?? [],
+    Dismissible: raw.Dismissible ?? true,
   }
 }
 

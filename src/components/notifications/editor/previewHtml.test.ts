@@ -114,16 +114,14 @@ describe('lexicalNodeToHtml — heading', () => {
     expect(html).toContain('<h3')
   })
 
-  it('falls back to h2 for disallowed tag h4', () => {
+  it('preserves h4 supported by the backend', () => {
     const html = lexicalNodeToHtml(headingNode('h4', textNode('Bad')), {})
-    expect(html).toContain('<h2')
-    expect(html).not.toContain('<h4')
+    expect(html).toContain('<h4')
   })
 
-  it('falls back to h2 for disallowed tag h5', () => {
+  it('preserves h5 supported by the backend', () => {
     const html = lexicalNodeToHtml(headingNode('h5', textNode('Bad')), {})
-    expect(html).not.toContain('<h5')
-    expect(html).toContain('<h2')
+    expect(html).toContain('<h5')
   })
 })
 
@@ -354,9 +352,9 @@ describe('buildPreviewHtml', () => {
     expect(html).toContain('<body')
   })
 
-  it('contains brand wordmark "CyberICEBox"', () => {
+  it('does not add a wordmark that is absent from the delivered email', () => {
     const html = buildPreviewHtml([], {}, {}, {})
-    expect(html).toContain('CyberICEBox')
+    expect(html).not.toContain('CyberICEBox')
   })
 
   it('does NOT contain legacy "GenAI.works" brand string', () => {

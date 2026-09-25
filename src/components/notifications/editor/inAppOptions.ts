@@ -2,7 +2,7 @@
  * inAppOptions.ts — In-app notification channel option constants.
  *
  * The frontend defines the label/value pairs; the backend accepts free strings
- * for Icon, Tone, Surface, and AccentColor. These lists drive the editor UI
+ * for Icon, Tone, Surface, and AccentColor. Appearance options drive the editor UI
  * and the live InAppPreview card.
  */
 
@@ -14,7 +14,20 @@ export const ICONS: { value: string; labelKey: string }[] = [
   { value: "warning", labelKey: "admin.notif.inapp.icon.warning" },
   { value: "error",   labelKey: "admin.notif.inapp.icon.error" },
   { value: "bell",    labelKey: "admin.notif.inapp.icon.bell" },
+  { value: "mail",    labelKey: "admin.notif.inapp.icon.mail" },
+  { value: "calendar", labelKey: "admin.notif.inapp.icon.calendar" },
+  { value: "user",    labelKey: "admin.notif.inapp.icon.user" },
+  { value: "shield",  labelKey: "admin.notif.inapp.icon.shield" },
+  { value: "trophy",  labelKey: "admin.notif.inapp.icon.trophy" },
 ]
+
+export const APPEARANCES = [
+  { tone: "neutral", icon: "bell", labelKey: "admin.notif.inapp.tone.neutral" },
+  { tone: "info", icon: "info", labelKey: "admin.notif.inapp.tone.info" },
+  { tone: "success", icon: "success", labelKey: "admin.notif.inapp.tone.success" },
+  { tone: "warning", icon: "warning", labelKey: "admin.notif.inapp.tone.warning" },
+  { tone: "danger", icon: "error", labelKey: "admin.notif.inapp.tone.danger" },
+] as const
 
 // ── Tones (default accent/border colours) ─────────────────────────────────────
 
@@ -24,14 +37,6 @@ export const TONES: { value: string; labelKey: string; color: string }[] = [
   { value: "success", labelKey: "admin.notif.inapp.tone.success", color: "#16A34A" },
   { value: "warning", labelKey: "admin.notif.inapp.tone.warning", color: "#D97706" },
   { value: "danger",  labelKey: "admin.notif.inapp.tone.danger",  color: "#DC2626" },
-]
-
-// ── Surfaces ─────────────────────────────────────────────────────────────────
-
-export const SURFACES: { value: string; labelKey: string }[] = [
-  { value: "inbox",  labelKey: "admin.notif.inapp.surface.inbox" },
-  { value: "banner", labelKey: "admin.notif.inapp.surface.banner" },
-  { value: "toast",  labelKey: "admin.notif.inapp.surface.toast" },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -50,5 +55,7 @@ export function toneColor(tone: string): string {
  * tone's default color is used.
  */
 export function accentOf(tmplLike: { Tone: string; AccentColor: string }): string {
-  return tmplLike.AccentColor !== "" ? tmplLike.AccentColor : toneColor(tmplLike.Tone)
+  return /^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/.test(tmplLike.AccentColor)
+    ? tmplLike.AccentColor
+    : toneColor(tmplLike.Tone)
 }

@@ -193,12 +193,13 @@ describe('Email templates grouped list page', () => {
     }
     vi.mocked(latestEmailTemplates).mockResolvedValue([entryNoVersions])
     render(<Page />)
-    // pickVersion returns null → rowHref should be /notifications/templates/email/detail (no ?id=)
+    // Missing templates open a new editor with the type already selected.
     await waitFor(() => {
       const createLink = document.querySelector(
-        `a[href="/notifications/templates/email/detail"]`,
+        `a[href="/notifications/templates/email/detail?type=user.password_reset"]`,
       )
       expect(createLink).not.toBeNull()
+      expect(screen.getByText('admin.notif.tpl.notConfigured')).toBeInTheDocument()
     })
   })
 })

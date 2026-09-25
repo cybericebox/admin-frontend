@@ -39,6 +39,11 @@ import { EmailPreview } from './EmailPreview'
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('EmailPreview', () => {
+  it('shows the rendered subject and preheader above the email body', () => {
+    render(<EmailPreview subject="Hello {{.Name}}" preheader="For {{Name}}" body={[]} styling={{}} presets={{}} previewValues={{ Name: 'Ann' }} />)
+    expect(document.body.textContent).toContain('Hello Ann')
+    expect(document.body.textContent).toContain('For Ann')
+  })
   it('renders an iframe element', () => {
     render(
       <EmailPreview
