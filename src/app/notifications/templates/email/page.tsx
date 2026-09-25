@@ -18,6 +18,7 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { EmptyState } from "@/components/ui/empty-state"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import {
   latestEmailTemplates,
@@ -118,7 +119,7 @@ function EmailTemplateList() {
 
       {/* Empty state */}
       {list.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("admin.notif.list.empty")}</p>
+        <EmptyState message={t("admin.notif.list.empty")} />
       ) : (
         /* Grouped version table */
         <div className="overflow-hidden rounded-lg border border-border bg-background">

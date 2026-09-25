@@ -1,0 +1,108 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { StrictMode } from "react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+
+const post = vi.hoisted(() => vi.fn())
+vi.mock("@/api/client", () => ({ apiPost: post }))
+vi.mock("@/i18n/t", () => ({ t: (key: string) => key === "admin.users.invite.summary" ? "{invited} / {skipped} / {failed}" : key }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+
+import InviteUsersDialog from "./InviteUsersDialog"
+
+describe("InviteUsersDialog", () => {
+  beforeEach(() => { vi.clearAllMocks(); post.mockResolvedValue([{ Email: "new@example.test" }]) })
+
+  it("submits a bulk invitation with the least-privileged default role", async () => {
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/users/invite", { Emails: ["new@example.test"], Role: "user" }))
+    expect(await screen.findByText("admin.users.invite.outcome.invited")).toBeInTheDocument()
+  })
+
+  it("keeps the request failed state available for retry", async () => {
+    post.mockRejectedValueOnce(new Error("offline"))
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    expect(await screen.findByText("admin.users.invite.error")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.users.invite.submit" })).toBeEnabled()
+  })
+
+  it("does not claim success for an address missing from a partial response", async () => {
+    post.mockResolvedValueOnce([{ Email: "first@example.test" }])
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    for (const email of ["first@example.test", "second@example.test"]) {
+      fireEvent.change(input, { target: { value: email } })
+      fireEvent.keyDown(input, { key: "Enter" })
+    }
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    expect(await screen.findByText("admin.users.invite.outcome.failed")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.users.invite.retry" })).toBeEnabled()
+  })
+
+  it("does not offer an empty resubmission when every address is already registered", async () => {
+    post.mockResolvedValueOnce([{ Email: "new@example.test", Error: "User already exists" }])
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    expect(await screen.findByText("admin.users.invite.outcome.exists")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.users.invite.submit" })).toBeDisabled()
+  })
+
+  it("counts one successful invitation once under StrictMode", async () => {
+    render(<StrictMode><InviteUsersDialog open onOpenChange={vi.fn()} /></StrictMode>)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    expect(await screen.findByText("1 / 0 / 0")).toBeInTheDocument()
+  })
+
+  it("does not close while an invitation request is in flight", async () => {
+    let complete: ((value: Array<{ Email: string }>) => void) | undefined
+    post.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve }))
+    const onOpenChange = vi.fn()
+    render(<InviteUsersDialog open onOpenChange={onOpenChange} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    expect(complete).toBeDefined()
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    complete?.([{ Email: "new@example.test" }])
+    expect(await screen.findByText("admin.users.invite.outcome.invited")).toBeInTheDocument()
+  })
+
+  it("imports unique addresses from a CSV file and sends the batch", async () => {
+    post.mockResolvedValueOnce([{ Email: "first@example.test" }, { Email: "second@example.test" }])
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')
+    expect(fileInput).not.toBeNull()
+    fireEvent.change(fileInput!, { target: { files: [new File(["first@example.test,second@example.test\nFIRST@example.test"], "users.csv", { type: "text/csv" })] } })
+    expect(await screen.findByText("first@example.test")).toBeInTheDocument()
+    expect(screen.getByText("second@example.test")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/users/invite", { Emails: ["first@example.test", "second@example.test"], Role: "user" }))
+  })
+
+  it("sends pasted addresses with the selected assignable role", async () => {
+    post.mockResolvedValueOnce([{ Email: "first@example.test" }, { Email: "second@example.test" }])
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.paste(input, { clipboardData: { getData: () => "first@example.test; SECOND@example.test first@example.test" } })
+    expect(await screen.findByText("first@example.test")).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.role.user" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.role.admin" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/users/invite", { Emails: ["first@example.test", "second@example.test"], Role: "admin" }))
+  })
+})

@@ -1,106 +1,83 @@
 "use client"
+
 import { useEffect, useState } from "react"
+import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 import { apiGet } from "@/api/client"
+import { listEvents, type Event } from "@/api/events/catalog"
+import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 
-type RoleCount = { Role: string; Count: number }
-type DayCount = { Day: string; Count: number }
-type UserStats = {
-  Total: number
-  Blocked: number
-  NewLast7d: number
-  ActiveLast7d: number
-  AvgDailyActive7d: number
-  ByRole: RoleCount[]
-  RegistrationsByDay: DayCount[]
-}
+type UserStats = { Total: number }
+type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[] }
+type InfrastructureStatus = { Available: boolean; Healthy: boolean }
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold text-foreground">{value}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-// last7DayKeys returns [today-6 … today] as YYYY-MM-DD strings.
-function last7DayKeys(): string[] {
-  const out: string[] = []
-  const now = new Date()
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(now.getDate() - i)
-    out.push(d.toISOString().slice(0, 10))
-  }
-  return out
+function Metric({ label, value, href }: { label: string; value: React.ReactNode; href: string }) {
+  return <Link href={href} className="group flex min-h-28 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+    <span className="flex items-start justify-between gap-3 text-sm text-muted-foreground">{label}<ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 opacity-50 group-hover:opacity-100" /></span>
+    <strong className="text-2xl font-semibold tabular-nums text-foreground">{value}</strong>
+  </Link>
 }
 
 export default function Page() {
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [error, setError] = useState(false)
+  const { can } = useRole()
+  const usersAllowed = can("users.read")
+  const eventsAllowed = can("events.read")
+  const notificationsAllowed = can("notifications.templates.read")
+  const infrastructureAllowed = can("infrastructure.read")
+  const [users, setUsers] = useState<UserStats | null>(null)
+  const [events, setEvents] = useState<Event[] | null>(null)
+  const [eventTotal, setEventTotal] = useState<number | null>(null)
+  const [notifications, setNotifications] = useState<NotificationStats | null>(null)
+  const [infrastructure, setInfrastructure] = useState<InfrastructureStatus | null>(null)
   const [loading, setLoading] = useState(true)
+  const [failedFeeds, setFailedFeeds] = useState(0)
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    apiGet<UserStats>("/api/users/stats")
-      .then((d) => { if (!cancelled) setStats(d) })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    const load = async () => {
+      let failures = 0
+      const [u, e, n, i] = await Promise.all([
+        usersAllowed ? apiGet<UserStats>("/api/users/stats").catch(() => { failures++; return null }) : null,
+        eventsAllowed ? listEvents({ pageSize: 5 }).catch(() => { failures++; return null }) : null,
+        notificationsAllowed ? apiGet<NotificationStats>("/api/notifications/stats?days=7").catch(() => { failures++; return null }) : null,
+        infrastructureAllowed ? apiGet<InfrastructureStatus>("/api/infrastructure/status").catch(() => { failures++; return null }) : null,
+      ])
+      if (cancelled) return
+      setUsers(u)
+      setEvents(e?.Items ?? null)
+      setEventTotal(e?.Total ?? null)
+      setNotifications(n)
+      setInfrastructure(i)
+      setFailedFeeds(failures)
+      setLoading(false)
+    }
+    void load()
     return () => { cancelled = true }
-  }, [])
+  }, [usersAllowed, eventsAllowed, notificationsAllowed, infrastructureAllowed, retry])
 
-  // Lay the (zero-or-more) registration days onto a fixed 7-day axis.
-  const byDay = new Map<string, number>()
-  ;(stats?.RegistrationsByDay ?? []).forEach((d) => byDay.set(d.Day.slice(0, 10), d.Count))
-  const dayKeys = last7DayKeys()
-  const counts = dayKeys.map((k) => byDay.get(k) ?? 0)
-  const max = Math.max(1, ...counts)
+  const unavailable = "—"
+  const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? "Не підключена" : infrastructure.Healthy ? "Працює" : "Потребує уваги"
+  const notificationErrors = notifications?.ByStatus?.find((item) => item.Key === "error")?.Count ?? 0
 
-  return (
-    <div className="frost-in space-y-6">
-      {error ? (
-        <p className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
-      ) : loading || !stats ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label={t("admin.dashboard.totalUsers")} value={stats.Total} />
-            <StatCard label={t("admin.dashboard.new7d")} value={stats.NewLast7d} />
-            <StatCard label={t("admin.dashboard.active7d")} value={stats.ActiveLast7d} />
-            <StatCard label={t("admin.dashboard.avgDau")} value={stats.AvgDailyActive7d.toFixed(1)} />
-          </div>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("admin.dashboard.regChart")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex h-32 items-end gap-2">
-                {dayKeys.map((k, i) => (
-                  <div key={k} className="flex flex-1 flex-col items-center gap-1">
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-t bg-primary/70"
-                        style={{ height: `${(counts[i] / max) * 100}%` }}
-                        title={`${k}: ${counts[i]}`}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{k.slice(5)}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  )
+  return <div className="space-y-7">
+    <div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">Поточний стан платформи. Деталі та дії — у відповідних розділах.</p></div>
+    {loading ? <LoadingArea label={t("admin.loading")} /> : <>
+      {failedFeeds > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"><span>Частину даних не вдалося оновити. Перевірте зʼєднання та повторіть спробу.</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setRetry((current) => current + 1) }}>Повторити</Button></div>}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {usersAllowed && <Metric label="Користувачі" value={users?.Total ?? unavailable} href="/analytics/users" />}
+        {eventsAllowed && <Metric label="Заходи" value={eventTotal ?? unavailable} href="/events" />}
+        {notificationsAllowed && <Metric label="Помилки доставки · 7 днів" value={notifications ? notificationErrors : unavailable} href="/analytics/notifications" />}
+        {infrastructureAllowed && <Metric label="Інфраструктура" value={infrastructureLabel} href="/labs" />}
+      </div>
+      {eventsAllowed && <section className="rounded-lg border border-border bg-card" aria-labelledby="recent-events-heading">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">Останні заходи</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">Усі заходи</Link></div>
+        {events === null ? <p className="px-5 py-7 text-sm text-muted-foreground">Не вдалося завантажити заходи.</p> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
+      </section>}
+    </>}
+  </div>
 }

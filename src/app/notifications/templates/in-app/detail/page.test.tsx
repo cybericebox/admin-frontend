@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import type { InAppTemplate } from '@/api/notifications/inAppTemplates'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -194,6 +194,21 @@ describe('In-app template editor page', () => {
     })
   })
 
+  it('does not show an older template when its request finishes after navigation', async () => {
+    let resolveFirst!: (value: InAppTemplate) => void
+    vi.mocked(getInAppTemplate).mockImplementation((id) => id === 'tpl-001'
+      ? new Promise<InAppTemplate>((resolve) => { resolveFirst = resolve })
+      : Promise.resolve(makeDraftTemplate({ ID: 'tpl-002', Title: 'Second title' })))
+    const view = render(<Page />)
+    await waitFor(() => expect(getInAppTemplate).toHaveBeenCalledWith('tpl-001'))
+    mockSearchParams.set('id', 'tpl-002')
+    view.rerender(<Page />)
+    await waitFor(() => expect(getInAppTemplate).toHaveBeenCalledWith('tpl-002'))
+    await waitFor(() => expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Second title'))
+    await act(async () => { resolveFirst(makeDraftTemplate({ Title: 'Stale title' })) })
+    expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Second title')
+  })
+
   // ── Fields ────────────────────────────────────────────────────────────────
 
   it('renders the Title VariableRichText (textbox) after load', async () => {
@@ -204,12 +219,12 @@ describe('In-app template editor page', () => {
     })
   })
 
-  it('renders Icon, Tone, Surface selects after load', async () => {
+  it('renders styled Icon, Tone, Surface menus after load', async () => {
     render(<Page />)
     await waitFor(() => {
-      // comboboxes = <select> elements
-      const combos = screen.getAllByRole('combobox')
-      expect(combos.length).toBeGreaterThanOrEqual(3)
+      expect(screen.getByRole('button', { name: 'admin.notif.inapp.icon' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'admin.notif.inapp.tone' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'admin.notif.inapp.surface' })).toBeInTheDocument()
     })
   })
 
@@ -302,10 +317,7 @@ describe('In-app template editor page', () => {
     render(<Page />)
     await new Promise((r) => setTimeout(r, 50))
     expect(getInAppTemplate).not.toHaveBeenCalled()
-    // Type combobox visible for new template
-    const combos = screen.getAllByRole('combobox')
-    // At least the type selector should be among them
-    expect(combos.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.type' })).toBeInTheDocument()
   })
 
   // ── Double-create prevention ──────────────────────────────────────────────

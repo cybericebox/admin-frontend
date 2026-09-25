@@ -23,7 +23,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
@@ -54,14 +55,12 @@ import { statusLabelKey } from "@/lib/templateStatus"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
-function Detail() {
-  const params = useSearchParams()
-  const id = params.get("id") ?? ""
+function Detail({ id }: { id: string }) {
   const router = useRouter()
 
   // ── Remote state ──────────────────────────────────────────────────────────
   const [template, setTemplate] = useState<EmailTemplate | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
@@ -94,11 +93,8 @@ function Detail() {
   const load = useCallback(() => {
     if (!id) {
       // New template — nothing to fetch, just show blank form
-      setLoading(false)
       return
     }
-    setLoading(true)
-    setNotFound(false)
     getEmailTemplate(id)
       .then((tpl) => {
         setTemplate(tpl)
@@ -257,9 +253,7 @@ function Detail() {
 
   if (loading) {
     return (
-      <div className="frost-panel frost-in flex justify-center rounded-lg p-8">
-        <Spinner label={t("admin.loading")} />
-      </div>
+      <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
     )
   }
 
@@ -272,9 +266,7 @@ function Detail() {
         >
           ← {t("admin.notif.tpl.email")}
         </Link>
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("admin.notif.tpl.empty")}
-        </p>
+        <EmptyState message={t("admin.notif.tpl.empty")} />
       </div>
     )
   }
@@ -532,6 +524,11 @@ function Detail() {
 
 // ── Page export (Suspense boundary required for useSearchParams in static export) ──
 
+function RouteDetail() {
+  const id = useSearchParams().get("id") ?? ""
+  return <Detail key={id} id={id} />
+}
+
 export default function Page() {
   return (
     <RequirePermission
@@ -544,12 +541,10 @@ export default function Page() {
     >
       <Suspense
         fallback={
-          <div className="frost-panel frost-in flex justify-center rounded-lg p-8">
-            <Spinner label={t("admin.loading")} />
-          </div>
+          <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
         }
       >
-        <Detail />
+        <RouteDetail />
       </Suspense>
     </RequirePermission>
   )

@@ -17,7 +17,7 @@ interface EmailTagInputProps {
 
 const STATUS_CLASS: Record<EmailChipStatus, string> = {
   pending: "border-border bg-secondary/60 text-foreground",
-  invited: "border-[#34E5C0]/55 bg-[#34E5C0]/15 text-foreground",
+  invited: "border-[var(--ib-ok)] bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
   exists: "border-border bg-muted text-muted-foreground",
   failed: "border-destructive/60 bg-destructive/15 text-foreground",
 }

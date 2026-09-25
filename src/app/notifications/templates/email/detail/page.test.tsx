@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import type { EmailTemplate } from '@/api/notifications/emailTemplates'
 
 // ── Module mocks (must be declared before any imports that trigger them) ──────
@@ -53,6 +53,15 @@ vi.mock('@/components/notifications/templateTypes', () => ({
       Variables: [{ Name: 'name', Description: 'User name', Default: 'Alice' }],
     },
   ],
+}))
+
+vi.mock('@/components/ui/select-menu', () => ({
+  SelectMenu: ({ value, onChange, options, placeholder }: { value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; placeholder: string }) => (
+    <select aria-label={placeholder} value={value} onChange={(event) => onChange(event.target.value)}>
+      <option value="">{placeholder}</option>
+      {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>
+  ),
 }))
 
 // useRole — grant all permissions so RequirePermission passes
@@ -162,6 +171,21 @@ describe('Email template editor page', () => {
     })
   })
 
+  it('does not show an older template when its request finishes after navigation', async () => {
+    let resolveFirst!: (value: EmailTemplate) => void
+    vi.mocked(getEmailTemplate).mockImplementation((id) => id === 'tpl-001'
+      ? new Promise<EmailTemplate>((resolve) => { resolveFirst = resolve })
+      : Promise.resolve(makeDraftTemplate({ ID: 'tpl-002', Subject: 'Second subject' })))
+    const view = render(<Page />)
+    await waitFor(() => expect(getEmailTemplate).toHaveBeenCalledWith('tpl-001'))
+    mockSearchParams.set('id', 'tpl-002')
+    view.rerender(<Page />)
+    await waitFor(() => expect(getEmailTemplate).toHaveBeenCalledWith('tpl-002'))
+    await waitFor(() => expect(screen.getAllByRole('textbox')[0]).toHaveTextContent('Second subject'))
+    await act(async () => { resolveFirst(makeDraftTemplate({ Subject: 'Stale subject' })) })
+    expect(screen.getAllByRole('textbox')[0]).toHaveTextContent('Second subject')
+  })
+
   // ── Subject field ─────────────────────────────────────────────────────────
 
   it('renders the subject field with the fetched template subject value', async () => {
@@ -241,8 +265,7 @@ describe('Email template editor page', () => {
     // Should not call getEmailTemplate for new templates
     await new Promise((r) => setTimeout(r, 50))
     expect(getEmailTemplate).not.toHaveBeenCalled()
-    // Type selector should be visible
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'admin.notif.tpl.choose' })).toBeInTheDocument()
   })
 
   // ── Double-create prevention ───────────────────────────────────────────────
@@ -255,10 +278,11 @@ describe('Email template editor page', () => {
 
     render(<Page />)
 
-    // Wait for blank new-template form (type combobox visible)
+    // Wait for blank new-template form, then select a notification type.
     await waitFor(() => {
-      expect(screen.getByRole('combobox')).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'admin.notif.tpl.choose' })).toBeInTheDocument()
     })
+    fireEvent.change(screen.getByRole('combobox', { name: 'admin.notif.tpl.choose' }), { target: { value: 'user.welcome' } })
 
     // First Save → createEmailTemplate
     fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
@@ -370,7 +394,7 @@ describe('Email template editor page', () => {
 
   // ── Translated status in read-only banner ─────────────────────────────────
 
-  it('shows translated i18n key (not raw Go string) in the body-readonly banner', async () => {
+  it('shows translated status and a read-only body hint for a published template', async () => {
     vi.mocked(getEmailTemplate).mockResolvedValue(
       makeDraftTemplate({ Status: 'published' }),
     )
@@ -378,9 +402,8 @@ describe('Email template editor page', () => {
 
     await waitFor(() => {
       const banner = screen.getByTestId('body-readonly')
-      // t() is mocked to return the key; statusLabelKey('published') = 'admin.notif.status.published'
-      // so the banner must contain the full i18n key, not just the raw 'published' word
-      expect(banner.textContent).toContain('admin.notif.status.published')
+      expect(banner).toHaveTextContent('admin.notif.tpl.readonlyHint')
+      expect(screen.getByText('admin.notif.status.published')).toBeInTheDocument()
     })
   })
 
@@ -395,11 +418,11 @@ describe('Email template editor page', () => {
     })
 
     // Find the border-radius input and change it
-    const borderRadiusInput = screen.getByLabelText('CTA border radius')
+    const borderRadiusInput = screen.getByLabelText('admin.notif.editor.ctaBorderRadius')
     fireEvent.change(borderRadiusInput, { target: { value: '6' } })
 
     // Find the font-size input and change it
-    const fontSizeInput = screen.getByLabelText('CTA font size')
+    const fontSizeInput = screen.getByLabelText('admin.notif.editor.ctaFontSize')
     fireEvent.change(fontSizeInput, { target: { value: '18' } })
 
     // Click Save

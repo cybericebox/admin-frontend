@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -12,9 +14,12 @@ import { createPortal } from "react-dom";
 import {
   $createParagraphNode,
   $createTextNode,
+  $getRoot,
   $getSelection,
   $insertNodes,
   $isRangeSelection,
+  $isTextNode,
+  $setSelection,
   COMMAND_PRIORITY_LOW,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
@@ -29,6 +34,8 @@ import {
   type NodeKey,
   type SerializedLexicalNode,
   type Spread,
+  type BaseSelection,
+  type TextFormatType,
 } from "lexical";
 import { $createCodeNode, $isCodeNode, CodeNode } from "@lexical/code";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
@@ -83,6 +90,8 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
@@ -94,10 +103,22 @@ import { type VariableDef } from "./variableUtils";
 
 export type LexicalState = Record<string, unknown>;
 
+export const VARIABLE_TEXT_FORMATS: FormatType[] = ["bold", "italic", "underline", "strikethrough", "code"];
+
+const VariablePreviewContext = createContext<{
+  definitions: Map<string, VariableDef>;
+  unavailableLabels: Record<string, string>;
+  onEdit?: (name: string) => void;
+  highlight: boolean;
+}>({ definitions: new Map(), unavailableLabels: {}, highlight: true });
+
 export interface RichTextEditorProps {
   value: LexicalState | null;
   onChange: (state: LexicalState) => void;
   variables?: VariableDef[];
+  unavailableLabels?: Record<string, string>;
+  onInsertVariable?: (insert: (name: string, formats?: TextFormatType[]) => void, initialFormats: TextFormatType[]) => void;
+  onEditVariable?: (name: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -107,28 +128,37 @@ export interface RichTextEditorProps {
 // VariableNode — custom inline DecoratorNode for {{var}} pills
 // ---------------------------------------------------------------------------
 
-type SerializedVariableNode = Spread<{ varName: string }, SerializedLexicalNode>;
+type SerializedVariableNode = Spread<{ varName: string; formats?: TextFormatType[] }, SerializedLexicalNode>;
 
 export class VariableNode extends DecoratorNode<JSX.Element> {
   __varName: string;
+  __formats: TextFormatType[];
 
   static getType(): string {
     return "variable";
   }
 
   static clone(node: VariableNode): VariableNode {
-    return new VariableNode(node.__varName, node.__key);
+    return new VariableNode(node.__varName, node.__formats, node.__key);
   }
 
-  constructor(varName: string, key?: NodeKey) {
+  constructor(varName: string, formats: TextFormatType[] = [], key?: NodeKey) {
     super(key);
     this.__varName = varName;
+    this.__formats = formats;
+  }
+
+  getFormats(): TextFormatType[] {
+    return this.getLatest().__formats;
+  }
+
+  setFormats(formats: TextFormatType[]): this {
+    this.getWritable().__formats = [...new Set(formats)];
+    return this;
   }
 
   createDOM(_config: EditorConfig): HTMLElement {
     const span = document.createElement("span");
-    span.className =
-      "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20";
     span.setAttribute("contenteditable", "false");
     return span;
   }
@@ -175,31 +205,64 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
       type: "variable",
       version: 1,
       varName: this.__varName,
+      ...(this.__formats.length ? { formats: this.__formats } : {}),
     };
   }
 
   static importJSON(serialized: SerializedVariableNode): VariableNode {
-    return $createVariableNode(serialized.varName);
+    return $createVariableNode(serialized.varName, serialized.formats ?? []);
   }
 
   decorate(): JSX.Element {
-    return (
-      <span
-        className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20"
-        contentEditable={false}
-      >
-        {`{{${this.__varName}}}`}
-      </span>
-    );
+    return <VariablePreview name={this.__varName} formats={this.__formats} />;
   }
 }
 
-export function $createVariableNode(varName: string): VariableNode {
-  return new VariableNode(varName);
+function VariablePreview({ name, formats }: { name: string; formats: TextFormatType[] }): JSX.Element {
+  const { definitions, unavailableLabels, onEdit, highlight } = useContext(VariablePreviewContext);
+  const definition = definitions.get(name);
+  const missing = name.startsWith("ph_") && !definition;
+  const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : definition?.example ?? `{{${name}}}`;
+  const marked = highlight || missing;
+  const style = cn(marked ? "inline-flex items-baseline rounded border px-1 align-baseline leading-[inherit]" : "inline align-baseline leading-[inherit]",
+    missing ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
+    formats.includes("bold") && "font-bold", formats.includes("italic") && "italic", formats.includes("underline") && "underline",
+    formats.includes("strikethrough") && "line-through", formats.includes("code") && "font-mono");
+  const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
+  if (onEdit) return <button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
+    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`} title={definition?.description ?? (missing ? content : name)}
+    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button>;
+  return (
+      <span
+        className={style}
+        style={cleanStyle}
+        contentEditable={false}
+        title={definition?.description ?? (missing ? content : name)}
+      >
+        {content}
+      </span>
+  );
+}
+
+export function $createVariableNode(varName: string, formats: TextFormatType[] = []): VariableNode {
+  return new VariableNode(varName, formats);
 }
 
 export function $isVariableNode(node: unknown): node is VariableNode {
   return node instanceof VariableNode;
+}
+
+/** Apply a normal text-toolbar command to selected inline placeholders too. */
+export function $toggleSelectedVariableFormat(format: TextFormatType): boolean {
+  const selection = $getSelection();
+  if (!selection || ($isRangeSelection(selection) && selection.isCollapsed())) return false;
+  const variables = selection.getNodes().filter($isVariableNode);
+  if (variables.length === 0) return false;
+  const enable = variables.some((node) => !node.getFormats().includes(format));
+  variables.forEach((node) => node.setFormats(enable
+    ? [...node.getFormats(), format]
+    : node.getFormats().filter((item) => item !== format)));
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -241,8 +304,14 @@ const ALIGN_FORMAT_MAP: Record<number, string> = {
 
 function ToolbarPlugin({
   variables,
+  onInsertVariable,
+  highlightVariables,
+  onToggleVariableHighlight,
 }: {
   variables: VariableDef[];
+  onInsertVariable?: (insert: (name: string, formats?: TextFormatType[]) => void, initialFormats: TextFormatType[]) => void;
+  highlightVariables: boolean;
+  onToggleVariableHighlight: () => void;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const [formats, setFormats] = useState<Set<FormatType>>(new Set());
@@ -278,6 +347,11 @@ function ToolbarPlugin({
       () => {
         editor.getEditorState().read(() => {
           const selection = $getSelection();
+          if (selection && !$isRangeSelection(selection)) {
+            const variable = selection.getNodes().find($isVariableNode);
+            if (variable) setFormats(new Set(VARIABLE_TEXT_FORMATS.filter((format) => variable.getFormats().includes(format))));
+            return;
+          }
           if (!$isRangeSelection(selection)) return;
 
           const active = new Set<FormatType>();
@@ -322,7 +396,12 @@ function ToolbarPlugin({
   }, [editor]);
 
   const formatText = (format: FormatType) => {
-    editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
+    editor.update(() => {
+      const changedVariable = $toggleSelectedVariableFormat(format);
+      if (!changedVariable || $isRangeSelection($getSelection())) {
+        editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
+      }
+    });
   };
 
   const formatBlock = useCallback(
@@ -395,6 +474,21 @@ function ToolbarPlugin({
     [editor]
   );
 
+  const requestVariableInsertion = () => {
+    if (!onInsertVariable) return;
+    let savedSelection: BaseSelection | null = null;
+    let initialFormats: TextFormatType[] = [];
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      savedSelection = selection?.clone() ?? null;
+      if ($isRangeSelection(selection)) {
+        const anchor = selection.anchor.getNode();
+        initialFormats = VARIABLE_TEXT_FORMATS.filter((format) => selection.hasFormat(format) || ($isTextNode(anchor) && anchor.hasFormat(format)));
+      }
+    });
+    onInsertVariable((name, formats) => insertVariableAtSavedSelection(editor, savedSelection, name, formats), initialFormats);
+  };
+
   const handleLinkInsert = () => {
     if (!showLinkInput) {
       setShowLinkInput(true);
@@ -436,7 +530,7 @@ function ToolbarPlugin({
           : t("admin.notif.editor.heading");
 
   return (
-    <div className="border-b border-input bg-muted/30">
+    <div className={cn("rounded-t-lg border-b border-input bg-muted/30", onInsertVariable && "exercise-editor-toolbar")}>
       {/* Row 1 — inline formatting + actions */}
       <div className="flex flex-wrap items-center gap-0.5 px-3 py-2">
         <Tooltip label={t("admin.notif.editor.bold")}>
@@ -598,17 +692,23 @@ function ToolbarPlugin({
           </button>
         </Tooltip>
 
-        {variables.length > 0 && (
+        {(variables.length > 0 || onInsertVariable) && (
           <>
             <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <div className="relative" ref={varsRef}>
-              <Tooltip label={t("admin.notif.editor.insertVariable")}>
+              <Tooltip label={t(onInsertVariable ? "admin.exPh.insert" : "admin.notif.editor.insertVariable")}>
                 <button
                   type="button"
+                  aria-label={t(onInsertVariable ? "admin.exPh.insert" : "admin.notif.editor.insertVariable")}
                   onMouseDown={(e) => {
                     e.preventDefault();
+                    if (onInsertVariable) {
+                      requestVariableInsertion();
+                      return;
+                    }
                     setShowVarsMenu((v) => !v);
                   }}
+                  onClick={(event) => { if (event.detail === 0) requestVariableInsertion() }}
                   className={cn(
                     showVarsMenu ? btnActive : btnInactive,
                     "gap-0.5"
@@ -618,7 +718,7 @@ function ToolbarPlugin({
                   <ChevronDown size={9} aria-hidden />
                 </button>
               </Tooltip>
-              {showVarsMenu && (
+              {showVarsMenu && !onInsertVariable && (
                 <div className="absolute right-0 top-full mt-1 z-20 min-w-[180px] max-h-[240px] overflow-y-auto bg-popover rounded-xl border border-input shadow-md py-1">
                   {variables.map((v) => (
                     <button
@@ -642,6 +742,17 @@ function ToolbarPlugin({
               )}
             </div>
           </>
+        )}
+        {onInsertVariable && (
+          <div className="ml-auto">
+            <Tooltip label={t(highlightVariables ? "admin.exPh.cleanView" : "admin.exPh.showMarkers")}>
+              <button type="button" aria-label={t(highlightVariables ? "admin.exPh.cleanView" : "admin.exPh.showMarkers")}
+                aria-pressed={highlightVariables} onMouseDown={(event) => event.preventDefault()} onClick={onToggleVariableHighlight}
+                className={btnInactive}>
+                {highlightVariables ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+              </button>
+            </Tooltip>
+          </div>
         )}
       </div>
 
@@ -790,12 +901,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
       closeMenu: () => void
     ) => {
       editor.update(() => {
-        if (textNodeContainingQuery) {
-          textNodeContainingQuery.remove();
-        }
-        const varNode = $createVariableNode(option.varName);
-        const spaceNode = $createTextNode(" ");
-        $insertNodes([varNode, spaceNode]);
+        replaceVariableQueryWithNode(textNodeContainingQuery, option.varName);
       });
       closeMenu();
     },
@@ -859,6 +965,37 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
       menuRenderFn={menuRenderFn}
     />
   );
+}
+
+/** Replace only the active {{query, retaining surrounding text and its formatting. */
+export function replaceVariableQueryWithNode(textNode: TextNode | null, varName: string): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed() || !textNode) return false;
+  if (selection.anchor.key !== textNode.getKey()) return false;
+  const offset = selection.anchor.offset;
+  const match = /\{\{\w*$/.exec(textNode.getTextContent().slice(0, offset));
+  if (!match) return false;
+  selection.setTextNodeRange(textNode, match.index, textNode, offset);
+  selection.insertNodes([$createVariableNode(varName)]);
+  return true;
+}
+
+/** Restore the caret captured before a dialog took focus, then insert one inline token. */
+export function insertVariableAtSavedSelection(editor: LexicalEditor, savedSelection: BaseSelection | null, varName: string, requestedFormats?: TextFormatType[]): void {
+  editor.update(() => {
+    if (savedSelection) $setSelection(savedSelection.clone());
+    else $getRoot().selectEnd();
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      const anchor = selection.anchor.getNode();
+      const inheritedFormats = VARIABLE_TEXT_FORMATS.filter((format) => selection.hasFormat(format) || ($isTextNode(anchor) && anchor.hasFormat(format)));
+      selection.insertNodes([$createVariableNode(varName, requestedFormats ?? inheritedFormats), $createTextNode(" ")]);
+    } else {
+      const paragraph = $createParagraphNode();
+      paragraph.append($createVariableNode(varName, requestedFormats ?? []));
+      $getRoot().append(paragraph);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -934,10 +1071,14 @@ export function RichTextEditor({
   value,
   onChange,
   variables = [],
+  unavailableLabels = {},
+  onInsertVariable,
+  onEditVariable,
   placeholder,
   className,
   disabled = false,
 }: RichTextEditorProps): JSX.Element {
+  const [highlightVariables, setHighlightVariables] = useState(!onInsertVariable);
   const initialConfig = {
     namespace: "RichTextEditor",
     theme: editorTheme,
@@ -965,14 +1106,16 @@ export function RichTextEditor({
   );
 
   return (
+    <VariablePreviewContext.Provider value={{ definitions: new Map(variables.map((variable) => [variable.name, variable])), unavailableLabels, onEdit: disabled ? undefined : onEditVariable, highlight: highlightVariables }}>
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative rounded-lg overflow-hidden bg-background border border-input",
+          "relative rounded-lg overflow-visible bg-background border border-input",
           className
         )}
       >
-        {!disabled && <ToolbarPlugin variables={variables} />}
+        {!disabled && <ToolbarPlugin variables={variables} onInsertVariable={onInsertVariable}
+          highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
         <div className="relative">
           <RichTextPlugin
@@ -1003,6 +1146,7 @@ export function RichTextEditor({
         <ExternalStateSync value={value} />
       </div>
     </LexicalComposer>
+    </VariablePreviewContext.Provider>
   );
 }
 

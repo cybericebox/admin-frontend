@@ -1,11 +1,6 @@
 import { t } from "@/i18n/t"
 
-const ROLE_STYLES: Record<string, string> = {
-  super_admin: "bg-primary/15 text-primary",
-  admin: "bg-accent/40 text-accent-foreground",
-  admin_viewer: "bg-secondary text-secondary-foreground",
-  user: "bg-muted text-muted-foreground",
-}
+const ROLE_STYLE = "bg-secondary/40 text-foreground"
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-primary/15 text-primary",
@@ -23,7 +18,7 @@ function pill(styles: string, label: string) {
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  return pill(ROLE_STYLES[role] ?? "bg-muted text-muted-foreground", t(`admin.role.${role}`))
+  return pill(ROLE_STYLE, t(`admin.role.${role}`))
 }
 
 export function StatusBadge({ status }: { status: string }) {

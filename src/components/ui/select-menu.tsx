@@ -15,6 +15,7 @@ export interface SelectMenuOption {
   value: string
   label: string
   description?: string
+  unavailable?: boolean
 }
 
 interface SelectMenuProps {
@@ -25,12 +26,14 @@ interface SelectMenuProps {
   placeholder?: string
   className?: string
   ariaLabel?: string
+  compactChevron?: boolean
+  triggerVariant?: "outline" | "default"
 }
 
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline" }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
   return (
     <DropdownMenu>
@@ -38,18 +41,18 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
         <Button
           type="button"
           aria-label={ariaLabel}
-          variant="outline"
+          variant={triggerVariant}
           disabled={disabled}
           className={cn("h-10 justify-between font-normal", className)}
         >
-          <span className="truncate">{selected ? selected.label : (placeholder ?? "")}</span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+          <span className={cn("truncate", selected?.unavailable && "text-destructive")}>{selected ? selected.label : (placeholder ?? "")}</span>
+          <ChevronDown className={cn(compactChevron ? "ml-1" : "ml-2", "h-4 w-4 shrink-0 opacity-60")} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[var(--radix-dropdown-menu-trigger-width)]">
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
-            <DropdownMenuRadioItem key={o.value} value={o.value}>
+            <DropdownMenuRadioItem key={o.value} value={o.value} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>
               {o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
                 <span className="font-medium">{o.label}</span>
                 <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>

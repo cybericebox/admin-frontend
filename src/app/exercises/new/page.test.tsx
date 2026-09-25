@@ -275,12 +275,20 @@ describe("new exercise page", () => {
     expect(screen.queryByText("pending-tag", { selector: "span" })).not.toBeInTheDocument()
   })
 
-  it("edits a variant note from the compact toolbar", () => {
+  it("keeps a long variant note in a collapsed, scrollable inline editor", () => {
     render(<NewExercisePage />)
     fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }), { button: 0 })
-    fireEvent.click(screen.getByRole("button", { name: "admin.exDraft.variantNote" }))
-    fireEvent.change(screen.getByRole("textbox", { name: "admin.exDraft.variantNote" }), { target: { value: "Internal note" } })
-    expect(screen.getByRole("textbox", { name: "admin.exDraft.variantNote" })).toHaveValue("Internal note")
+    const summary = screen.getByText("admin.exDraft.variantNoteShort").closest("summary") as HTMLElement
+    expect(summary.closest("details")).not.toHaveAttribute("open")
+    fireEvent.click(summary)
+    const longNote = "Internal note describing the first variant in more than forty characters."
+    const editor = screen.getByRole("textbox", { name: "admin.exDraft.variantNote" })
+    expect(editor.tagName).toBe("TEXTAREA")
+    fireEvent.change(editor, { target: { value: longNote } })
+    expect(editor).toHaveValue(longNote)
+    expect(editor).toHaveClass("overflow-y-auto")
+    fireEvent.click(summary)
+    expect(summary.closest("details")).not.toHaveAttribute("open")
   })
 
   it("flushes the browser draft without blocking reload", async () => {

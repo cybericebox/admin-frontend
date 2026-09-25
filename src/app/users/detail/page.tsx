@@ -11,7 +11,8 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import {
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 
 type UserDetail = {
   ID: string
@@ -39,6 +40,10 @@ function fullName(u: UserDetail): string {
   return n || u.Email
 }
 
+function isNotFound(error: unknown): boolean {
+  return !!error && typeof error === "object" && "status" in error && error.status === 404
+}
+
 function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
@@ -48,32 +53,47 @@ function Detail() {
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(false)
 
-  function load() {
+  async function load() {
     if (!id) { setNotFound(true); setLoading(false); return }
     setLoading(true)
     setNotFound(false)
-    apiGet<UserDetail>(`/api/users/${id}`)
-      .then((d) => setUser(d))
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
+    setLoadError(false)
+    try {
+      setUser(await apiGet<UserDetail>(`/api/users/${id}`))
+    } catch (error) {
+      setNotFound(isNotFound(error))
+      setLoadError(!isNotFound(error))
+    } finally {
+      setLoading(false)
+    }
   }
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id])
+  useEffect(() => {
+    if (!id) return
+    let active = true
+    apiGet<UserDetail>(`/api/users/${id}`)
+      .then((data) => { if (active) setUser(data) })
+      .catch((error) => { if (active) { setNotFound(isNotFound(error)); setLoadError(!isNotFound(error)) } })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [id, reloadKey])
 
   async function changeRole(role: string) {
     setBusy(true); setActionError(false)
     try {
       await apiPatch(`/api/users/${id}/role`, { Role: role })
-      load()
+      await load()
     } catch { setActionError(true) } finally { setBusy(false) }
   }
   async function setStatus(status: string) {
     setBusy(true); setActionError(false)
     try {
       await apiPatch(`/api/users/${id}/status`, { Status: status })
-      load()
+      await load()
     } catch { setActionError(true) } finally { setBusy(false) }
   }
   async function remove() {
@@ -84,22 +104,30 @@ function Detail() {
     } catch { setActionError(true); setBusy(false) }
   }
 
-  if (loading) {
-    return <div className="frost-panel frost-in flex justify-center rounded-lg p-8"><Spinner label={t("admin.loading")} /></div>
+  if (loading && id) {
+    return <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
+  }
+  if (loadError) {
+    return (
+      <div className="frost-panel frost-in rounded-lg p-8">
+        <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
+        <p role="alert" className="mt-4 text-sm text-destructive">{t("admin.userDetail.loadError")}</p>
+        <Button variant="outline" className="mt-3" onClick={() => { setLoading(true); setLoadError(false); setReloadKey((k) => k + 1) }}>{t("admin.userDetail.retry")}</Button>
+      </div>
+    )
   }
   if (notFound || !user) {
     return (
       <div className="frost-panel frost-in rounded-lg p-8">
         <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <p className="mt-4 text-sm text-muted-foreground">{t("admin.userDetail.notFound")}</p>
+        <EmptyState message={t("admin.userDetail.notFound")} />
       </div>
     )
   }
 
-  // Self-guard: an admin viewing their own account may inspect it but cannot act
-  // on it (no self role-change, self-block, or self-delete). Me carries no ID, so
-  // identity is matched on the unique email. UI-only — the backend enforces too.
-  const isSelf = !!me && me.Email === user.Email
+  // UI-only self-guard; the backend independently enforces this boundary.
+  const isSelf = !!me && me.ID === user.ID
+  const protectedSuperAdmin = user.Role === "super_admin" && !permissions.includes("*")
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
@@ -141,7 +169,9 @@ function Detail() {
         </p>
       )}
 
-      {!isSelf && (can("users.role.write") || can("users.status.write") || can("users.delete")) && (
+      {protectedSuperAdmin && <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedSuperAdmin")}</p>}
+
+      {!isSelf && !protectedSuperAdmin && (can("users.role.write") || can("users.status.write") || can("users.delete")) && (
         <div className="mt-8 flex flex-wrap items-end gap-3 border-t border-border pt-6">
           {can("users.role.write") && (
             <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">
@@ -156,7 +186,7 @@ function Detail() {
             </label>
           )}
 
-          {can("users.status.write") && (
+          {can("users.status.write") && (user.Status === "active" || user.Status === "blocked") && (
             user.Status === "blocked" ? (
               <Button variant="outline" disabled={busy} onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
             ) : (
@@ -174,6 +204,7 @@ function Detail() {
                   <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
                   <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
                 </DialogHeader>
+                {actionError && <p role="alert" className="text-sm text-destructive">{t("admin.userDetail.actionError")}</p>}
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
@@ -193,7 +224,7 @@ function Detail() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="frost-panel frost-in flex justify-center rounded-lg p-8"><Spinner label={t("admin.loading")} /></div>}>
+    <Suspense fallback={<LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />}>
       <Detail />
     </Suspense>
   )

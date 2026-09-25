@@ -39,7 +39,7 @@ describe('AttachmentList', () => {
 
   it('keeps the upload action but does not reserve an empty-state panel before files exist', () => {
     render(<Harness />)
-    expect(screen.getByText('admin.exFiles.upload')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.exFiles.upload' })).toHaveTextContent('admin.exFiles.add')
     expect(screen.queryByText('admin.exFiles.empty')).not.toBeInTheDocument()
   })
 
@@ -47,6 +47,7 @@ describe('AttachmentList', () => {
     render(<Harness attachments={[{ FileID: 'f1', Name: 'notes.pdf' }]} />)
     const link = screen.getByText('notes.pdf').closest('a')
     expect(link).toHaveAttribute('href', '/api/exercises/files/f1')
+    expect(screen.getByRole('button', { name: 'admin.exFiles.remove' })).toHaveClass('opacity-0')
   })
 
   it('uploads a picked file and appends a row', async () => {

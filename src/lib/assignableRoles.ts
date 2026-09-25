@@ -4,8 +4,8 @@ import type { Role } from "@/lib/useRole"
 // Keep in sync if backend role permissions change.
 export const ROLE_PERMISSIONS: Record<Role, string[]> = {
   super_admin: ["*"],
-  admin: ["users", "notifications.self"],
-  admin_viewer: ["users.read", "notifications.self"],
+  admin: ["users", "events.read", "events.write", "platform.audit.read", "events.solution-attempts.read", "events.solution-attempts.write", "notifications.self"],
+  admin_viewer: ["users.read", "events.read", "events.solution-attempts.read", "notifications.self"],
   user: ["notifications.self"],
 }
 

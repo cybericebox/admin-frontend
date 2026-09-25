@@ -1,13 +1,12 @@
 import * as React from "react"
 import { Logo } from "./Logo"
+import { mainOrigin } from "@/lib/origins"
 
 // The landing (apex) origin — the brand lockup links here by default so the
 // organisation logo navigates home from every app.
-const LANDING_HREF = process.env.NEXT_PUBLIC_DOMAIN
-  ? `https://${process.env.NEXT_PUBLIC_DOMAIN}`
-  : "/"
+const LANDING_HREF = mainOrigin
 
-// Brand lockup — the old crest logo plus the CyberICEBox wordmark. Links to the
+// Brand lockup — the old crest logo plus the Cyber ICE Box wordmark. Links to the
 // landing by default; pass href={null} to render a non-linking lockup.
 export function Wordmark({
   className,
@@ -28,7 +27,7 @@ export function Wordmark({
     <span className={`inline-flex items-center gap-2 font-semibold tracking-tight ${text} ${className ?? ""}`}>
       {withMark && <Logo size={mark} href={null} />}
       <span className="text-foreground">
-        Cyber<span className="text-primary">ICE</span>Box
+        Cyber <span className="text-[var(--ib-ice)]">ICE</span> Box
       </span>
     </span>
   )

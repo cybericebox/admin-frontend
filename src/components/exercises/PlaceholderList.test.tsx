@@ -2,7 +2,7 @@
  * PlaceholderList.test.tsx — row fields depend on Kind (ip / external.link / *.subnet).
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { useForm, FormProvider } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -31,7 +31,7 @@ function Harness({ placeholders, devices }: {
 }
 
 const base: PlaceholderFormValues = {
-  Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '',
+  Key: 'ph_existing', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '',
 }
 
 describe('PlaceholderList', () => {
@@ -61,5 +61,20 @@ describe('PlaceholderList', () => {
     render(<Harness placeholders={[{ ...base, Kind: 'vpn.subnet' }]} />)
     expect(screen.queryByText('admin.exPh.ipref')).not.toBeInTheDocument()
     expect(screen.queryByText('admin.exPh.device')).not.toBeInTheDocument()
+  })
+
+  it('omits impossible topology sources when adding a new placeholder', () => {
+    render(<Harness placeholders={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exPh.add' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exPh.kind.ip' }), { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitemradio', { name: 'admin.exPh.kind.ip' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: 'admin.exPh.kind.vpnSubnet' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: 'admin.exPh.kind.internetSubnet' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: 'admin.exPh.kind.externalLink' })).not.toBeInTheDocument()
+  })
+
+  it('keeps an existing unavailable source visible instead of silently removing it', () => {
+    render(<Harness placeholders={[{ ...base, Kind: 'vpn.subnet' }]} />)
+    expect(screen.getByText('admin.exPh.kind.vpnSubnet')).toBeInTheDocument()
   })
 })

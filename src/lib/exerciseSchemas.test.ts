@@ -221,6 +221,19 @@ describe('draftSchema', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
+  it('explains a literal-only template separately from malformed flag syntax', () => {
+    const draft = validDraft()
+    draft.Variants[0].Tasks[0].Flag = ['template:ICE{fixed}']
+    const noRandom = draftSchema.safeParse(draft)
+    expect(noRandom.success).toBe(false)
+    if (!noRandom.success) expect(noRandom.error.issues.some((issue) => issue.message === 'admin.ex.val.flagTemplateNeedsRandom')).toBe(true)
+
+    draft.Variants[0].Tasks[0].Flag = ['template:ICE{has space}']
+    const malformed = draftSchema.safeParse(draft)
+    expect(malformed.success).toBe(false)
+    if (!malformed.success) expect(malformed.error.issues.some((issue) => issue.message === 'admin.ex.val.flagFormat')).toBe(true)
+  })
+
   it('rejects a device name that is not a DNS label', () => {
     const draft = validDraft()
     const device = emptyDevice()
@@ -476,16 +489,19 @@ describe('draftSchema', () => {
   it('ip placeholder requires a known IPReference; external.link requires a device', () => {
     const draft = validDraft()
     draft.Variants[0].Tasks[0].Placeholders = [{
+      Key: 'ph_test',
       Kind: 'ip', IPReference: 'bogus', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: '',
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
     draft.Variants[0].Tasks[0].Placeholders = [{
+      Key: 'ph_test',
       Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: '',
     }]
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
     draft.Variants[0].Tasks[0].Placeholders = [{
+      Key: 'ph_test',
       Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 13, ShowMask: true, DeviceName: '',
     }]
     expect(draftSchema.safeParse(draft).success).toBe(true)
@@ -587,6 +603,7 @@ describe('toDraftFormValues', () => {
     expect(values.RegenerateFlagsOnPublish).toBe(true)
     expect(values.Variants[0].ID).toBe('var1')
     expect(values.Variants[0].Tasks[0].ID).toBe('task1')
+    expect(values.Variants[0].Tasks[0].Placeholders[0].Key).toBe('ph_legacy_0_0_0')
     expect(values.Variants[0].Topology.Devices[0].External)
       .toEqual({ Enabled: true, Port: 8080, Protocol: 'https' })
   })
@@ -599,6 +616,12 @@ describe('toDraftFormValues', () => {
 })
 
 describe('toSaveDraftInput', () => {
+  it('sends the mask choice for a subnet placeholder to the API', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_subnet', Kind: 'vpn.subnet', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: true, DeviceName: '' }]
+    expect(toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders).toEqual([{ Key: 'ph_subnet', Kind: 'vpn.subnet', ShowMask: true }])
+  })
+
   it('round-trips a loaded version 1:1 (saved IDs go back out)', () => {
     const input = toSaveDraftInput(toDraftFormValues(loadedVersion()))
     expect(input).toEqual({
@@ -616,7 +639,7 @@ describe('toSaveDraftInput', () => {
           LinkedDeviceID: DEV_ID,
           DeviceFlagVar: 'FLAG',
           Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
-          Placeholders: [{ Kind: 'vpn.subnet' }],
+          Placeholders: [{ Key: 'ph_legacy_0_0_0', Kind: 'vpn.subnet' }],
         }],
         Topology: {
           VPN: { Enabled: true, DHCP: true },

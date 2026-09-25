@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
 import { notifTypeLabel } from "@/utils/notifType"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 type Dispatch = {
   ID: string
@@ -32,29 +34,30 @@ export function LogsTab() {
   const [status, setStatus] = useState("")
   const [offset, setOffset] = useState(0)
   const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null)
-  const [data, setData] = useState<ListResp | null>(null)
-  const [error, setError] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<{ query: string; page: ListResp } | null>(null)
+  const [errorQuery, setErrorQuery] = useState<string | null>(null)
   const [detail, setDetail] = useState<DispatchDetail | null>(null)
   const [open, setOpen] = useState(false)
   const reqId = useRef(0)
   const [detailError, setDetailError] = useState(false)
 
+  const params = new URLSearchParams()
+  if (type) params.set("type", type)
+  if (status) params.set("status", status)
+  params.set("limit", String(PAGE))
+  params.set("offset", String(offset))
+  if (userFilter) params.set("user", userFilter.id)
+  const query = params.toString()
+  const error = errorQuery === query
+  const loading = !error && data?.query !== query
+
   useEffect(() => {
     let cancelled = false
-    setLoading(true); setError(false)
-    const params = new URLSearchParams()
-    if (type) params.set("type", type)
-    if (status) params.set("status", status)
-    params.set("limit", String(PAGE))
-    params.set("offset", String(offset))
-    if (userFilter) params.set("user", userFilter.id)
-    apiGet<ListResp>(`/api/notifications/dispatches?${params.toString()}`)
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    apiGet<ListResp>(`/api/notifications/dispatches?${query}`)
+      .then((page) => { if (!cancelled) { setData({ query, page }); setErrorQuery(null) } })
+      .catch(() => { if (!cancelled) setErrorQuery(query) })
     return () => { cancelled = true }
-  }, [type, status, offset, userFilter])
+  }, [query])
 
   function openDetail(id: string) {
     const my = ++reqId.current
@@ -64,8 +67,8 @@ export function LogsTab() {
       .catch(() => { if (my === reqId.current) setDetailError(true) })
   }
 
-  const total = data?.Total ?? 0
-  const rows = data?.Items ?? []
+  const total = data?.page.Total ?? 0
+  const rows = data?.query === query ? data.page.Items : []
   const names = useUserNames(rows.map(r => r.RecipientUserID))
 
   return (
@@ -77,14 +80,7 @@ export function LogsTab() {
           placeholder={t("admin.notif.logs.allTypes")}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <select
-          value={status}
-          onChange={(e) => { setOffset(0); setStatus(e.target.value) }}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="">{t("admin.notif.logs.allStatuses")}</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{t(statusLabelKey(s))}</option>)}
-        </select>
+        <SelectMenu value={status} onChange={(next) => { setOffset(0); setStatus(next) }} ariaLabel={t("admin.notif.logs.status")} options={[{ value: "", label: t("admin.notif.logs.allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: t(statusLabelKey(s)) }))]} className="min-w-40" />
       </div>
 
       {userFilter && (
@@ -103,9 +99,9 @@ export function LogsTab() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
       ) : loading ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
+        <LoadingArea label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.notif.logs.empty")}</p>
+        <EmptyState message={t(type || status || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -176,9 +172,9 @@ export function LogsTab() {
           {detailError ? (
             <p className="py-4 text-sm text-destructive">{t("admin.notif.loadError")}</p>
           ) : !detail ? (
-            <div className="flex justify-center py-4"><Spinner label={t("admin.loading")} /></div>
+            <LoadingArea compact label={t("admin.loading")} />
           ) : detail.Targets.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">{t("admin.notif.logs.noTargets")}</p>
+            <EmptyState message={t("admin.notif.logs.noTargets")} compact />
           ) : (
             <div className="space-y-2">
               {detail.Targets.map((tg, i) => (

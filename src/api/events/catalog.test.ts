@@ -14,6 +14,7 @@ import {
   updateEvent,
   archiveEvent,
   deleteEvent,
+  listEventManagers,
 } from './catalog'
 
 const mockApiGet = vi.mocked(client.apiGet)
@@ -45,21 +46,27 @@ describe('listEvents', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('calls apiGet with the bare base path when no filter', async () => {
-    mockApiGet.mockResolvedValueOnce({ Events: [], NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0 })
     await listEvents()
     expect(mockApiGet.mock.calls[0][0]).toBe('/api/events')
   })
 
   it('builds search, cursor and pageSize params', async () => {
-    mockApiGet.mockResolvedValueOnce({ Events: [], NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0 })
     await listEvents({ search: 'ctf', cursor: EV_ID, pageSize: 50 })
     expect(mockApiGet.mock.calls[0][0]).toBe(`/api/events?search=ctf&cursor=${EV_ID}&pageSize=50`)
   })
 
   it('normalises a null Events array to []', async () => {
-    mockApiGet.mockResolvedValueOnce({ Events: null, NextCursor: '', HasMore: false })
+    mockApiGet.mockResolvedValueOnce({ Items: null, Total: 0 })
     const empty = await listEvents()
-    expect(empty.Events).toEqual([])
+    expect(empty.Items).toEqual([])
+  })
+
+  it('normalises an old zero archive date to null', async () => {
+    mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawEvent, ArchiveAt: '0001-01-01T00:00:00Z' }], Total: 1 })
+    const page = await listEvents()
+    expect(page.Items[0].ArchiveAt).toBeNull()
   })
 })
 
@@ -110,5 +117,15 @@ describe('deleteEvent', () => {
     mockApiDelete.mockResolvedValueOnce(undefined)
     await deleteEvent(EV_ID)
     expect(mockApiDelete.mock.calls[0][0]).toBe(`/api/events/${EV_ID}`)
+  })
+})
+
+describe('listEventManagers', () => {
+  beforeEach(() => vi.clearAllMocks())
+  it('GETs event-local access memberships', async () => {
+    const managers = [{ UserID: 'owner-1', Role: 0, CreatedAt: '2026-01-01T00:00:00Z' }]
+    mockApiGet.mockResolvedValueOnce(managers)
+    expect(await listEventManagers(EV_ID)).toEqual(managers)
+    expect(mockApiGet).toHaveBeenCalledWith(`/api/events/${EV_ID}/managers`)
   })
 })

@@ -29,8 +29,8 @@ describe('eventFormSchema', () => {
     expect(eventFormSchema.safeParse({ ...valid, Tag: 'a'.repeat(65) }).success).toBe(false)
   })
 
-  it('accepts an empty name but rejects one over 255 chars', () => {
-    expect(eventFormSchema.safeParse({ ...valid, Name: '' }).success).toBe(true)
+  it('requires a name and rejects one over 255 chars', () => {
+    expect(eventFormSchema.safeParse({ ...valid, Name: '' }).success).toBe(false)
     expect(eventFormSchema.safeParse({ ...valid, Name: 'x'.repeat(256) }).success).toBe(false)
   })
 
@@ -42,9 +42,9 @@ describe('eventFormSchema', () => {
     }
   })
 
-  it('rejects empty date fields', () => {
+  it('requires the opening date but allows an open-ended platform window', () => {
     expect(eventFormSchema.safeParse({ ...valid, AvailableFrom: '' }).success).toBe(false)
-    expect(eventFormSchema.safeParse({ ...valid, ArchiveAt: '' }).success).toBe(false)
+    expect(eventFormSchema.safeParse({ ...valid, ArchiveAt: '' }).success).toBe(true)
   })
 })
 
@@ -57,6 +57,7 @@ describe('datetime helpers', () => {
   it('returns "" for empty or invalid input', () => {
     expect(isoToLocal('')).toBe('')
     expect(isoToLocal('not-a-date')).toBe('')
+    expect(isoToLocal('0001-01-01T00:00:00Z')).toBe('')
     expect(localToIso('')).toBe('')
     expect(localToIso('not-a-date')).toBe('')
   })

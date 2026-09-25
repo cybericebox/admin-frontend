@@ -38,6 +38,7 @@ export type LexicalDoc = Record<string, unknown>
 export type AttachmentDTO = { FileID: string; Name: string }
 
 export type PlaceholderDTO = {
+  Key?: string // stable reference for inline description tokens
   Kind: PlaceholderKind
   IPReference?: string // "vpn" | "internet" | "static" (only when Kind === "ip")
   Octets1to3?: string // only when IPReference === "static"

@@ -5,7 +5,8 @@ import { t } from "@/i18n/t"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { StatusPill } from "./StatusPill"
 import { notifTypeLabel, notifChannelLabel } from "@/utils/notifType"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 
 type KeyCount = { Key: string; Count: number }
 type ChannelStatus = { Channel: string; Status: string; Count: number }
@@ -22,16 +23,16 @@ const WINDOWS = [7, 30, 90]
 export function StatisticsTab() {
   const [days, setDays] = useState(30)
   const [stats, setStats] = useState<Stats | null>(null)
-  const [error, setError] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loadedDays, setLoadedDays] = useState<number | null>(null)
+  const [errorDays, setErrorDays] = useState<number | null>(null)
+  const error = errorDays === days
+  const loading = !error && loadedDays !== days
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true); setError(false)
     apiGet<Stats>(`/api/notifications/stats?days=${days}`)
-      .then((d) => { if (!cancelled) setStats(d) })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+      .then((result) => { if (!cancelled) { setStats(result); setLoadedDays(days); setErrorDays(null) } })
+      .catch(() => { if (!cancelled) setErrorDays(days) })
     return () => { cancelled = true }
   }, [days])
 
@@ -51,7 +52,7 @@ export function StatisticsTab() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
       ) : loading || !stats ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
+        <LoadingArea label={t("admin.loading")} />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
@@ -62,7 +63,7 @@ export function StatisticsTab() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.notif.stats.byStatus")}</CardTitle></CardHeader>
             <CardContent className="space-y-1">
-              {stats.ByStatus.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
+              {stats.ByStatus.length === 0 ? <EmptyState message={t("admin.notif.stats.empty")} compact /> :
                 stats.ByStatus.map((s) => (
                   <div key={s.Key} className="flex items-center justify-between text-sm">
                     <StatusPill status={s.Key} /><span className="font-medium text-foreground">{s.Count}</span>
@@ -74,7 +75,7 @@ export function StatisticsTab() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.notif.stats.byType")}</CardTitle></CardHeader>
             <CardContent className="space-y-1">
-              {stats.ByType.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
+              {stats.ByType.length === 0 ? <EmptyState message={t("admin.notif.stats.empty")} compact /> :
                 stats.ByType.map((s) => (
                   <div key={s.Key} className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{notifTypeLabel(s.Key)}</span><span className="font-medium text-foreground">{s.Count}</span>
@@ -86,7 +87,7 @@ export function StatisticsTab() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.notif.stats.byChannel")}</CardTitle></CardHeader>
             <CardContent className="space-y-1">
-              {stats.ByChannel.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.notif.stats.empty")}</p> :
+              {stats.ByChannel.length === 0 ? <EmptyState message={t("admin.notif.stats.empty")} compact /> :
                 stats.ByChannel.map((c, i) => (
                   <div key={`${c.Channel}-${c.Status}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{notifChannelLabel(c.Channel)}</span>

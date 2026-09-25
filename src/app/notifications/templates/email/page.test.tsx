@@ -163,6 +163,27 @@ describe('Email templates grouped list page', () => {
     })
   })
 
+  it('shows loading indicator while latestEmailTemplates is pending', async () => {
+    // Return a promise that never resolves — component stays in loading state
+    vi.mocked(latestEmailTemplates).mockReturnValue(new Promise(() => {}))
+    render(<Page />)
+    // Loading state renders immediately on mount (entries===null, loadError===false)
+    // t('admin.loading') → 'admin.loading'
+    await waitFor(() => {
+      expect(screen.getByText('admin.loading')).toBeInTheDocument()
+    })
+  })
+
+  it('shows loadError message when latestEmailTemplates rejects', async () => {
+    vi.mocked(latestEmailTemplates).mockRejectedValue(new Error('network error'))
+    render(<Page />)
+    // Wait for the catch handler to fire and set loadError=true
+    // t('admin.notif.list.loadError') → 'admin.notif.list.loadError'
+    await waitFor(() => {
+      expect(screen.getByText('admin.notif.list.loadError')).toBeInTheDocument()
+    })
+  })
+
   it('row link targets the create affordance when entry has no versions', async () => {
     const entryNoVersions: LatestEntry = {
       NotificationType: 'user.password_reset',

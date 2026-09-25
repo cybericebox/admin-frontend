@@ -14,7 +14,7 @@
  * This editor is admin-only; content is authored by admins.
  */
 
-export type VariableDef = { name: string; description?: string }
+export type VariableDef = { name: string; description?: string; example?: string }
 
 // ── HTML escaping ─────────────────────────────────────────────────────────────
 

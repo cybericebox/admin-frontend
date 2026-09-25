@@ -24,7 +24,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
@@ -49,14 +50,12 @@ import { ICONS, TONES, SURFACES } from "@/components/notifications/editor/inAppO
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
-function Detail() {
-  const params = useSearchParams()
-  const id = params.get("id") ?? ""
+function Detail({ id }: { id: string }) {
   const router = useRouter()
 
   // ── Remote state ──────────────────────────────────────────────────────────
   const [template, setTemplate] = useState<InAppTemplate | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState(false)
@@ -90,11 +89,8 @@ function Detail() {
   // ── Load template (once, on id change) ───────────────────────────────────
   const load = useCallback(() => {
     if (!id) {
-      setLoading(false)
       return
     }
-    setLoading(true)
-    setNotFound(false)
     getInAppTemplate(id)
       .then((tpl) => {
         setTemplate(tpl)
@@ -257,9 +253,7 @@ function Detail() {
 
   if (loading) {
     return (
-      <div className="frost-panel frost-in flex justify-center rounded-lg p-8">
-        <Spinner label={t("admin.loading")} />
-      </div>
+      <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
     )
   }
 
@@ -272,9 +266,7 @@ function Detail() {
         >
           ← {t("admin.notif.tpl.inApp")}
         </Link>
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("admin.notif.tpl.empty")}
-        </p>
+        <EmptyState message={t("admin.notif.tpl.empty")} />
       </div>
     )
   }
@@ -351,6 +343,7 @@ function Detail() {
           <SelectMenu
             value={notificationType}
             onChange={setNotificationType}
+            ariaLabel={t("admin.notif.tpl.type")}
             placeholder={t("admin.notif.tpl.choose")}
             options={notifTypes
               .filter((nt) => nt.Channels.includes("in_app"))
@@ -422,17 +415,7 @@ function Detail() {
               <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t("admin.notif.inapp.icon")}
               </label>
-              <select
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {ICONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu value={icon} onChange={setIcon} ariaLabel={t("admin.notif.inapp.icon")} options={ICONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
             </div>
 
             {/* Tone */}
@@ -440,17 +423,7 @@ function Detail() {
               <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t("admin.notif.inapp.tone")}
               </label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                className="rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {TONES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu value={tone} onChange={setTone} ariaLabel={t("admin.notif.inapp.tone")} options={TONES.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
             </div>
 
             {/* AccentColor */}
@@ -480,17 +453,7 @@ function Detail() {
               <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t("admin.notif.inapp.surface")}
               </label>
-              <select
-                value={surface}
-                onChange={(e) => setSurface(e.target.value)}
-                className="rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {SURFACES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu value={surface} onChange={setSurface} ariaLabel={t("admin.notif.inapp.surface")} options={SURFACES.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))} />
             </div>
 
             {/* AutoDismissMs */}
@@ -602,6 +565,11 @@ function Detail() {
 
 // ── Page export (Suspense boundary required for useSearchParams in static export) ──
 
+function RouteDetail() {
+  const id = useSearchParams().get("id") ?? ""
+  return <Detail key={id} id={id} />
+}
+
 export default function Page() {
   return (
     <RequirePermission
@@ -614,12 +582,10 @@ export default function Page() {
     >
       <Suspense
         fallback={
-          <div className="frost-panel frost-in flex justify-center rounded-lg p-8">
-            <Spinner label={t("admin.loading")} />
-          </div>
+          <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
         }
       >
-        <Detail />
+        <RouteDetail />
       </Suspense>
     </RequirePermission>
   )

@@ -4,7 +4,8 @@ import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
 import { notifTypeLabel } from "@/utils/notifType"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 
 type Setting = {
   NotificationType: string
@@ -24,7 +25,6 @@ export function GlobalSettingsTab() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true); setError(false)
     apiGet<Setting[]>("/api/notifications/settings/global")
       .then((d) => { if (!cancelled) setRows(d ?? []) })
       .catch(() => { if (!cancelled) setError(true) })
@@ -45,8 +45,8 @@ export function GlobalSettingsTab() {
   }
 
   if (error) return <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
-  if (loading) return <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
-  if (rows.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.notif.settings.empty")}</p>
+  if (loading) return <LoadingArea label={t("admin.loading")} />
+  if (rows.length === 0) return <EmptyState message={t("admin.notif.settings.empty")} />
 
   return (
     <div className="space-y-3 pt-4">

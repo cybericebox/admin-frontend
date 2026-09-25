@@ -175,6 +175,13 @@ describe('createEmailTemplate', () => {
     expect(mockApiPost).toHaveBeenCalledOnce()
     expect(mockApiPost.mock.calls[0][0]).toBe('/api/notifications/templates/email')
   })
+
+  it('normalises null Body/Styling in create response', async () => {
+    mockApiPost.mockResolvedValueOnce(rawTemplateNullFields)
+    const result = await createEmailTemplate({ NotificationType: 'welcome', Subject: 'Hi', Preheader: '', Body: [], Styling: {} })
+    expect(result.Body).toEqual([])
+    expect(result.Styling).toEqual({})
+  })
 })
 
 // ── updateEmailTemplate ────────────────────────────────────────────────────────
@@ -187,6 +194,13 @@ describe('updateEmailTemplate', () => {
     await updateEmailTemplate(TEMPLATE_ID, { Subject: 'New', Preheader: '', Body: [], Styling: {} })
     expect(mockApiPut).toHaveBeenCalledOnce()
     expect(mockApiPut.mock.calls[0][0]).toBe(`/api/notifications/templates/email/${TEMPLATE_ID}`)
+  })
+
+  it('normalises null Body/Styling in update response', async () => {
+    mockApiPut.mockResolvedValueOnce(rawTemplateNullFields)
+    const result = await updateEmailTemplate(TEMPLATE_ID, { Subject: 'New', Preheader: '', Body: [], Styling: {} })
+    expect(result.Body).toEqual([])
+    expect(result.Styling).toEqual({})
   })
 })
 
@@ -234,6 +248,13 @@ describe('rollbackEmailTemplate', () => {
     expect(mockApiPost).toHaveBeenCalledOnce()
     expect(mockApiPost.mock.calls[0][0]).toBe(`/api/notifications/templates/email/${TEMPLATE_ID}/rollback`)
   })
+
+  it('normalises null Body/Styling in rollback response', async () => {
+    mockApiPost.mockResolvedValueOnce(rawTemplateNullFields)
+    const result = await rollbackEmailTemplate(TEMPLATE_ID)
+    expect(result.Body).toEqual([])
+    expect(result.Styling).toEqual({})
+  })
 })
 
 // ── Block presets ──────────────────────────────────────────────────────────────
@@ -263,6 +284,12 @@ describe('getBlockPreset', () => {
     await getBlockPreset(PRESET_ID)
     expect(mockApiGet).toHaveBeenCalledOnce()
     expect(mockApiGet.mock.calls[0][0]).toBe(`/api/notifications/templates/email/block-presets/${PRESET_ID}`)
+  })
+
+  it('normalises null Blocks to [] in getBlockPreset', async () => {
+    mockApiGet.mockResolvedValueOnce({ ...rawPreset, Blocks: null })
+    const result = await getBlockPreset(PRESET_ID)
+    expect(result.Blocks).toEqual([])
   })
 })
 

@@ -219,9 +219,8 @@ describe('draft editor page', () => {
     render(<Page />)
     await screen.findByDisplayValue('wip note')
     fireEvent.click(screen.getByText('admin.exTask.flag.add'))
-    const flagInput = screen.getByText('admin.exTask.flag.semantics1').parentElement?.querySelector('input')
-    expect(flagInput).toBeTruthy()
-    fireEvent.change(flagInput!, { target: { value: 'ICE{has space}' } })
+    const flagInput = screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' })
+    fireEvent.change(flagInput, { target: { value: 'ICE{has space}' } })
     fireEvent.click(screen.getByText('admin.exDraft.save'))
 
     expect(await screen.findByText('admin.ex.val.flagFormat')).toBeInTheDocument()
@@ -231,21 +230,21 @@ describe('draft editor page', () => {
   it('opens the variant containing the first invalid field on save', async () => {
     const twoVariants = structuredClone(version)
     twoVariants.Variants.push({ ...structuredClone(version.Variants[0]), ID: 'var2', Index: 2,
-      Tasks: [{ ...structuredClone(version.Variants[0].Tasks[0]), ID: 't2', Name: 'Second task' }] })
+      Tasks: [{ ...structuredClone(version.Variants[0].Tasks[0]), ID: 't2' }] })
     mockGetVersion.mockResolvedValue(twoVariants)
     render(<Page />)
     await screen.findByDisplayValue('wip note')
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'admin.exDraft.variant 2' }), { button: 0 })
     expect(screen.getByRole('tab', { name: 'admin.exDraft.variant 2' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('textbox', { name: /admin.exTask.name/ })).toHaveValue('Second task')
-    fireEvent.change(screen.getByRole('textbox', { name: /admin.exTask.name/ }), { target: { value: '' } })
+    fireEvent.click(screen.getByText('admin.exTask.flag.add'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), { target: { value: 'ICE{has space}' } })
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'admin.exDraft.variant 1' }), { button: 0 })
 
     fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.save' }))
 
     await waitFor(() => expect(screen.getByRole('tab', { name: 'admin.exDraft.variant 2' })).toHaveAttribute('aria-selected', 'true'))
-    expect(screen.getByText('admin.ex.val.taskName')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('textbox', { name: /admin.exTask.name/ })).toHaveFocus())
+    expect(screen.getByText('admin.ex.val.flagFormat')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' })).toHaveFocus())
     expect(mockSaveDraft).not.toHaveBeenCalled()
   })
 

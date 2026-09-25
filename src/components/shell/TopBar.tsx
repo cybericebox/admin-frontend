@@ -4,11 +4,12 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
-import { apiPost } from "@/api/client"
+import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-
-const ID_ORIGIN =
-  process.env.NEXT_PUBLIC_ID_ORIGIN ?? `https://id.${process.env.NEXT_PUBLIC_DOMAIN ?? ""}`
+import { Menu } from "lucide-react"
+import { ThemeSwitch } from "./ThemeSwitch"
+import { InboxButton } from "./InboxButton"
+import { idOrigin } from "@/lib/origins"
 
 // Sign out from the ADMIN origin so DeAuthenticate clears this subdomain's local
 // token (httpOnly, out of the id app's reach) and deletes the master session
@@ -23,18 +24,24 @@ async function signOutAndRedirect(): Promise<void> {
     // Even if the call fails, fall through to sign-in — the cookie is httpOnly
     // and short-lived; the worst case is a stale token that expires on its own.
   }
-  if (typeof window !== "undefined") window.location.href = `${ID_ORIGIN}/sign-in`
+  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
 }
 
-export function TopBar({ title }: { title: string }) {
+export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
   const { me, role } = useRole()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="frost-panel sticky top-0 z-40 flex items-center justify-between px-6 py-3">
-      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+    <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <button type="button" aria-label="Відкрити меню" onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
+      </div>
       <div className="flex items-center gap-3">
+        <ThemeSwitch />
+        <span className="h-5 w-px bg-border" aria-hidden="true" />
+        <InboxButton />
         {role === "admin_viewer" && (
           <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {t("admin.role.viewOnlyBadge")}
@@ -48,7 +55,7 @@ export function TopBar({ title }: { title: string }) {
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images
               <img
-                src={me.Picture}
+                src={mediaUrl(me.Picture)}
                 alt={fullName}
                 referrerPolicy="no-referrer"
                 className="h-full w-full object-cover"
@@ -64,7 +71,7 @@ export function TopBar({ title }: { title: string }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <a href={`${ID_ORIGIN}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
+              <a href={`${idOrigin}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>

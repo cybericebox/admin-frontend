@@ -42,6 +42,8 @@ export function PlaceholderList({
   const name = `Variants.${variantIndex}.Tasks.${taskIndex}.Placeholders` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
+  const vpn = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN.Enabled` })
+  const internet = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
   const externalDeviceNames = devices
     .filter((d) => d.External?.Enabled && d.Name)
@@ -52,7 +54,7 @@ export function PlaceholderList({
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exPh.title")}<FieldHelp text={t("admin.exPh.titleHelp")} /></span>
         {!disabled && (
-          <Button type="button" variant="outline" size="sm" onClick={() => append(emptyPlaceholder())}>
+          <Button type="button" variant="outline" size="sm" data-placeholder-add onClick={() => append(emptyPlaceholder())}>
             <Plus className="mr-1 h-4 w-4" />
             {t("admin.exPh.add")}
           </Button>
@@ -62,6 +64,14 @@ export function PlaceholderList({
       {fields.map((field, pi) => {
         const kind = rows[pi]?.Kind
         const ipRef = rows[pi]?.IPReference
+        const kindOptions = KIND_OPTIONS.filter((option) =>
+          option.value === kind || option.value === "ip" ||
+          (option.value === "vpn.subnet" && vpn) ||
+          (option.value === "internet.subnet" && internet) ||
+          (option.value === "external.link" && externalDeviceNames.length > 0))
+        const ipRefOptions = IPREF_OPTIONS.filter((option) =>
+          option.value === ipRef || option.value === "static" ||
+          (option.value === "vpn" && vpn) || (option.value === "internet" && internet))
         return (
           <div key={field.id} className="space-y-2 rounded-md border border-border p-3">
             <div className="flex items-center gap-2">
@@ -75,7 +85,7 @@ export function PlaceholderList({
                       value={kindField.value}
                       onChange={kindField.onChange}
                       disabled={disabled}
-                      options={KIND_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+                      options={kindOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
                       className="w-full"
                     />
                   )}
@@ -98,7 +108,7 @@ export function PlaceholderList({
                         value={refField.value}
                         onChange={refField.onChange}
                         disabled={disabled}
-                        options={IPREF_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+                        options={ipRefOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
                         className="w-full"
                       />
                     )}
@@ -167,7 +177,7 @@ export function PlaceholderList({
                       onChange={devField.onChange}
                       disabled={disabled}
                       placeholder={t("admin.exPh.device.placeholder")}
-                      options={externalDeviceNames.map((n) => ({ value: n, label: n }))}
+                      options={[...(devField.value && !externalDeviceNames.includes(devField.value) ? [devField.value] : []), ...externalDeviceNames].map((n) => ({ value: n, label: n }))}
                       className="w-full"
                     />
                   )}

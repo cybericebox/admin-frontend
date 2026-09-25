@@ -19,6 +19,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   21104: 'admin.events.err.tagInvalid',
   21105: 'admin.events.err.datesInvalid',
   21106: 'admin.events.err.nameTooLong',
+  21114: 'admin.events.err.nameRequired',
 }
 
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }

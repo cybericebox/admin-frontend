@@ -6,21 +6,21 @@
  * Ported from ai-tutor admin/notifications/email/[id]/page.tsx BlockEditor
  * sub-component and rewired for the CyberICEBox design system.
  *
- * STABLE KEYS: Each block gets a UUID stored in `keysRef` (a parallel string[]
- * that mirrors the `value` array).  All mutations (add / delete / reorder) update
- * `keysRef.current` BEFORE calling `onChange`, so the next render sees matched
+ * STABLE KEYS: Each block gets a UUID stored alongside the controlled value.
+ * All mutations (add / delete / reorder) update keys with `onChange`, so the next render sees matched
  * lengths.  Keys are NEVER derived from content or array index, so reordering
  * preserves the mounted RichTextEditor state (Lexical is mount-initialised /
  * uncontrolled after mount).
  */
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { ChevronUp, ChevronDown, Trash2, Save } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
 import {
   defaultBlockForType,
@@ -93,17 +93,15 @@ export function BlockEditor({
   presets,
   onSavePreset,
 }: BlockEditorProps) {
-  // ── Stable keys (parallel to value[]) ────────────────────────────────────
-  // Sync length during render — all self-mutations update keysRef BEFORE onChange.
-  const keysRef = useRef<string[]>([]);
-
-  // Grow
-  while (keysRef.current.length < value.length) {
-    keysRef.current.push(newKey());
-  }
-  // Shrink (handles parent-initiated resets)
-  if (keysRef.current.length > value.length) {
-    keysRef.current = keysRef.current.slice(0, value.length);
+  // Keys follow internal add/remove/reorder operations. For a parent-initiated
+  // length change, adjust them before rendering children so mounted editors keep
+  // their identity and no ref is read or mutated during render.
+  const [keyState, setKeyState] = useState(() => ({ value, keys: value.map(newKey) }));
+  if (keyState.value !== value) {
+    setKeyState({
+      value,
+      keys: value.map((_, index) => keyState.keys[index] ?? newKey()),
+    });
   }
 
   // ── Selection + save-as-preset state ──────────────────────────────────────
@@ -116,8 +114,9 @@ export function BlockEditor({
 
   const addBlock = (type: EmailBodyBlock["type"]) => {
     const block = defaultBlockForType(type);
-    keysRef.current = [...keysRef.current, newKey()];
-    onChange([...value, block]);
+    const next = [...value, block];
+    setKeyState({ value: next, keys: [...keyState.keys, newKey()] });
+    onChange(next);
   };
 
   const addPresetBlock = (preset: BlockPreset) => {
@@ -126,8 +125,9 @@ export function BlockEditor({
       preset_id: preset.ID,
       name: preset.Name,
     };
-    keysRef.current = [...keysRef.current, newKey()];
-    onChange([...value, block]);
+    const next = [...value, block];
+    setKeyState({ value: next, keys: [...keyState.keys, newKey()] });
+    onChange(next);
   };
 
   const updateBlock = (i: number, updated: EmailBodyBlock) => {
@@ -135,8 +135,9 @@ export function BlockEditor({
   };
 
   const removeBlock = (i: number) => {
-    keysRef.current = keysRef.current.filter((_, idx) => idx !== i);
-    onChange(value.filter((_, idx) => idx !== i));
+    const next = value.filter((_, idx) => idx !== i);
+    setKeyState({ value: next, keys: keyState.keys.filter((_, idx) => idx !== i) });
+    onChange(next);
     setSelectedIdxs(new Set());
   };
 
@@ -145,12 +146,12 @@ export function BlockEditor({
     if (j < 0 || j >= value.length) return;
 
     const nextBlocks = [...value];
-    const nextKeys   = [...keysRef.current];
+    const nextKeys   = [...keyState.keys];
 
     [nextBlocks[i], nextBlocks[j]] = [nextBlocks[j], nextBlocks[i]];
     [nextKeys[i],   nextKeys[j]]   = [nextKeys[j],   nextKeys[i]];
 
-    keysRef.current = nextKeys;
+    setKeyState({ value: nextBlocks, keys: nextKeys });
     onChange(nextBlocks);
     setSelectedIdxs(new Set());
   };
@@ -240,8 +241,7 @@ export function BlockEditor({
 
       {/* ── Block list ── */}
       {value.map((block, i) => {
-        // keysRef is guaranteed synced (while loop above)
-        const stableKey = keysRef.current[i];
+        const stableKey = keyState.keys[i];
 
         return (
           <div
@@ -251,7 +251,7 @@ export function BlockEditor({
               "group rounded-xl border p-4",
               block.type === "preset"
                 ? "border-teal-200 bg-teal-50/30"
-                : "border-border bg-white"
+                : "border-border bg-card"
             )}
           >
             {/* Block header row */}
@@ -348,20 +348,7 @@ export function BlockEditor({
                 />
                 <label className="block text-sm">
                   <span className="text-muted-foreground">{t("admin.notif.editor.alignment")}</span>
-                  <select
-                    value={(block as ButtonBlock).align ?? 'center'}
-                    onChange={(e) =>
-                      updateBlock(i, {
-                        ...(block as ButtonBlock),
-                        align: e.target.value as 'left' | 'center' | 'right'
-                      })
-                    }
-                    className="mt-1 w-full rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="left">{t("admin.notif.editor.alignLeft")}</option>
-                    <option value="center">{t("admin.notif.editor.alignCenter")}</option>
-                    <option value="right">{t("admin.notif.editor.alignRight")}</option>
-                  </select>
+                  <SelectMenu value={(block as ButtonBlock).align ?? "center"} onChange={(next) => updateBlock(i, { ...(block as ButtonBlock), align: next as "left" | "center" | "right" })} ariaLabel={t("admin.notif.editor.alignment")} options={[{ value: "left", label: t("admin.notif.editor.alignLeft") }, { value: "center", label: t("admin.notif.editor.alignCenter") }, { value: "right", label: t("admin.notif.editor.alignRight") }]} className="mt-1 w-full" />
                 </label>
               </div>
             )}
@@ -392,10 +379,10 @@ export function BlockEditor({
 
             {block.type === "preset" && (
               <div>
-                <select
+                <SelectMenu
                   value={(block as PresetBlock).preset_id}
-                  onChange={(e) => {
-                    const preset = presets.find((p) => p.ID === e.target.value);
+                  onChange={(next) => {
+                    const preset = presets.find((p) => p.ID === next);
                     if (!preset) return;
                     updateBlock(i, {
                       type: "preset",
@@ -403,15 +390,10 @@ export function BlockEditor({
                       name: preset.Name,
                     });
                   }}
-                  className="w-full rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">{t("admin.notif.editor.selectPreset")}</option>
-                  {presets.map((p) => (
-                    <option key={p.ID} value={p.ID}>
-                      {p.Name} · {p.Blocks.length} {t("admin.notif.editor.blocksCount")}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel={t("admin.notif.editor.selectPreset")}
+                  options={[{ value: "", label: t("admin.notif.editor.selectPreset") }, ...presets.map((p) => ({ value: p.ID, label: `${p.Name} · ${p.Blocks.length} ${t("admin.notif.editor.blocksCount")}` }))]}
+                  className="w-full"
+                />
               </div>
             )}
           </div>
@@ -430,7 +412,7 @@ export function BlockEditor({
               type="button"
               aria-label={t(ADD_BLOCK_ARIA_KEYS[type])}
               onClick={() => addBlock(type)}
-              className="px-2.5 py-1 rounded text-xs font-medium border border-border bg-white hover:bg-muted transition-colors"
+              className="px-2.5 py-1 rounded text-xs font-medium border border-border bg-card hover:bg-muted transition-colors"
             >
               {t(BLOCK_LABEL_KEYS[type])}
             </button>

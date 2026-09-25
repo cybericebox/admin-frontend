@@ -1,12 +1,15 @@
 "use client"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/api/client"
+import type { OffsetPage } from "@/api/pagination"
 import { t } from "@/i18n/t"
 import { ChevronDown } from "lucide-react"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Input } from "@/components/ui/input"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
+import { SelectMenu } from "@/components/ui/select-menu"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,7 +18,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
-import { Spinner } from "@/components/ui/spinner"
+import { LoadingArea } from "@/components/ui/spinner"
+import { TablePagination } from "@/components/ui/table-pagination"
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 export type UserRow = {
   ID: string
@@ -26,10 +31,10 @@ export type UserRow = {
   Status: string
   CreatedAt: string
 }
-type ListResp = { Users: UserRow[]; NextCursor: string; HasMore: boolean }
+type ListResp = OffsetPage<UserRow>
 
 const ROLES = ["super_admin", "admin", "admin_viewer", "user"]
-const PAGE = 50
+const STATUSES = ["active", "blocked", "incomplete"]
 
 function fullName(u: UserRow): string {
   const n = `${u.FirstName ?? ""} ${u.LastName ?? ""}`.trim()
@@ -40,101 +45,77 @@ export default function Page() {
   const [search, setSearch] = useState("")
   const [debounced, setDebounced] = useState("")
   const [roles, setRoles] = useState<string[]>([])
+  const [status, setStatus] = useState("all")
   const [users, setUsers] = useState<UserRow[]>([])
-  const [cursor, setCursor] = useState("")
-  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [total, setTotal] = useState(0)
+  const [sortBy, setSortBy] = useState("created")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(false)
 
   const { can } = useRole()
   const [inviteOpen, setInviteOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
 
   // Debounce the search box.
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(search.trim()), 300)
+    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
     return () => clearTimeout(id)
   }, [search])
 
-  const buildQuery = useCallback((cur: string) => {
+  const query = (() => {
     const p = new URLSearchParams()
     if (debounced) p.set("search", debounced)
     roles.forEach((r) => p.append("role", r))
-    if (cur) p.set("cursor", cur)
-    p.set("limit", String(PAGE))
+    if (status !== "all") p.set("status", status)
+    p.set("page", String(page))
+    p.set("pageSize", String(pageSize))
+    p.set("sortBy", sortBy)
+    p.set("sortDir", sortDir)
     return p.toString()
-  }, [debounced, roles])
+  })()
 
-  // First page on filter/search change.
   useEffect(() => {
-    let cancelled = false
-    setLoading(true); setError(false); setUsers([]); setCursor(""); setHasMore(false)
-    apiGet<ListResp>(`/api/users?${buildQuery("")}`)
-      .then((d) => { if (!cancelled) { setUsers(d.Users ?? []); setCursor(d.NextCursor ?? ""); setHasMore(d.HasMore ?? false) } })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [buildQuery, reloadKey])
+    let active = true
+    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    apiGet<ListResp>(`/api/users?${query}`)
+      .then((d) => { if (active) { setUsers(d.Items ?? []); setTotal(d.Total ?? 0) } })
+      .catch(() => { if (active) setError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [query, reloadKey])
 
-  const loadMore = useCallback(() => {
-    if (!hasMore || loadingMore || !cursor) return
-    setLoadingMore(true)
-    apiGet<ListResp>(`/api/users?${buildQuery(cursor)}`)
-      .then((d) => {
-        setUsers((prev) => [...prev, ...(d.Users ?? [])])
-        setCursor(d.NextCursor ?? "")
-        setHasMore(d.HasMore ?? false)
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMore(false))
-  }, [hasMore, loadingMore, cursor, buildQuery])
+  function goToPage(next: number) {
+    if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
+    setLoading(true)
+    setPage(next)
+  }
 
-  // Keep the latest loadMore in a ref so the observer effect runs once.
-  const loadMoreRef = useRef(loadMore)
-  loadMoreRef.current = loadMore
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) loadMoreRef.current() },
-      { rootMargin: "200px" },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
+  function sort(field: string) {
+    const nextDir = field === sortBy ? sortDir === "asc" ? "desc" : "asc"
+      : field === "created" ? "desc" : "asc"
+    setSortBy(field)
+    setSortDir(nextDir)
+    goToPage(1)
+  }
 
   function toggleRole(r: string) {
     setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]))
+    goToPage(1)
   }
 
   return (
-    <div className="frost-panel frost-in rounded-lg p-6">
-      <div className="mb-3 flex items-center gap-3">
-        <Input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("admin.users.search")}
-          className="max-w-sm"
-        />
-        {can("users.invite") && (
-          <Button onClick={() => setInviteOpen(true)}>{t("admin.users.invite.button")}</Button>
-        )}
-      </div>
-
-      <InviteUsersDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        onClosed={() => setReloadKey((k) => k + 1)}
-      />
-
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.filterRoles")}</span>
+    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-3">
+        <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+          placeholder={t("admin.users.search")} aria-label={t("admin.users.search")}
+          className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-48 justify-between">
+            <Button variant="outline" className="h-10 min-w-48 justify-between px-3 text-sm font-normal">
               <span className="truncate">
                 {roles.length === 0
                   ? t("admin.users.filterRolesAll")
@@ -156,23 +137,40 @@ export default function Page() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <SelectMenu
+          value={status}
+          onChange={(value) => { setStatus(value); goToPage(1) }}
+          options={[{ value: "all", label: t("admin.users.filterStatusAll") }, ...STATUSES.map((value) => ({ value, label: t(`admin.status.${value}`) }))]}
+          ariaLabel={t("admin.users.filterStatus")}
+          className="h-10 min-w-40 text-sm"
+        />
+        {can("users.invite") && (
+          <Button className="ml-auto h-10 shrink-0 text-sm" onClick={() => setInviteOpen(true)}>{t("admin.users.invite.button")}</Button>
+        )}
       </div>
 
-      {error ? (
-        <p className="py-8 text-center text-sm text-destructive">{t("admin.users.loadError")}</p>
-      ) : loading ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
+      <InviteUsersDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onClosed={() => { goToPage(1); setError(false); setReloadKey((k) => k + 1) }}
+      />
+
+      <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
+      {error && users.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.users.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>
+      ) : loading && users.length === 0 ? (
+        <LoadingArea label={t("admin.loading")} />
       ) : users.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.users.empty")}</p>
+        <EmptyState message={t(debounced || roles.length > 0 || status !== "all" ? "admin.users.empty" : "admin.users.emptyInitial")} className="h-full" />
       ) : (
-        <div className="overflow-x-auto">
+        <div className={loading ? "pointer-events-none" : undefined}>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-3 py-2 font-medium">{t("admin.users.col.user")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.users.col.role")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.users.col.status")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.users.col.created")}</th>
+            <thead className="sticky top-0 z-10 bg-card">
+              <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                <SortableHeader label={t("admin.users.col.user")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.users.col.role")} field="role" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.users.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.users.col.created")} field="created" activeField={sortBy} direction={sortDir} onSort={sort} />
               </tr>
             </thead>
             <tbody>
@@ -186,20 +184,17 @@ export default function Page() {
                   </td>
                   <td className="px-3 py-2"><RoleBadge role={u.Role} /></td>
                   <td className="px-3 py-2"><StatusBadge status={u.Status} /></td>
-                  <td className="px-3 py-2 text-muted-foreground">{u.CreatedAt ? new Date(u.CreatedAt).toLocaleDateString() : "—"}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{u.CreatedAt ? new Date(u.CreatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      {/* Infinite-scroll sentinel + status line. */}
-      <div ref={sentinelRef} className="h-6" />
-      {loadingMore && <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.users.loadingMore")}</p>}
-      {!loading && !hasMore && users.length > 0 && (
-        <p className="py-2 text-center text-xs text-muted-foreground">{t("admin.users.endOfList")}</p>
-      )}
+      {error && users.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.users.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>}
+      </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
+        onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
     </div>
   )
 }

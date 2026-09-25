@@ -65,14 +65,14 @@ describe('ColorPicker', () => {
   it('swatch button is rendered with the correct background color style', () => {
     const onChange = vi.fn()
     render(<ColorPicker value="#ff0000" onChange={onChange} />)
-    const swatch = screen.getByRole('button', { name: /open color picker/i })
+    const swatch = screen.getByRole('button', { name: 'Відкрити палітру кольорів' })
     expect(swatch).toHaveStyle({ background: '#ff0000' })
   })
 
   it('clicking swatch opens the popover panel', () => {
     const onChange = vi.fn()
     render(<ColorPicker value="#5da600" onChange={onChange} />)
-    const swatch = screen.getByRole('button', { name: /open color picker/i })
+    const swatch = screen.getByRole('button', { name: 'Відкрити палітру кольорів' })
     fireEvent.click(swatch)
     // The SV gradient div becomes visible
     expect(document.querySelector('[data-testid="sv-square"]')).toBeInTheDocument()

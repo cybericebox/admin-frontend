@@ -11,6 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import type { EmailBodyBlock, ButtonBlock } from './previewHtml'
 import type { BlockPreset } from '@/api/notifications/emailTemplates'
 
@@ -139,7 +140,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /add text block/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Додати блок тексту' }))
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(2)
@@ -155,14 +156,14 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /add button block/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Додати блок кнопки' }))
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
     expect(next[0].type).toBe('button')
   })
 
-  it('changing button alignment select calls onChange with updated align field', () => {
+  it('changing button alignment menu calls onChange with updated align field', async () => {
     render(
       <BlockEditor
         value={[makeButton()]}
@@ -171,8 +172,8 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const alignSelect = screen.getByRole('combobox') as HTMLSelectElement
-    fireEvent.change(alignSelect, { target: { value: 'right' } })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Вирівнювання' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Праворуч' }))
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
@@ -189,7 +190,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /add divider block/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Додати блок розділювача' }))
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
     expect(next[0].type).toBe('divider')
@@ -204,7 +205,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /add image block/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Додати блок зображення' }))
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
     expect(next[0].type).toBe('image')
@@ -238,7 +239,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const removeButtons = screen.getAllByRole('button', { name: /remove block/i })
+    const removeButtons = screen.getAllByRole('button', { name: 'Видалити блок' })
     fireEvent.click(removeButtons[0])
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
@@ -255,7 +256,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const removeButtons = screen.getAllByRole('button', { name: /remove block/i })
+    const removeButtons = screen.getAllByRole('button', { name: 'Видалити блок' })
     fireEvent.click(removeButtons[1])
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next).toHaveLength(1)
@@ -263,6 +264,19 @@ describe('BlockEditor', () => {
   })
 
   // ── Reorder ───────────────────────────────────────────────────────────────
+
+  it('moves the existing block elements instead of remounting them on reorder', () => {
+    function Harness() {
+      const [blocks, setBlocks] = useState<EmailBodyBlock[]>([makeRichText(), makeButton()])
+      return <BlockEditor value={blocks} onChange={setBlocks} presets={[]} onSavePreset={onSavePreset} />
+    }
+    render(<Harness />)
+    const [first, second] = screen.getAllByTestId('block-item')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Перемістити блок вниз' })[0])
+    const moved = screen.getAllByTestId('block-item')
+    expect(moved[0]).toBe(second)
+    expect(moved[1]).toBe(first)
+  })
 
   it('move-down on block[0] swaps it with block[1] in onChange output', () => {
     render(
@@ -273,7 +287,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const downButtons = screen.getAllByRole('button', { name: /move block down/i })
+    const downButtons = screen.getAllByRole('button', { name: 'Перемістити блок вниз' })
     fireEvent.click(downButtons[0])
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
@@ -291,7 +305,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const upButtons = screen.getAllByRole('button', { name: /move block up/i })
+    const upButtons = screen.getAllByRole('button', { name: 'Перемістити блок вгору' })
     fireEvent.click(upButtons[1])
     expect(onChange).toHaveBeenCalledOnce()
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
@@ -309,7 +323,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const downButtons = screen.getAllByRole('button', { name: /move block down/i })
+    const downButtons = screen.getAllByRole('button', { name: 'Перемістити блок вниз' })
     // Last button should be disabled — click it anyway
     fireEvent.click(downButtons[downButtons.length - 1])
     expect(onChange).not.toHaveBeenCalled()
@@ -324,7 +338,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const upButtons = screen.getAllByRole('button', { name: /move block up/i })
+    const upButtons = screen.getAllByRole('button', { name: 'Перемістити блок вгору' })
     fireEvent.click(upButtons[0])
     expect(onChange).not.toHaveBeenCalled()
   })
@@ -341,7 +355,7 @@ describe('BlockEditor', () => {
         onSavePreset={onSavePreset}
       />
     )
-    const downButtons = screen.getAllByRole('button', { name: /move block down/i })
+    const downButtons = screen.getAllByRole('button', { name: 'Перемістити блок вниз' })
     fireEvent.click(downButtons[1]) // move middle down
     const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
     expect(next.map((b) => b.type)).toEqual(['rich_text', 'divider', 'button'])
@@ -359,14 +373,14 @@ describe('BlockEditor', () => {
       />
     )
     // Before selection — no save button
-    expect(screen.queryByRole('button', { name: /save as preset/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Зберегти як пресет' })).not.toBeInTheDocument()
 
     // Select first block
     const checkboxes = screen.getAllByRole('checkbox')
     fireEvent.click(checkboxes[0])
 
     // Now save button should appear
-    expect(screen.getByRole('button', { name: /save as preset/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти як пресет' })).toBeInTheDocument()
   })
 
   it('save-as-preset flow calls onSavePreset with selected blocks and the entered name', async () => {
@@ -383,14 +397,14 @@ describe('BlockEditor', () => {
     fireEvent.click(checkboxes[0])
 
     // Open save-preset form
-    fireEvent.click(screen.getByRole('button', { name: /save as preset/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
 
     // Enter preset name
-    const nameInput = screen.getByPlaceholderText(/preset name/i)
+    const nameInput = screen.getByPlaceholderText('Назва пресету…')
     fireEvent.change(nameInput, { target: { value: 'Header Block' } })
 
     // Submit
-    const saveBtn = screen.getByRole('button', { name: /^save$/i })
+    const saveBtn = screen.getByRole('button', { name: 'Зберегти' })
     fireEvent.click(saveBtn)
 
     await waitFor(() => {
@@ -415,11 +429,11 @@ describe('BlockEditor', () => {
     fireEvent.click(checkboxes[0])
     fireEvent.click(checkboxes[2])
 
-    fireEvent.click(screen.getByRole('button', { name: /save as preset/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
 
-    const nameInput = screen.getByPlaceholderText(/preset name/i)
+    const nameInput = screen.getByPlaceholderText('Назва пресету…')
     fireEvent.change(nameInput, { target: { value: 'Multi' } })
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
 
     await waitFor(() => {
       expect(onSavePreset).toHaveBeenCalledOnce()
@@ -442,15 +456,15 @@ describe('BlockEditor', () => {
     )
     const checkboxes = screen.getAllByRole('checkbox')
     fireEvent.click(checkboxes[0])
-    fireEvent.click(screen.getByRole('button', { name: /save as preset/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
 
     // Form visible
-    expect(screen.getByPlaceholderText(/preset name/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Назва пресету…')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Скасувати' }))
 
     // Form hidden
-    expect(screen.queryByPlaceholderText(/preset name/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Назва пресету…')).not.toBeInTheDocument()
   })
 
   // ── Variables prop ────────────────────────────────────────────────────────

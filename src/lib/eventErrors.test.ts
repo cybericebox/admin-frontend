@@ -35,6 +35,7 @@ describe('eventErrorMessage', () => {
     expect(eventErrorMessage(apiError(422, 21104, 'x'))).toBe('admin.events.err.tagInvalid')
     expect(eventErrorMessage(apiError(422, 21105, 'x'))).toBe('admin.events.err.datesInvalid')
     expect(eventErrorMessage(apiError(422, 21106, 'x'))).toBe('admin.events.err.nameTooLong')
+    expect(eventErrorMessage(apiError(422, 21114, 'x'))).toBe('admin.events.err.nameRequired')
   })
 
   it('falls back to generic + backend Status.Message for unknown codes', () => {

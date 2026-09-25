@@ -8,6 +8,7 @@
  */
 import { z } from "zod"
 import { t } from "@/i18n/t"
+import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import type {
   ConnectionDTO,
   DeviceDTO,
@@ -33,7 +34,6 @@ export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
 // MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
 // net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
-const FLAG_RE = /^ICE\{[^\p{White_Space}\p{Cc}{}]+\}$/u
 // Strict octet: 0–255 with no leading zeros (Go netip rejects "010.0.0.1").
 // The regex itself enforces the range, so a manual "≤255" check isn't needed.
 const OCTET = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
@@ -56,6 +56,7 @@ export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Pro
 export type DeviceFormValues = Omit<NormalizedDevice, "External"> & { External: ExternalFormValues }
 export type TopologyFormValues = Omit<NormalizedTopology, "Devices"> & { Devices: DeviceFormValues[] }
 export type PlaceholderFormValues = {
+  Key: string
   Kind: PlaceholderKind
   IPReference: string
   Octets1to3: string
@@ -248,6 +249,7 @@ const topologySchema = z
 
 const placeholderSchema = z
   .object({
+    Key: z.string().min(1),
     Kind: z.enum(["vpn.subnet", "internet.subnet", "ip", "external.link"]),
     IPReference: z.string(),
     Octets1to3: z.string(),
@@ -271,7 +273,17 @@ const taskSchema = z.object({
     (v) => v === null || (typeof v === "object" && v !== null && !Array.isArray(v)),
   ),
   Difficulty: z.enum(["trivial", "easy", "medium", "hard", "insane"]),
-  Flag: z.array(z.string().refine((v) => FLAG_RE.test(v), t("admin.ex.val.flagFormat"))),
+  Flag: z.array(z.string().superRefine((value, ctx) => {
+    try { parseFlagCandidate(value) } catch (error) {
+      ctx.addIssue({ code: "custom", message: t(flagCandidateErrorKey(error)) })
+    }
+  })).superRefine((flags, ctx) => {
+    const seen = new Set<string>()
+    flags.forEach((flag, index) => {
+      if (seen.has(flag)) ctx.addIssue({ code: "custom", path: [index], message: t("admin.ex.val.flagDuplicate") })
+      seen.add(flag)
+    })
+  }),
   LinkedDeviceID: z.string(),
   DeviceFlagVar: z.string(),
   Attachments: z.array(z.object({ FileID: z.string(), Name: z.string() })),
@@ -369,7 +381,7 @@ export function emptyDevice(): DeviceFormValues {
 }
 
 export function emptyPlaceholder(): PlaceholderFormValues {
-  return { Kind: "ip", IPReference: "vpn", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "" }
+  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "" }
 }
 
 export function emptyVariant(index: number): VariantFormValues {
@@ -400,13 +412,14 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
   return {
     AdminNote: version.AdminNote,
     RegenerateFlagsOnPublish: version.RegenerateFlagsOnPublish,
-    Variants: version.Variants.map((v) => ({
+    Variants: version.Variants.map((v, vi) => ({
       ID: v.ID,
       Index: v.Index,
       Note: v.Note ?? "",
-      Tasks: v.Tasks.map((task) => ({
+      Tasks: v.Tasks.map((task, ti) => ({
         ...task,
-        Placeholders: task.Placeholders.map((p) => ({
+        Placeholders: task.Placeholders.map((p, pi) => ({
+          Key: p.Key || `ph_legacy_${vi}_${ti}_${pi}`,
           Kind: p.Kind,
           IPReference: p.IPReference ?? "",
           Octets1to3: p.Octets1to3 ?? "",
@@ -435,6 +448,7 @@ function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
   switch (p.Kind) {
     case "ip":
       return {
+        Key: p.Key,
         Kind: p.Kind,
         IPReference: p.IPReference,
         LastOctet: p.LastOctet,
@@ -442,10 +456,10 @@ function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
         ...(p.IPReference === "static" ? { Octets1to3: p.Octets1to3 } : {}),
       }
     case "external.link":
-      return { Kind: p.Kind, DeviceName: p.DeviceName }
+      return { Key: p.Key, Kind: p.Kind, DeviceName: p.DeviceName }
     default:
-      // vpn.subnet / internet.subnet — Kind only
-      return { Kind: p.Kind }
+      // Both subnet kinds can be rendered as an address or as a CIDR.
+      return { Key: p.Key, Kind: p.Kind, ...(p.ShowMask ? { ShowMask: true } : {}) }
   }
 }
 

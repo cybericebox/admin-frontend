@@ -62,7 +62,7 @@ const DISPATCH_ROW = {
   UpdatedAt: '2026-06-01T00:00:00Z',
 }
 
-const LIST_RESPONSE = { Dispatches: [DISPATCH_ROW], Total: 1 }
+const LIST_RESPONSE = { Items: [DISPATCH_ROW], Total: 1, Page: 1, PageSize: 25 }
 
 const DETAIL_RESPONSE = {
   ...DISPATCH_ROW,
@@ -138,6 +138,42 @@ describe('LogsTab', () => {
       expect(document.body.textContent).toContain('admin.notif.logs.filteredBy')
       expect(document.body.textContent).toContain('Ann Lee')
     })
+  })
+
+  it('detail dialog target pill shows translated status label for error status', async () => {
+    // Override mock to return a detail with one target whose Status is 'error'
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/notifications/dispatches/')) {
+        return Promise.resolve({
+          ...DISPATCH_ROW,
+          Targets: [
+            { Channel: 'email', Status: 'error', Error: 'x', Attempts: 1, UpdatedAt: '2026-06-01T00:00:00Z' },
+          ],
+        })
+      }
+      return Promise.resolve(LIST_RESPONSE)
+    })
+
+    render(<LogsTab />)
+
+    // Wait for the list to load and render the row
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument()
+    })
+
+    // Click the first table row to open the detail dialog
+    // The row onClick is on <tr>; find the type cell and go up to its <tr>
+    const typeCell = screen.getAllByRole('cell')[0]
+    fireEvent.click(typeCell.closest('tr')!)
+
+    // Wait for the dialog to show the target status pill with the translated label
+    // t('admin.notif.status.error') → 'admin.notif.status.error' (t mocked to return key)
+    await waitFor(() => {
+      expect(screen.getByText('admin.notif.status.error')).toBeInTheDocument()
+    })
+
+    // Raw 'error' string must not appear standalone as visible text
+    expect(screen.queryByText('error')).not.toBeInTheDocument()
   })
 
   it('clicking chip ✕ clears the filter and removes user= from subsequent fetch', async () => {

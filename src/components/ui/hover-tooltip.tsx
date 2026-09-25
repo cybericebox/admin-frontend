@@ -1,25 +1,41 @@
 "use client"
 
-import { useEffect, useRef, useState, type ReactElement } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react"
 import { createPortal } from "react-dom"
+import { cn } from "@/utils/cn"
 
 type Position = { left: number; top: number; below: boolean }
 
 // A tooltip is not a popover: clicks and focus must not toggle its visibility.
-export function HoverTooltip({ text, children }: { text: string; children: ReactElement }) {
+export function HoverTooltip({ text, children, className }: { text: string; children: ReactElement; className?: string }) {
   const [position, setPosition] = useState<Position | null>(null)
   const trigger = useRef<HTMLSpanElement>(null)
+  const tooltip = useRef<HTMLDivElement>(null)
+  const long = text.length > 180
 
   const open = () => {
     const rect = trigger.current?.getBoundingClientRect()
     if (!rect) return
-    const halfWidth = Math.min(152, window.innerWidth / 2)
+    const halfWidth = Math.min(long ? 220 : 152, window.innerWidth / 2)
     setPosition({
       left: Math.max(halfWidth, Math.min(window.innerWidth - halfWidth, rect.left + rect.width / 2)),
       top: rect.top >= 56 ? rect.top - 7 : rect.bottom + 7,
       below: rect.top < 56,
     })
   }
+
+  useLayoutEffect(() => {
+    if (!position) return
+    const anchor = trigger.current?.getBoundingClientRect()
+    const height = tooltip.current?.getBoundingClientRect().height ?? 0
+    if (!anchor || !height) return
+    const above = anchor.top - 8
+    const below = window.innerHeight - anchor.bottom - 8
+    const placeBelow = above < height && below > above
+    if (placeBelow !== position.below) {
+      setPosition({ ...position, top: placeBelow ? anchor.bottom + 7 : anchor.top - 7, below: placeBelow })
+    }
+  }, [position])
 
   useEffect(() => {
     if (!position) return
@@ -49,7 +65,7 @@ export function HoverTooltip({ text, children }: { text: string; children: React
   return <>
     <span
       ref={trigger}
-      className="inline-flex"
+      className={cn("inline-flex", className)}
       onPointerEnter={open}
       onPointerLeave={() => setPosition(null)}
       onMouseEnter={open}
@@ -60,9 +76,11 @@ export function HoverTooltip({ text, children }: { text: string; children: React
     >{children}</span>
     {position && createPortal(
       <div
+        ref={tooltip}
         role="tooltip"
         className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground shadow-md"
-        style={{ left: position.left, top: position.top, transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
+        style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
+          transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{text}</div>,
       document.body,
     )}

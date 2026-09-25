@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { sendTestNotification } from "@/api/notifications/test"
-import { useNotificationTypes } from "@/components/notifications/templateTypes"
+import { useNotificationTypes, type NotifType } from "@/components/notifications/templateTypes"
 import {
   Dialog,
   DialogContent,
@@ -40,56 +40,54 @@ export function TestNotificationModal({
 }: TestNotificationModalProps) {
   const types = useNotificationTypes()
   const matchedType = types.find((type) => type.Type === notificationType)
+  const availableChannels = channels ?? matchedType?.Channels ?? []
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {notifTypeLabel(notificationType)} {t("admin.notif.test.title")}
+          </DialogTitle>
+        </DialogHeader>
+        {open && (
+          <TestNotificationSession
+            key={`${notificationType}:${matchedType ? "ready" : "pending"}`}
+            notificationType={notificationType}
+            variables={matchedType?.Variables ?? []}
+            availableChannels={availableChannels}
+            templateId={templateId}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function TestNotificationSession({
+  notificationType,
+  variables,
+  availableChannels,
+  templateId,
+  onClose,
+}: {
+  notificationType: string
+  variables: NotifType["Variables"]
+  availableChannels: string[]
+  templateId?: string
+  onClose: () => void
+}) {
 
   // Variable field state: { [Name]: value }
-  const [fields, setFields] = useState<Record<string, string>>({})
+  const [fields, setFields] = useState<Record<string, string>>(() =>
+    Object.fromEntries(variables.map((variable) => [variable.Name, variable.Default])))
   // Selected channels (defaults to all available)
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([])
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(() => [...availableChannels])
   // In-flight guard
   const [sending, setSending] = useState(false)
   // Success / error feedback
   const [status, setStatus] = useState<"idle" | "sent" | "error">("idle")
-
-  // Read channels via a ref so the effect never needs `channels` as a dep.
-  // This prevents a new array-literal prop reference (from a parent re-render)
-  // from triggering the seed effect and wiping the admin's in-progress edits.
-  const channelsRef = useRef(channels)
-  channelsRef.current = channels
-
-  // Track the notificationType we last seeded for in this open session.
-  // null = not yet seeded.  Resets to null on close so the next open re-seeds.
-  const lastSeededTypeRef = useRef<string | null>(null)
-
-  // Seed state once per open-session per type.
-  // deps: `open` — resets flag on close; `notificationType` — re-seeds on type change;
-  // `types` — re-runs when the async catalog resolves so we can seed if open already.
-  // `channels` is intentionally omitted — always read via channelsRef above.
-  useEffect(() => {
-    if (!open) {
-      lastSeededTypeRef.current = null  // ensure next open re-seeds
-      return
-    }
-    // Already seeded for this type in this open session — do NOT overwrite edits.
-    if (lastSeededTypeRef.current === notificationType) return
-
-    const matched = types.find((t) => t.Type === notificationType)
-    if (!matched) return  // catalog loading async; re-runs when `types` updates
-
-    const vars = matched.Variables ?? []
-    const seed: Record<string, string> = {}
-    vars.forEach((v) => {
-      seed[v.Name] = v.Default
-    })
-    setFields(seed)
-
-    const availableChannels = channelsRef.current ?? matched.Channels ?? []
-    setSelectedChannels([...availableChannels])
-    setStatus("idle")
-    setSending(false)
-    lastSeededTypeRef.current = notificationType
-  }, [open, notificationType, types])
-
-  const availableChannels = channels ?? matchedType?.Channels ?? []
 
   const toggleChannel = (ch: string) => {
     setSelectedChannels((prev) =>
@@ -115,16 +113,8 @@ export function TestNotificationModal({
     }
   }
 
-  const variables = matchedType?.Variables ?? []
-
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {notifTypeLabel(notificationType)} {t("admin.notif.test.title")}
-          </DialogTitle>
-        </DialogHeader>
+    <>
 
         {/* Channel selection */}
         {availableChannels.length > 0 && (
@@ -184,7 +174,6 @@ export function TestNotificationModal({
             {sending ? t("admin.notif.test.sending") : t("admin.notif.test.send")}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   )
 }

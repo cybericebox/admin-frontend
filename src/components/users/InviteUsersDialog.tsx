@@ -52,7 +52,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   }), [chips])
 
   const hasFailed = counts.failed > 0
-  const canSubmit = chips.length > 0 && effectiveRole !== "" && !busy
+  const canSubmit = chips.some((c) => c.status === "pending" || c.status === "failed") && effectiveRole !== "" && !busy
 
   async function send(targets: EmailChip[]) {
     if (targets.length === 0 || effectiveRole === "") return
@@ -62,23 +62,20 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
       const results = await apiPost<InviteResult[]>("/api/users/invite", { Emails: emails, Role: effectiveRole })
       const byEmail = new Map<string, InviteResult>()
       for (const r of results ?? []) byEmail.set(r.Email.toLowerCase(), r)
-      setChips((prev) => {
-        const next = prev.map((c) => {
-          if (!emails.includes(c.email)) return c
-          const r = byEmail.get(c.email.toLowerCase())
-          if (!r || !r.Error) return { ...c, status: "invited" as const, error: undefined }
-          if (r.Error === "User already exists") return { ...c, status: "exists" as const, error: undefined }
-          return { ...c, status: "failed" as const, error: r.Error }
-        })
-        const batch = new Set(emails)
-        const newInvited = next.filter((c) => batch.has(c.email) && c.status === "invited").length
-        setTally((tl) => ({
-          invited: tl.invited + newInvited,
-          skipped: next.filter((c) => c.status === "exists").length,
-          failed: next.filter((c) => c.status === "failed").length,
-        }))
-        return next
-      })
+      const outcomes = new Map<string, EmailChip>()
+      for (const target of targets) {
+        const r = byEmail.get(target.email.toLowerCase())
+        if (!r) outcomes.set(target.email, { ...target, status: "failed", error: t("admin.users.invite.missingResult") })
+        else if (!r.Error) outcomes.set(target.email, { ...target, status: "invited", error: undefined })
+        else if (r.Error === "User already exists") outcomes.set(target.email, { ...target, status: "exists", error: undefined })
+        else outcomes.set(target.email, { ...target, status: "failed", error: r.Error })
+      }
+      setChips((prev) => prev.map((chip) => outcomes.get(chip.email) ?? chip))
+      setTally((previous) => ({
+        invited: previous.invited + [...outcomes.values()].filter((chip) => chip.status === "invited").length,
+        skipped: chips.filter((chip) => chip.status === "exists").length + [...outcomes.values()].filter((chip) => chip.status === "exists").length,
+        failed: [...outcomes.values()].filter((chip) => chip.status === "failed").length,
+      }))
       setSubmitted(true)
       // Drop the freshly-invited chips after a beat so the list stays focused on
       // what still needs attention (skipped/failed).
@@ -117,6 +114,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   }
 
   function handleOpenChange(next: boolean) {
+    if (!next && busy) return
     onOpenChange(next)
     if (!next) {
       if (dropTimerRef.current) { clearTimeout(dropTimerRef.current); dropTimerRef.current = null }

@@ -4,22 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/utils/cn"
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3.5 text-sm shadow-sm [&>svg+div]:translate-y-[-1px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
+  "relative w-full rounded-lg border px-4 py-3.5 text-sm [&>svg+div]:translate-y-[-1px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
   {
     variants: {
       variant: {
         // Neutral notification — clearly elevated above the page surface.
         default:
           "border-border bg-card text-card-foreground [&>svg]:text-foreground",
-        // Semantic notifications — saturated tint + strong left accent bar so
-        // each reads punchy and separates clearly from the page.
-        info: "border-[#1CA8E8]/55 border-l-4 border-l-[#1CA8E8] bg-[#1CA8E8]/15 text-foreground [&>svg]:text-[#1CA8E8]",
+        // Semantic notifications use restrained surface tints and a uniform
+        // border, without a decorative accent strip.
+        info: "border-border bg-[var(--ib-soft)] text-foreground [&>svg]:text-primary",
         success:
-          "border-[#34E5C0]/55 border-l-4 border-l-[#34E5C0] bg-[#34E5C0]/15 text-foreground [&>svg]:text-[#34E5C0]",
+          "border-border bg-[var(--ib-ok-bg)] text-foreground [&>svg]:text-[var(--ib-ok)]",
         warning:
-          "border-[#FFB020]/60 border-l-4 border-l-[#FFB020] bg-[#FFB020]/15 text-foreground [&>svg]:text-[#FFB020]",
+          "border-border bg-[var(--ib-warn-bg)] text-foreground [&>svg]:text-[var(--ib-warn)]",
         destructive:
-          "border-destructive/60 border-l-4 border-l-destructive bg-destructive/15 text-foreground [&>svg]:text-destructive",
+          "border-destructive/60 bg-destructive/15 text-foreground [&>svg]:text-destructive",
       },
     },
     defaultVariants: {

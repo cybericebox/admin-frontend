@@ -4,8 +4,7 @@ import * as React from "react"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/utils/cn"
 
-export interface SelectProps
-  extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+export type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement>
 
 /**
  * Select — our styled dropdown. A native <select> under the hood (keeps keyboard
@@ -18,7 +17,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "h-10 w-full appearance-none rounded-md border border-input bg-secondary/40 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors",
+          "h-10 w-full appearance-none rounded-md border border-border bg-card pl-3 pr-9 text-sm text-foreground transition-colors",
           "focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
           "disabled:cursor-not-allowed disabled:opacity-50",
           className,

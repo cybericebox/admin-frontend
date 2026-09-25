@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { HoverTooltip } from "./hover-tooltip"
 
 describe("HoverTooltip", () => {
@@ -41,5 +41,20 @@ describe("HoverTooltip", () => {
 
     fireEvent.blur(window)
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
+
+  it("places a long tooltip below when it would be clipped above", () => {
+    const bounds = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+      const height = this.getAttribute("role") === "tooltip" ? 300 : 20
+      return { left: 100, right: 120, top: 80, bottom: 80 + height, width: 20, height,
+        x: 100, y: 80, toJSON: () => ({}) } as DOMRect
+    })
+    try {
+      render(<HoverTooltip text={"Довга підказка ".repeat(30)}><button type="button">Довідка</button></HoverTooltip>)
+      fireEvent.pointerEnter(screen.getByRole("button", { name: "Довідка" }))
+      expect(screen.getByRole("tooltip")).toHaveStyle({ top: "107px", transform: "translate(-50%, 0)" })
+    } finally {
+      bounds.mockRestore()
+    }
   })
 })
