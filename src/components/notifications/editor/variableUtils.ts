@@ -100,7 +100,7 @@ export function rawToHtml(
  * Use for rich-text body fields that may contain bold/italic/links.
  */
 export function htmlToRaw(html: string, opts?: { dotted?: boolean }): string {
-  return stripPills(html, opts).replace(/​/g, '')
+  return stripPills(html, opts).replace(/\u200B/g, '')
 }
 
 /**
@@ -121,7 +121,7 @@ export function htmlToRawSingleLine(
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
-    .replace(/​/g, '')
+    .replace(/\u200B/g, '')
     .trim()
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
+import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createEditor, $createParagraphNode, $getRoot } from 'lexical'
 import { $createVariableNode, VariableNode } from '@/components/notifications/editor/RichTextEditor'
@@ -10,8 +11,11 @@ import { draftSchema, emptyDevice, emptyDraft, type DraftFormValues } from '@/li
 vi.mock('@/api/exercises/flagPolicy', () => ({ getFlagPolicy: vi.fn().mockResolvedValue({ RandomHexLength: 40, RandomBits: 160, WarningBits: 20 }) }))
 
 function Harness({ initial }: { initial?: DraftFormValues }) {
-  const draft = initial ? structuredClone(initial) : emptyDraft()
-  draft.Variants[0].Topology.VPN.Enabled = true
+  const [draft] = useState(() => {
+    const value = initial ? structuredClone(initial) : emptyDraft()
+    value.Variants[0].Topology.VPN.Enabled = true
+    return value
+  })
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   const placeholders = useWatch({ control: form.control, name: 'Variants.0.Tasks.0.Placeholders' }) ?? []
   const description = useWatch({ control: form.control, name: 'Variants.0.Tasks.0.Description' })

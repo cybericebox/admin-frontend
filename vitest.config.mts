@@ -8,5 +8,5 @@ export default defineConfig({
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],
   },
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
 })

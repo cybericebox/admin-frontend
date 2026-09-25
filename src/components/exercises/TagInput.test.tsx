@@ -9,7 +9,7 @@ describe("TagInput suggestions", () => {
     render(<TagInput value={["WEB"]} onChange={vi.fn()} draftValue="we" onDraftValueChange={vi.fn()}
       suggestions={[{ Tag: "web", Count: 8 }, { Tag: "web-security", Count: 3 }]} />)
     expect(screen.queryByRole("option", { name: /web · 8/ })).not.toBeInTheDocument()
-    expect(screen.getByRole("option", { name: /web-security · 3/ })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: /web-security\s*·\s*3/ })).toBeInTheDocument()
   })
 
   it("selects a suggestion with Enter instead of committing the typed prefix", () => {
@@ -26,7 +26,7 @@ describe("TagInput suggestions", () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} draftValue="cr" onDraftValueChange={vi.fn()}
       suggestions={[{ Tag: "crypto", Count: 2 }]} />)
-    fireEvent.pointerDown(screen.getByRole("option", { name: /crypto · 2/ }))
+    fireEvent.pointerDown(screen.getByRole("option", { name: /crypto\s*·\s*2/ }))
     expect(onChange).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledWith(["crypto"])
   })

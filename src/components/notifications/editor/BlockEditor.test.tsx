@@ -9,7 +9,7 @@
  * aria-labels, data-testids) — we do not test the mounted rich-text internals.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import type { EmailBodyBlock, ButtonBlock } from './previewHtml'
@@ -58,12 +58,12 @@ const samplePreset: BlockPreset = {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('BlockEditor', () => {
-  let onChange: ReturnType<typeof vi.fn>
-  let onSavePreset: ReturnType<typeof vi.fn>
+  let onChange: Mock<(blocks: EmailBodyBlock[]) => void>
+  let onSavePreset: Mock<(blocks: EmailBodyBlock[], name: string) => Promise<void>>
 
   beforeEach(() => {
-    onChange = vi.fn()
-    onSavePreset = vi.fn().mockResolvedValue(undefined)
+    onChange = vi.fn<(blocks: EmailBodyBlock[]) => void>()
+    onSavePreset = vi.fn<(blocks: EmailBodyBlock[], name: string) => Promise<void>>().mockResolvedValue(undefined)
   })
 
   // ── Rendering ─────────────────────────────────────────────────────────────

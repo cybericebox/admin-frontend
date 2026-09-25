@@ -1,6 +1,7 @@
 "use client"
 
 import { Controller, useFieldArray, useFormContext, useFormState, useWatch } from "react-hook-form"
+import type { FieldPath } from "react-hook-form"
 import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import { RemoveAction } from "./RemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 import { useEditorPosition } from "./EditorPosition"
 import { addressReferenceOverlapsDHCP, StaticAddressReference } from "./StaticAddressReference"
+import type { NetworkIPRefDTO, NetworkSubnetRefDTO } from "@/api/exercises/versions"
 
 type NetworkState = { Enabled: boolean; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
 
@@ -33,10 +35,11 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
   onRemove: () => void
 }) {
   const { control, getFieldState, setValue } = useFormContext<DraftFormValues>()
-  const destinationName = `${routesName}.${index}.Dst` as const
-  const destinationRefName = `${routesName}.${index}.DstRef` as const
-  const viaName = `${routesName}.${index}.Via` as const
-  const viaRefName = `${routesName}.${index}.ViaRef` as const
+  // react-hook-form's path type stops before this deeply nested route object.
+  const destinationName = `${routesName}.${index}.Dst` as FieldPath<DraftFormValues>
+  const destinationRefName = `${routesName}.${index}.DstRef` as FieldPath<DraftFormValues>
+  const viaName = `${routesName}.${index}.Via` as FieldPath<DraftFormValues>
+  const viaRefName = `${routesName}.${index}.ViaRef` as FieldPath<DraftFormValues>
   const formState = useFormState({ control, name: [destinationName, destinationRefName, viaName, viaRefName] })
   const destinationError = getFieldState(destinationName, formState).error?.message ?? getFieldState(destinationRefName, formState).error?.message
   const viaError = getFieldState(viaName, formState).error?.message ?? getFieldState(viaRefName, formState).error?.message
@@ -50,21 +53,21 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
       <FormField control={control} name={destinationName} render={({ field }) => <FormItem className="space-y-1">
         <ExerciseFieldLabel labelKey="admin.exTopo.routeDst" helpKey="admin.exTopo.routeDstHelp" required form />
         <Controller control={control} name={destinationRefName} render={({ field: refField }) => <StaticAddressReference
-          kind="destination" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
-          manualInput={<FormControl><Input {...field} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.1.0.0/16" /></FormControl>}
+          kind="destination" reference={(refField.value ?? null) as NetworkSubnetRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
+          manualInput={<FormControl><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.1.0.0/16" /></FormControl>}
           onChange={(ref) => { refField.onChange(ref); setValue(destinationName, "", { shouldDirty: true }) }} />} />
       </FormItem>} />
       <FormField control={control} name={viaName} render={({ field }) => <FormItem className="space-y-1">
         <ExerciseFieldLabel labelKey="admin.exTopo.routeVia" helpKey="admin.exTopo.routeViaHelp" required form />
         <Controller control={control} name={viaRefName} render={({ field: refField }) => <StaticAddressReference
-          kind="via" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
-          manualInput={<FormControl><Input {...field} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
+          kind="via" reference={(refField.value ?? null) as NetworkIPRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
+          manualInput={<FormControl><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
           onChange={(ref) => { refField.onChange(ref); setValue(viaName, "", { shouldDirty: true }) }} />} />
       </FormItem>} />
     </div>
     <div data-error-slot className="min-h-4 text-[0.8rem] font-medium leading-4 text-destructive" aria-live="polite">
-      {destinationError && <p>{t("admin.exTopo.routeDst")}: {destinationError}</p>}
-      {viaError && <p>{t("admin.exTopo.routeVia")}: {viaError}</p>}
+      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDst")}: {destinationError}</p>}
+      {typeof viaError === "string" && <p>{t("admin.exTopo.routeVia")}: {viaError}</p>}
     </div>
   </div>
 }

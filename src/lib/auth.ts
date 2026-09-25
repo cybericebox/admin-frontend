@@ -89,7 +89,7 @@ export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
       // port, so a redirect target must never carry one (e.g. a dev :3001).
       return `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
     }
-  } catch {}
+  } catch { /* Invalid return URL falls back to the default destination. */ }
   return fallback
 }
 

@@ -143,7 +143,7 @@ describe("new exercise page", () => {
     mockListTags.mockResolvedValue([{ Tag: "crypto", Count: 4 }])
     render(<NewExercisePage />)
     fireEvent.change(screen.getByPlaceholderText("admin.ex.tagHint"), { target: { value: "cr" } })
-    expect(await screen.findByRole("option", { name: /crypto · 4/ })).toBeInTheDocument()
+    expect(await screen.findByRole("option", { name: /crypto\s*·\s*4/ })).toBeInTheDocument()
     expect(mockListTags).toHaveBeenCalledWith("cr")
   })
 

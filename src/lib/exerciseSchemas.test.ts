@@ -121,15 +121,16 @@ describe('topology operator parity', () => {
   it('accepts multiple DHCP ranges and per-internet DNS, but rejects malformed ranges', () => {
     const draft = validDraft()
     const topology = draft.Variants[0].Topology
-    topology.VPN = { Enabled: true, DHCP: true, DHCPRanges: [{ Start: 2, End: 50 }, { Start: 100, End: 150 }] }
+    const vpnRanges = [{ Start: 2, End: 50 }, { Start: 100, End: 150 }]
+    topology.VPN = { Enabled: true, DHCP: true, DHCPRanges: vpnRanges }
     topology.Internet = { Enabled: true, DHCP: true, DHCPRanges: [{ Start: 20, End: 80 }], DNS: '1.1.1.1' }
     expect(draftSchema.safeParse(draft).success).toBe(true)
     const saved = toSaveDraftInput(draft).Variants[0].Topology
     expect(saved.VPN.DHCPRanges).toEqual(topology.VPN.DHCPRanges)
     expect(saved.Internet.DNS).toBe('1.1.1.1')
-    topology.VPN.DHCPRanges[1].Start = 50
+    vpnRanges[1].Start = 50
     expect(draftSchema.safeParse(draft).success).toBe(false)
-    topology.VPN.DHCPRanges[1].Start = 100
+    vpnRanges[1].Start = 100
     topology.Internet.DNS = 'invalid'
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })

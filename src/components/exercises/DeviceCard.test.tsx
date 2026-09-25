@@ -142,7 +142,7 @@ describe('DeviceCard', () => {
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.ipType' }), { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin.exTopo.ip.dhcp / }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin\.exTopo\.ip\.dhcp(?!Preset)/ }))
     expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Interfaces[0].IP).toEqual({ Type: 'dhcp', Addresses: [], AddressRef: null, Gateway: '', GatewayRef: null, Routes: [] })
   })
 
@@ -163,7 +163,7 @@ describe('DeviceCard', () => {
     expect(ip.Routes[0].DstRef).toEqual({ Network: 'internet' })
     expect(ip.Routes[0].ViaRef).toEqual({ Network: 'vpn', Host: 1 })
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.ipType' }), { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin.exTopo.ip.dhcp / }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin\.exTopo\.ip\.dhcp(?!Preset)/ }))
     const cleared = JSON.parse(screen.getByTestId('device-values').textContent || '{}').Interfaces[0].IP
     expect(cleared).toEqual({ Type: 'dhcp', Addresses: [], AddressRef: null, Gateway: '', GatewayRef: null, Routes: [] })
   })

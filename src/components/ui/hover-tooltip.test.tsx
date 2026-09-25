@@ -44,7 +44,7 @@ describe("HoverTooltip", () => {
   })
 
   it("places a long tooltip below when it would be clipped above", () => {
-    const bounds = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+    const bounds = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const height = this.getAttribute("role") === "tooltip" ? 300 : 20
       return { left: 100, right: 120, top: 80, bottom: 80 + height, width: 20, height,
         x: 100, y: 80, toJSON: () => ({}) } as DOMRect
