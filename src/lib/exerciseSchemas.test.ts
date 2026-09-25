@@ -67,8 +67,122 @@ describe('isValidCIDR', () => {
     ['010.0.0.0/24', false], // leading zero in an octet: Go netip rejects
     ['10.0.0/24', false],
     ['abc/24', false],
+    ['2001:db8::2/64', true],
   ])('%s → %s', (input, ok) => {
     expect(isValidCIDR(input)).toBe(ok)
+  })
+})
+
+describe('topology operator parity', () => {
+  it('defaults missing resources and routes when reopening an old draft', () => {
+    const legacy = loadedVersion()
+    delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).Resources
+    delete (legacy.Variants[0].Topology.Devices[0].Interfaces[0].IP as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]['Interfaces'][0]['IP']>).Routes
+    const values = toDraftFormValues(legacy)
+    const device = values.Variants[0].Topology.Devices[0]
+    expect(device).toHaveProperty('Resources', { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' })
+    expect(device.Interfaces[0].IP).toHaveProperty('Routes', [])
+    const saved = toSaveDraftInput(values).Variants[0].Topology.Devices?.[0]
+    expect(saved).not.toHaveProperty('Resources')
+    expect(saved?.Interfaces?.[0].IP).not.toHaveProperty('Routes')
+  })
+
+  it('serializes only set resource fields and all static routes', () => {
+    const draft = validDraft()
+    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: '250m', MemoryRequest: '', CPULimit: '', MemoryLimit: '512Mi' } })
+    device.Name = 'web'
+    Object.assign(device.Interfaces[0].IP, {
+      Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '',
+      Routes: [{ Dst: '10.1.0.0/16', Via: '10.0.0.1' }, { Dst: '10.2.0.0/16', Via: '10.0.0.1' }],
+    })
+    draft.Variants[0].Topology.Devices.push(device)
+    const output = toSaveDraftInput(draft).Variants[0].Topology.Devices?.[0]
+    expect(output?.Resources).toEqual({ CPURequest: '250m', MemoryLimit: '512Mi' })
+    expect(output?.Interfaces?.[0].IP.Routes).toEqual([
+      { Dst: '10.1.0.0/16', Via: '10.0.0.1' },
+      { Dst: '10.2.0.0/16', Via: '10.0.0.1' },
+    ])
+  })
+
+  it.each(['0', '-1Mi', 'pizza', '500m'])("rejects invalid or excessive CPU request %s", (value) => {
+    const draft = validDraft()
+    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: value, MemoryRequest: '', CPULimit: '250m', MemoryLimit: '' } })
+    device.Name = 'web'
+    draft.Variants[0].Topology.Devices.push(device)
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
+  it('rejects a second static address and resources on a switch', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24', '10.0.0.3/24'], Gateway: '', Routes: [] }
+    draft.Variants[0].Topology.Devices.push(device)
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    device.Type = 'unmanaged-switch'
+    device.Interfaces = []
+    Object.assign(device, { Resources: { CPURequest: '250m' } })
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
+  it('validates IPv4 and IPv6 static route families', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    draft.Variants[0].Topology.Devices.push(device)
+    Object.assign(device.Interfaces[0].IP, { Type: 'static', Addresses: ['2001:db8::2/64'], Routes: [{ Dst: '2001:db8:1::/64', Via: '2001:db8::1' }] })
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    Object.assign(device.Interfaces[0].IP, { Routes: [{ Dst: '2001:db8:1::/64', Via: '10.0.0.1' }] })
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    Object.assign(device.Interfaces[0].IP, { Routes: [{ Dst: 'bad', Via: '10.0.0.1' }] })
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    Object.assign(device.Interfaces[0].IP, { Type: 'dhcp', Addresses: [], Routes: [{ Dst: '10.1.0.0/16', Via: '10.0.0.1' }] })
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
+  it('rejects vm and prevents task flag targets from overwriting env variables', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Type = 'vm' as typeof device.Type
+    draft.Variants[0].Topology.Devices.push(device)
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    device.Type = 'container'
+    device.EnvVars.push({ Name: 'FLAG', Value: 'static', Secret: false, HasValue: true })
+    draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
+    draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Tasks.0.DeviceFlagVar')
+  })
+
+  it('rejects two task flag targets on one device but allows the same name on different devices', () => {
+    const draft = validDraft()
+    const first = emptyDevice()
+    first.Name = 'first'
+    const second = emptyDevice()
+    second.Name = 'second'
+    draft.Variants[0].Topology.Devices.push(first, second)
+    const task = draft.Variants[0].Tasks[0]
+    task.LinkedDeviceID = first.ID
+    task.DeviceFlagVar = 'FLAG'
+    const other = { ...emptyTask(), Name: 'Another task', Description: { root: {} }, LinkedDeviceID: first.ID, DeviceFlagVar: 'FLAG' }
+    draft.Variants[0].Tasks.push(other)
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    other.LinkedDeviceID = second.ID
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('accepts common positive Kubernetes resource suffixes', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    draft.Variants[0].Topology.Devices.push(device)
+    for (const quantity of ['1', '250m', '512Mi', '2Gi', '1e3', '1.5G']) {
+      device.Resources.CPURequest = quantity
+      device.Resources.CPULimit = ''
+      expect(draftSchema.safeParse(draft).success).toBe(true)
+    }
   })
 })
 
@@ -302,11 +416,11 @@ describe('draftSchema', () => {
     }
   })
 
-  it('requires an interface on a container or VM, including before external exposure', () => {
-    for (const type of ['container', 'vm'] as const) {
+  it('requires an interface on a container, including before external exposure', () => {
+    for (const type of ['container'] as const) {
       const draft = validDraft()
       const device = emptyDevice()
-      device.Name = type === 'container' ? 'web' : 'server'
+      device.Name = 'web'
       device.Type = type
       device.Interfaces = []
       draft.Variants[0].Topology.Devices.push(device)
@@ -322,7 +436,7 @@ describe('draftSchema', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.Interfaces[0].IP = { Type: 'static', Addresses: [], Gateway: '' }
+    device.Interfaces[0].IP = { Type: 'static', Addresses: [], Gateway: '', Routes: [] }
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
@@ -337,14 +451,14 @@ describe('draftSchema', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: ['10.0.0.2/24'], Gateway: '' }
+    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: ['10.0.0.2/24'], Gateway: '', Routes: [] }
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: [], Gateway: '10.0.0.1' }
+    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: [], Gateway: '10.0.0.1', Routes: [] }
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: [], Gateway: '' }
+    device.Interfaces[0].IP = { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] }
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
@@ -352,7 +466,7 @@ describe('draftSchema', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: 'not-an-ip' }
+    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: 'not-an-ip', Routes: [] }
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
@@ -564,7 +678,8 @@ function loadedVersion(): Version {
           Type: 'container',
           SecurityPreset: '',
           Image: 'nginx:1.27',
-          Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1' } }],
+          Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+          Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [] } }],
           EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
           External: { Port: 8080, Protocol: 'https' },
         }],

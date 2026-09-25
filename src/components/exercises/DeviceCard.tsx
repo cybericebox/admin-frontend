@@ -20,7 +20,6 @@ import type { DeviceType, Protocol, SecurityPreset } from "@/api/exercises/versi
 
 const DEVICE_TYPES: { value: DeviceType; labelKey: string }[] = [
   { value: "container", labelKey: "admin.exTopo.type.container" },
-  { value: "vm", labelKey: "admin.exTopo.type.vm" },
   { value: "unmanaged-switch", labelKey: "admin.exTopo.type.switch" },
   { value: "hub", labelKey: "admin.exTopo.type.hub" },
 ]

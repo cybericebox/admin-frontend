@@ -58,7 +58,7 @@ export function TaskForm({
     if (!device) return []
     return [[placeholder.Key, `${t("admin.exPh.device")} «${device.Name}» — ${t("admin.exPh.missing")}`]]
   }))
-  const linkable = devices.filter((d) => d.Type === "container" || d.Type === "vm")
+  const linkable = devices.filter((d) => d.Type === "container")
   const linkedDeviceID = useWatch({ control, name: `${base}.LinkedDeviceID` })
   const missingLinkedDevice = Boolean(linkedDeviceID) && !linkable.some((device) => device.ID === linkedDeviceID)
   const attachmentRef = useRef<AttachmentListHandle>(null)

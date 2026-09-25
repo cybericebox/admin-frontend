@@ -25,7 +25,7 @@ const BASE = "/api/exercises"
 
 export type VersionStatus = "draft" | "published" | "unpublished" | "checkpoint"
 export type Difficulty = "trivial" | "easy" | "medium" | "hard" | "insane"
-export type DeviceType = "container" | "vm" | "unmanaged-switch" | "hub"
+export type DeviceType = "container" | "unmanaged-switch" | "hub"
 export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
 export type SecurityPreset = "" | "basic" | "service" | "net" | "debug"
 export type EndpointKind = "device" | "vpn" | "internet"
@@ -60,7 +60,12 @@ export type IPConfigDTO = {
   Type: IPType
   Addresses?: string[] // CIDR, static only
   Gateway?: string // static only
+  Routes?: RouteDTO[] // static only
 }
+
+export type RouteDTO = { Dst: string; Via: string }
+export type DeviceResourcesDTO = { CPURequest?: string; MemoryRequest?: string; CPULimit?: string; MemoryLimit?: string }
+export type NormalizedDeviceResources = Required<DeviceResourcesDTO>
 
 export type InterfaceDTO = { Name: string; MAC?: string; IP: IPConfigDTO }
 
@@ -70,6 +75,7 @@ export type DeviceDTO = {
   Type: DeviceType
   SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
+  Resources?: DeviceResourcesDTO
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
   External?: ExternalDTO
@@ -142,7 +148,7 @@ export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; H
 export type NormalizedInterface = {
   Name: string
   MAC: string
-  IP: { Type: IPType; Addresses: string[]; Gateway: string }
+  IP: { Type: IPType; Addresses: string[]; Gateway: string; Routes: RouteDTO[] }
 }
 
 export type NormalizedDevice = {
@@ -151,6 +157,7 @@ export type NormalizedDevice = {
   Type: DeviceType
   SecurityPreset: SecurityPreset
   Image: string
+  Resources: NormalizedDeviceResources
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
   External: ExternalDTO | null
@@ -211,6 +218,7 @@ function normalizeInterface(raw: InterfaceDTO): NormalizedInterface {
       Type: raw.IP?.Type ?? "none",
       Addresses: raw.IP?.Addresses ?? [],
       Gateway: raw.IP?.Gateway ?? "",
+      Routes: raw.IP?.Routes ?? [],
     },
   }
 }
@@ -222,6 +230,12 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     Type: raw.Type,
     SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",
+    Resources: {
+      CPURequest: raw.Resources?.CPURequest ?? "",
+      MemoryRequest: raw.Resources?.MemoryRequest ?? "",
+      CPULimit: raw.Resources?.CPULimit ?? "",
+      MemoryLimit: raw.Resources?.MemoryLimit ?? "",
+    },
     Interfaces: (raw.Interfaces ?? []).map(normalizeInterface),
     EnvVars: (raw.EnvVars ?? []).map((ev) => ({
       Name: ev.Name,

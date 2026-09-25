@@ -7,6 +7,7 @@
  * External in the form is {Enabled, Port, Protocol} instead of a nullable object).
  */
 import { z } from "zod"
+import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import type {
@@ -46,8 +47,32 @@ export function isValidIPv4(v: string): boolean {
 
 export function isValidCIDR(v: string): boolean {
   const m = CIDR_RE.exec(v)
-  if (!m) return false
-  return Number(m[5]) <= 32
+  if (m) return Number(m[5]) <= 32
+  if (!v.includes(":")) return false
+  try { return ipaddr.parseCIDR(v)[0].kind() === "ipv6" } catch { return false }
+}
+
+function ipFamily(v: string): "ipv4" | "ipv6" | null {
+  if (isValidIPv4(v)) return "ipv4"
+  if (v.includes(":") && ipaddr.IPv6.isValid(v)) return "ipv6"
+  return null
+}
+
+function cidrFamily(v: string): "ipv4" | "ipv6" | null {
+  if (!isValidCIDR(v)) return null
+  return v.includes(":") ? "ipv6" : "ipv4"
+}
+
+// Kubernetes quantity suffixes. This mirrors the common resource quantities;
+// the server's resource.ParseQuantity remains the authority for unusual forms.
+const QUANTITY_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:(e[+-]?\d+|E[+-]?\d+)|(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E))?$/
+const QUANTITY_SCALE: Record<string, number> = { n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3, Ti: 1024 ** 4, Pi: 1024 ** 5, Ei: 1024 ** 6 }
+
+function quantityValue(value: string): number | null {
+  const match = QUANTITY_RE.exec(value)
+  if (!match) return null
+  const result = Number(match[1]) * (match[2] ? 10 ** Number(match[2].slice(1)) : (QUANTITY_SCALE[match[3]] ?? 1))
+  return Number.isFinite(result) && result > 0 ? result : null
 }
 
 // ── Form types ─────────────────────────────────────────────────────────────────
@@ -95,10 +120,11 @@ const ipConfigSchema = z
     Type: z.enum(["static", "dhcp", "dhcp-preset", "none"]),
     Addresses: z.array(z.string()),
     Gateway: z.string(),
+    Routes: z.array(z.object({ Dst: z.string(), Via: z.string() })),
   })
   .superRefine((ip, ctx) => {
     if (ip.Type === "static") {
-      if (ip.Addresses.length === 0) {
+      if (ip.Addresses.length !== 1) {
         ctx.addIssue({ code: "custom", path: ["Addresses"], message: t("admin.ex.val.addressesRequired") })
       }
       ip.Addresses.forEach((a, i) => {
@@ -106,9 +132,15 @@ const ipConfigSchema = z
           ctx.addIssue({ code: "custom", path: ["Addresses", i], message: t("admin.ex.val.cidr") })
         }
       })
-      if (ip.Gateway !== "" && !isValidIPv4(ip.Gateway)) {
+      if (ip.Gateway !== "" && !ipFamily(ip.Gateway)) {
         ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("admin.ex.val.gateway") })
       }
+      ip.Routes.forEach((route, index) => {
+        const family = cidrFamily(route.Dst)
+        if (!family || ipFamily(route.Via) !== family) {
+          ctx.addIssue({ code: "custom", path: ["Routes", index], message: t("admin.ex.val.route") })
+        }
+      })
     } else {
       if (ip.Addresses.length > 0) {
         ctx.addIssue({ code: "custom", path: ["Addresses"], message: t("admin.ex.val.addressesForbidden") })
@@ -116,6 +148,7 @@ const ipConfigSchema = z
       if (ip.Gateway !== "") {
         ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("admin.ex.val.gatewayStaticOnly") })
       }
+      if (ip.Routes.length > 0) ctx.addIssue({ code: "custom", path: ["Routes"], message: t("admin.ex.val.routesStaticOnly") })
     }
   })
 
@@ -152,20 +185,33 @@ const deviceSchema = z
   .object({
     ID: z.string(),
     Name: z.string().regex(DNS_LABEL_RE, t("admin.ex.val.deviceName")),
-    Type: z.enum(["container", "vm", "unmanaged-switch", "hub"]),
+    Type: z.enum(["container", "unmanaged-switch", "hub"]),
     SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
+    Resources: z.object({ CPURequest: z.string(), MemoryRequest: z.string(), CPULimit: z.string(), MemoryLimit: z.string() }),
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
     External: externalSchema,
   })
   .superRefine((d, ctx) => {
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "")) {
+    const hasResources = Object.values(d.Resources).some(Boolean)
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "" || hasResources)) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
     if (!forwarding && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
+    }
+    for (const field of ["CPURequest", "MemoryRequest", "CPULimit", "MemoryLimit"] as const) {
+      const value = d.Resources[field]
+      if (value !== "" && quantityValue(value) === null) ctx.addIssue({ code: "custom", path: ["Resources", field], message: t("admin.ex.val.resourceQuantity") })
+    }
+    for (const [request, limit] of [["CPURequest", "CPULimit"], ["MemoryRequest", "MemoryLimit"]] as const) {
+      const requestValue = quantityValue(d.Resources[request])
+      const limitValue = quantityValue(d.Resources[limit])
+      if (requestValue !== null && limitValue !== null && requestValue > limitValue) {
+        ctx.addIssue({ code: "custom", path: ["Resources", request], message: t("admin.ex.val.resourceRequestLimit") })
+      }
     }
   })
 
@@ -219,7 +265,7 @@ const topologySchema = z
     }))
     // Endpoint resolution (mirrors backend ErrEndpointUnresolved): a device endpoint
     // must reference a device that still exists, and — for non-forwarding devices
-    // (container/vm) — an interface that still exists on it. Switch/hub devices carry
+    // (container) — an interface that still exists on it. Switch/hub devices carry
     // no interfaces, so their endpoints leave Interface empty by design. This check
     // lives at the topology level because it needs both Devices and Connections in
     // scope; endpointSchema alone can't see the device list.
@@ -308,6 +354,7 @@ export const draftSchema = z
     // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
     const expected = draft.Variants[0]?.Tasks.length ?? 0
     draft.Variants.forEach((variant, i) => {
+      const usedFlagTargets = new Set<string>()
       variant.Tasks.forEach((task, taskIndex) => {
         if (task.LinkedDeviceID) {
           const device = variant.Topology.Devices.find((candidate) => candidate.ID === task.LinkedDeviceID)
@@ -325,6 +372,14 @@ export const draftSchema = z
             path: ["Variants", i, "Tasks", taskIndex, "DeviceFlagVar"],
             message: t("admin.ex.val.deviceFlagVarRequired"),
           })
+        }
+        if (task.LinkedDeviceID && task.DeviceFlagVar) {
+          const device = variant.Topology.Devices.find((candidate) => candidate.ID === task.LinkedDeviceID)
+          const target = `${task.LinkedDeviceID}\0${task.DeviceFlagVar}`
+          if (device?.EnvVars.some((variable) => variable.Name === task.DeviceFlagVar) || usedFlagTargets.has(target)) {
+            ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "DeviceFlagVar"], message: t("admin.ex.val.deviceFlagVarConflict") })
+          }
+          usedFlagTargets.add(target)
         }
       })
       if (variant.Tasks.length !== expected) {
@@ -364,7 +419,7 @@ export function emptyTask(): TaskFormValues {
 }
 
 export function emptyInterface(): NormalizedInterface {
-  return { Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], Gateway: "" } }
+  return { Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], Gateway: "", Routes: [] } }
 }
 
 export function emptyDevice(): DeviceFormValues {
@@ -374,6 +429,7 @@ export function emptyDevice(): DeviceFormValues {
     Type: "container",
     SecurityPreset: "",
     Image: "",
+    Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" },
     Interfaces: [emptyInterface()],
     EnvVars: [],
     External: { Enabled: false, Port: 80, Protocol: "http" },
@@ -433,6 +489,8 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
         Internet: v.Topology.Internet,
         Devices: v.Topology.Devices.map((d) => ({
           ...d,
+          Resources: { CPURequest: d.Resources?.CPURequest ?? "", MemoryRequest: d.Resources?.MemoryRequest ?? "", CPULimit: d.Resources?.CPULimit ?? "", MemoryLimit: d.Resources?.MemoryLimit ?? "" },
+          Interfaces: d.Interfaces.map((iface) => ({ ...iface, IP: { ...iface.IP, Routes: iface.IP.Routes ?? [] } })),
           External: d.External
             ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
             : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
@@ -483,7 +541,7 @@ function interfaceToDTO(iface: NormalizedInterface): InterfaceDTO {
     IP: {
       Type: iface.IP.Type,
       ...(iface.IP.Type === "static"
-        ? { Addresses: iface.IP.Addresses, ...(iface.IP.Gateway ? { Gateway: iface.IP.Gateway } : {}) }
+        ? { Addresses: iface.IP.Addresses, ...(iface.IP.Gateway ? { Gateway: iface.IP.Gateway } : {}), ...(iface.IP.Routes.length ? { Routes: iface.IP.Routes } : {}) }
         : {}),
     },
   }
@@ -498,6 +556,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...base,
     ...(d.SecurityPreset ? { SecurityPreset: d.SecurityPreset } : {}),
     ...(d.Image ? { Image: d.Image } : {}),
+    ...(Object.values(d.Resources).some(Boolean) ? { Resources: Object.fromEntries(Object.entries(d.Resources).filter(([, value]) => value)) } : {}),
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),

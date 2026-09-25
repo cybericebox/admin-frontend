@@ -302,6 +302,7 @@ describe('draft editor page', () => {
     const dynamicVersion = structuredClone(version)
     dynamicVersion.Variants[0].Topology.Devices = [{
       ID: 'd1', Name: 'lab', Type: 'container', SecurityPreset: '', Image: 'example', Interfaces: [], EnvVars: [], External: null,
+      Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
     }]
     mockGetVersion.mockResolvedValue(dynamicVersion)
     mockCapabilities.mockResolvedValue({ Laboratories: false })
@@ -320,7 +321,8 @@ describe('draft editor page', () => {
     const dynamicVersion = structuredClone(version)
     dynamicVersion.Variants[0].Topology.Devices = [{
       ID: 'd1', Name: 'lab', Type: 'container', SecurityPreset: 'net', Image: 'example', EnvVars: [], External: null,
-      Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp-preset', Addresses: [], Gateway: '' } }],
+      Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+      Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp-preset', Addresses: [], Gateway: '', Routes: [] } }],
     }]
     mockGetVersion.mockResolvedValue(dynamicVersion)
     render(<Page />)
@@ -337,8 +339,9 @@ describe('draft editor page', () => {
     const dynamicVersion = structuredClone(version)
     dynamicVersion.Variants[0].Topology.Devices = [
       { ID: 'd1', Name: 'web', Type: 'container', SecurityPreset: '', Image: 'nginx', EnvVars: [], External: null,
-        Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '' } }] },
-      { ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '', EnvVars: [], External: null, Interfaces: [] },
+        Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+        Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] } }] },
+      { ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '', EnvVars: [], External: null, Interfaces: [], Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' } },
     ]
     mockGetVersion.mockResolvedValue(dynamicVersion)
     mockSaveDraft.mockResolvedValue(dynamicVersion)

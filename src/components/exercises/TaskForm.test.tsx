@@ -91,7 +91,7 @@ describe('TaskForm inline placeholders', () => {
 
   it('shows a universal device label and name for a disabled external-link source, without a technical key', async () => {
     const initial = emptyDraft()
-    const device = { ...emptyDevice(), Name: 'web-01', Type: 'vm' as const }
+    const device = { ...emptyDevice(), Name: 'web-01', Type: 'container' as const }
     initial.Variants[0].Topology.Devices = [device]
     initial.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_external', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web-01' }]
     const editor = createEditor({ nodes: [VariableNode] })
