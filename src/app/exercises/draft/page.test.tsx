@@ -328,7 +328,6 @@ describe('draft editor page', () => {
     render(<Page />)
     await screen.findByDisplayValue('wip note')
     fireEvent.click(screen.getByRole('tab', { name: 'admin.exDraft.tab.topology' }))
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.devices' }))
     fireEvent.click(screen.getByRole('button', { name: 'lab' }))
     expect(screen.getByText('admin.exTopo.securityPreset')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })).toBeInTheDocument()

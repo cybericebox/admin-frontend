@@ -230,6 +230,8 @@ const deviceTabsClass = "flex min-w-0 flex-wrap gap-1 border-b border-border pb-
 
 **Interfaces:** The task remains the only editor for `LinkedDeviceID`/`DeviceFlagVar`; `EnvVarsList` receives `variantIndex`/`deviceIndex` and derives bound tasks from form state. A read-only binding row names the task and variable and navigates to that task. Backend Task 2 and frontend Task 4 reject conflicting names on save.
 
+**User addendum:** In the topology left column, `Пристрої` is a collapsible group heading, not a second selected item. Only the selected device row is highlighted; collapsing the list keeps the right-hand device editor open. Adding a device expands the group.
+
 - [ ] **Step 1: Add a component test with one linked task and one ordinary env var. Open the device Env tab; assert the task flag binding and variable name are visible and read-only, and activating the task reference selects that task. Add a test that a conflicting name shows a field-level error beside `DeviceFlagVar`. Run the tests to see them fail.**
 - [ ] **Step 2: Implement the derived display from `useWatch` task and device state without appending it to `EnvVars`, and connect the task reference through the existing editor position/navigation mechanism. Keep ordinary env var editing unchanged. Update the transfer section and tooltip copy from «прапорець» to «прапор» in both locale files where applicable; use natural English in `en.json`.**
 - [ ] **Step 3: Run `npm test -- src/components/exercises/DeviceCard.test.tsx src/components/exercises/TaskForm.test.tsx src/lib/exerciseSchemas.test.ts`, `npx tsc --noEmit`, and `npm run lint`. Stage only owned changes/hunks; commit `feat(exercises): show task flag bindings on devices`.**

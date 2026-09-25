@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { createEditor, $createParagraphNode, $getRoot } from 'lexical'
 import { $createVariableNode, VariableNode } from '@/components/notifications/editor/RichTextEditor'
 import { TaskForm } from './TaskForm'
-import { emptyDevice, emptyDraft, type DraftFormValues } from '@/lib/exerciseSchemas'
+import { draftSchema, emptyDevice, emptyDraft, type DraftFormValues } from '@/lib/exerciseSchemas'
 
 vi.mock('@/api/exercises/flagPolicy', () => ({ getFlagPolicy: vi.fn().mockResolvedValue({ RandomHexLength: 40, RandomBits: 160, WarningBits: 20 }) }))
 
@@ -21,7 +22,28 @@ function Harness({ initial }: { initial?: DraftFormValues }) {
   </FormProvider>
 }
 
+function ConflictHarness() {
+  const draft = emptyDraft()
+  const device = emptyDevice()
+  device.EnvVars = [{ Name: 'FLAG', Value: 'manual', Secret: false, HasValue: false }]
+  draft.Variants[0].Topology.Devices = [device]
+  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
+  draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
+  const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
+  return <FormProvider {...form}>
+    <form noValidate onSubmit={form.handleSubmit(() => {})}>
+      <TaskForm variantIndex={0} taskIndex={0} disabled={false} />
+      <button type="submit">Validate</button>
+    </form>
+  </FormProvider>
+}
+
 describe('TaskForm inline placeholders', () => {
+  it('shows the flag target collision beside the environment variable field', async () => {
+    render(<ConflictHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+    expect(await screen.findByText('Ця змінна вже зайнята звичайною змінною оточення або прапором іншої задачі.')).toBeInTheDocument()
+  })
   it('marks an unavailable linked device in red inside and outside its dropdown', () => {
     const initial = emptyDraft()
     initial.Variants[0].Tasks[0].LinkedDeviceID = 'removed-device'

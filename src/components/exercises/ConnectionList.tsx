@@ -114,7 +114,7 @@ export function ConnectionList({
       </div>
 
       {fields.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border py-2">
+        <div className="py-2">
           <EmptyState message={t("admin.exTopo.noConnections")} compact />
           {!disabled && (
             <Button type="button" variant="outline" size="sm" className="mx-auto mb-3 flex" onClick={addConnection}>

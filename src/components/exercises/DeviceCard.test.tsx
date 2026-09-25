@@ -1,6 +1,7 @@
 /**
  * DeviceCard.test.tsx — switch/hub show only name+type; container shows everything.
  */
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
@@ -9,6 +10,8 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
+import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/localExerciseDraft'
+import { EditorPositionProvider } from './EditorPosition'
 
 function DeviceValues() {
   const { control } = useFormContext<DraftFormValues>()
@@ -28,7 +31,40 @@ function Harness({ device }: { device: DeviceFormValues }) {
   )
 }
 
+function LinkedDeviceHarness() {
+  const draft = emptyDraft()
+  const device = emptyDevice()
+  device.Name = 'web'
+  device.EnvVars = [{ Name: 'PUBLIC_URL', Value: 'https://example.com', Secret: false, HasValue: false }]
+  draft.Variants[0].Topology.Devices = [device]
+  draft.Variants[0].Tasks[0].Name = 'Find the key'
+  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
+  draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
+  const form = useForm<DraftFormValues>({ defaultValues: draft })
+  const [position, setPosition] = useState<EditorPosition>({ ...DEFAULT_EDITOR_POSITION, section: 'topology' })
+  function onChange<K extends keyof EditorPosition>(key: K, value: EditorPosition[K]) {
+    setPosition((current) => ({ ...current, [key]: value }))
+  }
+  return <EditorPositionProvider position={position} onChange={onChange}>
+    <FormProvider {...form}>
+      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} />
+      <output data-testid="editor-position">{JSON.stringify(position)}</output>
+    </FormProvider>
+  </EditorPositionProvider>
+}
+
 describe('DeviceCard', () => {
+  it('shows a task-owned flag binding without a second editable variable and opens that task', () => {
+    render(<LinkedDeviceHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    expect(screen.getByDisplayValue('PUBLIC_URL')).toBeInTheDocument()
+    expect(screen.getByText('FLAG')).toBeInTheDocument()
+    expect(screen.getByText('Find the key')).toBeInTheDocument()
+    expect(document.querySelectorAll('input[name="Variants.0.Topology.Devices.0.EnvVars.0.Name"]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /Find the key/ }))
+    expect(screen.getByTestId('editor-position')).toHaveTextContent('"section":"tasks"')
+    expect(screen.getByTestId('editor-position')).toHaveTextContent('"task":0')
+  })
   it('edits container resource request and limit values', () => {
     const device = emptyDevice()
     device.Name = 'web'

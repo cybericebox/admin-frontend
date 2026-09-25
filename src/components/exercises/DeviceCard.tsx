@@ -214,7 +214,13 @@ function EnvVarsList({
   const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.EnvVars` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
+  const deviceID = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
+  const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
+  const flagBindings = tasks.flatMap((task, taskIndex) => task.LinkedDeviceID === deviceID && task.DeviceFlagVar.trim()
+    ? [{ taskIndex, taskName: task.Name, variable: task.DeviceFlagVar }] : [])
   const [selectedIndex, setSelectedIndex] = useEditorPosition("env")
+  const [, setTask] = useEditorPosition("task")
+  const [, setSection] = useEditorPosition("section")
   const activeIndex = Math.min(selectedIndex, Math.max(fields.length - 1, 0))
 
   function addVariable() {
@@ -313,6 +319,19 @@ function EnvVarsList({
           </div>
         )
       })}
+      {flagBindings.length > 0 && <div className="space-y-2 border-t border-border pt-3">
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exEnv.taskFlags")}</h5>
+        <p className="text-xs text-muted-foreground">{t("admin.exEnv.taskFlagsHelp")}</p>
+        <ul className="divide-y divide-border">
+          {flagBindings.map((binding) => <li key={binding.taskIndex} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
+            <button type="button" className="min-w-0 truncate text-left text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+              onClick={() => { setTask(binding.taskIndex); setSection("tasks") }}>
+              {binding.taskName || `${t("admin.exDraft.tasks.title")} ${binding.taskIndex + 1}`}
+            </button>
+            <code className="min-w-0 break-all rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">{binding.variable}</code>
+          </li>)}
+        </ul>
+      </div>}
     </section>
   )
 }

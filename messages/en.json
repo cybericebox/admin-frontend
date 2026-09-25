@@ -667,6 +667,8 @@
   "admin.exEnv.title": "Environment variables",
   "admin.exEnv.variable": "Variable",
   "admin.exEnv.titleHelp": "Variables passed to this device when the laboratory starts.",
+  "admin.exEnv.taskFlags": "Task flags",
+  "admin.exEnv.taskFlagsHelp": "These bindings are set in tasks and shown here for reference. Open a task to change its binding.",
   "admin.exEnv.add": "Add variable",
   "admin.exEnv.name": "Variable name",
   "admin.exEnv.nameHelp": "Variable name passed to the device, for example DB_PASS.",
