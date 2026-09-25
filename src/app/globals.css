@@ -88,6 +88,7 @@
 
 	--color-muted: var(--muted);
 	--color-muted-foreground: var(--muted-foreground);
+	--color-placeholder: var(--ib-placeholder);
 
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
@@ -148,6 +149,12 @@
 
 	* {
 		@apply border-border;
+	}
+
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--ib-placeholder);
+		opacity: 1;
 	}
 
 	body {

@@ -14,6 +14,7 @@
   --ib-ice-on-brand: #7FD0FA;
   --ib-font: var(--font-geist-sans), "Geist", system-ui, sans-serif;
   --ib-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --ib-placeholder: color-mix(in srgb, var(--ib-dim) 88%, var(--ib-surface));
   --ib-admin-side-w: 224px;
   --ib-admin-rail-w: 64px;
   --ib-row-h: 38px;

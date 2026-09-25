@@ -10,6 +10,7 @@ import { eventErrorMessage } from "@/lib/eventErrors"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -79,7 +80,6 @@ export default function Page() {
 
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
-  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
@@ -121,23 +121,25 @@ export default function Page() {
 
 
   function closeConfirm(next: boolean) {
-    if (!next && !confirmBusy) { setConfirming(null); setConfirmError(null) }
+    if (!next && !confirmBusy) setConfirming(null)
   }
 
   async function runConfirm() {
     if (!confirming) return
-    setConfirmBusy(true); setConfirmError(null)
+    setConfirmBusy(true)
     try {
       if (confirming.kind === "archive") {
         const updated = await archiveEvent(confirming.event.ID)
         setRows((prev) => prev.map((r) => (r.ID === updated.ID ? updated : r)))
+        toast.success("Захід архівовано.")
       } else {
         await deleteEvent(confirming.event.ID)
         setRows((prev) => prev.filter((r) => r.ID !== confirming.event.ID))
+        toast.success("Захід видалено.")
       }
       setConfirming(null)
     } catch (e) {
-      setConfirmError(eventErrorMessage(e))
+      toast.error(eventErrorMessage(e))
     } finally {
       setConfirmBusy(false)
     }
@@ -243,7 +245,6 @@ export default function Page() {
               </div>
             </Alert>
           )}
-          {confirmError && <p className="text-sm text-destructive">{confirmError}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" disabled={confirmBusy}>{t("admin.events.dialog.cancel")}</Button>

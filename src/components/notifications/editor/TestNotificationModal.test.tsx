@@ -32,6 +32,7 @@ vi.mock('@/components/notifications/templateTypes', () => ({
 import { sendTestNotification } from '@/api/notifications/test'
 import { t } from '@/i18n/t'
 import { TestNotificationModal } from './TestNotificationModal'
+import { toast } from '@/components/ui/toast'
 
 const mockSend = vi.mocked(sendTestNotification)
 
@@ -53,6 +54,7 @@ describe('TestNotificationModal', () => {
 
   it('renders input pre-filled with variable Default', () => {
     render(<TestNotificationModal {...defaultProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /Змінні \(1\)/ }))
     expect(screen.getByDisplayValue('https://x')).toBeTruthy()
   })
 
@@ -74,14 +76,22 @@ describe('TestNotificationModal', () => {
     })
   })
 
-  it('shows success message after a successful Send', async () => {
+  it('closes before the server responds and refreshes the inbox after a successful on-site send', async () => {
+    let resolveSend!: () => void
+    mockSend.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveSend = resolve }))
+    const refresh = vi.fn()
+    window.addEventListener('cybericebox:inbox-updated', refresh, { once: true })
     render(<TestNotificationModal {...defaultProps} />)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.test.send') }))
-    await screen.findByText(t('admin.notif.test.sent'))
+    expect(defaultProps.onClose).toHaveBeenCalledOnce()
+    expect(refresh).not.toHaveBeenCalled()
+    resolveSend()
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
   })
 
   it('sends the edited variable value when input is changed before Send', async () => {
     render(<TestNotificationModal {...defaultProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /Змінні \(1\)/ }))
     const input = screen.getByDisplayValue('https://x')
     fireEvent.change(input, { target: { value: 'https://y' } })
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.test.send') }))
@@ -102,9 +112,11 @@ describe('TestNotificationModal', () => {
 
   it('shows error message when sendTestNotification rejects', async () => {
     mockSend.mockRejectedValueOnce(new Error('network error'))
-    render(<TestNotificationModal {...defaultProps} />)
+    const error = vi.spyOn(toast, 'error')
+    const { rerender } = render(<TestNotificationModal {...defaultProps} />)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.test.send') }))
-    await screen.findByText(t('admin.notif.test.error'))
+    rerender(<TestNotificationModal {...defaultProps} open={false} />)
+    await waitFor(() => expect(error).toHaveBeenCalledWith(t('admin.notif.test.error')))
   })
 
   it('drops unchecked channel from Channels when sending', async () => {
@@ -134,6 +146,7 @@ describe('TestNotificationModal', () => {
     const { rerender } = render(
       <TestNotificationModal {...defaultProps} channels={['email', 'in_app']} />
     )
+    fireEvent.click(screen.getByRole('button', { name: /Змінні \(1\)/ }))
     const input = screen.getByDisplayValue('https://x')
     fireEvent.change(input, { target: { value: 'my-edited-url' } })
     // Simulate parent re-render: same logical value but a new array reference
@@ -146,6 +159,7 @@ describe('TestNotificationModal', () => {
 
   it('re-seeds fields and channels when modal is closed then reopened', () => {
     const { rerender } = render(<TestNotificationModal {...defaultProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /Змінні \(1\)/ }))
     const input = screen.getByDisplayValue('https://x')
     fireEvent.change(input, { target: { value: 'edited-before-close' } })
 
@@ -155,6 +169,7 @@ describe('TestNotificationModal', () => {
     rerender(<TestNotificationModal {...defaultProps} open={true} />)
 
     // Fields must revert to defaults on reopen
+    fireEvent.click(screen.getByRole('button', { name: /Змінні \(1\)/ }))
     expect(screen.getByDisplayValue('https://x')).toBeTruthy()
   })
 })

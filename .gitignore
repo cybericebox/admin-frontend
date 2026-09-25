@@ -32,3 +32,16 @@ certificates
 # IDE / Qodana
 .idea/
 qodana.yaml
+
+# Local-only documentation and agent state
+/README.md
+/docs/
+/AGENTS.md
+/CLAUDE.md
+/RTK.md
+/.claude/
+/.codex/
+/.agents/
+/graphify-out/
+/.graphify/
+/.superpowers/

@@ -11,6 +11,7 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({
 }) }))
 
 import Page from "./page"
+import { toast } from "@/components/ui/toast"
 
 const user = {
   ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test",
@@ -64,14 +65,16 @@ describe("admin user detail", () => {
     expect(screen.queryByRole("button", { name: "admin.userDetail.unblock" })).not.toBeInTheDocument()
   })
 
-  it("shows a failed deletion inside the confirmation dialog", async () => {
+  it("reports a failed deletion with a toast and keeps the dialog open", async () => {
     mocks.del.mockRejectedValueOnce(new Error("delete failed"))
+    const error = vi.spyOn(toast, "error")
     render(<Page />)
     await screen.findByText("Олена Коваль")
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.delete" }))
     const dialog = screen.getByRole("dialog")
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.delete" }))
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("admin.userDetail.actionError")
+    await waitFor(() => expect(error).toHaveBeenCalledWith("admin.userDetail.actionError"))
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(mocks.push).not.toHaveBeenCalled()
   })
 

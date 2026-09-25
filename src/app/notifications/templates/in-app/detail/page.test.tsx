@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react'
 import type { InAppTemplate } from '@/api/notifications/inAppTemplates'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -38,6 +38,7 @@ vi.mock('@/api/notifications/inAppTemplates', () => ({
   updateInAppTemplate:   vi.fn(),
   publishInAppTemplate:  vi.fn(),
   rollbackInAppTemplate: vi.fn(),
+  listInAppTemplates:     vi.fn(),
 }))
 
 // templateTypes hook
@@ -143,6 +144,7 @@ import {
   createInAppTemplate,
   updateInAppTemplate,
   rollbackInAppTemplate,
+  listInAppTemplates,
 } from '@/api/notifications/inAppTemplates'
 
 // ── Import component AFTER all mocks ─────────────────────────────────────────
@@ -179,7 +181,9 @@ describe('In-app template editor page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSearchParams.set('id', 'tpl-001')
+    mockSearchParams.delete('type')
     vi.mocked(getInAppTemplate).mockResolvedValue(makeDraftTemplate())
+    vi.mocked(listInAppTemplates).mockResolvedValue({ Templates: [makeDraftTemplate()], MissingActiveFor: [] })
   })
 
   // ── Smoke ─────────────────────────────────────────────────────────────────
@@ -228,6 +232,41 @@ describe('In-app template editor page', () => {
     })
   })
 
+  it('saves the configured pop-up duration in milliseconds', async () => {
+    vi.mocked(updateInAppTemplate).mockResolvedValue(makeDraftTemplate({ AutoDismissMs: 7500 }))
+    render(<Page />)
+    const duration = await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
+    fireEvent.change(duration, { target: { value: '7.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+    await waitFor(() => expect(updateInAppTemplate).toHaveBeenCalledWith('tpl-001', expect.objectContaining({ AutoDismissMs: 7500 })))
+  })
+
+  it('highlights Save for local edits and offers Publish only after they are saved', async () => {
+    vi.mocked(updateInAppTemplate).mockResolvedValue(makeDraftTemplate({ AutoDismissMs: 7500 }))
+    render(<Page />)
+    const duration = await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
+    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    expect(save).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
+
+    fireEvent.change(duration, { target: { value: '7.5' } })
+    expect(save).toBeEnabled()
+    expect(save).toHaveClass('bg-primary')
+    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.publish' })).not.toBeInTheDocument()
+
+    fireEvent.click(save)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument())
+    expect(save).toBeDisabled()
+  })
+
+  it('shows field descriptions only through the question icon', async () => {
+    render(<Page />)
+    await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
+    expect(screen.queryByText('admin.notif.inapp.linkHelp')).not.toBeInTheDocument()
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'admin.notif.inapp.linkHelp' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('admin.notif.inapp.linkHelp')
+  })
+
   // ── InAppPreview receives loaded values ───────────────────────────────────
 
   it('passes loaded icon and tone to InAppPreview', async () => {
@@ -265,11 +304,9 @@ describe('In-app template editor page', () => {
       makeDraftTemplate({ Status: 'unpublished' }),
     )
     render(<Page />)
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }),
-      ).toBeInTheDocument()
-    })
+    vi.mocked(listInAppTemplates).mockResolvedValue({ Templates: [makeDraftTemplate({ Status: 'unpublished' })], MissingActiveFor: [] })
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.versions.title' }))
+    expect(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' })).toBeInTheDocument()
   })
 
   it('does NOT show Save or Publish buttons for a published template', async () => {
@@ -325,9 +362,9 @@ describe('In-app template editor page', () => {
   it('calls updateInAppTemplate (not a second create) on second Save after new-template create', async () => {
     mockSearchParams.delete('id')
     mockSearchParams.set('type', 'user.welcome')
-    const createdTpl = makeDraftTemplate({ ID: 'tpl-new' })
+    const createdTpl = makeDraftTemplate({ ID: 'tpl-new', Title: '', Body: '', Icon: 'bell', Tone: 'neutral' })
     vi.mocked(createInAppTemplate).mockResolvedValue(createdTpl)
-    vi.mocked(updateInAppTemplate).mockResolvedValue(createdTpl)
+    vi.mocked(updateInAppTemplate).mockResolvedValue({ ...createdTpl, AutoDismissMs: 6500 })
 
     render(<Page />)
 
@@ -343,8 +380,10 @@ describe('In-app template editor page', () => {
       expect(createInAppTemplate).toHaveBeenCalledTimes(1)
     })
 
-    // Second Save → updateInAppTemplate, createInAppTemplate still once
-    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    await waitFor(() => expect(save).toBeDisabled())
+    fireEvent.change(screen.getByLabelText('admin.notif.inapp.autoDismissMs'), { target: { value: '6.5' } })
+    fireEvent.click(save)
 
     await waitFor(() => {
       expect(updateInAppTemplate).toHaveBeenCalledTimes(1)
@@ -360,21 +399,38 @@ describe('In-app template editor page', () => {
     )
     const rolledBackTpl = makeDraftTemplate({ Status: 'draft', Title: 'New Title after rollback' })
     vi.mocked(rollbackInAppTemplate).mockResolvedValue(rolledBackTpl)
+    vi.mocked(listInAppTemplates).mockResolvedValue({ Templates: [makeDraftTemplate({ Status: 'unpublished', Title: 'Old Title' })], MissingActiveFor: [] })
 
     render(<Page />)
 
-    // Wait for unpublished state — preview shows old title, restore button visible
+    // Wait for unpublished state, then open its version list.
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' })).toBeInTheDocument()
       expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Old Title')
     })
-
-    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.versions.title' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.notif.tpl.rollback' }))
 
     // After rollback: preview reflects new title from rolled-back template
     await waitFor(() => {
       expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'New Title after rollback')
     })
+  })
+
+  it('can restore the currently published version over a draft without publishing it', async () => {
+    const published = makeDraftTemplate({ ID: 'tpl-published', Status: 'published', Title: 'Live title' })
+    const previous = makeDraftTemplate({ ID: 'tpl-previous', Status: 'unpublished', Title: 'Older title' })
+    vi.mocked(listInAppTemplates).mockResolvedValue({ Templates: [makeDraftTemplate(), published, previous], MissingActiveFor: [] })
+    vi.mocked(rollbackInAppTemplate).mockResolvedValue(makeDraftTemplate({ Title: 'Live title' }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.versions.title' }))
+    expect(await screen.findByText('admin.notif.status.unpublished')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'admin.notif.versions.open' })).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole('button', { name: 'admin.notif.tpl.rollback' })[0])
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    await waitFor(() => expect(rollbackInAppTemplate).toHaveBeenCalledWith('tpl-published'))
+    await waitFor(() => expect(screen.getByTestId('in-app-preview')).toHaveAttribute('data-title', 'Live title'))
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
   })
 
   // ── Translated status in StatusPill ──────────────────────────────────────

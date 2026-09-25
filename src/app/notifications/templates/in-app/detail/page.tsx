@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
+import { TemplateVersions } from "@/components/notifications/editor/TemplateVersions"
 import {
   getInAppTemplate,
   listInAppTemplates,
@@ -39,6 +40,7 @@ import type { InAppTemplate, InAppAction } from "@/api/notifications/inAppTempla
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
 import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
 import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
+import { popInDuration } from "@/components/notifications/popInDuration"
 import { NotificationAppearancePicker } from "@/components/notifications/editor/NotificationAppearancePicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { notifTypeLabel } from "@/utils/notifType"
@@ -46,6 +48,9 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
+import { sameTemplateValue } from "@/lib/templateEditorState"
+import { FieldHelp } from "@/components/ui/field-help"
+import { toast } from "@/components/ui/toast"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
@@ -58,8 +63,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [saveError, setSaveError] = useState(false)
   const [formError, setFormError] = useState(false)
+  const [versionRevision, setVersionRevision] = useState(0)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText) to remount
@@ -103,7 +108,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setTone(tpl.Tone)
         setAccentColor(tpl.AccentColor)
         setSurface(tpl.Surface)
-        setAutoDismissMs(tpl.AutoDismissMs)
+        setAutoDismissMs(tpl.AutoDismissMs == null ? null : popInDuration(tpl.AutoDismissMs))
         setDismissible(tpl.Dismissible ?? true)
         setActions(tpl.Actions)
         setLoadNonce((n) => n + 1)
@@ -131,13 +136,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function handleSave() {
+    if (busy || !isDirty || !notificationType) return
     if (actions.length > 1 || actions.some((action) => !action.label.trim() || !/^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(action.href.trim()) || action.href.includes("{{"))) {
       setFormError(true)
       return
     }
     setFormError(false)
     setBusy(true)
-    setSaveError(false)
     try {
       const payload = {
         Title:         title,
@@ -158,40 +163,45 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           ...payload,
         })
         setTemplate(created)
+        setVersionRevision((value) => value + 1)
         router.replace(`/notifications/templates/in-app/detail?id=${created.ID}`)
+        toast.success("Шаблон створено.")
       } else {
         // Update existing draft
         const updated = await updateInAppTemplate(template.ID, payload)
         setTemplate(updated)
+        setVersionRevision((value) => value + 1)
+        toast.success("Шаблон збережено.")
       }
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
   }
 
   async function handlePublish() {
-    if (!template) return
+    if (!template || template.Status !== "draft" || isDirty || busy) return
     setBusy(true)
-    setSaveError(false)
     try {
       const updated = await publishInAppTemplate(template.ID)
       setTemplate(updated)
+      setVersionRevision((value) => value + 1)
+      toast.success("Шаблон опубліковано.")
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
   }
 
-  async function handleRollback() {
-    if (!template) return
+  async function handleRollback(sourceId: string): Promise<boolean> {
+    if (!template) return false
     setBusy(true)
-    setSaveError(false)
     try {
-      const updated = await rollbackInAppTemplate(template.ID)
+      const updated = await rollbackInAppTemplate(sourceId)
       setTemplate(updated)
+      setVersionRevision((value) => value + 1)
       // Re-sync form state from the rolled-back template
       setTitle(updated.Title)
       setBody(updated.Body)
@@ -200,13 +210,16 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setTone(updated.Tone)
       setAccentColor(updated.AccentColor)
       setSurface(updated.Surface)
-      setAutoDismissMs(updated.AutoDismissMs)
+      setAutoDismissMs(updated.AutoDismissMs == null ? null : popInDuration(updated.AutoDismissMs))
       setDismissible(updated.Dismissible ?? true)
       setActions(updated.Actions)
       setLoadNonce((n) => n + 1)
       router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
+      toast.success("Версію шаблону відновлено.")
+      return true
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
+      return false
     } finally {
       setBusy(false)
     }
@@ -218,7 +231,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   async function handleEdit() {
     if (!template) return
     setBusy(true)
-    setSaveError(false)
     try {
       const existing = await listInAppTemplates({ type: template.NotificationType, status: "draft" })
       const draft = existing.Templates[0] ?? await createInAppTemplate({
@@ -235,8 +247,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         Actions:       actions,
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
+      toast.success("Чернетку відкрито для редагування.")
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
@@ -280,9 +293,15 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     )
   }
 
-  const isNew      = !id || !template
+  const isNew      = !template?.ID
   const isReadOnly = !canWrite || template?.Status === "published" || template?.Status === "unpublished"
   const isDraft    = template?.Status === "draft"
+  const isDirty = template
+    ? title !== template.Title || body !== template.Body || link !== template.Link
+      || icon !== template.Icon || tone !== template.Tone || accentColor !== template.AccentColor
+      || surface !== template.Surface || autoDismissMs !== (template.AutoDismissMs == null ? null : popInDuration(template.AutoDismissMs))
+      || dismissible !== template.Dismissible || !sameTemplateValue(actions, template.Actions)
+    : Boolean(notificationType)
 
   // ── Main layout ───────────────────────────────────────────────────────────
 
@@ -313,14 +332,14 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.test.button")}
             </Button>
           )}
-          {/* Save: shown when not read-only */}
+          {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button onClick={() => void handleSave()} disabled={busy || !notificationType}>
+            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} disabled={busy || !isDirty || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
-          {/* Publish: shown for draft */}
-          {isDraft && canWrite && (
+          {/* Only a saved draft can be published. */}
+          {isDraft && !isDirty && canWrite && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
@@ -331,23 +350,17 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
-          {/* Rollback: shown for published or unpublished */}
-          {canWrite && template?.Status === "unpublished" && (
-            <Button variant="outline" onClick={() => void handleRollback()} disabled={busy}>
-              {t("admin.notif.tpl.rollback")}
-            </Button>
-          )}
-          {saveError && (
-            <span className="text-sm text-destructive">{t("admin.notif.tpl.saveError")}</span>
-          )}
           {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
         </div>
       </div>
 
+      {template && <TemplateVersions channel="in-app" notificationType={template.NotificationType} currentId={template.ID}
+        canWrite={canWrite} dirty={isDirty} busy={busy} refreshKey={versionRevision} onRestore={handleRollback} />}
+
       {/* ── Type selector (new template only) ── */}
       {isNew && (
         <div className="mb-4">
-          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+          <label className="mb-1 block text-sm font-medium text-foreground">
             {t("admin.notif.tpl.type")}
           </label>
           <SelectMenu
@@ -378,7 +391,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
             {/* Title */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+              <label className="mb-1 block text-sm font-medium text-foreground">
                 {t("admin.notif.tpl.title")}
               </label>
               <VariableRichText
@@ -393,7 +406,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
             {/* Body */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+              <label className="mb-1 block text-sm font-medium text-foreground">
                 {t("admin.notif.tpl.body")}
               </label>
               <InAppBodyEditor
@@ -407,9 +420,10 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
             {/* Link */}
             <div>
-              <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                {t("admin.notif.tpl.link")}
-              </label>
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.link")}</label>
+                <FieldHelp text={t("admin.notif.inapp.linkHelp")} />
+              </div>
               <VariableRichText
                 key={`link-${loadNonce}`}
                 value={link}
@@ -418,21 +432,45 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                 placeholder={t("admin.notif.tpl.link")}
                 dotted
               />
-              <p className="mt-1 text-xs text-muted-foreground">{t("admin.notif.inapp.linkHelp")}</p>
             </div>
 
             <NotificationAppearancePicker icon={icon} tone={tone} accentColor={accentColor}
               onChange={(next) => { setIcon(next.icon); setTone(next.tone); setAccentColor(next.accentColor) }} />
 
-            <p className="text-xs text-muted-foreground">{t("admin.notif.inapp.deliveryHint")}</p>
             {surface !== "inbox" && <p className="text-xs text-amber-700 dark:text-amber-400">{t("admin.notif.inapp.legacySurface")}</p>}
+
+            {surface === "inbox" && <div>
+              <div className="mb-1 flex items-center gap-1.5">
+                <label htmlFor="notification-popin-seconds" className="block text-sm font-medium text-foreground">{t("admin.notif.inapp.autoDismissMs")}</label>
+                <FieldHelp text={t("admin.notif.inapp.popInHelp")} />
+              </div>
+              <input
+                id="notification-popin-seconds"
+                type="number"
+                min="3"
+                max="10"
+                step="0.5"
+                value={autoDismissMs === null ? "" : autoDismissMs / 1000}
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (value === "") { setAutoDismissMs(null); return }
+                  const seconds = Number(value)
+                  if (Number.isFinite(seconds) && seconds >= 3 && seconds <= 10) {
+                    setAutoDismissMs(Math.round(seconds * 1000))
+                  }
+                }}
+                placeholder={t("admin.notif.inapp.autoDismissPlaceholder")}
+                className="h-10 w-40 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
+            </div>}
 
             {/* Actions */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t("admin.notif.inapp.actions")}
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="block text-sm font-medium text-foreground">{t("admin.notif.inapp.actions")}</label>
+                  <FieldHelp text={t("admin.notif.inapp.actionsHelp")} />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -443,7 +481,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                   {t("admin.notif.inapp.addAction")}
                 </Button>
               </div>
-              <p className="mb-2 text-xs text-muted-foreground">{t("admin.notif.inapp.actionsHelp")}</p>
               <div className="space-y-2">
                 {actions.map((action, i) => (
                   <div key={i} className="flex gap-2 items-center">
@@ -481,7 +518,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
         {/* ── Right column: live in-app preview ── */}
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <div className="mb-2 text-sm font-semibold text-foreground">
             {t("admin.notif.editor.previewInApp")}
           </div>
           <div className="sticky top-4">

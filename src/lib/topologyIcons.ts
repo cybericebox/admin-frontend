@@ -19,6 +19,7 @@ export function topologyIconFor(
   device: { ID: string; Type: DeviceType },
   visual: Record<string, unknown> | null,
 ): TopologyIconKey {
+  if (device.Type !== "container") return defaultTopologyIcon(device.Type)
   const icons = visual?.icons
   const selected = icons && typeof icons === "object" && !Array.isArray(icons)
     ? (icons as Record<string, unknown>)[device.ID] : undefined

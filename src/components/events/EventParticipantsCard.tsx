@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { toast } from "@/components/ui/toast"
 
 type Participant = { UserID: string; Status: number; CreatedAt: string; DecidedAt: string | null }
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string }
@@ -90,8 +91,9 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
         ? current.filter((entry) => entry.UserID !== item.UserID)
         : current.map((entry) => entry.UserID === item.UserID ? { ...entry, Status: decision === "approve" ? 2 : 3, DecidedAt: new Date().toISOString() } : entry))
       setRejecting(null)
+      toast.success(decision === "approve" ? "Заявку підтверджено." : "Заявку відхилено.")
     } catch {
-      setError(decision === "approve" ? "Не вдалося підтвердити заявку." : "Не вдалося відхилити заявку.")
+      toast.error(decision === "approve" ? "Не вдалося підтвердити заявку." : "Не вдалося відхилити заявку.")
     } finally {
       setBusyID("")
     }

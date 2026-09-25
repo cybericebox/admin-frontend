@@ -58,6 +58,60 @@ describe('TopologyDiagram', () => {
     }
   })
 
+  it('centers the measured topology and starts no larger than 125 percent', () => {
+    let onResize: ResizeObserverCallback | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { onResize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const { container } = render(<TopologyDiagram topology={topology} />)
+      act(() => onResize?.([{ contentRect: { width: 960, height: 560 } } as ResizeObserverEntry], {} as ResizeObserver))
+      const transform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')!
+      const [, tx, ty, scale] = /translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)/.exec(transform)!.map(Number)
+      expect(scale).toBeLessThanOrEqual(1.25)
+      expect(scale).toBeGreaterThan(0)
+      const nodeCenters = Array.from(container.querySelectorAll('[data-icon-hitbox]')).map((icon) => ({
+        x: (Number(icon.getAttribute('x')) + 28) * scale + tx,
+        y: (Number(icon.getAttribute('y')) + 28) * scale + ty,
+      }))
+      expect((Math.min(...nodeCenters.map((p) => p.x)) + Math.max(...nodeCenters.map((p) => p.x))) / 2).toBeCloseTo(480, 0)
+      expect((Math.min(...nodeCenters.map((p) => p.y)) + Math.max(...nodeCenters.map((p) => p.y))) / 2).toBeGreaterThan(250)
+      expect((Math.min(...nodeCenters.map((p) => p.y)) + Math.max(...nodeCenters.map((p) => p.y))) / 2).toBeLessThan(310)
+      expect(screen.getByRole('button', { name: 'admin.exTopo.zoomLevel' })).toHaveTextContent(`${Math.round(scale * 100)}%`)
+      fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
+      const touchedTransform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')
+      act(() => onResize?.([{ contentRect: { width: 1024, height: 600 } } as ResizeObserverEntry], {} as ResizeObserver))
+      expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', touchedTransform)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('brings nodes saved near the top into the middle of a short reopened canvas', () => {
+    let onResize: ResizeObserverCallback | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { onResize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const shifted = { ...topology, VisualRender: { version: 1, positions: {
+        vpn: { x: 0.1, y: 0.1 }, d1: { x: 0.5, y: 0.1 }, d2: { x: 0.9, y: 0.1 },
+      } } }
+      const { container } = render(<TopologyDiagram topology={shifted} />)
+      act(() => onResize?.([{ contentRect: { width: 960, height: 330 } } as ResizeObserverEntry], {} as ResizeObserver))
+      const transform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')!
+      const [, , ty, scale] = /translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)/.exec(transform)!.map(Number)
+      const nodeY = Number(container.querySelector('[data-testid="node-d1"] [data-icon-hitbox]')!.getAttribute('y')) + 28
+      expect(nodeY * scale + ty).toBeGreaterThan(110)
+      expect(nodeY * scale + ty).toBeLessThan(190)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('grows its inner board and keeps every auto-placed node distinct in a dense topology', () => {
     const devices = Array.from({ length: 30 }, (_, index) => ({
       ...topology.Devices[0], ID: `host-${index + 1}`, Name: `host-${index + 1}`,
@@ -108,9 +162,43 @@ describe('TopologyDiagram', () => {
     fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: startX + 35, clientY: startY - 20 }))
     fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: startX + 35, clientY: startY - 20 }))
     expect(onLabelOffsetChange).toHaveBeenCalledWith('d1', expect.any(Object))
-    expect(onLabelOffsetChange.mock.calls[0][1].x).toBeCloseTo(35 / 960, 3)
-    expect(onLabelOffsetChange.mock.calls[0][1].y).toBeCloseTo(-20 / 560, 3)
+    expect(onLabelOffsetChange.mock.calls[0][1].x).toBeCloseTo(35, 3)
+    expect(onLabelOffsetChange.mock.calls[0][1].y).toBeCloseTo(-20, 3)
     expect(onPositionChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps a dragged node label the same distance from its node after moving and resizing', () => {
+    let onResize: ResizeObserverCallback | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { onResize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const visual = { version: 1, positions: { d1: { x: 0.3, y: 0.4 } }, labelOffsets: { d1: { x: 35, y: -20 } } }
+      const { container, rerender } = render(<TopologyDiagram topology={{ ...topology, VisualRender: visual }} />)
+      const distance = () => {
+        const node = container.querySelector('[data-testid="node-d1"]')!
+        const icon = node.querySelector('[data-icon-hitbox]')!
+        const label = node.querySelector('[data-node-label]')!
+        return {
+          x: Number(label.getAttribute('x')) - Number(icon.getAttribute('x')) - 28,
+          y: Number(label.getAttribute('y')) - Number(icon.getAttribute('y')) - 28,
+        }
+      }
+      const initial = distance()
+      expect(initial).toEqual({ x: 35, y: 25 })
+      rerender(<TopologyDiagram topology={{ ...topology, VisualRender: {
+        ...visual, positions: { d1: { x: 0.7, y: 0.6 } },
+      } }} />)
+      expect(distance().x).toBeCloseTo(initial.x, 6)
+      expect(distance().y).toBeCloseTo(initial.y, 6)
+      act(() => onResize?.([{ contentRect: { width: 1440, height: 800 } } as ResizeObserverEntry], {} as ResizeObserver))
+      expect(distance().x).toBeCloseTo(initial.x, 6)
+      expect(distance().y).toBeCloseTo(initial.y, 6)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('renders a node per device plus enabled networks', () => {
@@ -121,11 +209,110 @@ describe('TopologyDiagram', () => {
     expect(screen.queryByText('admin.exTopo.internet')).not.toBeInTheDocument() // Internet disabled
   })
 
+  it('does not select the label text or open an editor when the label is dragged', () => {
+    const onLabelOffsetChange = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onLabelOffsetChange={onLabelOffsetChange} />)
+    const label = container.querySelector('[data-testid="node-d1"] [data-node-label]')!
+    expect(label).toHaveClass('select-none', 'cursor-grab')
+    expect(label).toHaveStyle({ userSelect: 'none' })
+    const svg = container.querySelector('svg')!
+    fireEvent(label, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 200, clientY: 200 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 235, clientY: 205 }))
+    expect(container.querySelector('[data-testid="node-d1"] [data-node-label]')).toHaveClass('cursor-grabbing')
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 235, clientY: 205 }))
+    expect(container.querySelector('[data-testid="node-d1"] [data-node-label]')).toHaveClass('cursor-grab')
+    fireEvent.click(label)
+    expect(onLabelOffsetChange).toHaveBeenCalled()
+  })
+
+  it('hints at double-click rename on the label without making the pencil a pointer target', () => {
+    const { container } = render(<TopologyDiagram topology={topology} onNodeRename={() => null} />)
+    const label = container.querySelector('[data-testid="node-d1"] [data-node-label]')!
+    const pencil = label.parentElement!.querySelector('svg')!
+    expect(label).toHaveClass('select-none')
+    expect(label).toHaveStyle({ userSelect: 'none' })
+    expect(pencil).toHaveClass('pointer-events-none', 'opacity-0', 'group-hover/label:opacity-100')
+    fireEvent.mouseEnter(label.parentElement!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('admin.exTopo.renameOnDoubleClick')
+    fireEvent.keyDown(label, { key: 'F2' })
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.deviceName' })).toHaveValue('web')
+  })
+
+  it('moves a port caption independently of its connection and keeps the offset in visual data', () => {
+    const onPortLabelOffsetChange = vi.fn()
+    const onEdgeSelect = vi.fn()
+    const { container, rerender } = render(<TopologyDiagram topology={topology}
+      onPortLabelOffsetChange={onPortLabelOffsetChange} onEdgeSelect={onEdgeSelect} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    const caption = container.querySelector('[data-edge="e0"]')!.parentElement!.querySelector('[data-port-label]')!
+    const key = caption.getAttribute('data-port-label-key')!
+    const initialX = Number(caption.getAttribute('x'))
+    expect(caption).toHaveClass('select-none', 'cursor-grab')
+    fireEvent(caption, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 200, clientY: 200 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 230, clientY: 215 }))
+    expect(caption).toHaveClass('cursor-grabbing')
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 230, clientY: 215 }))
+    expect(caption).toHaveClass('cursor-grab')
+    fireEvent.click(caption)
+    expect(onEdgeSelect).not.toHaveBeenCalled()
+    expect(onPortLabelOffsetChange).toHaveBeenCalledWith(key, { x: expect.any(Number), y: expect.any(Number) })
+    expect(Math.hypot(...Object.values(onPortLabelOffsetChange.mock.calls[0][1]) as [number, number])).toBeCloseTo(Math.hypot(30, 15), 0)
+    const moved = { ...topology, VisualRender: { version: 1, portLabelOffsets: { [key]: onPortLabelOffsetChange.mock.calls[0][1] } } }
+    rerender(<TopologyDiagram topology={moved} onPortLabelOffsetChange={onPortLabelOffsetChange} onEdgeSelect={onEdgeSelect} />)
+    expect(Number(container.querySelector(`[data-port-label-key='${key}']`)!.getAttribute('x')))
+      .toBeGreaterThan(initialX)
+  })
+
+  it('keeps each port caption a fixed distance from its own connection end when the edge or canvas changes', () => {
+    let onResize: ResizeObserverCallback | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { onResize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const visual = { version: 1, positions: { d1: { x: 0.2, y: 0.4 }, d2: { x: 0.7, y: 0.4 } },
+        portLabelOffsets: {
+          [JSON.stringify(['d1', 'eth0'])]: { x: 18, y: 12 },
+          [JSON.stringify(['d2', 'GigabitEthernet0/1'])]: { x: -7, y: 5 },
+        } }
+      const { container, rerender } = render(<TopologyDiagram topology={{ ...topology, VisualRender: visual }} />)
+      const distances = () => {
+        const edge = container.querySelector('[data-edge="e0"]')!.parentElement!
+        const [startX, startY, endX, endY] = edge.querySelector('[data-edge]')!.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+        const captions = Array.from(edge.querySelectorAll('[data-port-label]'))
+        return captions.map((caption, index) => Math.hypot(
+          Number(caption.getAttribute('x')) - (index === 0 ? startX : endX),
+          Number(caption.getAttribute('y')) - (index === 0 ? startY : endY),
+        ))
+      }
+      const initial = distances()
+      expect(initial).toHaveLength(2)
+      expect(initial[0]).toBeGreaterThan(10)
+      rerender(<TopologyDiagram topology={{ ...topology, VisualRender: {
+        ...visual, positions: { d1: { x: 0.2, y: 0.4 }, d2: { x: 0.9, y: 0.6 } },
+      } }} />)
+      distances().forEach((distance, index) => expect(distance).toBeCloseTo(initial[index], 1))
+      act(() => onResize?.([{ contentRect: { width: 1440, height: 800 } } as ResizeObserverEntry], {} as ResizeObserver))
+      distances().forEach((distance, index) => expect(distance).toBeCloseTo(initial[index], 1))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('identifies connections by visible device names, not internal IDs', () => {
     const { container } = render(<TopologyDiagram topology={topology} onEdgeSelect={vi.fn()} />)
     const edge = container.querySelector('[data-edge="e0"]')!.parentElement!
     expect(edge).toHaveAttribute('aria-label', 'web — sw1')
-    expect(edge.querySelector('title')).toHaveTextContent('web: eth0 — sw1: GigabitEthernet0/1')
+    expect(edge.querySelector('title')).not.toBeInTheDocument()
+    fireEvent.mouseEnter(edge)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('web: eth0 — sw1: GigabitEthernet0/1')
+    fireEvent.mouseLeave(edge)
+    const node = screen.getByTestId('node-d1')
+    fireEvent.mouseEnter(node.querySelector('[data-icon-hitbox]')!)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(node.querySelector('title')).not.toBeInTheDocument()
   })
 
   it('draws each pictogram directly on the board with a label below, without a white tile', () => {
@@ -299,10 +486,12 @@ describe('TopologyDiagram', () => {
     expect(onPositionChange).not.toHaveBeenCalled()
   })
 
-  it('offers configuration from the VPN connector context menu', () => {
+  it('opens the VPN connector configuration from its context menu', () => {
     const onNodeSettings = vi.fn()
-    render(<TopologyDiagram topology={topology} onNodeSettings={onNodeSettings} />)
+    const onNodeLinkStart = vi.fn()
+    render(<TopologyDiagram topology={topology} onNodeSettings={onNodeSettings} onNodeLinkStart={onNodeLinkStart} onNodeRemove={vi.fn()} />)
     fireEvent.contextMenu(screen.getByTestId('node-vpn'))
+    expect(screen.getAllByRole('menuitem')).toHaveLength(3)
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.configure' }))
     expect(onNodeSettings).toHaveBeenCalledWith('vpn')
   })
@@ -319,6 +508,21 @@ describe('TopologyDiagram', () => {
     fireEvent.contextMenu(screen.getByTestId('node-d1'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.addConnection' }))
     expect(onNodeLinkStart).toHaveBeenCalledWith('d1')
+  })
+
+  it('keeps the connection action card open when its empty area is clicked', () => {
+    render(<TopologyDiagram topology={topology} onNodeLinkStart={vi.fn()} />)
+    fireEvent.contextMenu(screen.getByTestId('node-d1'))
+    const menu = screen.getByRole('menu', { name: 'admin.exTopo.deviceSettings' })
+    fireEvent.click(menu)
+    expect(menu).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(menu).toBeInTheDocument()
+    fireEvent.click(document.body)
+    expect(screen.queryByRole('menu', { name: 'admin.exTopo.deviceSettings' })).not.toBeInTheDocument()
+    fireEvent.contextMenu(screen.getByTestId('node-d1'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu', { name: 'admin.exTopo.deviceSettings' })).not.toBeInTheDocument()
   })
 
   it('uses unique grid patterns across two simultaneous diagrams', () => {
@@ -339,5 +543,148 @@ describe('TopologyDiagram', () => {
     expect(container.querySelectorAll('text')).not.toHaveLength(0)
     expect(container.querySelector('[data-edge="e2"]')).toHaveClass('stroke-primary')
     expect(container.querySelector('[data-edge="e2"]')?.parentElement).toHaveTextContent('eth0')
+  })
+
+  it('offers keyboard-accessible zoom and fit controls without changing topology data', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const content = container.querySelector('[data-viewport-content]')!
+    expect(content).toHaveAttribute('transform', 'translate(0 0) scale(1)')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
+    expect(content).toHaveAttribute('transform', expect.stringContaining('scale(1.25)'))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomOut' }))
+    expect(content).toHaveAttribute('transform', 'translate(0 0) scale(1)')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.fitCanvas' }))
+    expect(content.getAttribute('transform')).not.toBe('translate(0 0) scale(1)')
+    expect(topology.VisualRender).toBeNull()
+  })
+
+  it('offers preset and entered zoom levels and a compact dotted grid', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const content = container.querySelector('[data-viewport-content]')!
+    const pattern = container.querySelector('pattern')!
+    expect(pattern).toHaveAttribute('width', '10')
+    expect(pattern).toHaveAttribute('height', '10')
+    expect(pattern.querySelector('circle')).toHaveAttribute('r', '0.9')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomLevel' }))
+    fireEvent.click(screen.getByRole('button', { name: '150%' }))
+    expect(content.getAttribute('transform')).toContain('scale(1.5)')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomLevel' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'admin.exTopo.zoomCustom' }), { target: { value: '88' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomApply' }))
+    expect(content.getAttribute('transform')).toContain('scale(0.88)')
+    expect(topology.VisualRender).toBeNull()
+  })
+
+  it('fits moved node labels and port captions with breathing room', () => {
+    const moved = { ...topology, VisualRender: { version: 1, positions: { d1: { x: 1.18, y: 0.5 } }, labelOffsets: { d1: { x: 0.32, y: 0 } } } }
+    const { container } = render(<TopologyDiagram topology={moved} />)
+    const content = container.querySelector('[data-viewport-content]')!
+    expect(Number(container.querySelector('[data-testid="node-d1"] [data-icon-hitbox]')!.getAttribute('x'))).toBeGreaterThan(960)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.fitCanvas' }))
+    const transform = content.getAttribute('transform')!
+    const match = /translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)/.exec(transform)!
+    const [, tx, , scale] = match.map(Number)
+    const label = container.querySelector('[data-testid="node-d1"] [data-node-label]')!
+    const rightEdge = Number(label.getAttribute('x')) * scale + tx + 35 * scale
+    expect(rightEdge).toBeLessThan(920)
+    expect(rightEdge).toBeGreaterThan(100)
+  })
+
+  it('does not trap a dragged node inside an invisible inset', () => {
+    const onPositionChange = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onPositionChange={onPositionChange} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    const node = screen.getByTestId('node-d1')
+    fireEvent(node, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 450, clientY: 300 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 1100, clientY: 300 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 1100, clientY: 300 }))
+    expect(onPositionChange.mock.calls[0][1].x).toBeGreaterThan(1)
+  })
+
+  it('pans on blank background without selecting or moving a device', () => {
+    const onNodeSelect = vi.fn()
+    const onPositionChange = vi.fn()
+    const onCanvasSelect = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onNodeSelect={onNodeSelect}
+      onPositionChange={onPositionChange} onCanvasSelect={onCanvasSelect} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    const background = container.querySelector('[data-canvas-background]')!
+    expect(svg).toHaveClass('cursor-grab')
+    fireEvent(background, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 200, clientY: 200 }))
+    expect(svg).toHaveClass('cursor-grabbing')
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 220 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 300, clientY: 220 }))
+    expect(svg).toHaveClass('cursor-grab')
+    fireEvent.click(background)
+    expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', 'translate(100 20) scale(1)')
+    expect(onNodeSelect).not.toHaveBeenCalled()
+    expect(onPositionChange).not.toHaveBeenCalled()
+    expect(onCanvasSelect).not.toHaveBeenCalled()
+    expect(topology.VisualRender).toBeNull()
+  })
+
+  it('uses Space-drag over a node for panning rather than moving or selecting that node', () => {
+    const onNodeSelect = vi.fn()
+    const onPositionChange = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onNodeSelect={onNodeSelect} onPositionChange={onPositionChange} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    fireEvent.pointerEnter(svg)
+    fireEvent.keyDown(document, { key: ' ', code: 'Space' })
+    const node = screen.getByTestId('node-d1')
+    fireEvent(node, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 450, clientY: 300 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 450, clientY: 300 }))
+    fireEvent.click(node)
+    fireEvent.keyUp(document, { key: ' ', code: 'Space' })
+    expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', 'translate(50 0) scale(1)')
+    expect(onNodeSelect).not.toHaveBeenCalled()
+    expect(onPositionChange).not.toHaveBeenCalled()
+  })
+
+  it('maps add-node coordinates through the zoomed viewport', () => {
+    const onCanvasAddNode = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onCanvasAddNode={onCanvasAddNode} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
+    fireEvent.contextMenu(svg, { clientX: 200, clientY: 200 })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.type.container' }))
+    expect(onCanvasAddNode).toHaveBeenCalledWith('container', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
+    expect(onCanvasAddNode.mock.calls[0][1].x).toBeCloseTo(256 / 960, 3)
+  })
+
+  it('zooms the wheel around the pointer and keeps the same world point beneath it', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    fireEvent.wheel(svg, { clientX: 200, clientY: 150, deltaY: -500 })
+    const transform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')!
+    const match = /translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)/.exec(transform)!
+    const [, tx, ty, scale] = match.map(Number)
+    expect(scale).toBeGreaterThan(1)
+    expect(scale).toBeLessThanOrEqual(2.5)
+    expect((200 - tx) / scale).toBeCloseTo(200, 3)
+    expect((150 - ty) / scale).toBeCloseTo(150, 3)
+  })
+
+  it('persists a node move in world coordinates after zooming', () => {
+    const onPositionChange = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onPositionChange={onPositionChange} />)
+    const svg = container.querySelector('svg[role="img"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
+    const node = screen.getByTestId('node-d1')
+    const hitbox = node.querySelector('[data-icon-hitbox]')!
+    const worldX = Number(hitbox.getAttribute('x')) + 28
+    const startClientX = worldX * 1.25 - 120
+    fireEvent(node, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: startClientX, clientY: 200 }))
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: startClientX + 125, clientY: 200 }))
+    expect(node).toHaveClass('cursor-grabbing')
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: startClientX + 125, clientY: 200 }))
+    expect(node).toHaveClass('cursor-grab')
+    expect(onPositionChange.mock.calls[0][1].x).toBeCloseTo((worldX + 100) / 960, 3)
   })
 })

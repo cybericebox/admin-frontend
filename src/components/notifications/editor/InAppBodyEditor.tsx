@@ -45,7 +45,7 @@ function variablePill(name: string): HTMLSpanElement {
   pill.dataset.var = name
   pill.contentEditable = "false"
   pill.className = "mx-0.5 rounded border border-amber-300 bg-amber-100 px-1 text-amber-950 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
-  pill.textContent = `{{.${name}}}`
+  pill.textContent = name
   return pill
 }
 
@@ -164,7 +164,7 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
           {variables.map((variable) => <button key={variable.name} type="button" onMouseDown={(event) => event.preventDefault()}
             onClick={() => { insertNode(variablePill(variable.name)); setMenuOpen(false) }}
             className="w-full rounded px-2 py-1.5 text-left hover:bg-accent">
-            <code className="block text-xs">{`{{.${variable.name}}}`}</code>
+            <span className="block text-xs font-medium">{variable.name}</span>
             <span className="block text-[11px] text-muted-foreground">{variable.description}</span>
             {variable.example && <span className="block text-[11px] text-muted-foreground">{t("admin.notif.editor.variableExample")}: {variable.example}</span>}
           </button>)}

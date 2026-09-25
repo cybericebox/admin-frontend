@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { toast } from "@/components/ui/toast"
 
 type UserDetail = {
   ID: string
@@ -56,7 +57,6 @@ function Detail() {
   const [loadError, setLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [actionError, setActionError] = useState(false)
 
   async function load() {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -83,25 +83,28 @@ function Detail() {
   }, [id, reloadKey])
 
   async function changeRole(role: string) {
-    setBusy(true); setActionError(false)
+    setBusy(true)
     try {
       await apiPatch(`/api/users/${id}/role`, { Role: role })
       await load()
-    } catch { setActionError(true) } finally { setBusy(false) }
+      toast.success("Роль користувача змінено.")
+    } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function setStatus(status: string) {
-    setBusy(true); setActionError(false)
+    setBusy(true)
     try {
       await apiPatch(`/api/users/${id}/status`, { Status: status })
       await load()
-    } catch { setActionError(true) } finally { setBusy(false) }
+      toast.success("Статус користувача змінено.")
+    } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function remove() {
-    setBusy(true); setActionError(false)
+    setBusy(true)
     try {
       await apiDelete(`/api/users/${id}`)
+      toast.success("Користувача видалено.")
       router.push("/users")
-    } catch { setActionError(true); setBusy(false) }
+    } catch { toast.error(t("admin.userDetail.actionError")); setBusy(false) }
   }
 
   if (loading && id) {
@@ -204,7 +207,6 @@ function Detail() {
                   <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
                   <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
                 </DialogHeader>
-                {actionError && <p role="alert" className="text-sm text-destructive">{t("admin.userDetail.actionError")}</p>}
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
@@ -215,7 +217,6 @@ function Detail() {
             </Dialog>
           )}
 
-          {actionError && <span className="text-sm text-destructive">{t("admin.userDetail.actionError")}</span>}
         </div>
       )}
     </div>

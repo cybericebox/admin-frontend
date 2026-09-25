@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react"
 import { t } from "@/i18n/t"
 import { NotificationIcon } from "@/components/notifications/NotificationIcon"
 import { ColorPicker } from "./ColorPicker"
+import { FieldHelp } from "@/components/ui/field-help"
 import { APPEARANCES, ICONS, toneColor } from "./inAppOptions"
 
 type Props = {
@@ -19,9 +20,9 @@ export function NotificationAppearancePicker({ icon, tone, accentColor, onChange
   const [detailsOpen, setDetailsOpen] = useState(Boolean(accentColor))
 
   return <section className="rounded-lg border border-border bg-card p-4" aria-label={t("admin.notif.inapp.appearance")}>
-    <div className="mb-3">
+    <div className="mb-3 flex items-center gap-1.5">
       <h2 className="text-sm font-semibold text-foreground">{t("admin.notif.inapp.appearance")}</h2>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("admin.notif.inapp.appearanceHelp")}</p>
+      <FieldHelp text={`${t("admin.notif.inapp.appearanceHelp")}\n${t("admin.notif.inapp.deliveryHint")}`} />
     </div>
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="radiogroup" aria-label={t("admin.notif.inapp.appearance")}>
       {APPEARANCES.map((option) => <button key={option.tone} type="button" role="radio" aria-checked={tone === option.tone} disabled={disabled}
@@ -47,9 +48,8 @@ export function NotificationAppearancePicker({ icon, tone, accentColor, onChange
         </div>
       </div>
       <div>
-        <p className="mb-2 text-xs text-muted-foreground">{t("admin.notif.inapp.accentHelp")}</p>
         <div className="flex items-center gap-3">
-          <ColorPicker label={t("admin.notif.inapp.accentColor")} value={accentColor || toneColor(tone)} onChange={(value) => onChange({ icon, tone, accentColor: value })} />
+          <ColorPicker label={t("admin.notif.inapp.accentColor")} help={t("admin.notif.inapp.accentHelp")} value={accentColor || toneColor(tone)} onChange={(value) => onChange({ icon, tone, accentColor: value })} />
           {accentColor && <button type="button" onClick={() => onChange({ icon, tone, accentColor: "" })} className="text-xs font-medium text-primary hover:underline">{t("admin.notif.inapp.accentClear")}</button>}
         </div>
       </div>

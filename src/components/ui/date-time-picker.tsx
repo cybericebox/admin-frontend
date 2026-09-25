@@ -49,7 +49,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
 
   return <div className="relative w-full">
     <button {...rest} ref={(node) => { triggerRef.current = node; if (typeof ref === "function") ref(node); else if (ref) ref.current = node }} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} data-invalid={invalid} aria-expanded={open} aria-controls={calendarId} disabled={disabled} onBlur={onBlur} onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); rest.onKeyDown?.(event) }} onClick={() => { if (!open) setMonth(chosen ? new Date(chosen.getFullYear(), chosen.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1)); setOpen(!open) }} className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
-      <span className={chosen ? "" : "text-muted-foreground"}>{chosen ? `${dateLabel(chosen)}, ${time}` : "Оберіть дату й час"}</span><CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className={chosen ? "" : "text-placeholder"}>{chosen ? `${dateLabel(chosen)}, ${time}` : "Оберіть дату й час"}</span><CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent id={calendarId} className="z-[60] w-[min(24rem,calc(100vw-2rem))] gap-0 p-4" onCloseAutoFocus={(event) => { event.preventDefault(); triggerRef.current?.focus() }}>

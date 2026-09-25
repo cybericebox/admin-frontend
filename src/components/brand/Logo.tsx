@@ -1,6 +1,8 @@
 import * as React from "react"
 import { mainOrigin } from "@/lib/origins"
 
+/* eslint-disable @next/next/no-img-element -- The bundled data-URI crest has fixed dimensions and needs no image optimization. */
+
 // The original CyberICEBox (ICE CTF) crest emblem — the brand logo used across
 // the apps (shipped as favicon). Embedded as a data-URI so the DS bundle is
 // fully portable. 375x368 source; render at any size.

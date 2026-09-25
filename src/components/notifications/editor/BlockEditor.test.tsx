@@ -373,14 +373,14 @@ describe('BlockEditor', () => {
       />
     )
     // Before selection — no save button
-    expect(screen.queryByRole('button', { name: 'Зберегти як пресет' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Зберегти як спільний блок' })).not.toBeInTheDocument()
 
     // Select first block
     const checkboxes = screen.getAllByRole('checkbox')
     fireEvent.click(checkboxes[0])
 
     // Now save button should appear
-    expect(screen.getByRole('button', { name: 'Зберегти як пресет' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти як спільний блок' })).toBeInTheDocument()
   })
 
   it('save-as-preset flow calls onSavePreset with selected blocks and the entered name', async () => {
@@ -397,10 +397,10 @@ describe('BlockEditor', () => {
     fireEvent.click(checkboxes[0])
 
     // Open save-preset form
-    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як спільний блок' }))
 
     // Enter preset name
-    const nameInput = screen.getByPlaceholderText('Назва пресету…')
+    const nameInput = screen.getByPlaceholderText('Назва спільного блоку…')
     fireEvent.change(nameInput, { target: { value: 'Header Block' } })
 
     // Submit
@@ -429,9 +429,9 @@ describe('BlockEditor', () => {
     fireEvent.click(checkboxes[0])
     fireEvent.click(checkboxes[2])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як спільний блок' }))
 
-    const nameInput = screen.getByPlaceholderText('Назва пресету…')
+    const nameInput = screen.getByPlaceholderText('Назва спільного блоку…')
     fireEvent.change(nameInput, { target: { value: 'Multi' } })
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
 
@@ -456,15 +456,15 @@ describe('BlockEditor', () => {
     )
     const checkboxes = screen.getAllByRole('checkbox')
     fireEvent.click(checkboxes[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як пресет' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Зберегти як спільний блок' }))
 
     // Form visible
-    expect(screen.getByPlaceholderText('Назва пресету…')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Назва спільного блоку…')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Скасувати' }))
 
     // Form hidden
-    expect(screen.queryByPlaceholderText('Назва пресету…')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Назва спільного блоку…')).not.toBeInTheDocument()
   })
 
   // ── Variables prop ────────────────────────────────────────────────────────

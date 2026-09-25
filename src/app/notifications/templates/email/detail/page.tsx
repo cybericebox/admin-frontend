@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
+import { TemplateVersions } from "@/components/notifications/editor/TemplateVersions"
 import {
   getEmailTemplate,
   listEmailTemplates,
@@ -54,6 +55,9 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
+import { sameTemplateValue } from "@/lib/templateEditorState"
+import { FieldHelp } from "@/components/ui/field-help"
+import { toast } from "@/components/ui/toast"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
 
@@ -66,7 +70,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [saveError, setSaveError] = useState(false)
+  const [versionRevision, setVersionRevision] = useState(0)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText, BlockEditor)
@@ -167,8 +171,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function handleSave() {
+    if (busy || !isDirty || !notificationType) return
     setBusy(true)
-    setSaveError(false)
     try {
       if (!template?.ID) {
         // Create new
@@ -180,7 +184,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           Styling: styling,
         })
         setTemplate(created)
+        setVersionRevision((value) => value + 1)
         router.replace(`/notifications/templates/email/detail?id=${created.ID}`)
+        toast.success("Шаблон створено.")
       } else {
         // Update existing draft
         const updated = await updateEmailTemplate(template.ID, {
@@ -190,35 +196,38 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           Styling: styling,
         })
         setTemplate(updated)
+        setVersionRevision((value) => value + 1)
+        toast.success("Шаблон збережено.")
       }
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
   }
 
   async function handlePublish() {
-    if (!template) return
+    if (!template || template.Status !== "draft" || isDirty || busy) return
     setBusy(true)
-    setSaveError(false)
     try {
       const updated = await publishEmailTemplate(template.ID)
       setTemplate(updated)
+      setVersionRevision((value) => value + 1)
+      toast.success("Шаблон опубліковано.")
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
   }
 
-  async function handleRollback() {
-    if (!template) return
+  async function handleRollback(sourceId: string): Promise<boolean> {
+    if (!template) return false
     setBusy(true)
-    setSaveError(false)
     try {
-      const updated = await rollbackEmailTemplate(template.ID)
+      const updated = await rollbackEmailTemplate(sourceId)
       setTemplate(updated)
+      setVersionRevision((value) => value + 1)
       // Re-sync form state from the rolled-back template
       setSubject(updated.Subject)
       setPreheader(updated.Preheader)
@@ -226,8 +235,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setStyling(updated.Styling)
       setLoadNonce((n) => n + 1)
       router.replace(`/notifications/templates/email/detail?id=${updated.ID}`)
+      toast.success("Версію шаблону відновлено.")
+      return true
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
+      return false
     } finally {
       setBusy(false)
     }
@@ -240,7 +252,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   async function handleEdit() {
     if (!template) return
     setBusy(true)
-    setSaveError(false)
     try {
       const existing = await listEmailTemplates({ type: template.NotificationType, status: "draft" })
       const draft = existing.Templates[0] ?? await createEmailTemplate({
@@ -251,8 +262,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         Styling: styling,
       })
       router.replace(`/notifications/templates/email/detail?id=${draft.ID}`)
+      toast.success("Чернетку відкрито для редагування.")
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusy(false)
     }
@@ -262,6 +274,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     await createBlockPreset({ Name: name, Description: "", Blocks: blocks })
     const fresh = await listBlockPresets()
     setPresets(fresh)
+    toast.success("Спільний блок збережено.")
   }
 
   async function handleCreateFooter(name: string, blocks: EmailBodyBlock[]) {
@@ -292,9 +305,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     )
   }
 
-  const isNew      = !id || !template
+  const isNew      = !template?.ID
   const isReadOnly = !canWrite || template?.Status === "published" || template?.Status === "unpublished"
   const isDraft    = template?.Status === "draft"
+  const isDirty = template
+    ? subject !== template.Subject || preheader !== template.Preheader
+      || !sameTemplateValue(body, template.Body) || !sameTemplateValue(styling, template.Styling)
+    : Boolean(notificationType)
 
   // ── Main layout ───────────────────────────────────────────────────────────
 
@@ -325,14 +342,14 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.test.button")}
             </Button>
           )}
-          {/* Save: shown when not published/unpublished */}
+          {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button onClick={() => void handleSave()} disabled={busy || !notificationType}>
+            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} disabled={busy || !isDirty || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
-          {/* Publish: shown for draft */}
-          {isDraft && canWrite && (
+          {/* Only a saved draft can be published. */}
+          {isDraft && !isDirty && canWrite && (
             <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
@@ -343,22 +360,16 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
-          {/* Rollback: shown for published or unpublished */}
-          {canWrite && template?.Status === "unpublished" && (
-            <Button variant="outline" onClick={() => void handleRollback()} disabled={busy}>
-              {t("admin.notif.tpl.rollback")}
-            </Button>
-          )}
-          {saveError && (
-            <span className="text-sm text-destructive">{t("admin.notif.tpl.saveError")}</span>
-          )}
         </div>
       </div>
+
+      {template && <TemplateVersions channel="email" notificationType={template.NotificationType} currentId={template.ID}
+        canWrite={canWrite} dirty={isDirty} busy={busy} refreshKey={versionRevision} onRestore={handleRollback} />}
 
       {/* ── Type selector (new template only) ── */}
       {isNew && (
         <div className="mb-4">
-          <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+          <label className="mb-1 block text-sm font-medium text-foreground">
             {t("admin.notif.tpl.type")}
           </label>
           <SelectMenu
@@ -381,7 +392,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
           {/* Subject */}
           <div>
-            <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               {t("admin.notif.tpl.subject")}
             </label>
             <div
@@ -402,7 +413,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
           {/* Preheader */}
           <div>
-            <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               {t("admin.notif.tpl.preheader")}
             </label>
             <div
@@ -423,7 +434,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
           {/* Body */}
           <div>
-            <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               {t("admin.notif.tpl.body")}
             </label>
             {isReadOnly ? (
@@ -450,8 +461,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
           {/* Styling */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              {t("admin.notif.tpl.styling")}
+            <div className="mb-3 flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-foreground">{t("admin.notif.tpl.styling")}</span>
+              <FieldHelp text={t("admin.notif.editor.advancedStylingHelp")} />
             </div>
             <div
               data-testid="styling-wrapper"
@@ -514,7 +526,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </label>
               <details className="col-span-2 rounded-md border border-border p-3">
                 <summary className="cursor-pointer text-sm font-medium text-foreground">{t("admin.notif.editor.advancedStyling")}</summary>
-                <p className="mt-2 text-xs text-muted-foreground">{t("admin.notif.editor.advancedStylingHelp")}</p>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     {t("admin.notif.editor.fontFamily")}
@@ -552,7 +563,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
         {/* ── Right column: live email preview ── */}
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <div className="mb-2 text-sm font-semibold text-foreground">
             {t("admin.notif.editor.previewTitle")}
           </div>
           <div className="sticky top-4">

@@ -122,7 +122,7 @@ export default function EmailTagInput({ chips, onChange, disabled }: EmailTagInp
             addEmails(e.clipboardData.getData("text"))
           }}
           placeholder={chips.length === 0 ? t("admin.users.invite.emailPlaceholder") : ""}
-          className="min-w-[12rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-[12rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-foreground outline-none placeholder:text-placeholder"
         />
       </div>
       {hint && <p className="mt-1 text-xs text-destructive">{t("admin.users.invite.invalidEmail")}</p>}

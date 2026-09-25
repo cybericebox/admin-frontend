@@ -20,6 +20,7 @@ import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
 import {
@@ -169,6 +170,8 @@ export function BlockEditor({
       setShowSaveForm(false);
       setPresetName("");
       setSelectedIdxs(new Set());
+    } catch {
+      toast.error(t("admin.notif.tpl.saveError"));
     } finally {
       setSavingPreset(false);
     }

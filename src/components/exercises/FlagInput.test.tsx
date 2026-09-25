@@ -287,8 +287,28 @@ describe('FlagInput', () => {
     rerender(<FlagInput value={[String.raw`template:ICE{\d[abc1-3]\l\u}`]} onChange={onChange} linkedDeviceID="vm-1" />)
     expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /admin.exTask.flag.templateRules/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /admin.exTask.flag.allowedCharacters/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /admin.exTask.flag.escapeRules/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /admin.exTask.flag.templateCodes/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /admin.exTask.flag.weightHelp/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /\\d/ })).toBeInTheDocument()
+  })
+
+  it('groups the flag help into scannable rules and keeps syntax examples distinct', () => {
+    render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" />)
+    fireEvent.mouseEnter(screen.getByRole('button', { name: /admin.exTask.flag.help/ }))
+
+    const tooltip = screen.getByRole('tooltip')
+    expect(within(tooltip).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      'admin.exTask.flag.sectionFormat',
+      'admin.exTask.flag.modeFixed',
+      'admin.exTask.flag.modeTemplate',
+      'admin.exTask.flag.sectionSelection',
+    ])
+    expect(within(tooltip).getByText(String.raw`\d`).tagName).toBe('CODE')
+    expect(within(tooltip).getByText(String.raw`[\d^13]`).tagName).toBe('CODE')
+    expect(within(tooltip).getByText('admin.exTask.flag.weightHelp')).toBeInTheDocument()
+    const selection = within(tooltip).getByRole('heading', { name: 'admin.exTask.flag.sectionSelection' }).closest('section')!
+    expect(within(selection).getByText('admin.exTask.flag.selectionExample')).toBeInTheDocument()
   })
 })

@@ -8,6 +8,7 @@ import { listExercisesPage, type ExerciseListItem } from "@/api/exercises/catalo
 import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -48,7 +49,6 @@ export default function Page() {
   const [reloadKey, setReloadKey] = useState(0)
   const [localDraft, setLocalDraft] = useState<LocalExerciseDraft | null>(null)
   const [draftDialog, setDraftDialog] = useState<"create" | "delete" | null>(null)
-  const [draftActionError, setDraftActionError] = useState(false)
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
   const { can, me } = useRole()
@@ -79,7 +79,6 @@ export default function Page() {
         const stored = parseLocalDraft(window.localStorage.getItem(storageKey))
         if (stored) {
           setLocalDraft(stored)
-          setDraftActionError(false)
           setDraftDialog("create")
           return
         }
@@ -93,11 +92,11 @@ export default function Page() {
     try {
       window.localStorage.removeItem(storageKey)
       setLocalDraft(null)
-      setDraftActionError(false)
+      toast.success("Локальну чернетку видалено.")
       setDraftDialog(null)
       return true
     } catch {
-      setDraftActionError(true)
+      toast.error(t("admin.ex.localDraft.deleteError"))
       return false
     }
   }
@@ -179,7 +178,7 @@ export default function Page() {
                 </td>
                 <td className="px-3 py-2"><span className="flex flex-wrap gap-1">{localDraft.identity.Tags.map((tag) => <span key={tag} className="rounded-full bg-secondary/40 px-2 py-0.5 text-xs">{tag}</span>)}</span></td>
                 <td className="px-3 py-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">{t("admin.ex.localDraft.badge")}</span></td>
-                <td className="px-3 py-2"><div className="flex items-center justify-between gap-2"><time className="whitespace-nowrap text-muted-foreground" dateTime={new Date(localDraft.updatedAt).toISOString()}>{new Date(localDraft.updatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><Button type="button" variant="ghost" size="icon" aria-label={t("admin.ex.localDraft.delete")} className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => { setDraftActionError(false); setDraftDialog("delete") }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button></div></td>
+                <td className="px-3 py-2"><div className="flex items-center justify-between gap-2"><time className="whitespace-nowrap text-muted-foreground" dateTime={new Date(localDraft.updatedAt).toISOString()}>{new Date(localDraft.updatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><Button type="button" variant="ghost" size="icon" aria-label={t("admin.ex.localDraft.delete")} className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDraftDialog("delete")}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button></div></td>
               </tr>}
               {rows.filter((item) => item.ID !== localDraft?.createdId).map((item) => (
                 <tr key={item.ID} className="border-b border-border/50 transition-colors hover:bg-accent/10">
@@ -218,7 +217,6 @@ export default function Page() {
             <DialogTitle>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteTitle" : "admin.ex.localDraft.confirmTitle")}</DialogTitle>
             <DialogDescription>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteDescription" : "admin.ex.localDraft.confirmDescription")}</DialogDescription>
           </DialogHeader>
-          {draftActionError && <p role="alert" className="text-sm text-destructive">{t("admin.ex.localDraft.deleteError")}</p>}
           <DialogFooter className="flex-wrap gap-2 sm:space-x-0">
             <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDraftDialog(null)}>{t("admin.ex.create.cancel")}</Button>
             {draftDialog === "create" && <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => { setDraftDialog(null); router.push("/exercises/new") }}>{t("admin.ex.localDraft.continue")}</Button>}

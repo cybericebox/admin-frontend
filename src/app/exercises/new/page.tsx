@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Form } from "@/components/ui/form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { t } from "@/i18n/t"
+import { toast } from "@/components/ui/toast"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import {
   draftSchema, emptyDraft, identitySchema, toDraftFormValues, toSaveDraftInput,
@@ -276,6 +277,7 @@ export default function NewExercisePage() {
 
   useEffect(() => {
     if (!storageReady) return
+    // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
     const identityWatch = watchIdentity(() => markUnsavedRef.current())
     const draftWatch = watchDraft(() => markUnsavedRef.current())
     return () => { identityWatch.unsubscribe(); draftWatch.unsubscribe() }
@@ -368,11 +370,12 @@ export default function NewExercisePage() {
         try { window.localStorage.removeItem(storageKey) } catch { /* Server save succeeded. */ }
       }
       leave.allowNavigation()
+      toast.success("Завдання створено.")
       router.push(`/exercises/detail?id=${encodeURIComponent(createdId.current)}`)
     } catch (cause) {
       flushRef.current()
       setHasPartialSave(Boolean(createdId.current))
-      setError(exerciseErrorMessage(cause))
+      toast.error(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
     }

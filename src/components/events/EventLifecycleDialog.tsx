@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "@/components/ui/toast"
 
 export type EventLifecycle = {
   Status: "not_published" | "published" | "started" | "finished" | "withdrawn" | "unknown"
@@ -45,9 +46,12 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
   const [scheduled, setScheduled] = useState(lifecycle.FinishAt !== null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const isDirty = joinPolicy !== lifecycle.JoinPolicy || publishAt !== isoToLocal(lifecycle.PublishAt) || startAt !== isoToLocal(lifecycle.StartAt) ||
+    scheduled !== (lifecycle.FinishAt !== null) || finishAt !== isoToLocal(lifecycle.FinishAt ?? "") || withdrawAt !== isoToLocal(lifecycle.WithdrawAt ?? "")
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy || !isDirty) return
     setError("")
     const publish = new Date(publishAt).getTime()
     const start = new Date(startAt).getTime()
@@ -68,9 +72,10 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
         WithdrawAt: scheduled ? localToIso(withdrawAt) : null,
       })
       onSaved(next)
+      toast.success("Розклад заходу збережено.")
       onClose()
     } catch (failure) {
-      setError(eventErrorMessage(failure))
+      toast.error(eventErrorMessage(failure))
     } finally {
       setBusy(false)
     }
@@ -92,7 +97,7 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
         </div>}
         {!lifecycle.Infrastructure.CanStart && lifecycle.Infrastructure.HasDynamicLabs && <p className="text-sm text-muted-foreground">Поточна лабораторна інфраструктура не дозволяє запустити захід зараз. Майбутній розклад можна зберегти.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Скасувати</Button><Button type="submit" disabled={busy}>Зберегти розклад</Button></DialogFooter>
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Скасувати</Button><Button type="submit" disabled={busy || !isDirty}>Зберегти розклад</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>

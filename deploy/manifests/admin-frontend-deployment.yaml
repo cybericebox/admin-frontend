@@ -17,7 +17,7 @@ spec:
       app: admin-frontend
   template:
     metadata:
-      name: event-frontend
+      name: admin-frontend
       namespace: cybericebox
       labels:
         app: admin-frontend
@@ -29,26 +29,26 @@ spec:
             - name: NEXT_PUBLIC_DOMAIN
               valueFrom:
                 configMapKeyRef:
-                  name: config
+                  name: admin-frontend-config
                   key: DOMAIN
           ports:
             - containerPort: 3000
               protocol: TCP
           resources:
             requests:
-              memory: "64Mi"
-              cpu: "100m"
+              memory: "32Mi"
+              cpu: "25m"
             limits:
               memory: "128Mi"
               cpu: "200m"
           readinessProbe:
             httpGet:
               port: 3000
-              path: /api/health
+              path: /healthz
             initialDelaySeconds: 20
           livenessProbe:
             httpGet:
               port: 3000
-              path: /api/health
+              path: /healthz
             initialDelaySeconds: 20
             periodSeconds: 30

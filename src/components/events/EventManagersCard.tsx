@@ -6,6 +6,7 @@ import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
 import type { CursorPage } from "@/api/pagination"
 import type { EventManager } from "@/api/events/catalog"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -86,6 +87,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     try {
       const result = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(userID)}`, { Role: role })
       onChanged(result)
+      toast.success("Роль модератора збережено.")
       if (selected?.ID === userID) {
         setUsers((previous) => ({ ...previous, [selected.ID]: selected }))
         setSelected(null)
@@ -94,7 +96,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         setAdding(false)
       }
     } catch {
-      setError("Не вдалося зберегти роль. Спробуйте ще раз.")
+      toast.error("Не вдалося зберегти роль. Спробуйте ще раз.")
     } finally {
       setBusyID("")
     }
@@ -118,12 +120,13 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       const manager = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(user.ID)}`, { Role: Number(newRole) })
       setUsers((previous) => ({ ...previous, [user.ID]: user }))
       onChanged(manager)
+      toast.success("Користувача запрошено й додано до заходу.")
       setSearch("")
       setSearchedQuery("")
       setMatches([])
       setAdding(false)
     } catch {
-      setError(invited ? "Запрошення надіслано, але доступ до заходу не призначено. Знайдіть користувача й додайте його повторно." : "Не вдалося запросити користувача. Перевірте адресу або права доступу.")
+      toast.error(invited ? "Запрошення надіслано, але доступ до заходу не призначено. Знайдіть користувача й додайте його повторно." : "Не вдалося запросити користувача. Перевірте адресу або права доступу.")
     } finally {
       setBusyID("")
     }
@@ -136,9 +139,10 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     try {
       await apiDelete(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(removing.UserID)}`)
       onRemoved?.(removing.UserID)
+      toast.success("Доступ до заходу вилучено.")
       setRemoving(null)
     } catch {
-      setError("Не вдалося вилучити користувача з керування заходом.")
+      toast.error("Не вдалося вилучити користувача з керування заходом.")
     } finally {
       setBusyID("")
     }

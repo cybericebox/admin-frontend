@@ -1,10 +1,18 @@
 "use client"
 
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react"
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react"
+import { createPortal } from "react-dom"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+import { ChevronDown, Maximize, Pencil, ZoomIn, ZoomOut } from "lucide-react"
 import { t } from "@/i18n/t"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import type { TopologyFormValues } from "@/lib/exerciseSchemas"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
+import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
+import { fitViewport, initialTopologyViewport, pointInWorld, TOPOLOGY_VIEWPORT_DEFAULT, zoomViewportAt, type TopologyViewport } from "@/lib/topologyViewport"
 import { TopologyGlyph, type TopologyGlyphKind } from "./TopologyGlyph"
 
 /**
@@ -20,6 +28,7 @@ type NodeKind = "device" | "forwarding" | "vpn" | "internet"
 type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey }
 type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string }
 type Point = { x: number; y: number }
+type DiagramHint = { text: string; left: number; top: number; below: boolean }
 type AddNodeKind = "container" | "unmanaged-switch" | "hub" | "vpn" | "internet"
 type Context = { kind: "node"; key: string; x: number; y: number }
   | { kind: "canvas"; x: number; y: number; position: Point }
@@ -39,6 +48,8 @@ const GLYPH_BOUNDS: Record<TopologyGlyphKind, { halfX: number; halfY: number; ra
   internet: { halfX: 9.75 * GLYPH_UNIT, halfY: 9.75 * GLYPH_UNIT, radius: 9.75 * GLYPH_UNIT },
 }
 const LABEL_GAP = 17
+const PORT_LABEL_DISTANCE = 32
+const PORT_LABEL_SIDE_GAP = -9
 const MIN_X = 70
 const MIN_Y = 48
 
@@ -52,12 +63,26 @@ function storedPosition(visual: Record<string, unknown> | null, key: string, wid
   const candidate = (positions as Record<string, unknown>)[key]
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null
   const { x, y } = candidate as Record<string, unknown>
-  return typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1 && typeof y === "number" && Number.isFinite(y) && y >= 0 && y <= 1
-    ? clampPoint({ x: x * width, y: y * height }, width, height) : null
+  return typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y)
+    ? { x: x * width, y: y * height } : null
 }
 
 function storedLabelOffset(visual: Record<string, unknown> | null, key: string): Point {
   const offsets = visual?.labelOffsets
+  if (!offsets || typeof offsets !== "object" || Array.isArray(offsets)) return { x: 0, y: 0 }
+  const candidate = (offsets as Record<string, unknown>)[key]
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return { x: 0, y: 0 }
+  const { x, y } = candidate as Record<string, unknown>
+  return typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y)
+    ? { x, y } : { x: 0, y: 0 }
+}
+
+function portLabelKey(nodeKey: string, port: string): string {
+  return JSON.stringify([nodeKey, port])
+}
+
+function storedPortLabelOffset(visual: Record<string, unknown> | null, key: string): Point {
+  const offsets = visual?.portLabelOffsets
   if (!offsets || typeof offsets !== "object" || Array.isArray(offsets)) return { x: 0, y: 0 }
   const candidate = (offsets as Record<string, unknown>)[key]
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return { x: 0, y: 0 }
@@ -117,12 +142,31 @@ function edgePort(from: Point, to: Point, glyph: TopologyGlyphKind): Point {
   return { x: Number((from.x + dx * scale).toFixed(2)), y: Number((from.y + dy * scale).toFixed(2)) }
 }
 
+function portLabelAxis(own: Point, other: Point): Point {
+  const dx = other.x - own.x
+  const dy = other.y - own.y
+  const length = Math.hypot(dx, dy)
+  return length ? { x: dx / length, y: dy / length } : { x: 1, y: 0 }
+}
+
+function portLabelPosition(own: Point, other: Point, offset: Point): Point {
+  const axis = portLabelAxis(own, other)
+  const normal = { x: -axis.y, y: axis.x }
+  const along = PORT_LABEL_DISTANCE + offset.x
+  const aside = PORT_LABEL_SIDE_GAP + offset.y
+  return { x: own.x + axis.x * along + normal.x * aside,
+    y: own.y + axis.y * along + normal.y * aside }
+}
+
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onLabelOffsetChange, selectedNodes = [], selectedConnectionIndex = null,
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
   unavailableConnectionNodes = [], connectionMode = false }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
   onLabelOffsetChange?: (key: string, offset: Point) => void
+  onPortLabelOffsetChange?: (key: string, offset: Point) => void
+  onNodeRename?: (key: string, name: string) => string | null
+  onNodeRenameStart?: () => void
   onNodeSelect?: (key: string) => void
   onNodeSettings?: (key: string) => void
   onNodeLinkStart?: (key: string) => void
@@ -139,14 +183,55 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   const [drag, setDrag] = useState<
     | { kind: "node"; key: string; point: Point; start: Point; moved: boolean }
     | { kind: "label"; key: string; offset: Point; initial: Point; start: Point; moved: boolean }
+    | { kind: "port-label"; key: string; offset: Point; initial: Point; start: Point; axis: Point; moved: boolean }
     | null
   >(null)
+  const [editingLabel, setEditingLabel] = useState<{ key: string; draft: string; error: string } | null>(null)
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const [context, setContext] = useState<Context | null>(null)
+  const [hint, setHint] = useState<DiagramHint | null>(null)
   const [size, setSize] = useState(DEFAULT_SIZE)
+  const [measured, setMeasured] = useState(false)
+  const [viewport, setViewport] = useState<TopologyViewport>(TOPOLOGY_VIEWPORT_DEFAULT)
+  const viewportTouched = useRef(false)
+  const [zoomMenuOpen, setZoomMenuOpen] = useState(false)
+  const [zoomDraft, setZoomDraft] = useState("100")
+  const [pan, setPan] = useState<{ start: Point; initial: TopologyViewport; moved: boolean; captured: boolean } | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const spaceHeld = useRef(false)
+  const pointerInside = useRef(false)
   const W = Math.max(size.width, 680)
   const ignoreClick = useRef(false)
   const clipPrefix = useId().replaceAll(":", "")
+  const editingLabelKey = editingLabel?.key
+  useEffect(() => {
+    if (!editingLabelKey) return
+    renameInputRef.current?.focus()
+    renameInputRef.current?.select()
+  }, [editingLabelKey])
+
+  function beginNodeRename(node: DiagramNode) {
+    if (!onNodeRename) return
+    onNodeRenameStart?.()
+    setHint(null)
+    setEditingLabel({ key: node.key, draft: node.label, error: "" })
+  }
+
+  function commitNodeRename() {
+    if (!editingLabel || !onNodeRename) return
+    const error = onNodeRename(editingLabel.key, editingLabel.draft)
+    if (error) setEditingLabel({ ...editingLabel, error })
+    else setEditingLabel(null)
+  }
+  useLayoutEffect(() => {
+    const rect = viewportRef.current?.getBoundingClientRect()
+    if (rect && rect.width > 0 && rect.height > 0) {
+      setSize({ width: Math.round(rect.width), height: Math.round(rect.height) })
+      setMeasured(true)
+    }
+  }, [])
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport || typeof ResizeObserver === "undefined") return
@@ -154,17 +239,46 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       if (!entry) return
       const width = Math.round(entry.contentRect.width)
       const height = Math.round(entry.contentRect.height)
-      if (width > 0 && height > 0) setSize((previous) => previous.width === width && previous.height === height ? previous : { width, height })
+      if (width > 0 && height > 0) {
+        setSize((previous) => previous.width === width && previous.height === height ? previous : { width, height })
+        setMeasured(true)
+      }
     })
     observer.observe(viewport)
     return () => observer.disconnect()
   }, [])
   useEffect(() => {
+    const onDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" && event.key !== " ") return
+      const target = event.target as HTMLElement | null
+      if (target?.isContentEditable || target?.matches?.("input, textarea, select, button")) return
+      spaceHeld.current = true
+      if (pointerInside.current) event.preventDefault()
+    }
+    const onUp = (event: KeyboardEvent) => {
+      if (event.code === "Space" || event.key === " ") spaceHeld.current = false
+    }
+    const onBlur = () => { spaceHeld.current = false }
+    document.addEventListener("keydown", onDown)
+    document.addEventListener("keyup", onUp)
+    window.addEventListener("blur", onBlur)
+    return () => {
+      document.removeEventListener("keydown", onDown)
+      document.removeEventListener("keyup", onUp)
+      window.removeEventListener("blur", onBlur)
+    }
+  }, [])
+  useEffect(() => {
     if (!context) return
-    const close = () => setContext(null)
-    document.addEventListener("click", close)
-    document.addEventListener("keydown", close)
-    return () => { document.removeEventListener("click", close); document.removeEventListener("keydown", close) }
+    const closeOutside = (event: MouseEvent) => {
+      if (!contextMenuRef.current?.contains(event.target as Node)) setContext(null)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setContext(null)
+    }
+    document.addEventListener("click", closeOutside)
+    document.addEventListener("keydown", closeOnEscape)
+    return () => { document.removeEventListener("click", closeOutside); document.removeEventListener("keydown", closeOnEscape) }
   }, [context])
   const { nodes, edges } = useMemo(() => {
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
@@ -173,8 +287,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
     }))
-    if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: t("admin.exTopo.vpn"), kind: "vpn" })
-    if (topology.Internet.Enabled) nodes.push({ key: "internet", label: t("admin.exTopo.internet"), kind: "internet" })
+    if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: gatewayLabelFor(topology.VisualRender, "vpn", t("admin.exTopo.vpn")), kind: "vpn" })
+    if (topology.Internet.Enabled) nodes.push({ key: "internet", label: gatewayLabelFor(topology.VisualRender, "internet", t("admin.exTopo.internet")), kind: "internet" })
 
     const known = new Set(nodes.map((n) => n.key))
     const edges: DiagramEdge[] = []
@@ -191,16 +305,88 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
 
   const H = Math.max(size.height, minimumCanvasHeight(nodes, W))
   const pos = useMemo(() => layout(nodes, topology.VisualRender, W, H), [nodes, topology.VisualRender, W, H])
-  const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
+  const nodeByKey = useMemo(() => new Map(nodes.map((node) => [node.key, node])), [nodes])
   if (drag?.kind === "node") pos.set(drag.key, drag.point)
 
+  const fitContentPoints = useCallback((): Point[] => {
+    const bounds: Point[] = []
+    const addBox = (x: number, y: number, halfWidth: number, halfHeight: number) => {
+      bounds.push({ x: x - halfWidth, y: y - halfHeight }, { x: x + halfWidth, y: y + halfHeight })
+    }
+    for (const node of nodes) {
+      const point = pos.get(node.key)!
+      const glyph = GLYPH_BOUNDS[glyphForNode(node)]
+      addBox(point.x, point.y, glyph.halfX + 4, glyph.halfY + 4)
+      const offset = storedLabelOffset(topology.VisualRender, node.key)
+      const labelX = point.x + offset.x
+      const labelY = point.y + ICON_SIZE / 2 + LABEL_GAP + offset.y
+      addBox(labelX, labelY - 5, Math.max(16, Math.min(node.label.length, 20) * 3.8 + 3), 11)
+    }
+    for (const edge of edges) {
+      const a = pos.get(edge.a)!
+      const b = pos.get(edge.b)!
+      const start = edgePort(a, b, glyphForNode(nodeByKey.get(edge.a)))
+      const end = edgePort(b, a, glyphForNode(nodeByKey.get(edge.b)))
+      for (const [port, nodeKey, own, other] of [[edge.labelA, edge.a, start, end], [edge.labelB, edge.b, end, start]] as const) {
+        if (!port) continue
+        const key = portLabelKey(nodeKey, port)
+        const offset = storedPortLabelOffset(topology.VisualRender, key)
+        const text = shortForwardingPort(port)
+        const label = portLabelPosition(own, other, offset)
+        addBox(label.x, label.y, Math.max(12, text.length * 3.2 + 3), 10)
+      }
+    }
+    return bounds
+  }, [nodes, pos, edges, nodeByKey, topology.VisualRender])
+
+  useLayoutEffect(() => {
+    if (!measured || viewportTouched.current) return
+    setViewport(initialTopologyViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height)))
+  }, [measured, size.width, size.height, W, H, fitContentPoints])
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      viewportTouched.current = true
+      const rect = svg.getBoundingClientRect()
+      const anchor = { x: ((event.clientX - rect.left) / (rect.width || W)) * W,
+        y: ((event.clientY - rect.top) / (rect.height || H)) * H }
+      setViewport((current) => zoomViewportAt(current, current.scale * Math.exp(-event.deltaY * 0.0015), anchor))
+    }
+    svg.addEventListener("wheel", onWheel, { passive: false })
+    return () => svg.removeEventListener("wheel", onWheel)
+  }, [W, H])
+
+  function canvasPoint(clientX: number, clientY: number, svg: SVGSVGElement): Point {
+    const rect = svg.getBoundingClientRect()
+    return { x: ((clientX - rect.left) / (rect.width || W)) * W,
+      y: ((clientY - rect.top) / (rect.height || H)) * H }
+  }
+
   function pointerPoint(event: PointerEvent<SVGSVGElement>): Point {
-    const rect = event.currentTarget.getBoundingClientRect()
     if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return drag?.kind === "node" ? drag.point : { x: W / 2, y: H / 2 }
-    return clampPoint({
-      x: ((event.clientX - rect.left) / (rect.width || W)) * W,
-      y: ((event.clientY - rect.top) / (rect.height || H)) * H,
-    }, W, H)
+    return pointInWorld(canvasPoint(event.clientX, event.clientY, event.currentTarget), viewport)
+  }
+
+  function beginPan(event: PointerEvent<SVGSVGElement>) {
+    if (event.button !== 0) return
+    setHint(null)
+    setPan({ start: { x: event.clientX, y: event.clientY }, initial: viewport, moved: false, captured: false })
+  }
+
+  function setZoomPercent(percent: number) {
+    if (!Number.isFinite(percent) || percent <= 0) return
+    viewportTouched.current = true
+    const anchor = { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 }
+    setViewport((current) => zoomViewportAt(current, percent / 100, anchor))
+    setZoomMenuOpen(false)
+  }
+
+  function suppressDragClick() {
+    ignoreClick.current = true
+    setTimeout(() => { ignoreClick.current = false }, 0)
   }
 
   function commitPosition(key: string, point: Point) {
@@ -211,54 +397,101 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     onLabelOffsetChange?.(key, { x: Number(offset.x.toFixed(4)), y: Number(offset.y.toFixed(4)) })
   }
 
+  function commitPortLabelOffset(key: string, offset: Point) {
+    onPortLabelOffsetChange?.(key, { x: Number(offset.x.toFixed(4)), y: Number(offset.y.toFixed(4)) })
+  }
+
+  function showHint(element: Element, text: string) {
+    const rect = element.getBoundingClientRect()
+    const below = rect.top < 56
+    setHint({ text, left: Math.max(152, Math.min(window.innerWidth - 152, rect.left + rect.width / 2)),
+      top: below ? rect.bottom + 7 : rect.top - 7, below })
+  }
+
   return (
-    <div ref={viewportRef} className="h-full min-w-0 overflow-auto bg-background">
+    <div className="relative h-full min-w-0 bg-background">
+    <div ref={viewportRef} className="h-full min-w-0 overflow-auto">
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-label={t("admin.exTopo.diagram")}
-      className="block h-full w-full min-w-[680px]"
+      className={`block h-full w-full min-w-[680px] ${pan ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ minHeight: H }}
+      onPointerEnter={() => { pointerInside.current = true }}
+      onPointerLeave={() => { pointerInside.current = false }}
+      onPointerDownCapture={(event) => {
+        if (!spaceHeld.current || event.button !== 0) return
+        event.preventDefault()
+        event.stopPropagation()
+        beginPan(event)
+      }}
+      onPointerDown={(event) => {
+        if ((event.target as Element).hasAttribute("data-canvas-background")) beginPan(event)
+      }}
+      onClickCapture={(event) => {
+        if (!ignoreClick.current) return
+        event.stopPropagation()
+        ignoreClick.current = false
+      }}
       onContextMenu={(event) => {
         if (!onCanvasAddNode && !onCanvasLinkStart) return
         event.preventDefault()
-        const rect = event.currentTarget.getBoundingClientRect()
-        const position = clampPoint({
-          x: ((event.clientX - rect.left) / (rect.width || W)) * W,
-          y: ((event.clientY - rect.top) / (rect.height || H)) * H,
-        }, W, H)
+        const position = pointInWorld(canvasPoint(event.clientX, event.clientY, event.currentTarget), viewport)
         setContext({ kind: "canvas", x: event.clientX, y: event.clientY,
           position: { x: Number((position.x / W).toFixed(4)), y: Number((position.y / H).toFixed(4)) } })
       }}
       onPointerMove={(event) => {
+        if (pan) {
+          const dx = event.clientX - pan.start.x
+          const dy = event.clientY - pan.start.y
+          if (!pan.moved && Math.hypot(dx, dy) < 5) return
+          viewportTouched.current = true
+          const rect = event.currentTarget.getBoundingClientRect()
+          setViewport({ ...pan.initial, tx: pan.initial.tx + dx * W / (rect.width || W),
+            ty: pan.initial.ty + dy * H / (rect.height || H) })
+          if (!pan.captured) event.currentTarget.setPointerCapture?.(event.pointerId)
+          setPan({ ...pan, moved: true, captured: true })
+          return
+        }
         if (!drag) return
         if (!drag.moved && Math.hypot(event.clientX - drag.start.x, event.clientY - drag.start.y) < 5) return
+        viewportTouched.current = true
         if (drag.kind === "node") setDrag({ ...drag, point: pointerPoint(event), moved: true })
         else {
           const rect = event.currentTarget.getBoundingClientRect()
-          setDrag({ ...drag, offset: {
-            x: drag.initial.x + (event.clientX - drag.start.x) / (rect.width || W),
-            y: drag.initial.y + (event.clientY - drag.start.y) / (rect.height || H),
-          }, moved: true })
+          const dx = (event.clientX - drag.start.x) * W / (rect.width || W) / viewport.scale
+          const dy = (event.clientY - drag.start.y) * H / (rect.height || H) / viewport.scale
+          setDrag({ ...drag, offset: drag.kind === "label"
+            ? { x: drag.initial.x + dx, y: drag.initial.y + dy }
+            : { x: drag.initial.x + dx * drag.axis.x + dy * drag.axis.y,
+              y: drag.initial.y - dx * drag.axis.y + dy * drag.axis.x }, moved: true })
         }
       }}
       onPointerUp={() => {
+        if (pan) {
+          if (pan.moved) suppressDragClick()
+          setPan(null)
+          return
+        }
         if (drag?.moved) {
-          ignoreClick.current = true
           // A drag may not produce a click on every browser. Never swallow a
           // later, intentional selection if the synthetic click is absent.
-          setTimeout(() => { ignoreClick.current = false }, 0)
+          suppressDragClick()
           if (drag.kind === "node") commitPosition(drag.key, drag.point)
-          else commitLabelOffset(drag.key, drag.offset)
+          else if (drag.kind === "label") commitLabelOffset(drag.key, drag.offset)
+          else commitPortLabelOffset(drag.key, drag.offset)
         }
         setDrag(null)
       }}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => { setPan(null); setDrag(null) }}
     >
       <defs>
-        <pattern id={`${clipPrefix}-grid`} width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" className="fill-border/70" /></pattern>
+        <pattern id={`${clipPrefix}-grid`} width="10" height="10" patternUnits="userSpaceOnUse"
+          patternTransform={`translate(${viewport.tx} ${viewport.ty}) scale(${viewport.scale})`}><circle cx="1" cy="1" r="0.9" className="fill-muted-foreground/30" /></pattern>
       </defs>
       <rect data-canvas-background width={W} height={H} fill={`url(#${clipPrefix}-grid)`} onClick={onCanvasSelect} />
+      <g data-viewport-content transform={`translate(${viewport.tx} ${viewport.ty}) scale(${viewport.scale})`}>
       {/* Edges — drawn under the nodes */}
       {edges.map((edge) => {
         const nameA = nodeByKey.get(edge.a)?.label ?? edge.a
@@ -270,44 +503,58 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         const portLabelClass = edges.length > 4 && selectedConnectionIndex !== edge.index
           ? "fill-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
           : "fill-foreground"
+        const renderPortLabel = (port: string, nodeKey: string, own: Point, other: Point) => {
+          if (!port) return null
+          const key = portLabelKey(nodeKey, port)
+          const offset = drag?.kind === "port-label" && drag.key === key
+            ? drag.offset : storedPortLabelOffset(topology.VisualRender, key)
+          const label = portLabelPosition(own, other, offset)
+          return <text data-port-label data-port-label-key={key}
+            x={label.x}
+            y={label.y}
+            className={`${portLabelClass} select-none ${pan || (drag?.kind === "port-label" && drag.key === key) ? "cursor-grabbing" : onPortLabelOffsetChange ? "cursor-grab touch-none" : ""}`}
+            style={{ userSelect: "none" }} fontSize={10} textAnchor="middle"
+            paintOrder="stroke" stroke="var(--background)" strokeWidth={3}
+            role={onPortLabelOffsetChange ? "button" : undefined} tabIndex={onPortLabelOffsetChange ? 0 : undefined}
+            aria-label={onPortLabelOffsetChange ? `${t("admin.exTopo.movePortLabel")}: ${shortForwardingPort(port)}` : undefined}
+            onPointerDown={(event) => {
+              if (!onPortLabelOffsetChange || event.button !== 0) return
+              event.preventDefault()
+              event.stopPropagation()
+              setHint(null)
+              const initial = storedPortLabelOffset(topology.VisualRender, key)
+              setDrag({ kind: "port-label", key, initial, offset: initial, axis: portLabelAxis(own, other),
+                start: { x: event.clientX, y: event.clientY }, moved: false })
+              event.currentTarget.setPointerCapture?.(event.pointerId)
+            }}
+            onKeyDown={(event) => {
+              if (!onPortLabelOffsetChange) return
+              const delta = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key]
+              if (!delta) return
+              event.preventDefault()
+              event.stopPropagation()
+              const axis = portLabelAxis(own, other)
+              commitPortLabelOffset(key, { x: offset.x + delta[0] * axis.x + delta[1] * axis.y,
+                y: offset.y - delta[0] * axis.y + delta[1] * axis.x })
+            }}>{shortForwardingPort(port)}</text>
+        }
         return (
           <g key={edge.key} role={onEdgeSelect ? "button" : undefined} tabIndex={onEdgeSelect ? 0 : undefined}
             aria-label={onEdgeSelect ? `${nameA} — ${nameB}` : undefined}
             onClick={() => onEdgeSelect?.(edge.index)}
+            onMouseEnter={(event) => showHint(event.currentTarget, `${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`)}
+            onMouseLeave={() => setHint(null)}
+            onFocus={(event) => showHint(event.currentTarget, `${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`)}
+            onBlur={() => setHint(null)}
             onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onEdgeSelect?.(edge.index) } }}
             className={onEdgeSelect ? "group cursor-pointer focus:outline-none" : undefined}>
-            <title>{`${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`}</title>
             {onEdgeSelect && <path data-edge-hit={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
               fill="none" stroke="transparent" strokeWidth={16} pointerEvents="stroke" />}
             <path data-edge={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
               className={selectedConnectionIndex === edge.index ? "fill-none stroke-primary" : "fill-none stroke-muted-foreground/70 group-hover:stroke-primary"}
               strokeWidth={selectedConnectionIndex === edge.index ? 3 : 2} />
-            {edge.labelA && (
-              <text
-                data-port-label
-                x={start.x + (end.x - start.x) * 0.17}
-                y={start.y + (end.y - start.y) * 0.17 - 9}
-                className={portLabelClass}
-                fontSize={10}
-                textAnchor="middle"
-                paintOrder="stroke" stroke="var(--background)" strokeWidth={3}
-              >
-                {shortForwardingPort(edge.labelA)}
-              </text>
-            )}
-            {edge.labelB && (
-              <text
-                data-port-label
-                x={start.x + (end.x - start.x) * 0.83}
-                y={start.y + (end.y - start.y) * 0.83 - 9}
-                className={portLabelClass}
-                fontSize={10}
-                textAnchor="middle"
-                paintOrder="stroke" stroke="var(--background)" strokeWidth={3}
-              >
-                {shortForwardingPort(edge.labelB)}
-              </text>
-            )}
+            {renderPortLabel(edge.labelA, edge.a, start, end)}
+            {renderPortLabel(edge.labelB, edge.b, end, start)}
           </g>
         )
       })}
@@ -319,8 +566,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         const glyphBounds = GLYPH_BOUNDS[glyph]
         const offset = drag?.kind === "label" && drag.key === node.key
           ? drag.offset : storedLabelOffset(topology.VisualRender, node.key)
-        const labelX = p.x + offset.x * W
-        const labelY = p.y + ICON_SIZE / 2 + LABEL_GAP + offset.y * H
+        const labelX = p.x + offset.x
+        const labelY = p.y + ICON_SIZE / 2 + LABEL_GAP + offset.y
         return (
           <g key={node.key} data-testid={`node-${node.key}`}
             role={onPositionChange || onNodeSelect ? "button" : undefined}
@@ -328,9 +575,12 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             aria-disabled={connectionMode && unavailableConnectionNodes.includes(node.key) ? true : undefined}
             aria-description={connectionMode && unavailableConnectionNodes.includes(node.key) ? t("admin.exTopo.noFreePort") : undefined}
             tabIndex={onPositionChange || onNodeSelect ? 0 : undefined}
-            className={`group focus:outline-none ${connectionMode && unavailableConnectionNodes.includes(node.key) ? "opacity-45 cursor-not-allowed" : onPositionChange ? "cursor-grab touch-none" : onNodeSelect || onNodeSettings ? "cursor-pointer" : ""}`}
+            className={`group focus:outline-none ${pan || (drag?.kind === "node" && drag.key === node.key) ? "cursor-grabbing" : connectionMode && unavailableConnectionNodes.includes(node.key) ? "opacity-45 cursor-not-allowed" : onPositionChange ? "cursor-grab touch-none" : onNodeSelect || onNodeSettings ? "cursor-pointer" : ""}`}
+            onMouseLeave={() => setHint(null)}
+            onBlur={() => setHint(null)}
             onPointerDown={(event) => {
               if (!onPositionChange || event.button !== 0) return
+              setHint(null)
               const point = pos.get(node.key)!
               setDrag({ kind: "node", key: node.key, point, start: { x: event.clientX, y: event.clientY }, moved: false })
               // Capture on this node, not the SVG root: otherwise the browser
@@ -346,9 +596,10 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               if (!onNodeSettings && !onNodeLinkStart && !onNodeRemove) return
               event.preventDefault()
               event.stopPropagation()
+              setHint(null)
               setContext({ kind: "node", key: node.key, x: event.clientX, y: event.clientY })
             }}
-            onDoubleClick={() => onNodeSettings?.(node.key)}
+            onDoubleClick={() => { setHint(null); onNodeSettings?.(node.key) }}
             onKeyDown={(event) => {
               if ((onNodeSettings || onNodeLinkStart || onNodeRemove) && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
                 event.preventDefault()
@@ -361,9 +612,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               const delta = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key]
               if (!delta) return
               event.preventDefault()
-              commitPosition(node.key, clampPoint({ x: p.x + delta[0], y: p.y + delta[1] }, W, H))
+              commitPosition(node.key, { x: p.x + delta[0], y: p.y + delta[1] })
             }}>
-            <title>{node.label}</title>
             <TopologyGlyph kind={glyph} x={p.x - GLYPH_SIZE / 2} y={p.y - GLYPH_SIZE / 2} width={GLYPH_SIZE} height={GLYPH_SIZE} className="text-foreground" />
             <rect data-icon-hitbox x={p.x - ICON_SIZE / 2} y={p.y - ICON_SIZE / 2} width={ICON_SIZE} height={ICON_SIZE}
               fill="transparent" className="stroke-transparent" />
@@ -373,29 +623,62 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               : <rect data-selection-outline x={p.x - glyphBounds.halfX - 2} y={p.y - glyphBounds.halfY - 2}
                   width={(glyphBounds.halfX + 2) * 2} height={(glyphBounds.halfY + 2) * 2} rx={3} fill="none" strokeWidth={1.5}
                   pointerEvents="none" className={selectedNodes.includes(node.key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"} />}
+            {editingLabel?.key === node.key ? <foreignObject data-node-rename
+              x={Math.max(8, Math.min(W - 248, labelX - 120))} y={labelY - 22} width={240} height={editingLabel.error ? 64 : 40}
+              onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
+              onDoubleClick={(event) => event.stopPropagation()}>
+              <div className="rounded-md bg-background p-1 shadow-lg">
+                <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
+                  value={editingLabel.draft} maxLength={node.kind === "device" ? 63 : undefined} className="h-8"
+                  onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
+                  onBlur={commitNodeRename}
+                  onKeyDown={(event) => {
+                    event.stopPropagation()
+                    if (event.key === "Enter") { event.preventDefault(); commitNodeRename() }
+                    if (event.key === "Escape") { event.preventDefault(); setEditingLabel(null) }
+                  }} />
+                {editingLabel.error && <p role="alert" className="text-xs text-destructive">{editingLabel.error}</p>}
+              </div>
+            </foreignObject> : <g className="group/label"
+              onMouseEnter={(event) => { if (!onNodeRename) return; event.stopPropagation(); showHint(event.currentTarget, t("admin.exTopo.renameOnDoubleClick")) }}
+              onMouseLeave={() => setHint(null)}
+              onFocus={(event) => { if (!onNodeRename) return; event.stopPropagation(); showHint(event.currentTarget, t("admin.exTopo.renameOnDoubleClick")) }}
+              onBlur={() => setHint(null)}>
             <text
               data-node-label
               x={labelX}
               y={labelY}
-              className={`fill-foreground ${onLabelOffsetChange ? "cursor-move touch-none" : ""}`}
+              className={`fill-foreground select-none ${pan || (drag?.kind === "label" && drag.key === node.key) ? "cursor-grabbing" : onLabelOffsetChange ? "cursor-grab touch-none" : ""}`}
+              style={{ userSelect: "none" }}
               fontSize={12}
               fontWeight={500}
               textAnchor="middle"
               paintOrder="stroke" stroke="var(--background)" strokeWidth={4}
-              role={onLabelOffsetChange ? "button" : undefined}
-              tabIndex={onLabelOffsetChange ? 0 : undefined}
+              role={onLabelOffsetChange || onNodeRename ? "button" : undefined}
+              tabIndex={onLabelOffsetChange || onNodeRename ? 0 : undefined}
               aria-label={onLabelOffsetChange ? `${t("admin.exTopo.moveLabel")}: ${node.label}` : undefined}
+              aria-description={onNodeRename ? t("admin.exTopo.renameDevice") : undefined}
+              onClick={(event) => event.stopPropagation()}
+              onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); beginNodeRename(node) }}
               onPointerDown={(event) => {
                 if (!onLabelOffsetChange || event.button !== 0) return
+                event.preventDefault()
                 event.stopPropagation()
+                setHint(null)
                 const initial = storedLabelOffset(topology.VisualRender, node.key)
                 setDrag({ kind: "label", key: node.key, initial, offset: initial,
                   start: { x: event.clientX, y: event.clientY }, moved: false })
                 event.currentTarget.setPointerCapture?.(event.pointerId)
               }}
               onKeyDown={(event) => {
+                if (onNodeRename && (event.key === "Enter" || event.key === "F2")) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  beginNodeRename(node)
+                  return
+                }
                 if (!onLabelOffsetChange) return
-                const delta = { ArrowLeft: [-12 / W, 0], ArrowRight: [12 / W, 0], ArrowUp: [0, -12 / H], ArrowDown: [0, 12 / H] }[event.key]
+                const delta = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key]
                 if (!delta) return
                 event.preventDefault()
                 event.stopPropagation()
@@ -404,20 +687,57 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             >
               {node.label.length > 20 ? `${node.label.slice(0, 19)}…` : node.label}
             </text>
+            {onNodeRename && <Pencil aria-hidden="true" x={labelX + Math.max(16, Math.min(node.label.length, 20) * 3.8 + 3) + 4}
+              y={labelY - 12} width={12} height={12}
+              className="pointer-events-none text-muted-foreground opacity-0 transition-opacity group-hover/label:opacity-100 group-focus-within/label:opacity-100" />}
+            </g>}
           </g>
         )
       })}
+      </g>
     </svg>
-    {context && <div role="menu" aria-label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : "admin.exTopo.diagram")}
+    </div>
+    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1 shadow-sm">
+      <HoverTooltip text={t("admin.exTopo.zoomOut")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+        aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
+          { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
+      <PopoverPrimitive.Root open={zoomMenuOpen} onOpenChange={(open) => {
+        setZoomMenuOpen(open)
+        if (open) setZoomDraft(String(Math.round(viewport.scale * 100)))
+      }}>
+        <PopoverPrimitive.Trigger asChild><Button type="button" variant="ghost" size="sm"
+          aria-label={t("admin.exTopo.zoomLevel")} className="h-8 gap-0.5 px-1.5 text-xs tabular-nums">
+          {Math.round(viewport.scale * 100)}%<ChevronDown className="h-3 w-3" />
+        </Button></PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal><PopoverPrimitive.Content align="center" sideOffset={6}
+          className="z-50 w-44 rounded-md border border-border bg-popover p-2 shadow-md">
+          <div className="grid grid-cols-2 gap-1">
+            {[50, 75, 100, 125, 150, 200, 250].map((percent) => <Button key={percent} type="button" variant="ghost" size="sm"
+              className="h-7 justify-start px-2 text-xs tabular-nums" onClick={() => setZoomPercent(percent)}>{percent}%</Button>)}
+          </div>
+          <form className="mt-2 flex gap-1 border-t border-border pt-2" onSubmit={(event) => { event.preventDefault(); setZoomPercent(Number(zoomDraft)) }}>
+            <Input type="number" min={50} max={250} step={1} aria-label={t("admin.exTopo.zoomCustom")}
+              value={zoomDraft} onChange={(event) => setZoomDraft(event.target.value)} className="h-8 min-w-0 flex-1 px-2 text-xs" />
+            <Button type="submit" size="sm" className="h-8 px-2 text-xs">{t("admin.exTopo.zoomApply")}</Button>
+          </form>
+        </PopoverPrimitive.Content></PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
+      <HoverTooltip text={t("admin.exTopo.zoomIn")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+        aria-label={t("admin.exTopo.zoomIn")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale * 1.25,
+          { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomIn className="h-4 w-4" /></Button></HoverTooltip>
+      <HoverTooltip text={t("admin.exTopo.fitCanvas")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+        aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
+        <Maximize className="h-4 w-4" /></Button></HoverTooltip>
+    </div>
+    {context && <div ref={contextMenuRef} role="menu" aria-label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : "admin.exTopo.diagram")}
       className="fixed z-50 max-h-[calc(100dvh-1rem)] min-w-32 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
       style={{ left: Math.max(8, Math.min(context.x, window.innerWidth - 190)), top: Math.max(8, Math.min(context.y, window.innerHeight - 230)) }}>
       {context.kind === "node" ? <>
         {onNodeSettings && <button type="button" role="menuitem" autoFocus className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none"
           onClick={() => { onNodeSettings(context.key); setContext(null) }}>{t("admin.exTopo.configure")}</button>}
-        {onNodeLinkStart && <button type="button" role="menuitem" disabled={unavailableConnectionNodes.includes(context.key)}
-          title={unavailableConnectionNodes.includes(context.key) ? t("admin.exTopo.noFreePort") : undefined}
+        {onNodeLinkStart && <HoverTooltip text={unavailableConnectionNodes.includes(context.key) ? t("admin.exTopo.noFreePort") : t("admin.exTopo.addConnection")}><button type="button" role="menuitem" disabled={unavailableConnectionNodes.includes(context.key)}
           className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
-          onClick={() => { onNodeLinkStart(context.key); setContext(null) }}>{t("admin.exTopo.addConnection")}</button>}
+          onClick={() => { onNodeLinkStart(context.key); setContext(null) }}>{t("admin.exTopo.addConnection")}</button></HoverTooltip>}
         {onNodeRemove && <button type="button" role="menuitem" className="block w-full rounded-sm px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:outline-none"
           onClick={() => { onNodeRemove(context.key); setContext(null) }}>{t("admin.exTopo.removeDevice")}</button>}
       </> : <>
@@ -432,6 +752,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           onClick={() => { onCanvasLinkStart(); setContext(null) }}>{t("admin.exTopo.addConnection")}</button>}
       </>}
     </div>}
+    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground shadow-md"
+      style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )
 }

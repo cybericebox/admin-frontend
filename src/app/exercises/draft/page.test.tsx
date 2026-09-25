@@ -86,7 +86,7 @@ describe('draft editor page', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
     expect(mockSaveDraft).toHaveBeenCalledOnce()
     expect(mockSaveDraft.mock.calls[0][1].AdminNote).toBe('latest note')
-    expect(screen.getByText('admin.exDraft.savedNote')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.exDraft.save' })).toBeDisabled()
     const unload = new Event('beforeunload', { cancelable: true })
     fireEvent(window, unload)
     expect(unload.defaultPrevented).toBe(false)

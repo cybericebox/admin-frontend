@@ -6,7 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "@/components/ui/toast"
 import EmailTagInput, { type EmailChip } from "./EmailTagInput"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { parseEmails } from "@/lib/emailParse"
@@ -35,9 +35,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
   const [chips, setChips] = useState<EmailChip[]>([])
   const [role, setRole] = useState<Role | "">("")
   const [busy, setBusy] = useState(false)
-  const [errorKey, setErrorKey] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [tally, setTally] = useState({ invited: 0, skipped: 0, failed: 0 })
   const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
 
@@ -56,7 +54,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
 
   async function send(targets: EmailChip[]) {
     if (targets.length === 0 || effectiveRole === "") return
-    setBusy(true); setErrorKey(null)
+    setBusy(true)
     const emails = targets.map((c) => c.email)
     try {
       const results = await apiPost<InviteResult[]>("/api/users/invite", { Emails: emails, Role: effectiveRole })
@@ -71,11 +69,15 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         else outcomes.set(target.email, { ...target, status: "failed", error: r.Error })
       }
       setChips((prev) => prev.map((chip) => outcomes.get(chip.email) ?? chip))
-      setTally((previous) => ({
-        invited: previous.invited + [...outcomes.values()].filter((chip) => chip.status === "invited").length,
-        skipped: chips.filter((chip) => chip.status === "exists").length + [...outcomes.values()].filter((chip) => chip.status === "exists").length,
+      const counts = {
+        invited: [...outcomes.values()].filter((chip) => chip.status === "invited").length,
+        skipped: [...outcomes.values()].filter((chip) => chip.status === "exists").length,
         failed: [...outcomes.values()].filter((chip) => chip.status === "failed").length,
-      }))
+      }
+      const resultMessage = summary(t("admin.users.invite.summary"), counts)
+      if (counts.failed > 0 && counts.invited === 0) toast.error(resultMessage)
+      else if (counts.failed > 0 || counts.skipped > 0) toast.warning(resultMessage)
+      else toast.success(resultMessage)
       setSubmitted(true)
       // Drop the freshly-invited chips after a beat so the list stays focused on
       // what still needs attention (skipped/failed).
@@ -83,7 +85,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         setChips((prev) => prev.filter((c) => c.status !== "invited"))
       }, 1500)
     } catch {
-      setErrorKey("admin.users.invite.error")
+      toast.error(t("admin.users.invite.error"))
     } finally {
       setBusy(false)
     }
@@ -109,7 +111,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         setChips((prev) => [...prev, ...fresh.map((email) => ({ email, status: "pending" as const }))])
       }
     }
-    reader.onerror = () => setErrorKey("admin.users.invite.csvReadError")
+    reader.onerror = () => toast.error(t("admin.users.invite.csvReadError"))
     reader.readAsText(file)
   }
 
@@ -118,7 +120,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
     onOpenChange(next)
     if (!next) {
       if (dropTimerRef.current) { clearTimeout(dropTimerRef.current); dropTimerRef.current = null }
-      setChips([]); setRole(""); setBusy(false); setErrorKey(null); setSubmitted(false); setTally({ invited: 0, skipped: 0, failed: 0 })
+      setChips([]); setRole(""); setBusy(false); setSubmitted(false)
       onClosed?.()
     }
   }
@@ -132,10 +134,6 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         </DialogHeader>
 
         <div className="space-y-3">
-          {submitted && (
-            <p className="text-xs text-muted-foreground">{summary(t("admin.users.invite.summary"), tally)}</p>
-          )}
-
           <EmailTagInput chips={chips} onChange={setChips} disabled={busy} />
 
           {chips.length === 0 && (
@@ -168,11 +166,6 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
             />
           </div>
 
-          {errorKey && (
-            <Alert variant="destructive">
-              <AlertDescription>{t(errorKey)}</AlertDescription>
-            </Alert>
-          )}
         </div>
 
         <DialogFooter>

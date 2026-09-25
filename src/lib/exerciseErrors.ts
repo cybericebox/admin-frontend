@@ -36,6 +36,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   20914: "admin.ex.err.difficultyInvalid",
   20915: "admin.ex.err.flagInvalid",
   20916: "admin.ex.err.deviceNameInvalid",
+  20946: "admin.ex.err.deviceDisplayNameInvalid",
   20917: "admin.ex.err.deviceTypeInvalid",
   20918: "admin.ex.err.interfaceInvalid",
   20919: "admin.ex.err.connectionEndpointsInvalid",
@@ -50,6 +51,9 @@ export const CODE_TO_KEY: Record<number, string> = {
   20931: "admin.ex.err.vpnGatewayInUse",
   20932: "admin.ex.err.internetGatewayInUse",
   20933: "admin.ex.err.deviceNameDuplicate",
+  20944: "admin.ex.err.addressRefInvalid",
+  20945: "admin.ex.err.addressRefUnreachable",
+  20947: "admin.ex.err.networkDhcpInvalid",
   20937: "admin.ex.err.taskDescriptionRequired",
   // exercise: placeholders
   20925: "admin.ex.err.placeholderInvalid",

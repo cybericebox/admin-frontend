@@ -56,14 +56,31 @@ export type EnvVarDTO = {
 
 export type ExternalDTO = { Port: number; Protocol: Protocol }
 
+export type NetworkIPRefDTO = { Network: "vpn" | "internet"; Host: number }
+export type NetworkSubnetRefDTO = { Network: "vpn" | "internet" }
+
 export type IPConfigDTO = {
   Type: IPType
   Addresses?: string[] // CIDR, static only
+  AddressRef?: NetworkIPRefDTO | null
   Gateway?: string // static only
+  GatewayRef?: NetworkIPRefDTO | null
   Routes?: RouteDTO[] // static only
 }
 
-export type RouteDTO = { Dst: string; Via: string }
+export type RouteDTO = {
+  Dst?: string
+  DstRef?: NetworkSubnetRefDTO | null
+  Via?: string
+  ViaRef?: NetworkIPRefDTO | null
+}
+
+export type NormalizedRoute = {
+  Dst: string
+  DstRef?: NetworkSubnetRefDTO | null
+  Via: string
+  ViaRef?: NetworkIPRefDTO | null
+}
 export type DeviceResourcesDTO = { CPURequest?: string; MemoryRequest?: string; CPULimit?: string; MemoryLimit?: string }
 export type NormalizedDeviceResources = Required<DeviceResourcesDTO>
 
@@ -71,7 +88,7 @@ export type InterfaceDTO = { Name: string; MAC?: string; IP: IPConfigDTO }
 
 export type DeviceDTO = {
   ID?: string
-  Name: string // DNS label
+  Name: string // DNS label for containers; display name for switches/hubs
   Type: DeviceType
   SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
@@ -83,7 +100,8 @@ export type DeviceDTO = {
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
 export type ConnectionDTO = { Endpoints: EndpointDTO[] } // exactly 2
-export type NetworkDTO = { Enabled: boolean; DHCP: boolean }
+export type DHCPRangeDTO = { Start: number; End: number }
+export type NetworkDTO = { Enabled: boolean; DHCP: boolean; DHCPRanges?: DHCPRangeDTO[]; DNS?: string }
 
 export type TopologyDTO = {
   VPN: NetworkDTO
@@ -148,7 +166,14 @@ export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; H
 export type NormalizedInterface = {
   Name: string
   MAC: string
-  IP: { Type: IPType; Addresses: string[]; Gateway: string; Routes: RouteDTO[] }
+  IP: {
+    Type: IPType
+    Addresses: string[]
+    AddressRef?: NetworkIPRefDTO | null
+    Gateway: string
+    GatewayRef?: NetworkIPRefDTO | null
+    Routes: NormalizedRoute[]
+  }
 }
 
 export type NormalizedDevice = {
@@ -217,8 +242,13 @@ function normalizeInterface(raw: InterfaceDTO): NormalizedInterface {
     IP: {
       Type: raw.IP?.Type ?? "none",
       Addresses: raw.IP?.Addresses ?? [],
+      AddressRef: raw.IP?.AddressRef ?? null,
       Gateway: raw.IP?.Gateway ?? "",
-      Routes: raw.IP?.Routes ?? [],
+      GatewayRef: raw.IP?.GatewayRef ?? null,
+      Routes: (raw.IP?.Routes ?? []).map((route) => ({
+        Dst: route.Dst ?? "", DstRef: route.DstRef ?? null,
+        Via: route.Via ?? "", ViaRef: route.ViaRef ?? null,
+      })),
     },
   }
 }

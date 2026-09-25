@@ -14,6 +14,7 @@ import { eventFormSchema, localToIso, type EventFormValues } from "@/lib/eventSc
 import { publicDomain } from "@/lib/origins"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
+import { toast } from "@/components/ui/toast"
 
 const subscribeToHost = () => () => {}
 const currentDomain = () => publicDomain || window.location.hostname.replace(/^(admin|www)\./i, "")
@@ -55,9 +56,10 @@ export default function NewEventPage() {
         ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null,
       })
       setCreated(saved)
+      toast.success("Захід створено.")
       await refreshManagers(saved.ID)
     } catch (cause) {
-      setError(eventErrorMessage(cause))
+      toast.error(eventErrorMessage(cause))
     } finally {
       setBusy(false)
     }
@@ -80,7 +82,7 @@ export default function NewEventPage() {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={busy} /></div>
         </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" disabled={busy}>{t("admin.events.dialog.submit")}</Button></div>
+        <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" disabled={busy || !draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>
     </CardContent></Card> : <>
       {managersError ? <Card><CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5"><p role="alert" className="text-sm text-destructive">{t("admin.events.access.loadError")}</p><Button type="button" variant="outline" onClick={() => void refreshManagers(created.ID)}>{t("admin.events.access.retry")}</Button></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}

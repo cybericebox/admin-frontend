@@ -120,26 +120,24 @@ describe('InAppPreview', () => {
     expect(card!.getAttribute('data-accent')).toBe('#DC2626')
   })
 
-  it('does not promise auto-hide for a legacy template', () => {
+  it('shows the configured pop-up duration next to the preview', () => {
     const { container } = render(
       <InAppPreview
         {...defaultProps}
         autoDismissMs={5000}
       />,
     )
-    expect(container.textContent).not.toContain('5s')
+    expect(container.textContent).toContain('Спливна картка · 5 с')
   })
 
-  it('does NOT show auto-hide hint when autoDismissMs is null', () => {
+  it('shows the default five-second duration when autoDismissMs is null', () => {
     const { container } = render(
       <InAppPreview
         {...defaultProps}
         autoDismissMs={null}
       />,
     )
-    // No "5s"-style string — just check the hint element is absent
-    // (by verifying no element with "auto" text — we just confirm 5s absent)
-    expect(container.textContent).not.toMatch(/\b5s\b/)
+    expect(container.textContent).toContain('Спливна картка · 5 с')
   })
 
   it('shows at most one optional action button', () => {

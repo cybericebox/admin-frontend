@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { toast } from "@/components/ui/toast"
 
 type Setting = {
   NotificationType: string
@@ -21,7 +22,6 @@ export function GlobalSettingsTab() {
   const [rows, setRows] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [saveError, setSaveError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -35,11 +35,11 @@ export function GlobalSettingsTab() {
   async function toggle(s: Setting, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
     const next = { ...s, [field]: value }
     setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? next : r))) // optimistic
-    setSaveError(false)
     try {
       await apiPut("/api/notifications/settings/global", next)
+      toast.success("Налаштування сповіщень збережено.")
     } catch {
-      setSaveError(true)
+      toast.error(t("admin.notif.settings.saveError"))
       setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? s : r))) // revert
     }
   }
@@ -50,7 +50,6 @@ export function GlobalSettingsTab() {
 
   return (
     <div className="space-y-3 pt-4">
-      {saveError && <p className="text-sm text-destructive">{t("admin.notif.settings.saveError")}</p>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

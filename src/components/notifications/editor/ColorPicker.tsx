@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pipette } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
+import { FieldHelp } from "@/components/ui/field-help";
 
 interface Props {
   value: string;
   onChange: (hex: string) => void;
   label?: string;
+  help?: string;
 }
 
 type RGB = { r: number; g: number; b: number };
@@ -81,7 +83,7 @@ function hsvToRgb({ h, s, v }: HSV): RGB {
   return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
 }
 
-export function ColorPicker({ value, onChange, label }: Props) {
+export function ColorPicker({ value, onChange, label, help }: Props) {
   const initial = normalizeHex(value) ?? "#000000";
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState<HSV>(() => rgbToHsv(hexToRgb(initial)));
@@ -211,9 +213,10 @@ export function ColorPicker({ value, onChange, label }: Props) {
 
   return (
     <div ref={rootRef} className="relative inline-flex flex-col gap-1">
-      {label && (
+      {label && <div className="flex items-center gap-1.5">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      )}
+        {help && <FieldHelp text={help} />}
+      </div>}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -232,7 +235,7 @@ export function ColorPicker({ value, onChange, label }: Props) {
           }}
           className={cn(
             "px-2 py-1 w-24 text-sm rounded-md border border-border font-mono",
-            "bg-secondary/40 text-foreground placeholder:text-muted-foreground",
+            "bg-secondary/40 text-foreground placeholder:text-placeholder",
             "focus:outline-none focus:ring-1 focus:ring-ring"
           )}
         />

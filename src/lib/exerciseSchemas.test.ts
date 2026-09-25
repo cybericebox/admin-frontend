@@ -74,6 +74,85 @@ describe('isValidCIDR', () => {
 })
 
 describe('topology operator parity', () => {
+  it('validates and serializes subnet-relative static address choices', () => {
+    const draft = validDraft()
+    const topology = draft.Variants[0].Topology
+    topology.VPN = { Enabled: true, DHCP: false }
+    topology.Internet = { Enabled: true, DHCP: false }
+    const device = emptyDevice()
+    device.Name = 'web'
+    Object.assign(device.Interfaces[0].IP, {
+      Type: 'static', Addresses: [], AddressRef: { Network: 'vpn', Host: 10 },
+      Gateway: '', GatewayRef: { Network: 'vpn', Host: 1 },
+      Routes: [{ Dst: '', DstRef: { Network: 'internet' }, Via: '', ViaRef: { Network: 'vpn', Host: 1 } }],
+    })
+    topology.Devices.push(device)
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    const saved = toSaveDraftInput(draft).Variants[0].Topology.Devices?.[0].Interfaces?.[0].IP
+    expect(saved?.AddressRef).toEqual({ Network: 'vpn', Host: 10 })
+    expect(saved?.GatewayRef).toEqual({ Network: 'vpn', Host: 1 })
+    expect(saved?.Routes?.[0].DstRef).toEqual({ Network: 'internet' })
+    expect(saved?.Routes?.[0].ViaRef).toEqual({ Network: 'vpn', Host: 1 })
+    expect(saved).not.toHaveProperty('Addresses')
+    expect(saved).not.toHaveProperty('Gateway')
+
+    device.Interfaces[0].IP.Addresses = ['10.0.0.10/24']
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    device.Interfaces[0].IP.Addresses = []
+    if (device.Interfaces[0].IP.AddressRef) device.Interfaces[0].IP.AddressRef.Host = 1
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    if (device.Interfaces[0].IP.AddressRef) device.Interfaces[0].IP.AddressRef.Host = 255
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    if (device.Interfaces[0].IP.AddressRef) device.Interfaces[0].IP.AddressRef.Host = 10
+    topology.VPN.DHCP = true
+    topology.VPN.DHCPRanges = [{ Start: 2, End: 254 }]
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    topology.VPN.DHCP = false
+    topology.VPN.Enabled = false
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    topology.VPN.Enabled = true
+    device.Interfaces[0].IP.Routes[0].DstRef = null
+    device.Interfaces[0].IP.Routes[0].Dst = '2001:db8::/64'
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    device.Interfaces[0].IP.Type = 'dhcp'
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
+  it('accepts multiple DHCP ranges and per-internet DNS, but rejects malformed ranges', () => {
+    const draft = validDraft()
+    const topology = draft.Variants[0].Topology
+    topology.VPN = { Enabled: true, DHCP: true, DHCPRanges: [{ Start: 2, End: 50 }, { Start: 100, End: 150 }] }
+    topology.Internet = { Enabled: true, DHCP: true, DHCPRanges: [{ Start: 20, End: 80 }], DNS: '1.1.1.1' }
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    const saved = toSaveDraftInput(draft).Variants[0].Topology
+    expect(saved.VPN.DHCPRanges).toEqual(topology.VPN.DHCPRanges)
+    expect(saved.Internet.DNS).toBe('1.1.1.1')
+    topology.VPN.DHCPRanges[1].Start = 50
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    topology.VPN.DHCPRanges[1].Start = 100
+    topology.Internet.DNS = 'invalid'
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
+  it('requires DNS labels only for containers and nonblank display names for forwarding devices', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    draft.Variants[0].Topology.Devices.push(device)
+    device.Name = 'My Host'
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+    device.Name = 'web-1'
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    device.Type = 'unmanaged-switch'
+    device.Interfaces = []
+    device.Name = 'Комутатор А'
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    device.Type = 'hub'
+    device.Name = 'Hub 1'
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    device.Name = '  '
+    expect(draftSchema.safeParse(draft).success).toBe(false)
+  })
+
   it('defaults missing resources and routes when reopening an old draft', () => {
     const legacy = loadedVersion()
     delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).Resources
@@ -680,6 +759,25 @@ describe('factories', () => {
     expect(draft.Variants[0].Tasks).toHaveLength(1)
     expect(draft.Variants[0].Index).toBe(1)
   })
+})
+
+it('reopens and saves all typed static references without concrete CIDRs', () => {
+  const version = loadedVersion()
+  version.Variants[0].Topology.VPN.DHCP = false
+  version.Variants[0].Topology.Internet.Enabled = true
+  version.Variants[0].Topology.Devices[0].Interfaces[0].IP = {
+    Type: 'static', Addresses: [], AddressRef: { Network: 'vpn', Host: 10 },
+    Gateway: '', GatewayRef: { Network: 'vpn', Host: 1 },
+    Routes: [{ Dst: '', DstRef: { Network: 'internet' }, Via: '', ViaRef: { Network: 'vpn', Host: 1 } }],
+  }
+  const form = toDraftFormValues(version)
+  const saved = toSaveDraftInput(form).Variants[0].Topology.Devices?.[0].Interfaces?.[0].IP
+  expect(saved).toMatchObject({
+    AddressRef: { Network: 'vpn', Host: 10 },
+    GatewayRef: { Network: 'vpn', Host: 1 },
+    Routes: [{ DstRef: { Network: 'internet' }, ViaRef: { Network: 'vpn', Host: 1 } }],
+  })
+  expect(JSON.stringify(saved)).not.toContain('10.0.0.')
 })
 
 // ── Serialization: form ↔ version ────────────────────────────────────────────────

@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/utils/cn"
 
 type Position = { left: number; top: number; below: boolean }
 
 // A tooltip is not a popover: clicks and focus must not toggle its visibility.
-export function HoverTooltip({ text, children, className }: { text: string; children: ReactElement; className?: string }) {
+export function HoverTooltip({ text, content, children, className }: { text: string; content?: ReactNode; children: ReactElement; className?: string }) {
   const [position, setPosition] = useState<Position | null>(null)
   const trigger = useRef<HTMLSpanElement>(null)
   const tooltip = useRef<HTMLDivElement>(null)
@@ -81,7 +81,7 @@ export function HoverTooltip({ text, children, className }: { text: string; chil
         className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground shadow-md"
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
           transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
-      >{text}</div>,
+      >{content ?? text}</div>,
       document.body,
     )}
   </>

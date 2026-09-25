@@ -8,7 +8,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { RemoveAction } from "./RemoveAction"
-import { FieldHelp } from "@/components/ui/field-help"
+import { FlagHelp } from "./FlagHelp"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, type ParsedFlagCandidate } from "@/lib/flagPattern"
@@ -145,7 +145,7 @@ export function FlagInput({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("admin.exTask.flag.title")}<FieldHelp text={`${t("admin.exTask.flag.help")}\n${t("admin.exTask.flag.weightHelp")}\n\n${t("admin.exTask.flag.modeFixed")}: ${t("admin.exTask.flag.fixedHelp")}\n\n${t("admin.exTask.flag.modeTemplate")}: ${t("admin.exTask.flag.templateRules")}\n${t("admin.exTask.flag.templateExclusionRules")}\n\n${t("admin.exTask.flag.templateCodes")}\n\n${t("admin.exTask.flag.examples")}: ${String.raw`\d, [A-F], [0-9\l], [\d^13]`}`} />
+            {t("admin.exTask.flag.title")}<FlagHelp />
           </span>
           {semanticsKey && <span className="text-xs text-muted-foreground">{t(semanticsKey)}</span>}
         </div>

@@ -29,7 +29,6 @@ import {
   type DOMConversionMap,
   type DOMConversionOutput,
   type DOMExportOutput,
-  type EditorConfig,
   type LexicalEditor,
   type NodeKey,
   type SerializedLexicalNode,
@@ -159,7 +158,7 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
     return this;
   }
 
-  createDOM(_config: EditorConfig): HTMLElement {
+  createDOM(): HTMLElement {
     const span = document.createElement("span");
     span.setAttribute("contenteditable", "false");
     return span;
@@ -177,7 +176,7 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
     return true;
   }
 
-  exportDOM(_editor: LexicalEditor): DOMExportOutput {
+  exportDOM(): DOMExportOutput {
     const el = document.createElement("span");
     el.textContent = `{{${this.__varName}}}`;
     el.dataset.variable = this.__varName;
@@ -224,7 +223,7 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
   const { definitions, unavailableLabels, onEdit, highlight, showNames } = useContext(VariablePreviewContext);
   const definition = definitions.get(name);
   const missing = name.startsWith("ph_") && !definition;
-  const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : showNames ? `{{${name}}}` : definition?.example ?? `{{${name}}}`;
+  const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : showNames ? name : definition?.example ?? `{{${name}}}`;
   const marked = highlight || missing;
   const style = cn(marked ? "inline-flex items-baseline rounded border px-1 align-baseline leading-[inherit]" : "inline align-baseline leading-[inherit]",
     missing ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
@@ -280,11 +279,11 @@ function Tooltip({
   label: string;
 }): JSX.Element {
   return (
-    <div className="group relative inline-flex">
+    <div className="group/format-tip relative inline-flex">
       {children}
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity shadow-md"
       >
         {label}
       </div>
@@ -317,6 +316,7 @@ function ToolbarPlugin({
   onToggleVariableHighlight: () => void;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
+  const { showNames } = useContext(VariablePreviewContext);
   const [formats, setFormats] = useState<Set<FormatType>>(new Set());
   const [blockType, setBlockType] = useState<string>("paragraph");
   const [alignment, setAlignment] = useState<string>("");
@@ -733,7 +733,7 @@ function ToolbarPlugin({
                       }}
                       className="block w-full text-left px-3 py-1.5 text-foreground hover:bg-secondary/40 transition-colors"
                     >
-                      <span className="text-xs font-mono">{`{{${v.name}}}`}</span>
+                      <span className="text-xs font-medium">{showNames ? v.name : `{{${v.name}}}`}</span>
                       {v.description && (
                         <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
                           {v.description}
@@ -868,6 +868,7 @@ interface VariablePluginProps {
 
 function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
+  const { showNames } = useContext(VariablePreviewContext);
   const [queryString, setQueryString] = useState<string | null>(null);
 
   // Matches literal {{ followed by optional word chars at end of text
@@ -947,7 +948,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
                 : "hover:bg-secondary/40"
             )}
           >
-            <span className="text-xs font-mono text-foreground">{`{{${opt.varName}}}`}</span>
+            <span className="text-xs font-medium text-foreground">{showNames ? opt.varName : `{{${opt.varName}}}`}</span>
             {opt.description && (
               <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
                 {opt.description}

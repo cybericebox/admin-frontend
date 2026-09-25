@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react'
 import type { EmailTemplate } from '@/api/notifications/emailTemplates'
 
 // ── Module mocks (must be declared before any imports that trigger them) ──────
@@ -41,6 +41,7 @@ vi.mock('@/api/notifications/emailTemplates', () => ({
   publishEmailTemplate:  vi.fn(),
   rollbackEmailTemplate: vi.fn(),
   listBlockPresets:      vi.fn(),
+  listEmailTemplates:    vi.fn(),
   createBlockPreset:     vi.fn(),
 }))
 
@@ -122,6 +123,7 @@ import {
   updateEmailTemplate,
   rollbackEmailTemplate,
   listBlockPresets,
+  listEmailTemplates,
 } from '@/api/notifications/emailTemplates'
 
 // ── Import component AFTER all mocks ──────────────────────────────────────────
@@ -153,9 +155,11 @@ describe('Email template editor page', () => {
     vi.clearAllMocks()
     // Default: point at a known template id
     mockSearchParams.set('id', 'tpl-001')
+    mockSearchParams.delete('type')
     // Default API responses
     vi.mocked(getEmailTemplate).mockResolvedValue(makeDraftTemplate())
     vi.mocked(listBlockPresets).mockResolvedValue([])
+    vi.mocked(listEmailTemplates).mockResolvedValue({ Templates: [makeDraftTemplate()], MissingActiveFor: [] })
   })
 
   // ── Smoke ─────────────────────────────────────────────────────────────────
@@ -218,6 +222,26 @@ describe('Email template editor page', () => {
     })
   })
 
+  it('highlights Save for local edits and offers Publish only after they are saved', async () => {
+    vi.mocked(updateEmailTemplate).mockResolvedValue(makeDraftTemplate({ Styling: {
+      cta_bg_color: '#0070f3', cta_text_color: '#ffffff', cta_border_radius: '6px',
+    } }))
+    render(<Page />)
+    const radius = await screen.findByLabelText('admin.notif.editor.ctaBorderRadius')
+    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    expect(save).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
+
+    fireEvent.change(radius, { target: { value: '6' } })
+    expect(save).toBeEnabled()
+    expect(save).toHaveClass('bg-primary')
+    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.publish' })).not.toBeInTheDocument()
+
+    fireEvent.click(save)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument())
+    expect(save).toBeDisabled()
+  })
+
   it('does NOT show Rollback button for a draft template', async () => {
     render(<Page />)
     await waitFor(() => {
@@ -234,12 +258,12 @@ describe('Email template editor page', () => {
       makeDraftTemplate({ Status: 'unpublished' }),
     )
     render(<Page />)
+    vi.mocked(listEmailTemplates).mockResolvedValue({ Templates: [makeDraftTemplate({ Status: 'unpublished' })], MissingActiveFor: [] })
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }),
-      ).toBeInTheDocument()
       expect(screen.getByTestId('body-readonly')).toBeInTheDocument()
     })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.versions.title' }))
+    expect(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' })).toBeInTheDocument()
   })
 
   it('does NOT show Save or Publish buttons for a published template', async () => {
@@ -272,9 +296,9 @@ describe('Email template editor page', () => {
 
   it('calls updateEmailTemplate (not a second createEmailTemplate) on second Save after new-template create', async () => {
     mockSearchParams.delete('id')
-    const createdTpl = makeDraftTemplate({ ID: 'tpl-new' })
+    const createdTpl = makeDraftTemplate({ ID: 'tpl-new', Subject: '', Preheader: '', Styling: {} })
     vi.mocked(createEmailTemplate).mockResolvedValue(createdTpl)
-    vi.mocked(updateEmailTemplate).mockResolvedValue(createdTpl)
+    vi.mocked(updateEmailTemplate).mockResolvedValue({ ...createdTpl, Styling: { cta_border_radius: '6px' } })
 
     render(<Page />)
 
@@ -291,8 +315,10 @@ describe('Email template editor page', () => {
       expect(createEmailTemplate).toHaveBeenCalledTimes(1)
     })
 
-    // Second Save → updateEmailTemplate, createEmailTemplate still called only once
-    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    await waitFor(() => expect(save).toBeDisabled())
+    fireEvent.change(screen.getByLabelText('admin.notif.editor.ctaBorderRadius'), { target: { value: '6' } })
+    fireEvent.click(save)
 
     await waitFor(() => {
       expect(updateEmailTemplate).toHaveBeenCalledTimes(1)
@@ -372,6 +398,7 @@ describe('Email template editor page', () => {
     vi.mocked(rollbackEmailTemplate).mockResolvedValue(
       makeDraftTemplate({ Status: 'draft', Body: [] }),
     )
+    vi.mocked(listEmailTemplates).mockResolvedValue({ Templates: [makeDraftTemplate({ Status: 'unpublished' })], MissingActiveFor: [] })
 
     render(<Page />)
 
@@ -381,7 +408,9 @@ describe('Email template editor page', () => {
       expect(screen.queryByTestId('block-editor')).not.toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.versions.title' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.notif.tpl.rollback' }))
 
     // After rollback to draft: BlockEditor appears with rolled-back block count (0)
     await waitFor(() => {
@@ -390,6 +419,18 @@ describe('Email template editor page', () => {
       expect(editor).toBeInTheDocument()
       expect(editor).toHaveTextContent('blocks: 0')
     })
+  })
+
+  it('can restore the published email version over a draft without publishing it', async () => {
+    const published = makeDraftTemplate({ ID: 'tpl-published', Status: 'published', Subject: 'Live subject' })
+    vi.mocked(listEmailTemplates).mockResolvedValue({ Templates: [makeDraftTemplate(), published], MissingActiveFor: [] })
+    vi.mocked(rollbackEmailTemplate).mockResolvedValue(makeDraftTemplate({ Subject: 'Live subject' }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.versions.title' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.notif.tpl.rollback' }))
+    await waitFor(() => expect(rollbackEmailTemplate).toHaveBeenCalledWith('tpl-published'))
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
   })
 
   // ── Translated status in read-only banner ─────────────────────────────────

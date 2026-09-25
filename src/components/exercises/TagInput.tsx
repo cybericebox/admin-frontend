@@ -107,7 +107,7 @@ export function TagInput({
         }}
         onBlur={() => commit()}
         placeholder={placeholder ?? t("admin.ex.tagHint")}
-        className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-placeholder"
       />
     </div>
     {showSuggestions && <div id={listId} role="listbox" className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">

@@ -16,6 +16,7 @@ import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { DraftSettings, DraftVariants } from "@/components/exercises/DraftFields"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Form } from "@/components/ui/form"
@@ -39,7 +40,6 @@ function DraftEditor() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueue = useRef<Promise<void>>(Promise.resolve())
@@ -138,7 +138,7 @@ function DraftEditor() {
 
   // Serialize full-snapshot writes. A slow response can update server-assigned
   // IDs, but must not reset fields changed while that request was in flight.
-  function queueSave(force = false): Promise<void> {
+  function queueSave(force = false, explicit = false): Promise<void> {
     if (saveTimer.current !== null) clearTimeout(saveTimer.current)
     saveTimer.current = null
     const next = saveQueue.current.catch(() => undefined).then(async () => {
@@ -154,7 +154,6 @@ function DraftEditor() {
         suppressWatch.current = true
         if (changeSequence.current === sequence) {
           form.reset(serverValues)
-          setSaved(true)
         } else {
           // Preserve edits made during the request; untouched IDs and other
           // server-assigned fields still flow into the next snapshot.
@@ -167,7 +166,7 @@ function DraftEditor() {
         else persistWorkingCopy()
         setLoadedVersionId(savedVersion.ID)
       } catch (cause) {
-        setSaveError(exerciseErrorMessage(cause))
+        if (!explicit) setSaveError(exerciseErrorMessage(cause))
         throw cause
       } finally {
         setAutoSaving(false)
@@ -234,6 +233,7 @@ function DraftEditor() {
   useEffect(() => {
     if (loading || disabled) return
     lastContentSignature.current = JSON.stringify(form.getValues())
+    // eslint-disable-next-line react-hooks/incompatible-library -- Imperative subscription; this effect must not be memoized by React Compiler.
     const subscription = form.watch(() => {
       if (suppressWatch.current) return
       const signature = JSON.stringify(form.getValues())
@@ -241,7 +241,6 @@ function DraftEditor() {
       lastContentSignature.current = signature
       changeSequence.current += 1
       persistWorkingCopy()
-      setSaved(false)
       if (saveTimer.current !== null) clearTimeout(saveTimer.current)
       if (!leaveOpenRef.current) saveTimer.current = setTimeout(() => {
         saveTimer.current = null
@@ -278,9 +277,10 @@ function DraftEditor() {
       return
     }
     try {
-      await queueSave(true)
+      await queueSave(true, true)
+      toast.success(t("admin.exDraft.savedNote"))
       if (changeSequence.current === acknowledgedSequence.current) leave.finishLeave()
-    } catch { /* The editor keeps the local copy and shows the save error. */ }
+    } catch (cause) { toast.error(exerciseErrorMessage(cause)) }
   }
 
   function discardAndLeave() {
@@ -292,7 +292,10 @@ function DraftEditor() {
   }
 
   const onSubmit = form.handleSubmit(async () => {
-    try { await queueSave(true) } catch { /* queueSave displays the error. */ }
+    try {
+      await queueSave(true, true)
+      toast.success(t("admin.exDraft.savedNote"))
+    } catch (cause) { toast.error(exerciseErrorMessage(cause)) }
   }, () => {
     const parsed = draftSchema.safeParse(form.getValues())
     if (!parsed.success && parsed.error.issues[0]) {
@@ -350,8 +353,7 @@ function DraftEditor() {
             <div className="flex items-center gap-3">
               {isDirty && <span className="text-xs text-muted-foreground">{t("admin.exDraft.unsaved")}</span>}
               {autoSaving && <span role="status" className="text-xs text-muted-foreground">{t("admin.exDraft.autoSaving")}</span>}
-              {saved && !isDirty && <span className="text-xs text-muted-foreground">{t("admin.exDraft.savedNote")}</span>}
-              <Button type="submit" disabled={disabled || isSubmitting}>
+              <Button type="submit" disabled={disabled || isSubmitting || !isDirty}>
                 {t("admin.exDraft.save")}
               </Button>
             </div>

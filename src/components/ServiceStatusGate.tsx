@@ -10,12 +10,12 @@ import { apiOrigin } from "@/lib/origins"
 import { confirmServiceUnavailable, getServiceStatus, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
 
 const POLL_MS = 5000
-const CONFIRM_MS = 3000
+const CONFIRM_MS = 12000
 
 async function probe(): Promise<boolean> {
   try {
     // /api/health is only a liveness check; /me also proves session storage works.
-    const response = await fetch(`${apiOrigin}/api/auth/me`, { cache: "no-store", credentials: "include", signal: AbortSignal.timeout(4000) })
+    const response = await fetch(`${apiOrigin}/api/auth/me`, { cache: "no-store", credentials: "include", signal: AbortSignal.timeout(3000) })
     return response.ok || response.status === 401
   } catch {
     return false

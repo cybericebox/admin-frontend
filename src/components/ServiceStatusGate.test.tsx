@@ -12,14 +12,14 @@ afterEach(() => {
 })
 
 describe("ServiceStatusGate", () => {
-  it("shows the notice only after a failed confirmation three seconds later", async () => {
+  it("shows the notice only after a failed confirmation twelve seconds later", async () => {
     vi.useFakeTimers()
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 502 })))
     render(<ServiceStatusGate />)
 
     act(() => { reportServiceUnavailable() })
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    await act(async () => { vi.advanceTimersByTime(2999) })
+    await act(async () => { vi.advanceTimersByTime(11999) })
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     await act(async () => { vi.advanceTimersByTime(1) })
     expect(screen.getByRole("alertdialog")).toBeInTheDocument()

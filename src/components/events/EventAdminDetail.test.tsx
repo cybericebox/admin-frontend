@@ -10,6 +10,7 @@ vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ 
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
 
 import { EventAdminDetail } from "./EventAdminDetail"
+import { toast } from "@/components/ui/toast"
 
 const event = {
   ID: "event-1", Tag: "spring", Name: "Spring CTF", Status: "pending" as const,
@@ -63,11 +64,15 @@ describe("EventAdminDetail", () => {
 
   it("updates the platform name, tag and window through the platform event API", async () => {
     mock.update.mockResolvedValue({ ...event, Name: "Autumn CTF", Tag: "autumn" })
+    const success = vi.spyOn(toast, "success")
     render(<EventAdminDetail id="event-1" />)
+    expect(await screen.findByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
     fireEvent.change(await screen.findByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Autumn CTF" } })
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.tag/ }), { target: { value: "autumn" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
     await waitFor(() => expect(mock.update).toHaveBeenCalledWith("event-1", expect.objectContaining({ Name: "Autumn CTF", Tag: "autumn" })))
+    await waitFor(() => expect(success).toHaveBeenCalledWith("admin.events.details.saved"))
+    expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
   })
 
   it("keeps platform fields and access read-only for admins without events.write", async () => {

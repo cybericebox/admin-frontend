@@ -114,32 +114,75 @@ export type IdentityFormValues = z.infer<typeof identitySchema>
 
 // ── draft snapshot ───────────────────────────────────────────────────────────────
 
-const networkSchema = z.object({ Enabled: z.boolean(), DHCP: z.boolean() })
+const networkSchema = z.object({
+  Enabled: z.boolean(), DHCP: z.boolean(),
+  DHCPRanges: z.array(z.object({ Start: z.number().int(), End: z.number().int() })).optional(),
+  DNS: z.string().optional(),
+}).superRefine((network, ctx) => {
+  if (network.Enabled && network.DHCP && !network.DHCPRanges?.length) {
+    ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangesRequired") })
+  }
+  const used = new Set<number>()
+  network.DHCPRanges?.forEach((range) => {
+    if (range.Start < 2 || range.End > 254 || range.Start > range.End) {
+      ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRange") })
+      return
+    }
+    for (let host = range.Start; host <= range.End; host += 1) {
+      if (used.has(host)) {
+        ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangeOverlap") })
+        break
+      }
+      used.add(host)
+    }
+  })
+})
+const networkIPRefSchema = z.object({ Network: z.enum(["vpn", "internet"]), Host: z.number().int() })
+const networkSubnetRefSchema = z.object({ Network: z.enum(["vpn", "internet"]) })
 
 const ipConfigSchema = z
   .object({
     Type: z.enum(["static", "dhcp", "dhcp-preset", "none"]),
     Addresses: z.array(z.string()),
+    AddressRef: networkIPRefSchema.nullable().optional(),
     Gateway: z.string(),
-    Routes: z.array(z.object({ Dst: z.string(), Via: z.string() })),
+    GatewayRef: networkIPRefSchema.nullable().optional(),
+    Routes: z.array(z.object({
+      Dst: z.string(), DstRef: networkSubnetRefSchema.nullable().optional(),
+      Via: z.string(), ViaRef: networkIPRefSchema.nullable().optional(),
+    })),
   })
   .superRefine((ip, ctx) => {
     if (ip.Type === "static") {
-      if (ip.Addresses.length !== 1) {
+      if (ip.AddressRef ? ip.Addresses.length !== 0 : ip.Addresses.length !== 1) {
         ctx.addIssue({ code: "custom", path: ["Addresses"], message: t("admin.ex.val.addressesRequired") })
+      }
+      if (ip.AddressRef && (ip.AddressRef.Host < 2 || ip.AddressRef.Host > 254)) {
+        ctx.addIssue({ code: "custom", path: ["AddressRef"], message: t("admin.ex.val.addressRefHost") })
       }
       ip.Addresses.forEach((a, i) => {
         if (!isValidCIDR(a)) {
           ctx.addIssue({ code: "custom", path: ["Addresses", i], message: t("admin.ex.val.cidr") })
         }
       })
+      if (ip.GatewayRef && (ip.Gateway || ip.GatewayRef.Host < 1 || ip.GatewayRef.Host > 254 || (ip.Addresses[0] && cidrFamily(ip.Addresses[0]) === "ipv6"))) {
+        ctx.addIssue({ code: "custom", path: ["GatewayRef"], message: t("admin.ex.val.gatewayRef") })
+      }
       if (ip.Gateway !== "" && !ipFamily(ip.Gateway)) {
         ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("admin.ex.val.gateway") })
       }
+      if (ip.AddressRef && ip.Gateway && ipFamily(ip.Gateway) === "ipv6") {
+        ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("admin.ex.val.gatewayRef") })
+      }
       ip.Routes.forEach((route, index) => {
-        const family = cidrFamily(route.Dst)
-        if (!family) ctx.addIssue({ code: "custom", path: ["Routes", index, "Dst"], message: t("admin.ex.val.routeDst") })
-        if (!ipFamily(route.Via) || (family && ipFamily(route.Via) !== family)) ctx.addIssue({ code: "custom", path: ["Routes", index, "Via"], message: t("admin.ex.val.routeVia") })
+        const family = route.DstRef ? "ipv4" : cidrFamily(route.Dst)
+        if (route.DstRef ? route.Dst !== "" : !family) {
+          ctx.addIssue({ code: "custom", path: ["Routes", index, "Dst"], message: t("admin.ex.val.routeDst") })
+        }
+        const viaFamily = route.ViaRef ? "ipv4" : ipFamily(route.Via)
+        if (route.ViaRef ? route.Via !== "" || route.ViaRef.Host < 1 || route.ViaRef.Host > 254 || family !== "ipv4" : !viaFamily || (family && viaFamily !== family)) {
+          ctx.addIssue({ code: "custom", path: ["Routes", index, "Via"], message: t("admin.ex.val.routeVia") })
+        }
       })
     } else {
       if (ip.Addresses.length > 0) {
@@ -147,6 +190,9 @@ const ipConfigSchema = z
       }
       if (ip.Gateway !== "") {
         ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("admin.ex.val.gatewayStaticOnly") })
+      }
+      if (ip.AddressRef || ip.GatewayRef || ip.Routes.some((route) => route.DstRef || route.ViaRef)) {
+        ctx.addIssue({ code: "custom", path: ["AddressRef"], message: t("admin.ex.val.addressRefStaticOnly") })
       }
       if (ip.Routes.length > 0) ctx.addIssue({ code: "custom", path: ["Routes"], message: t("admin.ex.val.routesStaticOnly") })
     }
@@ -184,7 +230,7 @@ const externalSchema = z
 const deviceSchema = z
   .object({
     ID: z.string(),
-    Name: z.string().regex(DNS_LABEL_RE, t("admin.ex.val.deviceName")),
+    Name: z.string(),
     Type: z.enum(["container", "unmanaged-switch", "hub"]),
     SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
@@ -194,6 +240,9 @@ const deviceSchema = z
     External: externalSchema,
   })
   .superRefine((d, ctx) => {
+    if (d.Type === "container" ? !DNS_LABEL_RE.test(d.Name) : !d.Name.trim()) {
+      ctx.addIssue({ code: "custom", path: ["Name"], message: t(d.Type === "container" ? "admin.ex.val.deviceName" : "admin.ex.val.deviceDisplayName") })
+    }
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
     const hasResources = Object.values(d.Resources).some(Boolean)
     if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "" || hasResources)) {
@@ -247,6 +296,12 @@ const topologySchema = z
     VisualRender: z.custom<Record<string, unknown> | null>((value) => value === null || (typeof value === "object" && !Array.isArray(value))),
   })
   .superRefine((topology, ctx) => {
+    if (topology.VPN.DNS) {
+      ctx.addIssue({ code: "custom", path: ["VPN", "DNS"], message: t("admin.ex.val.internetDns") })
+    }
+    if (topology.Internet.DNS && ipFamily(topology.Internet.DNS) !== "ipv4") {
+      ctx.addIssue({ code: "custom", path: ["Internet", "DNS"], message: t("admin.ex.val.internetDns") })
+    }
     // The backend exposes VPN/Internet as singleton gateways: each may occur
     // in at most one connection, even when both endpoints are in the same row.
     const usedGateways = new Set<string>()
@@ -297,6 +352,31 @@ const topologySchema = z
         usedPorts.add(key)
       })
     })
+    const usedAddresses = new Set<string>()
+    const sourceEnabled = (network: "vpn" | "internet") => network === "vpn" ? topology.VPN.Enabled : topology.Internet.Enabled
+    topology.Devices.forEach((device, di) => device.Interfaces.forEach((iface, ii) => {
+      const ip = iface.IP
+      const path = ["Devices", di, "Interfaces", ii, "IP"]
+      if (ip.AddressRef) {
+        const { Network, Host } = ip.AddressRef
+        const key = `${Network}:${Host}`
+        if (!sourceEnabled(Network) || usedAddresses.has(key)) {
+          ctx.addIssue({ code: "custom", path: [...path, "AddressRef"], message: t("admin.ex.val.addressRefSource") })
+        }
+        usedAddresses.add(key)
+      }
+      if (ip.GatewayRef && !sourceEnabled(ip.GatewayRef.Network)) {
+        ctx.addIssue({ code: "custom", path: [...path, "GatewayRef"], message: t("admin.ex.val.addressRefSource") })
+      }
+      ip.Routes.forEach((route, ri) => {
+        if (route.DstRef && !sourceEnabled(route.DstRef.Network)) {
+          ctx.addIssue({ code: "custom", path: [...path, "Routes", ri, "DstRef"], message: t("admin.ex.val.addressRefSource") })
+        }
+        if (route.ViaRef && !sourceEnabled(route.ViaRef.Network)) {
+          ctx.addIssue({ code: "custom", path: [...path, "Routes", ri, "ViaRef"], message: t("admin.ex.val.addressRefSource") })
+        }
+      })
+    }))
   })
 
 const placeholderSchema = z
@@ -425,7 +505,7 @@ export function emptyTask(): TaskFormValues {
 }
 
 export function emptyInterface(): NormalizedInterface {
-  return { Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], Gateway: "", Routes: [] } }
+  return { Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], AddressRef: null, Gateway: "", GatewayRef: null, Routes: [] } }
 }
 
 export function emptyDevice(): DeviceFormValues {
@@ -453,8 +533,8 @@ export function emptyVariant(index: number): VariantFormValues {
     Note: "",
     Tasks: [emptyTask()],
     Topology: {
-      VPN: { Enabled: false, DHCP: true },
-      Internet: { Enabled: false, DHCP: true },
+      VPN: { Enabled: false, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] },
+      Internet: { Enabled: false, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] },
       Devices: [],
       Connections: [],
       VisualRender: null,
@@ -547,7 +627,14 @@ function interfaceToDTO(iface: NormalizedInterface): InterfaceDTO {
     IP: {
       Type: iface.IP.Type,
       ...(iface.IP.Type === "static"
-        ? { Addresses: iface.IP.Addresses, ...(iface.IP.Gateway ? { Gateway: iface.IP.Gateway } : {}), ...(iface.IP.Routes.length ? { Routes: iface.IP.Routes } : {}) }
+        ? {
+          ...(iface.IP.AddressRef ? { AddressRef: iface.IP.AddressRef } : { Addresses: iface.IP.Addresses }),
+          ...(iface.IP.GatewayRef ? { GatewayRef: iface.IP.GatewayRef } : iface.IP.Gateway ? { Gateway: iface.IP.Gateway } : {}),
+          ...(iface.IP.Routes.length ? { Routes: iface.IP.Routes.map((route) => ({
+            ...(route.DstRef ? { DstRef: route.DstRef } : { Dst: route.Dst }),
+            ...(route.ViaRef ? { ViaRef: route.ViaRef } : { Via: route.Via }),
+          })) } : {}),
+        }
         : {}),
     },
   }
@@ -578,11 +665,20 @@ function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
     ),
   }))
   return {
-    VPN: topology.VPN,
-    Internet: topology.Internet,
+    VPN: networkToDTO(topology.VPN),
+    Internet: networkToDTO(topology.Internet),
     Devices: topology.Devices.map(deviceToDTO),
     Connections: connections,
     ...(topology.VisualRender ? { VisualRender: topology.VisualRender } : {}),
+  }
+}
+
+function networkToDTO(network: TopologyFormValues["VPN"]): TopologyDTO["VPN"] {
+  return {
+    Enabled: network.Enabled,
+    DHCP: network.DHCP,
+    ...(network.Enabled && network.DHCP ? { DHCPRanges: network.DHCPRanges } : {}),
+    ...(network.DNS ? { DNS: network.DNS } : {}),
   }
 }
 

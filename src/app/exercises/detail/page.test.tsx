@@ -47,6 +47,7 @@ import { getExercise, updateExercise, deleteExercise } from '@/api/exercises/cat
 import { listVersions, publishDraft, discardDraft, restoreVersion, createCheckpoint } from '@/api/exercises/versions'
 import type { VersionListItem } from '@/api/exercises/versions'
 import Page from './page'
+import { toast } from '@/components/ui/toast'
 
 const mockGet = vi.mocked(getExercise)
 const mockUpdate = vi.mocked(updateExercise)
@@ -98,13 +99,15 @@ describe('exercise detail page', () => {
   })
 
   it('shows the reload alert on 409 ErrExerciseModified', async () => {
+    const error = vi.spyOn(toast, 'error')
     mockUpdate.mockRejectedValue(
       new ApiError(409, { Status: { Code: 70904, Message: 'modified' } }, 'modified'),
     )
     render(<Page />)
     await screen.findByDisplayValue('SQLi basics')
+    fireEvent.change(screen.getByDisplayValue('SQLi basics'), { target: { value: 'Updated' } })
     fireEvent.click(screen.getByText('admin.exDetail.identity.save'))
-    expect(await screen.findByText('admin.ex.err.modified')).toBeInTheDocument()
+    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.modified'))
   })
 
   it('shows not-found state when the exercise is missing', async () => {
@@ -138,7 +141,8 @@ describe('exercise detail page', () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith('/exercises'))
   })
 
-  it('shows an inline error and stays put when delete fails', async () => {
+  it('shows an error toast and stays put when delete fails', async () => {
+    const error = vi.spyOn(toast, 'error')
     mockDelete.mockRejectedValue(
       new ApiError(500, { Status: { Code: 99999, Message: 'boom' } }, 'boom'),
     )
@@ -151,7 +155,7 @@ describe('exercise detail page', () => {
 
     // exerciseErrorMessage (real, not mocked) maps the unknown code to the generic
     // key and appends the backend message — proves the error path rendered it.
-    expect(await screen.findByText('admin.ex.err.generic: boom')).toBeInTheDocument()
+    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.generic: boom'))
     // No navigation on failure.
     expect(push).not.toHaveBeenCalled()
     // Busy state reset: the confirm button is re-enabled and the dialog stays open.
@@ -247,6 +251,7 @@ describe('exercise detail page', () => {
   })
 
   it('shows the mapped error and re-enables the action when publish fails', async () => {
+    const error = vi.spyOn(toast, 'error')
     mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
     mockList.mockResolvedValue([draftVersion])
     mockPublish.mockRejectedValue(
@@ -263,7 +268,7 @@ describe('exercise detail page', () => {
 
     // Real exerciseErrorMessage (not mocked) maps the unknown code to the generic
     // key and appends the backend message.
-    expect(await screen.findByText(/admin\.ex\.err\.generic: boom/)).toBeInTheDocument()
+    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.generic: boom'))
     // Busy resets on failure: the dialog closes and the publish button is enabled.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getAllByText('admin.exDetail.publish')[0].closest('button')).not.toBeDisabled()

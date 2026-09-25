@@ -31,4 +31,26 @@ describe("admin.ex* i18n parity", () => {
       for (const k of exKeys(cat)) expect(cat[k].trim(), `blank value for ${k}`).not.toBe("")
     }
   })
+
+  it("explains forwarding behavior, fixed ports, and the DHCP warning in both languages", () => {
+    for (const cat of [en, uk] as Record<string, string>[]) {
+      for (const kind of ["switch", "hub"]) {
+        const ports = cat[`admin.exTopo.networkDescription.${kind}.ports`]
+        expect(ports).toContain("48")
+        expect(ports).toContain("GigabitEthernet0/1")
+        expect(ports).not.toMatch(/one (link|connection)|одне зʼєднання/i)
+        expect(cat[`admin.exTopo.networkDescription.${kind}.purpose`]).toMatch(/broadcast domain|широкомовному домені/i)
+        expect(cat[`admin.exTopo.networkDescription.${kind}.speed`]).toBeUndefined()
+      }
+      expect(cat["admin.exTopo.networkDescription.switch.behavior"]).toMatch(/MAC/)
+      expect(cat["admin.exTopo.networkDescription.hub.behavior"]).toMatch(/every other port|всі інші порти/i)
+      for (const kind of ["vpn", "internet"]) expect(cat[`admin.exTopo.networkDescription.${kind}.ports`]).toMatch(/eth0/)
+      expect(cat["admin.exTopo.dhcp.enabled.vpn"]).toMatch(/DHCP.*IP/i)
+      expect(cat["admin.exTopo.dhcp.enabled.internet"]).toMatch(/DHCP.*IP/i)
+      expect(cat["admin.exTopo.dhcp.disabled"]).toMatch(/IP/)
+      expect(cat["admin.exTopo.dhcp.warning"]).toMatch(/DHCP/)
+      expect(cat["admin.exTopo.dhcp.warningConsequence"]).toMatch(/Client behavior|Робота клієнтів/i)
+      expect(cat["admin.exTopo.dhcp.limit"]).toBeUndefined()
+    }
+  })
 })

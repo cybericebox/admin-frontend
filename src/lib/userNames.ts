@@ -111,7 +111,6 @@ export function useUserNames(ids: (string | null | undefined)[]): Record<string,
     return () => {
       mounted = false
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey])
 
   return names

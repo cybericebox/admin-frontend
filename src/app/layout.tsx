@@ -5,6 +5,7 @@ import { RoleProvider } from "@/lib/useRole"
 import { AdminShell } from "@/components/shell/AdminShell"
 import { ServiceStatusGate } from "@/components/ServiceStatusGate"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
+import { ToastProvider } from "@/components/ui/toast"
 
 export const metadata = { title: "Cyber ICE Box Platform Admin" }
 
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* Browser extensions can add attributes to body before React hydrates. */}
       <body className="grid-bg" suppressHydrationWarning>
         <RoleProvider>
-          <AdminShell>{children}</AdminShell>
+          <ToastProvider><AdminShell>{children}</AdminShell></ToastProvider>
         </RoleProvider>
         <ServiceStatusGate />
       </body>

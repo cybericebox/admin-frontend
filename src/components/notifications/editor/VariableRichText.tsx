@@ -203,7 +203,7 @@ export function VariableRichText({
               }}
               className="block w-full text-left px-3 py-1.5 hover:bg-secondary/40 transition-colors"
             >
-              <span className="text-xs font-mono text-foreground">{`{{${dotted ? "." : ""}${v.name}}}`}</span>
+              <span className="text-xs font-medium text-foreground">{v.name}</span>
               {v.description && (
                 <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
                   {v.description}

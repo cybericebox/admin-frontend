@@ -8,6 +8,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key === "admin.users.invite.sum
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
 import InviteUsersDialog from "./InviteUsersDialog"
+import { toast } from "@/components/ui/toast"
 
 describe("InviteUsersDialog", () => {
   beforeEach(() => { vi.clearAllMocks(); post.mockResolvedValue([{ Email: "new@example.test" }]) })
@@ -24,12 +25,13 @@ describe("InviteUsersDialog", () => {
 
   it("keeps the request failed state available for retry", async () => {
     post.mockRejectedValueOnce(new Error("offline"))
+    const error = vi.spyOn(toast, "error")
     render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
     const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
     fireEvent.change(input, { target: { value: "new@example.test" } })
     fireEvent.keyDown(input, { key: "Enter" })
     fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
-    expect(await screen.findByText("admin.users.invite.error")).toBeInTheDocument()
+    await waitFor(() => expect(error).toHaveBeenCalledWith("admin.users.invite.error"))
     expect(screen.getByRole("button", { name: "admin.users.invite.submit" })).toBeEnabled()
   })
 
@@ -58,12 +60,14 @@ describe("InviteUsersDialog", () => {
   })
 
   it("counts one successful invitation once under StrictMode", async () => {
+    const success = vi.spyOn(toast, "success")
     render(<StrictMode><InviteUsersDialog open onOpenChange={vi.fn()} /></StrictMode>)
     const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
     fireEvent.change(input, { target: { value: "new@example.test" } })
     fireEvent.keyDown(input, { key: "Enter" })
     fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
-    expect(await screen.findByText("1 / 0 / 0")).toBeInTheDocument()
+    await waitFor(() => expect(success).toHaveBeenCalledWith("1 / 0 / 0"))
+    expect(success).toHaveBeenCalledTimes(1)
   })
 
   it("does not close while an invitation request is in flight", async () => {

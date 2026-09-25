@@ -17,6 +17,7 @@ import { VersionsTable } from "@/components/exercises/VersionsTable"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -29,8 +30,6 @@ import {
 function IdentityCard({ exercise, onSaved }: { exercise: Exercise; onSaved: () => void }) {
   const { can } = useRole()
   const readOnly = !can("exercises.write")
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const form = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
@@ -39,13 +38,13 @@ function IdentityCard({ exercise, onSaved }: { exercise: Exercise; onSaved: () =
   const busy = form.formState.isSubmitting
 
   const onSubmit = form.handleSubmit(async (values) => {
-    setError(null); setSaved(false)
     try {
       await updateExercise(exercise.ID, values)
-      setSaved(true)
+      form.reset(values)
+      toast.success(t("admin.exDetail.identity.saved"))
       onSaved()
     } catch (e) {
-      setError(exerciseErrorMessage(e))
+      toast.error(exerciseErrorMessage(e))
     }
   })
 
@@ -79,10 +78,8 @@ function IdentityCard({ exercise, onSaved }: { exercise: Exercise; onSaved: () =
               <FormMessage />
             </FormItem>
           )} />
-          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-          {saved && <p className="text-xs text-muted-foreground">{t("admin.exDetail.identity.saved")}</p>}
           {!readOnly && (
-            <Button type="submit" disabled={busy}>{t("admin.exDetail.identity.save")}</Button>
+            <Button type="submit" disabled={busy || !form.formState.isDirty}>{t("admin.exDetail.identity.save")}</Button>
           )}
         </form>
       </Form>
@@ -94,17 +91,17 @@ function DeleteCard({ exercise }: { exercise: Exercise }) {
   const router = useRouter()
   const { can } = useRole()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   if (!can("exercises.delete")) return null
 
   async function remove() {
-    setBusy(true); setError(null)
+    setBusy(true)
     try {
       await deleteExercise(exercise.ID)
+      toast.success("Завдання видалено.")
       router.push("/exercises")
     } catch (e) {
-      setError(exerciseErrorMessage(e))
+      toast.error(exerciseErrorMessage(e))
       setBusy(false)
     }
   }
@@ -130,7 +127,6 @@ function DeleteCard({ exercise }: { exercise: Exercise }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </section>
   )
 }
@@ -168,13 +164,13 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
       if (pending.kind === "publish") await publishDraft(exercise.ID)
       if (pending.kind === "discard") await discardDraft(exercise.ID)
       if (pending.kind === "rollback") await restoreVersion(exercise.ID, pending.versionId)
+      toast.success(pending.kind === "publish" ? "Чернетку опубліковано." : pending.kind === "discard" ? "Чернетку відхилено." : "Версію відновлено.")
       setPending(null)
       setLoading(true)
       await loadVersions()
       onChanged()
     } catch (e) {
-      // Publish errors (topology validation etc.) are shown in the block below.
-      setError(exerciseErrorMessage(e))
+      toast.error(exerciseErrorMessage(e))
       setPending(null)
     } finally {
       setBusy(false)
@@ -188,10 +184,11 @@ function VersionsCard({ exercise, onChanged }: { exercise: Exercise; onChanged: 
     setBusy(true); setError(null)
     try {
       await createCheckpoint(exercise.ID)
+      toast.success("Контрольну версію створено.")
       setLoading(true)
       await loadVersions()
     } catch (cause) {
-      setError(exerciseErrorMessage(cause))
+      toast.error(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
     }

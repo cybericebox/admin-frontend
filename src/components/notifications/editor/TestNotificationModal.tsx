@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { t } from "@/i18n/t"
 import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
+import { toast } from "@/components/ui/toast"
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export function TestNotificationModal({
   const matchedType = types.find((type) => type.Type === notificationType)
   const availableChannels = channels ?? matchedType?.Channels ?? []
 
-  return (
+  return <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -62,7 +63,7 @@ export function TestNotificationModal({
         )}
       </DialogContent>
     </Dialog>
-  )
+  </>
 }
 
 function TestNotificationSession({
@@ -84,10 +85,9 @@ function TestNotificationSession({
     Object.fromEntries(variables.map((variable) => [variable.Name, variable.Default])))
   // Selected channels (defaults to all available)
   const [selectedChannels, setSelectedChannels] = useState<string[]>(() => [...availableChannels])
+  const [showVariables, setShowVariables] = useState(false)
   // In-flight guard
   const [sending, setSending] = useState(false)
-  // Success / error feedback
-  const [status, setStatus] = useState<"idle" | "sent" | "error">("idle")
 
   const toggleChannel = (ch: string) => {
     setSelectedChannels((prev) =>
@@ -97,7 +97,7 @@ function TestNotificationSession({
 
   const handleSend = async () => {
     setSending(true)
-    setStatus("idle")
+    onClose()
     try {
       await sendTestNotification({
         Type: notificationType,
@@ -105,9 +105,12 @@ function TestNotificationSession({
         Variables: fields,
         ...(templateId ? { TemplateID: templateId } : {}),
       })
-      setStatus("sent")
+      if (selectedChannels.includes("in_app")) {
+        window.dispatchEvent(new Event("cybericebox:inbox-updated"))
+      }
+      toast.success("Тестове сповіщення надіслано.")
     } catch {
-      setStatus("error")
+      toast.error(t("admin.notif.test.error"))
     } finally {
       setSending(false)
     }
@@ -117,7 +120,7 @@ function TestNotificationSession({
     <>
 
         {/* Channel selection */}
-        {availableChannels.length > 0 && (
+        {availableChannels.length > 1 && (
           <div>
             <p className="text-sm font-medium mb-2">{t("admin.notif.test.channels")}</p>
             <div className="flex flex-col gap-2">
@@ -132,12 +135,17 @@ function TestNotificationSession({
             </div>
           </div>
         )}
+        {availableChannels.length === 1 && (
+          <p className="text-sm text-muted-foreground">{notifChannelLabel(availableChannels[0])}</p>
+        )}
 
         {/* Variable inputs */}
         {variables.length > 0 && (
           <div>
-            <p className="text-sm font-medium mb-2">{t("admin.notif.test.variables")}</p>
-            <div className="flex flex-col gap-3">
+            <button type="button" aria-expanded={showVariables} onClick={() => setShowVariables((value) => !value)} className="text-sm font-medium text-primary hover:underline">
+              {t("admin.notif.test.variables")} ({variables.length})
+            </button>
+            {showVariables && <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {variables.map((v) => (
                 <div key={v.Name}>
                   <label className="block text-sm font-medium mb-1">{v.Name}</label>
@@ -152,16 +160,8 @@ function TestNotificationSession({
                   />
                 </div>
               ))}
-            </div>
+            </div>}
           </div>
-        )}
-
-        {/* Status feedback */}
-        {status === "sent" && (
-          <p className="text-sm text-primary">{t("admin.notif.test.sent")}</p>
-        )}
-        {status === "error" && (
-          <p className="text-sm text-destructive">{t("admin.notif.test.error")}</p>
         )}
 
         <DialogFooter>

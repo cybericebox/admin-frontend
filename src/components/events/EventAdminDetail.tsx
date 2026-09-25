@@ -11,6 +11,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
+import { toast } from "@/components/ui/toast"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, isoToLocal, localToIso } from "@/lib/eventSchemas"
 import { useRole } from "@/lib/useRole"
@@ -36,7 +37,6 @@ export function EventAdminDetail({ id }: { id: string }) {
   const [managersError, setManagersError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
-  const [saved, setSaved] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -97,12 +97,12 @@ export function EventAdminDetail({ id }: { id: string }) {
   }
 
   const writable = can("events.write") && event?.Status !== "archived"
+  const isDirty = Boolean(event && draft && Object.entries(formOf(event)).some(([key, value]) => draft[key as keyof typeof draft] !== value))
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!event || !draft || !writable) return
+    if (!event || !draft || !writable || !isDirty || saving) return
     setSaveError("")
-    setSaved(false)
     const result = eventFormSchema.safeParse(draft)
     if (!result.success) {
       setSaveError(result.error.issues[0]?.message ?? t("admin.events.err.generic"))
@@ -118,9 +118,9 @@ export function EventAdminDetail({ id }: { id: string }) {
       })
       setEvent(next)
       setDraft(formOf(next))
-      setSaved(true)
+      toast.success(t("admin.events.details.saved"))
     } catch (error) {
-      setSaveError(eventErrorMessage(error))
+      toast.error(eventErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -149,8 +149,7 @@ export function EventAdminDetail({ id }: { id: string }) {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable || saving} /></div>
         </div>
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
-        {saved && <p role="status" className="text-sm text-primary">{t("admin.events.details.saved")}</p>}
-        {writable && <div className="flex justify-end"><Button type="submit" disabled={saving}>{t("admin.events.dialog.submit")}</Button></div>}
+        {writable && <div className="flex justify-end"><Button type="submit" disabled={saving || !isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>
     </CardContent></Card>
 

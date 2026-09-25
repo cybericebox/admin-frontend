@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "@/components/ui/toast"
 
 export type EventConfig = {
   EventID: string
@@ -67,6 +68,7 @@ export function EventConfigDialog({ eventID, config, onClose, onSaved }: {
   const [draft, setDraft] = useState<ConfigInput>(() => initialInput(config))
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const isDirty = Object.entries(initialInput(config)).some(([key, value]) => draft[key as keyof ConfigInput] !== value)
 
   function change<K extends keyof ConfigInput>(key: K, value: ConfigInput[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
@@ -74,6 +76,7 @@ export function EventConfigDialog({ eventID, config, onClose, onSaved }: {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy || !isDirty) return
     setError("")
     if (!Number.isInteger(draft.MaxTeamSize) || draft.MaxTeamSize < 1 ||
       (draft.MinTeamSize !== null && (!Number.isInteger(draft.MinTeamSize) || draft.MinTeamSize < 1 || draft.MinTeamSize > draft.MaxTeamSize)) ||
@@ -97,9 +100,10 @@ export function EventConfigDialog({ eventID, config, onClose, onSaved }: {
         PreviewPicture: draft.PreviewPicture.trim(),
       })
       onSaved(next)
+      toast.success("Налаштування заходу збережено.")
       onClose()
     } catch (failure) {
-      setError(eventErrorMessage(failure))
+      toast.error(eventErrorMessage(failure))
     } finally {
       setBusy(false)
     }
@@ -121,7 +125,7 @@ export function EventConfigDialog({ eventID, config, onClose, onSaved }: {
         <div className="space-y-1.5"><label htmlFor="event-preview-description" className="text-sm font-medium">Опис картки</label><textarea id="event-preview-description" value={draft.PreviewDescription} onChange={(event) => change("PreviewDescription", event.target.value)} disabled={busy} rows={3} className="w-full resize-y rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-primary" /></div>
         <div className="space-y-1.5"><label htmlFor="event-preview-picture" className="text-sm font-medium">Зображення картки (HTTPS URL)</label><Input id="event-preview-picture" type="url" value={draft.PreviewPicture} onChange={(event) => change("PreviewPicture", event.target.value)} disabled={busy} placeholder="https://..." /></div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Скасувати</Button><Button type="submit" disabled={busy}>Зберегти налаштування</Button></DialogFooter>
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Скасувати</Button><Button type="submit" disabled={busy || !isDirty}>Зберегти налаштування</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>

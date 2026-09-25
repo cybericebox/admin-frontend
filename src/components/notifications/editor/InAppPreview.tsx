@@ -3,6 +3,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { t } from "@/i18n/t"
 import { accentOf } from "./inAppOptions"
 import { NotificationMessageCard } from "../NotificationMessageCard"
+import { popInDuration } from "../popInDuration"
 
 // ── Variable substitution ─────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export function InAppPreview({
   const cleanBody = DOMPurify.sanitize(bodyRaw)
 
   return (
+    <div>
     <div
       className="rounded-lg border border-border bg-card text-card-foreground shadow-sm"
       data-surface={_surface}
@@ -112,6 +114,10 @@ export function InAppPreview({
           </> : undefined}
         />
       </div>
+    </div>
+    {_surface === "inbox" && popInDuration(_autoDismissMs) > 0 && <p className="mt-2 text-xs text-muted-foreground">
+      {t("admin.notif.inapp.popInPreview")} · {popInDuration(_autoDismissMs) / 1000} {t("admin.notif.inapp.seconds")}
+    </p>}
     </div>
   )
 }
