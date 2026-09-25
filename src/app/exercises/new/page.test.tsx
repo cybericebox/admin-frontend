@@ -30,6 +30,11 @@ const savedVersion: Awaited<ReturnType<typeof saveDraft>> = {
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 
+function addCanvasContainer() {
+  fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+  fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.type.container" }))
+}
+
 describe("new exercise page", () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -154,8 +159,7 @@ describe("new exercise page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }))
     expect(screen.queryByText("admin.exTask.flagDelivery")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
+    addCanvasContainer()
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.tasks" }))
     expect(screen.getByText("admin.exTask.flagDelivery")).toBeInTheDocument()
   })
@@ -166,8 +170,9 @@ describe("new exercise page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }))
     fireEvent.change(screen.getByRole("textbox", { name: /admin.exTask.name/ }), { target: { value: "Find the flag" } })
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
+    addCanvasContainer()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
+    fireEvent.click(screen.getByRole("button", { name: "host-1" }))
     fireEvent.change(screen.getByRole("textbox", { name: /admin.exTopo.deviceName/ }), { target: { value: "web" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.interfaces" }))
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.ipType" }), { key: "ArrowDown" })
@@ -250,8 +255,9 @@ describe("new exercise page", () => {
     fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Recover me" } })
     fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.ex.create.tab.variants" }), { button: 0 })
     fireEvent.click(screen.getByRole("tab", { name: "admin.exDraft.tab.topology" }))
+    addCanvasContainer()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
+    fireEvent.click(screen.getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.interfaces" }))
 
     await waitFor(() => {

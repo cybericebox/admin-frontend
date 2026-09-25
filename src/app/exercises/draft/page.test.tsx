@@ -328,6 +328,7 @@ describe('draft editor page', () => {
     render(<Page />)
     await screen.findByDisplayValue('wip note')
     fireEvent.click(screen.getByRole('tab', { name: 'admin.exDraft.tab.topology' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.devices' }))
     fireEvent.click(screen.getByRole('button', { name: 'lab' }))
     expect(screen.getByText('admin.exTopo.securityPreset')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })).toBeInTheDocument()
@@ -348,15 +349,14 @@ describe('draft editor page', () => {
     render(<Page />)
     await screen.findByDisplayValue('wip note')
     fireEvent.click(screen.getByRole('tab', { name: 'admin.exDraft.tab.topology' }))
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.diagram' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.addConnection' }))
     fireEvent.click(screen.getByTestId('node-d1'))
     fireEvent.click(screen.getByTestId('node-d2'))
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.addConnection' }))
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.canvasConnect' }))
     fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.save' }))
     await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledOnce())
     expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Connections).toEqual([{
-      Endpoints: [{ Kind: 'device', DeviceID: 'd1', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd2' }],
+      Endpoints: [{ Kind: 'device', DeviceID: 'd1', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd2', Interface: 'GigabitEthernet0/1' }],
     }])
   })
 })

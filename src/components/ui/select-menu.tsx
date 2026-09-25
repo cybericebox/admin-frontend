@@ -28,12 +28,13 @@ interface SelectMenuProps {
   ariaLabel?: string
   compactChevron?: boolean
   triggerVariant?: "outline" | "default"
+  menuClassName?: string
 }
 
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline" }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
   return (
     <DropdownMenu>
@@ -49,7 +50,7 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
           <ChevronDown className={cn(compactChevron ? "ml-1" : "ml-2", "h-4 w-4 shrink-0 opacity-60")} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[var(--radix-dropdown-menu-trigger-width)]">
+      <DropdownMenuContent align="start" className={cn("min-w-[var(--radix-dropdown-menu-trigger-width)]", menuClassName)}>
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>

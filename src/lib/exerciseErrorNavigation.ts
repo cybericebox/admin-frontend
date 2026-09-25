@@ -21,11 +21,11 @@ export function positionForDraftIssue(
     return next
   }
   if (path[3] !== "Devices" || typeof path[4] !== "number") {
-    next.topologySection = "gateways"
+    next.topologySection = path[3] === "VPN" ? "device:vpn" : path[3] === "Internet" ? "device:internet" : "diagram"
     return next
   }
   const device = draft.Variants[variant]?.Topology.Devices[path[4]]
-  next.topologySection = device ? `device:${device.ID}` : "gateways"
+  next.topologySection = device ? `device:${device.ID}` : "diagram"
   if (path[5] === "Interfaces") {
     next.devicePanel = "interfaces"
     next.interface = typeof path[6] === "number" ? path[6] : 0
@@ -34,6 +34,8 @@ export function positionForDraftIssue(
     next.env = typeof path[6] === "number" ? path[6] : 0
   } else if (path[5] === "External") {
     next.devicePanel = "external"
+  } else if (path[5] === "Resources") {
+    next.devicePanel = "resources"
   } else {
     next.devicePanel = "basic"
   }

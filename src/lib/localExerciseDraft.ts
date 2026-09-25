@@ -6,7 +6,7 @@ export type EditorPosition = {
   section: "tasks" | "topology"
   task: number
   topologySection: string
-  devicePanel: "basic" | "interfaces" | "env" | "external"
+  devicePanel: "basic" | "resources" | "interfaces" | "env" | "external"
   interface: number
   env: number
   scrollTop: number
@@ -17,7 +17,7 @@ export const DEFAULT_EDITOR_POSITION: EditorPosition = {
   variant: 0,
   section: "tasks",
   task: 0,
-  topologySection: "gateways",
+  topologySection: "diagram",
   devicePanel: "basic",
   interface: 0,
   env: 0,
@@ -56,7 +56,7 @@ export function parseExistingDraft(raw: string | null): { draft: DraftFormValues
     const value: unknown = JSON.parse(raw)
     if (!isRecord(value) || value.version !== 1 || !isStoredDraft(value.draft) ||
       typeof value.updatedAt !== "number" || !Number.isFinite(value.updatedAt)) return null
-    return { draft: value.draft, updatedAt: value.updatedAt }
+    return { draft: withResourceDefaults(value.draft), updatedAt: value.updatedAt }
   } catch { return null }
 }
 
@@ -93,8 +93,8 @@ function normalizeEditorPosition(position: unknown): EditorPosition | null {
     variant: Number.isSafeInteger(position.variant) && Number(position.variant) >= 0 ? Number(position.variant) : 0,
     section: position.section === "topology" ? "topology" : "tasks",
     task: Number.isSafeInteger(position.task) && Number(position.task) >= 0 ? Number(position.task) : 0,
-    topologySection: typeof position.topologySection === "string" ? position.topologySection : "gateways",
-    devicePanel: position.devicePanel === "interfaces" || position.devicePanel === "env" || position.devicePanel === "external" ? position.devicePanel : "basic",
+    topologySection: typeof position.topologySection === "string" ? position.topologySection : "diagram",
+    devicePanel: position.devicePanel === "resources" || position.devicePanel === "interfaces" || position.devicePanel === "env" || position.devicePanel === "external" ? position.devicePanel : "basic",
     interface: Number.isSafeInteger(position.interface) && Number(position.interface) >= 0 ? Number(position.interface) : 0,
     env: Number.isSafeInteger(position.env) && Number(position.env) >= 0 ? Number(position.env) : 0,
     scrollTop: typeof position.scrollTop === "number" && Number.isFinite(position.scrollTop) && position.scrollTop >= 0 ? position.scrollTop : 0,
@@ -115,6 +115,30 @@ function isStoredDraft(value: unknown): value is DraftFormValues {
   )
 }
 
+function withResourceDefaults(draft: DraftFormValues): DraftFormValues {
+  return {
+    ...draft,
+    Variants: draft.Variants.map((variant) => ({
+      ...variant,
+      Topology: {
+        ...variant.Topology,
+        Devices: variant.Topology.Devices.map((device) => {
+          const resources: Record<string, unknown> = isRecord(device.Resources) ? device.Resources : {}
+          const quantity = (key: "CPURequest" | "CPULimit" | "MemoryRequest" | "MemoryLimit") =>
+            typeof resources[key] === "string" ? resources[key] : ""
+          return {
+            ...device,
+            Resources: {
+              CPURequest: quantity("CPURequest"), CPULimit: quantity("CPULimit"),
+              MemoryRequest: quantity("MemoryRequest"), MemoryLimit: quantity("MemoryLimit"),
+            },
+          }
+        }),
+      },
+    })),
+  }
+}
+
 /** A corrupt or older local copy must never break the editor. */
 export function parseLocalDraft(raw: string | null): LocalExerciseDraft | null {
   if (!raw) return null
@@ -126,7 +150,7 @@ export function parseLocalDraft(raw: string | null): LocalExerciseDraft | null {
       !isStoredDraft(parsed.draft) || !isRecord(parsed.position)) return null
     const restoredPosition = normalizeEditorPosition(parsed.position)
     if (!restoredPosition) return null
-    const draft = makeLocalDraft(parsed.identity as IdentityFormValues, parsed.draft, restoredPosition,
+    const draft = makeLocalDraft(parsed.identity as IdentityFormValues, withResourceDefaults(parsed.draft), restoredPosition,
       typeof parsed.createdId === "string" ? parsed.createdId : null,
       typeof parsed.pendingTag === "string" ? parsed.pendingTag : "",
       parsed.serverSynced === true)

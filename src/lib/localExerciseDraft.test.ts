@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { emptyDevice, emptyDraft } from "@/lib/exerciseSchemas"
-import { DEFAULT_EDITOR_POSITION, localDraftStorageKey, makeLocalDraft, parseLocalDraft } from "./localExerciseDraft"
+import { DEFAULT_EDITOR_POSITION, localDraftStorageKey, makeLocalDraft, parseEditorPosition, parseExistingDraft, parseLocalDraft } from "./localExerciseDraft"
 
 describe("local exercise draft", () => {
   it("keeps a complete independent copy of the form, including flags and secrets", () => {
@@ -48,5 +48,25 @@ describe("local exercise draft", () => {
     expect(parseLocalDraft('{"version":999}')).toBeNull()
     expect(parseLocalDraft('{"version":1,"identity":{},"draft":{}}')).toBeNull()
     expect(localDraftStorageKey("editor-1")).toBe("cybericebox.admin.exercise-draft.v1:editor-1")
+  })
+
+  it("restores the dedicated resources panel position", () => {
+    const position = { ...DEFAULT_EDITOR_POSITION, devicePanel: "resources" as const }
+    expect(parseEditorPosition(JSON.stringify(position))?.devicePanel).toBe("resources")
+  })
+
+  it("fills missing resource strings in a recoverable browser copy before form validation", () => {
+    const draft = emptyDraft()
+    const device = emptyDevice()
+    device.Name = "web"
+    device.Resources.CPURequest = "250m"
+    draft.Variants[0].Topology.Devices = [device]
+    const snapshot = makeLocalDraft({ Name: "Exercise", Description: "", Tags: [] }, draft, DEFAULT_EDITOR_POSITION, null)
+    delete (snapshot.draft.Variants[0].Topology.Devices[0].Resources as Partial<typeof device.Resources>).CPULimit
+
+    expect(parseLocalDraft(JSON.stringify(snapshot))?.draft.Variants[0].Topology.Devices[0].Resources).toEqual({
+      CPURequest: "250m", CPULimit: "", MemoryRequest: "", MemoryLimit: "",
+    })
+    expect(parseExistingDraft(JSON.stringify({ version: 1, draft: snapshot.draft, updatedAt: snapshot.updatedAt }))?.draft.Variants[0].Topology.Devices[0].Resources.CPULimit).toBe("")
   })
 })

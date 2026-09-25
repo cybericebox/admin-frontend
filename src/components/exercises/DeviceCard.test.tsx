@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -19,13 +19,13 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device }: { device: DeviceFormValues }) {
+function Harness({ device, compact = false }: { device: DeviceFormValues; compact?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
-      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} />
+      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
       <DeviceValues />
     </FormProvider>
   )
@@ -49,6 +49,7 @@ function LinkedDeviceHarness() {
     <FormProvider {...form}>
       <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} />
       <output data-testid="editor-position">{JSON.stringify(position)}</output>
+      <DeviceValues />
     </FormProvider>
   </EditorPositionProvider>
 }
@@ -69,10 +70,37 @@ describe('DeviceCard', () => {
     const device = emptyDevice()
     device.Name = 'web'
     render(<Harness device={device} />)
+    expect(screen.queryByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.resources' }))
     expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' }), { target: { value: '250m' } })
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toHaveValue('250m')
+    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' }), { target: { value: '250' } })
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toHaveValue('250')
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250m')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.cpuRequest admin.exTopo.resourceUnit' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /admin.exTopo.cpuUnit.core/ }))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250')
+  })
+
+  it('splits a stored memory quantity into amount and unit without changing its value', () => {
+    const device = emptyDevice()
+    device.Resources.MemoryLimit = '512Mi'
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.resources' }))
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('512')
+    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('admin.exTopo.memoryUnit.Mi')
+    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' }), { target: { value: '768' } })
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('768Mi')
+  })
+
+  it('preserves an uncommon stored quantity suffix while exposing it in the unit control', () => {
+    const device = emptyDevice()
+    device.Resources.MemoryLimit = '2G'
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.resources' }))
+    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('2')
+    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('G')
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('2G')
   })
 
   it('shows one static address field and editable route rows', () => {
@@ -88,6 +116,22 @@ describe('DeviceCard', () => {
     expect(screen.getByRole('textbox', { name: /admin.exTopo.routeVia/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.removeRoute' }))
     expect(screen.queryByRole('textbox', { name: 'admin.exTopo.routeDst' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a static route and its delete action together in a compact card with error space', () => {
+    const device = emptyDevice()
+    device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '', Routes: [{ Dst: '10.1.0.0/16', Via: '10.0.0.1' }] }
+    render(<Harness device={device} compact />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
+    const card = document.querySelector('[data-route-card]')!
+    expect(card).toHaveClass('border')
+    expect(card).toHaveClass('p-2')
+    expect(card).toContainElement(screen.getByRole('button', { name: 'admin.exTopo.removeRoute' }))
+    expect(card.querySelector('[data-route-fields]')).toHaveClass('grid-cols-1')
+    expect(card.querySelector('[data-route-fields]')).toHaveClass('gap-1')
+    expect(within(card as HTMLElement).getByRole('textbox', { name: /admin.exTopo.routeDst/ })).toHaveClass('h-9')
+    expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(1)
+    expect(card.querySelector('[data-route-fields] p:empty')).not.toBeInTheDocument()
   })
 
   it('clears static addresses and routes when changing IP mode', () => {
@@ -170,6 +214,17 @@ describe('DeviceCard', () => {
     expect(screen.getByText('admin.exTopo.ip.dhcpPresetHelp')).toBeInTheDocument()
   })
 
+  it('shows one basic security choice for both omitted and legacy explicit basic values', () => {
+    const device = emptyDevice()
+    device.SecurityPreset = 'basic'
+    render(<Harness device={device} />)
+    const select = screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })
+    expect(select).toHaveTextContent('admin.exTopo.security.default')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByText('admin.exTopo.security.defaultHelp')).toBeInTheDocument()
+    expect(screen.queryByText('admin.exTopo.security.basicHelp')).not.toBeInTheDocument()
+  })
+
   it('stored secret env var: Secret checkbox is locked until the value is replaced', () => {
     const device = emptyDevice()
     device.Name = 'web'
@@ -181,13 +236,13 @@ describe('DeviceCard', () => {
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement
     expect(checkbox).toBeDisabled()
     expect(checkbox.checked).toBe(true)
-    expect(screen.getByText('admin.exSecret.lockedHint')).toBeInTheDocument()
+    expect(checkbox).toHaveAttribute('title', 'admin.exSecret.lockedHint')
 
     // Providing a fresh value (Replace → type) unlocks the checkbox.
     fireEvent.click(screen.getByText('admin.exSecret.replace'))
     fireEvent.change(screen.getByTestId('secret-value-input'), { target: { value: 'new-secret' } })
     expect(screen.getByRole('checkbox')).toBeEnabled()
-    expect(screen.queryByText('admin.exSecret.lockedHint')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox')).toHaveAttribute('title', 'admin.exEnv.secretHelp')
   })
 
   it('non-stored secret env var (HasValue=false): Secret checkbox toggles freely', () => {
@@ -222,10 +277,8 @@ describe('DeviceCard', () => {
     expect(screen.getByDisplayValue('eth1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
     expect(screen.getAllByRole('button', { name: 'admin.exEnv.remove' })).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: 'admin.exEnv.remove' })[0].closest('[role="tablist"]')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'admin.exEnv.remove' })[0].closest('[data-env-row]')).toBeInTheDocument()
     expect(screen.getByDisplayValue('FIRST')).toBeInTheDocument()
-    expect(screen.queryByDisplayValue('SECOND')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'SECOND' }))
     expect(screen.getByDisplayValue('SECOND')).toBeInTheDocument()
   })
 
@@ -234,6 +287,89 @@ describe('DeviceCard', () => {
     device.EnvVars = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
-    expect(screen.getByRole('button', { name: 'admin.exEnv.remove' }).closest('[role="tablist"]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.exEnv.remove' }).closest('[data-env-row]')).toBeInTheDocument()
+  })
+
+  it('shows every environment variable as a name, value, secret and delete card', () => {
+    const device = emptyDevice()
+    device.EnvVars = [
+      { Name: 'FIRST', Value: 'one', Secret: false, HasValue: false },
+      { Name: 'SECOND', Value: 'two', Secret: true, HasValue: false },
+    ]
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const rows = document.querySelectorAll('[data-env-row]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toContainElement(screen.getByDisplayValue('FIRST'))
+    expect(rows[0]).toContainElement(screen.getByDisplayValue('one'))
+    expect(rows[0].querySelector('input[type="checkbox"]')).toBeInTheDocument()
+    expect(rows[1]).toContainElement(screen.getByDisplayValue('SECOND'))
+    expect(rows[1]).toContainElement(screen.getByTestId('secret-value-input'))
+    expect(rows[0]).not.toHaveTextContent('admin.exEnv.secret')
+    expect(rows[1]).not.toHaveTextContent('admin.exEnv.secret')
+    expect(rows[0].querySelector('input[type="checkbox"]')).toHaveAttribute('aria-label', 'admin.exEnv.secret')
+    expect(document.querySelector('[role="tablist"][aria-label="admin.exEnv.title"]')).not.toBeInTheDocument()
+  })
+
+  it('groups each variable into a compact card with stacked fields and reserved error lines', () => {
+    const device = emptyDevice()
+    device.EnvVars = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
+    render(<Harness device={device} compact />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const card = document.querySelector('[data-env-row]')!
+    expect(card).toHaveClass('border')
+    expect(card.querySelector('[data-env-fields]')).toHaveClass('grid-cols-1')
+    expect(card).toContainElement(screen.getByRole('button', { name: 'admin.exEnv.remove' }))
+    expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(2)
+    expect(card).not.toHaveTextContent('admin.exEnv.secret')
+  })
+
+  it('stacks form fields inside the narrow canvas inspector while keeping the list editor spacious', () => {
+    const device = emptyDevice()
+    const compact = render(<Harness device={device} compact />)
+    expect(compact.container.querySelector('[data-device-basic-grid]')).toHaveClass('grid-cols-1')
+    expect(compact.container.querySelector('[data-device-basic-grid]')).toHaveClass('gap-2')
+    expect(compact.container.querySelector('[data-device-basic-grid] p:empty')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.resources' }))
+    expect(compact.container.querySelector('[data-device-resource-grid]')).toHaveClass('grid-cols-1')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
+    expect(compact.container.querySelector('[data-interface-grid]')).toHaveClass('grid-cols-1')
+    expect(compact.container.querySelector('[data-interface-grid]')).toHaveClass('gap-2')
+    expect(compact.container.querySelector('[data-interface-panel]')).toHaveClass('space-y-2', 'pt-2')
+    expect(compact.container.querySelector('[data-interface-grid] p:empty')).not.toBeInTheDocument()
+    compact.unmount()
+
+    const wide = render(<Harness device={device} />)
+    expect(wide.container.querySelector('[data-device-basic-grid]')).toHaveClass('sm:grid-cols-2')
+    wide.unmount()
+  })
+
+  it('generates the next free eth name and keeps interface tabs on one scrollable line', () => {
+    const device = emptyDevice()
+    device.Interfaces.push({ ...device.Interfaces[0], Name: 'eth2' })
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
+    const tabs = screen.getByRole('tablist', { name: 'admin.exTopo.interfaces' })
+    expect(tabs).toHaveClass('flex-nowrap', 'overflow-x-auto')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.addInterface' }))
+    expect(screen.getByDisplayValue('eth1')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.addInterface' }))
+    expect(screen.getByDisplayValue('eth3')).toBeInTheDocument()
+    expect(screen.getAllByRole('tab', { name: /^eth/ })).toHaveLength(4)
+  })
+
+  it('imports dotenv entries as secrets, skipping device duplicates and task flag names', async () => {
+    render(<LinkedDeviceHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const file = new File(['PUBLIC_URL=wrong\nFLAG=wrong\nDB_PASS=correct'], 'device.env', { type: 'text/plain' })
+    Object.defineProperty(file, 'text', { value: async () => 'PUBLIC_URL=wrong\nFLAG=wrong\nDB_PASS=correct' })
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [file] } })
+    await waitFor(() => expect(screen.getByTestId('device-values')).toHaveTextContent('DB_PASS'))
+    const entries = JSON.parse(screen.getByTestId('device-values').textContent || '{}').EnvVars
+    expect(entries).toHaveLength(2)
+    expect(entries[0].Value).toBe('https://example.com')
+    expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
+    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.imported')
+    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.duplicates')
   })
 })
