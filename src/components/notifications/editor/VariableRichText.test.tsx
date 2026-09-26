@@ -3,6 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { VariableRichText } from './VariableRichText'
 import { t } from '@/i18n/t'
 
+// Menu items render label + <code>name</code>; locate an item by its key.
+const variableItem = (name: string) => screen.getByText(name, { selector: 'code' }).closest('button')!
+
 describe('VariableRichText', () => {
   it('renders without crashing', () => {
     const onChange = vi.fn()
@@ -102,8 +105,8 @@ describe('VariableRichText', () => {
     const onChange = vi.fn()
     render(<VariableRichText value="Hello " onChange={onChange} dotted variables={[{ name: 'Name', description: 'User name', example: 'Alex' }]} />)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    expect(screen.getByRole('button', { name: /^Name/ })).not.toHaveTextContent('{{')
-    fireEvent.mouseDown(screen.getByRole('button', { name: /^Name/ }))
+    expect(variableItem('Name')).not.toHaveTextContent('{{')
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
     expect(document.querySelector('[data-var="Name"]')).toBeInTheDocument()
   })
@@ -120,8 +123,21 @@ describe('VariableRichText', () => {
     selection.addRange(range)
     fireEvent.keyUp(editor)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    fireEvent.mouseDown(screen.getByRole('button', { name: /^Name/ }))
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Hi {{.Name}}there')
+  })
+
+  it('searches the picker and inserts the active variable with Enter', () => {
+    const onChange = vi.fn()
+    render(<VariableRichText value="Hello " onChange={onChange} dotted variables={[{ name: 'Name' }, { name: 'event_name', description: 'Event name' }]} />)
+    fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
+    const search = screen.getByRole('searchbox', { name: t('admin.notif.varPicker.search') })
+    fireEvent.change(search, { target: { value: 'EVENT' } })
+    expect(screen.queryByText('Name', { selector: 'code' })).not.toBeInTheDocument()
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(onChange).toHaveBeenLastCalledWith('Hello {{.event_name}}')
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveFocus()
   })
 
   it('undoes and redoes insertion while retaining the yellow variable marker', () => {
@@ -129,7 +145,7 @@ describe('VariableRichText', () => {
     render(<VariableRichText value="Hello " onChange={onChange} dotted variables={[{ name: 'Name' }]} />)
     const editor = screen.getByRole('textbox')
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    fireEvent.mouseDown(screen.getByRole('button', { name: /^Name/ }))
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
     expect(editor.querySelector('[data-var="Name"]')).toHaveClass('var-pill')
     fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })

@@ -119,6 +119,42 @@ describe('RichTextEditor', () => {
     expect(screen.queryByText(/ph_source/)).not.toBeInTheDocument()
   })
 
+  it('opens the searchable variable picker and closes it with Escape', () => {
+    render(<RichTextEditor value={null} onChange={vi.fn()} variables={[
+      { name: 'event_name', description: 'Event name', example: 'CyberICEBox CTF' },
+      { name: 'user_email', description: 'Recipient email' },
+    ]} />)
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити змінну' }))
+    const search = screen.getByRole('searchbox', { name: 'Знайти змінну' })
+    expect(search).toHaveFocus()
+    expect(screen.getByText('event_name', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'email' } })
+    expect(screen.queryByText('event_name', { selector: 'code' })).not.toBeInTheDocument()
+    expect(screen.getByText('user_email', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.keyDown(search, { key: 'Escape' })
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
+  it('inserts the picked variable as a variable node at the editor selection', async () => {
+    const onChange = vi.fn()
+    const { container } = render(<RichTextEditor value={null} onChange={onChange} variables={[
+      { name: 'event_name', description: 'Event name' },
+    ]} />)
+    const editable = container.querySelector('[contenteditable]') as HTMLElement
+    editable.focus()
+    const paragraph = await waitFor(() => { const p = editable.querySelector('p'); expect(p).not.toBeNull(); return p! })
+    const range = document.createRange()
+    range.setStart(paragraph, 0)
+    range.collapse(true)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    fireEvent(document, new Event('selectionchange'))
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити змінну' }))
+    fireEvent.click(screen.getByText('event_name', { selector: 'code' }).closest('button')!)
+    await waitFor(() => expect(JSON.stringify(onChange.mock.calls.at(-1)?.[0])).toContain('"varName":"event_name"'))
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
   it('opens inline placeholder creation from the task editor without a preconfigured list', () => {
     const request = vi.fn()
     render(<RichTextEditor value={null} onChange={vi.fn()} variables={[]} onInsertVariable={request} />)

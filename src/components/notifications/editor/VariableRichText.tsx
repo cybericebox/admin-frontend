@@ -11,6 +11,7 @@ import {
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { Braces, ChevronDown } from "lucide-react";
+import { VariablePickerMenu } from "./VariablePickerMenu";
 import { historyDirection, placeCaretAtEnd, TemplateFieldHistory } from "./templateFieldHistory";
 
 interface Props {
@@ -73,12 +74,6 @@ export function VariableRichText({
     return () => document.removeEventListener("mousedown", handle);
   }, [showDropdown]);
 
-  const filteredVars = filter
-    ? variables.filter((v) =>
-        v.name.toLowerCase().startsWith(filter.toLowerCase())
-      )
-    : variables;
-
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const raw = htmlToRawSingleLine(e.currentTarget.innerHTML, { dotted });
     historyRef.current.record(raw);
@@ -126,6 +121,21 @@ export function VariableRichText({
     }
   };
 
+  // Return focus to the field after the picker (which owns focus) closes,
+  // keeping the caret at `range` when it lies inside the field.
+  const restoreFocus = useCallback((range: Range | null) => {
+    const div = divRef.current;
+    if (!div) return;
+    const caret = range?.cloneRange() ?? null;
+    div.focus();
+    const sel = window.getSelection();
+    if (caret && sel && div.contains(caret.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(caret);
+      savedRangeRef.current = caret.cloneRange();
+    }
+  }, []);
+
   const handleInsert = useCallback(
     (name: string) => {
       const div = divRef.current;
@@ -161,9 +171,16 @@ export function VariableRichText({
       lastRawRef.current = raw;
       onChange(raw);
       setShowDropdown(false);
+      // The picker's search input held focus; hand it back to the field.
+      restoreFocus(sel?.rangeCount ? sel.getRangeAt(0) : null);
     },
-    [dotted, onChange]
+    [dotted, onChange, restoreFocus]
   );
+
+  const closePicker = () => {
+    setShowDropdown(false);
+    restoreFocus(savedRangeRef.current);
+  };
 
   return (
     <div className="relative" ref={containerRef}>
@@ -191,28 +208,14 @@ export function VariableRichText({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => { setFilter(""); setShowDropdown((open) => !open) }}
         className="absolute right-1 top-1 inline-flex h-7 items-center gap-0.5 rounded border border-border bg-background px-1.5 text-primary hover:bg-accent"><Braces className="h-3.5 w-3.5" /><ChevronDown className="h-3 w-3" /></button>}
-      {showDropdown && filteredVars.length > 0 && (
-        <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input shadow-lg">
-          {filteredVars.map((v) => (
-            <button
-              key={v.name}
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault(); // prevent blur before insert
-                handleInsert(v.name);
-              }}
-              className="block w-full text-left px-3 py-1.5 hover:bg-secondary/40 transition-colors"
-            >
-              <span className="text-xs font-medium text-foreground">{v.name}</span>
-              {v.description && (
-                <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
-                  {v.description}
-                </span>
-              )}
-              {v.example && <span className="block text-[10px] font-sans text-muted-foreground">{t("admin.notif.editor.variableExample")}: {v.example}</span>}
-            </button>
-          ))}
-        </div>
+      {showDropdown && (
+        <VariablePickerMenu
+          variables={variables}
+          initialQuery={filter}
+          onSelect={handleInsert}
+          onClose={closePicker}
+          className="absolute left-0 top-full mt-1"
+        />
       )}
     </div>
   );

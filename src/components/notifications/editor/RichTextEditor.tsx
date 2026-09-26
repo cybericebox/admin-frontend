@@ -95,6 +95,7 @@ import {
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { type VariableDef } from "./variableUtils";
+import { VariablePickerMenu } from "./VariablePickerMenu";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -316,7 +317,6 @@ function ToolbarPlugin({
   onToggleVariableHighlight: () => void;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
-  const { showNames } = useContext(VariablePreviewContext);
   const [formats, setFormats] = useState<Set<FormatType>>(new Set());
   const [blockType, setBlockType] = useState<string>("paragraph");
   const [alignment, setAlignment] = useState<string>("");
@@ -473,6 +473,8 @@ function ToolbarPlugin({
         }
       });
       setShowVarsMenu(false);
+      // The picker's search input held focus; return it to the editor.
+      editor.focus();
     },
     [editor]
   );
@@ -722,27 +724,12 @@ function ToolbarPlugin({
                 </button>
               </Tooltip>
               {showVarsMenu && !onInsertVariable && (
-                <div className="absolute right-0 top-full mt-1 z-20 min-w-[180px] max-h-[240px] overflow-y-auto bg-popover rounded-xl border border-input shadow-md py-1">
-                  {variables.map((v) => (
-                    <button
-                      key={v.name}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        insertVariable(v.name);
-                      }}
-                      className="block w-full text-left px-3 py-1.5 text-foreground hover:bg-secondary/40 transition-colors"
-                    >
-                      <span className="text-xs font-medium">{showNames ? v.name : `{{${v.name}}}`}</span>
-                      {v.description && (
-                        <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
-                          {v.description}
-                        </span>
-                      )}
-                      {v.example && <span className="block text-[10px] font-sans text-muted-foreground">{t("admin.notif.editor.variableExample")}: {v.example}</span>}
-                    </button>
-                  ))}
-                </div>
+                <VariablePickerMenu
+                  variables={variables}
+                  onSelect={insertVariable}
+                  onClose={() => { setShowVarsMenu(false); editor.focus(); }}
+                  className="absolute right-0 top-full mt-1"
+                />
               )}
             </div>
           </>

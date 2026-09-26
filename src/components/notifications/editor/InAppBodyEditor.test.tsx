@@ -3,6 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { t } from '@/i18n/t'
 import { InAppBodyEditor, normalizeInAppBody } from './InAppBodyEditor'
 
+// Menu items render label + <code>name</code>; locate an item by its key.
+const variableItem = (name: string) => screen.getByText(name, { selector: 'code' }).closest('button')!
+
 describe('InAppBodyEditor', () => {
   it('uses the platform font rather than a per-message font selector', () => {
     render(<InAppBodyEditor value="" onChange={vi.fn()} variables={[]} />)
@@ -28,8 +31,8 @@ describe('InAppBodyEditor', () => {
     selection.addRange(range)
     fireEvent.keyUp(editor)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    expect(screen.getByRole('button', { name: /^Name/ })).not.toHaveTextContent('{{')
-    fireEvent.click(screen.getByRole('button', { name: /^Name/ }))
+    expect(variableItem('Name')).not.toHaveTextContent('{{')
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Welcome {{.Name}}')
     expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
     expect(editor.querySelector('[data-var="Name"]')).toHaveTextContent('Name')
@@ -51,7 +54,7 @@ describe('InAppBodyEditor', () => {
     selection.addRange(range)
     fireEvent.keyUp(editor)
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    fireEvent.click(screen.getByRole('button', { name: /^Name/ }))
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Hi {{.Name}}there')
   })
 
@@ -74,7 +77,7 @@ describe('InAppBodyEditor', () => {
     render(<InAppBodyEditor value="Hello " onChange={onChange} variables={[{ name: 'Name' }]} />)
     const editor = screen.getByRole('textbox', { name: t('admin.notif.tpl.body') })
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    fireEvent.click(screen.getByRole('button', { name: /^Name/ }))
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
     fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
     expect(onChange).toHaveBeenLastCalledWith('Hello ')
@@ -101,7 +104,7 @@ describe('InAppBodyEditor', () => {
     fireEvent.keyDown(editor, { key: 'z', metaKey: true, shiftKey: true })
     expect(onChange).toHaveBeenLastCalledWith('<strong>Hello</strong>')
     fireEvent.click(screen.getByRole('button', { name: t('admin.notif.editor.insertVariable') }))
-    fireEvent.click(screen.getByRole('button', { name: /^Name/ }))
+    fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining('{{.Name}}'))
   })
 })

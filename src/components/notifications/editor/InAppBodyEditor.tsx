@@ -5,6 +5,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { Bold, Braces, ChevronDown, Italic } from "lucide-react"
 import { t } from "@/i18n/t"
 import type { VariableDef } from "./variableUtils"
+import { VariablePickerMenu } from "./VariablePickerMenu"
 import { historyDirection, placeCaretAtEnd, TemplateFieldHistory } from "./templateFieldHistory"
 
 // Preserve formatting in templates authored before the per-message font control was removed.
@@ -160,15 +161,10 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
         <button type="button" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => setMenuOpen((open) => !open)}
           aria-label={t("admin.notif.editor.insertVariable")}
           className="inline-flex h-8 items-center gap-1 rounded border border-border px-2 text-xs font-medium text-primary hover:bg-accent"><Braces className="h-3.5 w-3.5" />{t("admin.notif.editor.insertVariable")}<ChevronDown className="h-3 w-3" /></button>
-        {menuOpen && <div className="absolute right-0 top-full z-30 mt-1 max-h-64 min-w-[250px] overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg">
-          {variables.map((variable) => <button key={variable.name} type="button" onMouseDown={(event) => event.preventDefault()}
-            onClick={() => { insertNode(variablePill(variable.name)); setMenuOpen(false) }}
-            className="w-full rounded px-2 py-1.5 text-left hover:bg-accent">
-            <span className="block text-xs font-medium">{variable.name}</span>
-            <span className="block text-[11px] text-muted-foreground">{variable.description}</span>
-            {variable.example && <span className="block text-[11px] text-muted-foreground">{t("admin.notif.editor.variableExample")}: {variable.example}</span>}
-          </button>)}
-        </div>}
+        {menuOpen && <VariablePickerMenu variables={variables}
+          onSelect={(name) => { insertNode(variablePill(name)); setMenuOpen(false) }}
+          onClose={() => { setMenuOpen(false); editorRef.current?.focus() }}
+          className="absolute right-0 top-full mt-1" />}
       </div>}
     </div>
     <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true"
