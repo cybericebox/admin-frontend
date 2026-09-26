@@ -83,4 +83,45 @@ describe('ColorPicker', () => {
     render(<ColorPicker value="#5da600" onChange={onChange} />)
     expect(document.querySelector('[data-testid="sv-square"]')).not.toBeInTheDocument()
   })
+
+  // ── Theme tokens (Task 10) ─────────────────────────────────────────────────
+
+  it('shows Brand, Accent, and On accent chips', () => {
+    const onChange = vi.fn()
+    render(<ColorPicker value="#5da600" onChange={onChange} />)
+    expect(screen.getByRole('button', { name: 'Бренд' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Акцент' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'На акценті' })).toBeInTheDocument()
+  })
+
+  it('clicking the Brand chip calls onChange with "theme:brand"', () => {
+    const onChange = vi.fn()
+    render(<ColorPicker value="#5da600" onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Бренд' }))
+    expect(onChange).toHaveBeenCalledWith('theme:brand')
+  })
+
+  it('value "theme:accent" renders the Accent chip as selected', () => {
+    const onChange = vi.fn()
+    render(<ColorPicker value="theme:accent" onChange={onChange} />)
+    expect(screen.getByRole('button', { name: 'Акцент' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Бренд' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'На акценті' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('value "theme:accent" makes the swatch use the platform brand hex (#211A52)', () => {
+    const onChange = vi.fn()
+    render(<ColorPicker value="theme:accent" onChange={onChange} />)
+    const swatch = screen.getByRole('button', { name: 'Відкрити палітру кольорів' })
+    expect(swatch).toHaveStyle({ background: '#211a52' })
+  })
+
+  it('custom hex still works after a token value: typing a hex and blurring calls onChange with that hex', () => {
+    const onChange = vi.fn()
+    render(<ColorPicker value="theme:accent" onChange={onChange} />)
+    const hexInput = screen.getByDisplayValue('#211A52')
+    fireEvent.change(hexInput, { target: { value: '#00ff00' } })
+    fireEvent.blur(hexInput)
+    expect(onChange).toHaveBeenCalledWith('#00ff00')
+  })
 })

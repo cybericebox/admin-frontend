@@ -5,6 +5,7 @@ import { Pipette } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { FieldHelp } from "@/components/ui/field-help";
+import { THEME_TOKENS, PLATFORM_BRAND } from "@/components/notifications/editor/emailBlocks";
 
 interface Props {
   value: string;
@@ -31,6 +32,23 @@ function normalizeHex(input: string): string | null {
   if (/^[0-9a-f]{6}$/.test(s)) return `#${s}`;
   return null;
 }
+
+/** `theme:*` tokens (see emailBlocks.ts) resolve to the platform brand swatch
+ *  instead of a literal hex value picked in the SV/hue square. */
+function isThemeToken(v: string): v is (typeof THEME_TOKENS)[number] {
+  return (THEME_TOKENS as readonly string[]).includes(v);
+}
+
+function resolveColor(value: string): string {
+  if (isThemeToken(value)) return PLATFORM_BRAND[value];
+  return normalizeHex(value) ?? "#000000";
+}
+
+const THEME_TOKEN_LABEL_KEYS: Record<(typeof THEME_TOKENS)[number], string> = {
+  "theme:brand":     "admin.notif.editor.colorToken.brand",
+  "theme:accent":    "admin.notif.editor.colorToken.accent",
+  "theme:on_accent": "admin.notif.editor.colorToken.onAccent",
+};
 
 function hexToRgb(hex: string): RGB {
   const h = hex.replace(/^#/, "");
@@ -81,7 +99,7 @@ function hsvToRgb({ h, s, v }: HSV): RGB {
 }
 
 export function ColorPicker({ value, onChange, label, help }: Props) {
-  const initial = normalizeHex(value) ?? "#000000";
+  const initial = resolveColor(value);
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState<HSV>(() => rgbToHsv(hexToRgb(initial)));
   const [hexInput, setHexInput] = useState<string>(initial);
@@ -95,7 +113,7 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
   // cascading renders flagged by react-hooks/set-state-in-effect.
   if (value !== prevValue) {
     setPrevValue(value);
-    const nh = normalizeHex(value);
+    const nh = isThemeToken(value) ? PLATFORM_BRAND[value] : normalizeHex(value);
     if (nh && nh !== rgbToHex(hsvToRgb(hsv))) {
       setHsv(rgbToHsv(hexToRgb(nh)));
       setHexInput(nh);
@@ -236,6 +254,30 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
             "focus:outline-none focus:ring-1 focus:ring-ring"
           )}
         />
+      </div>
+      {/* Brand theme-token chips — pick a `theme:*` token instead of a literal hex. */}
+      <div className="flex flex-wrap items-center gap-1">
+        {THEME_TOKENS.map((token) => (
+          <button
+            key={token}
+            type="button"
+            onClick={() => onChange(token)}
+            aria-pressed={value === token}
+            className={cn(
+              "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors",
+              value === token
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-secondary/40 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <span
+              aria-hidden
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: PLATFORM_BRAND[token] }}
+            />
+            {t(THEME_TOKEN_LABEL_KEYS[token])}
+          </button>
+        ))}
       </div>
       {open && (
         <div

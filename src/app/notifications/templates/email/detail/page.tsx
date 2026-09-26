@@ -161,10 +161,10 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     setStyling((prev) => ({ ...prev, [key]: val }))
   }
 
-  const ctaBgColor    = (styling.cta_bg_color     as string  | undefined) ?? "#4F46E5"
-  const ctaTextColor  = (styling.cta_text_color   as string  | undefined) ?? "#ffffff"
+  const ctaBgColor    = (styling.cta_bg_color     as string  | undefined) ?? "theme:accent"
+  const ctaTextColor  = (styling.cta_text_color   as string  | undefined) ?? "theme:on_accent"
   const textColor     = (styling.text_color        as string  | undefined) ?? "#333333"
-  const headingColor  = (styling.heading_color     as string  | undefined) ?? "#111111"
+  const headingColor  = (styling.heading_color     as string  | undefined) ?? "theme:brand"
   const ctaBorderRadius = parseInt(String(styling.cta_border_radius ?? '4px'), 10) || 0
   const ctaFontSize   = parseInt(String(styling.cta_font_size ?? '14px'), 10) || 14
 
