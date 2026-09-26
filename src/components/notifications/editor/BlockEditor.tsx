@@ -491,7 +491,7 @@ export function BlockEditor({
                   <input
                     type="number"
                     min={16}
-                    max={400}
+                    max={600}
                     aria-label={t("admin.notif.editor.logoWidth")}
                     value={(block as LogoBlock).width_px ?? 64}
                     onChange={(e) =>

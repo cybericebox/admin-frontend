@@ -68,7 +68,7 @@ export function SignalDefaultsSection() {
     try {
       const saved = await updateSignalDefault(next)
       setItems((prev) => prev.map((i) => (rowKey(i) === rowKey(saved) ? saved : i)))
-      toast.success("Налаштування сповіщень збережено.")
+      toast.success(t("admin.notif.signalDefaults.saved"))
     } catch {
       toast.error(t("admin.notif.settings.saveError"))
       setItems((prev) => prev.map((i) => (rowKey(i) === rowKey(current) ? current : i))) // revert

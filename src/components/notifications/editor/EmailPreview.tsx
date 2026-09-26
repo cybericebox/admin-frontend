@@ -48,11 +48,22 @@ function previewDocument(html: string): string {
  * The last good render stays visible while a new
  * one is loading or after it fails; a 400 (draft cannot be rendered, e.g. a
  * half-typed `{{.us`) shows the backend's reason inline, anything else a
- * generic inline error.
+ * generic inline error. Without a notification type nothing is requested and
+ * any previous render/error is cleared.
  */
 export function EmailPreview({ notificationType, subject = "", preheader = "", body, styling }: EmailPreviewProps) {
   const [result, setResult] = useState<PreviewEmailTemplateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Nothing is rendered without a type: drop the previous render and error
+  // when the type is cleared (adjusted during render, not in the effect).
+  const [renderedType, setRenderedType] = useState(notificationType)
+  if (renderedType !== notificationType) {
+    setRenderedType(notificationType)
+    if (!notificationType) {
+      setResult(null)
+      setError(null)
+    }
+  }
 
   useEffect(() => {
     if (!notificationType) return

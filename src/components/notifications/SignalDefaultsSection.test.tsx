@@ -27,6 +27,9 @@ vi.mock("@/api/notifications/signalDefaults", () => ({
 const role = vi.hoisted(() => ({ can: vi.fn(() => true) }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: role.can }) }))
 
+const toastApi = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+vi.mock("@/components/ui/toast", () => ({ toast: toastApi }))
+
 import { SignalDefaultsSection } from "./SignalDefaultsSection"
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -60,6 +63,8 @@ describe("SignalDefaultsSection", () => {
     api.update.mockReset()
     role.can.mockReset()
     role.can.mockReturnValue(true)
+    toastApi.success.mockReset()
+    toastApi.error.mockReset()
   })
 
   it("lists each signal with human labels, per-channel switches and read-only audience", async () => {
@@ -103,6 +108,20 @@ describe("SignalDefaultsSection", () => {
       Enabled: true,
       Audience: { kind: "signal_subject" },
     }))
+  })
+
+  it("confirms a saved toggle with a localized success toast", async () => {
+    api.list.mockResolvedValue([enrolledEmail, enrolledInApp])
+    api.update.mockResolvedValue({ ...enrolledEmail, Enabled: true })
+    render(<SignalDefaultsSection />)
+
+    const emailSwitch = await screen.findByRole("switch", {
+      name: `${uk_["admin.notif.type.participant.enrolled"]} — ${uk_["admin.notif.channel.email"]}`,
+    })
+    emailSwitch.click()
+
+    expect(uk_["admin.notif.signalDefaults.saved"]).toBeTruthy()
+    await waitFor(() => expect(toastApi.success).toHaveBeenCalledWith(uk_["admin.notif.signalDefaults.saved"]))
   })
 
   it("disables switches without notifications.settings.write", async () => {

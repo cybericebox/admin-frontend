@@ -204,6 +204,7 @@
 
   "admin.notif.signalDefaults.title": "Типові сповіщення для подій",
   "admin.notif.signalDefaults.colAudience": "Отримувач",
+  "admin.notif.signalDefaults.saved": "Налаштування сповіщень збережено.",
   "admin.notif.audience.signal_subject": "Причетний учасник",
 
   "admin.notif.tpl.inapp": "Повідомлення на сайті",

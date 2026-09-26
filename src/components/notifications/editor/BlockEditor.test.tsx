@@ -527,6 +527,13 @@ describe('BlockEditor', () => {
     expect(screen.getByRole('spinbutton', { name: 'Ширина логотипа (px)' })).toHaveValue(64)
   })
 
+  it('logo width input allows up to 600 px, the backend clamp', () => {
+    render(
+      <BlockEditor value={[makeLogo()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    expect(screen.getByRole('spinbutton', { name: 'Ширина логотипа (px)' })).toHaveAttribute('max', '600')
+  })
+
   it('changing logo alignment calls onChange with the updated align field', async () => {
     render(
       <BlockEditor value={[makeLogo()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />

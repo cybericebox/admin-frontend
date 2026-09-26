@@ -204,6 +204,7 @@
 
   "admin.notif.signalDefaults.title": "Event notification defaults",
   "admin.notif.signalDefaults.colAudience": "Audience",
+  "admin.notif.signalDefaults.saved": "Notification defaults saved.",
   "admin.notif.audience.signal_subject": "Participant concerned",
 
   "admin.notif.tpl.inapp": "In-app templates",

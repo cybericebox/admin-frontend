@@ -81,6 +81,25 @@ describe('EmailPreview', () => {
     expect(preview).not.toHaveBeenCalled()
   })
 
+  it('clears the previous render and error when the notification type becomes empty', async () => {
+    const { rerender } = render(
+      <EmailPreview notificationType="user.welcome" subject="Hi" preheader="" body={body} styling={styling} />,
+    )
+    await flushDebounce()
+    expect(srcDoc()).toContain('<p>Hello Ada</p>')
+    preview.mockRejectedValueOnce(new ApiError(400, null, 'bad draft'))
+    rerender(<EmailPreview notificationType="user.welcome" subject="Hi {{.x" preheader="" body={body} styling={styling} />)
+    await flushDebounce()
+    expect(screen.getByRole('alert').textContent).toBe('bad draft')
+
+    rerender(<EmailPreview notificationType="" subject="Hi {{.x" preheader="" body={body} styling={styling} />)
+    await flushDebounce()
+    expect(srcDoc()).not.toContain('Hello Ada')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(document.body.textContent).not.toContain('Hi Ada')
+    expect(preview).toHaveBeenCalledTimes(2)
+  })
+
   it('renders the returned HTML in a sandboxed iframe srcDoc with a title', async () => {
     render(<EmailPreview notificationType="user.welcome" subject="Hi" preheader="" body={body} styling={styling} />)
     await flushDebounce()
