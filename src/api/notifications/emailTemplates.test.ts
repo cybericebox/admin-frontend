@@ -25,12 +25,16 @@ import {
   createBlockPreset,
   updateBlockPreset,
   deleteBlockPreset,
+  previewEmailTemplate,
+  uploadEmailImage,
+  emailImageUrl,
 } from './emailTemplates'
 
 const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPut = vi.mocked(client.apiPut)
 const mockApiDelete = vi.mocked(client.apiDelete)
+const mockApiPostMultipart = vi.mocked(client.apiPostMultipart)
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -323,5 +327,64 @@ describe('deleteBlockPreset', () => {
     await deleteBlockPreset(PRESET_ID)
     expect(mockApiDelete).toHaveBeenCalledOnce()
     expect(mockApiDelete.mock.calls[0][0]).toBe(`/api/notifications/templates/email/block-presets/${PRESET_ID}`)
+  })
+})
+
+// ── previewEmailTemplate ───────────────────────────────────────────────────────
+
+describe('previewEmailTemplate', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const input = {
+    NotificationType: 'participant.enrolled',
+    Subject: 'Hi {{.user_first_name}}',
+    Preheader: 'Welcome to {{.event_name}}',
+    Body: [{ type: 'logo' as const }, { type: 'image' as const, file_id: 'ffffffff-0000-1111-2222-333333333333' }],
+    Styling: { cta_bg_color: 'theme:accent' },
+    Values: { user_first_name: 'Ada' },
+  }
+
+  it('POSTs to /preview with the request body verbatim', async () => {
+    mockApiPost.mockResolvedValueOnce({ Subject: 'Hi Ada', Preheader: 'Welcome to CyberICEBox CTF', HTML: '<div></div>' })
+    await previewEmailTemplate(input)
+    expect(mockApiPost).toHaveBeenCalledOnce()
+    expect(mockApiPost.mock.calls[0][0]).toBe('/api/notifications/templates/email/preview')
+    expect(mockApiPost.mock.calls[0][1]).toEqual(input)
+  })
+
+  it('returns the Subject/Preheader/HTML result unmodified', async () => {
+    const result = { Subject: 'Hi Ada', Preheader: 'Welcome to CyberICEBox CTF', HTML: '<div></div>' }
+    mockApiPost.mockResolvedValueOnce(result)
+    await expect(previewEmailTemplate(input)).resolves.toEqual(result)
+  })
+})
+
+// ── uploadEmailImage ───────────────────────────────────────────────────────────
+
+describe('uploadEmailImage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('POSTs multipart to /images with the file under field "file"', async () => {
+    const file = new File(['x'], 'logo.png', { type: 'image/png' })
+    mockApiPostMultipart.mockResolvedValueOnce({ FileID: 'abc', Url: '/api/notifications/templates/email/images/abc' })
+    await uploadEmailImage(file)
+    expect(mockApiPostMultipart).toHaveBeenCalledOnce()
+    const [path, form] = mockApiPostMultipart.mock.calls[0]
+    expect(path).toBe('/api/notifications/templates/email/images')
+    expect((form as FormData).get('file')).toBe(file)
+  })
+
+  it('returns the FileID/Url result', async () => {
+    const file = new File(['x'], 'logo.png', { type: 'image/png' })
+    mockApiPostMultipart.mockResolvedValueOnce({ FileID: 'abc', Url: '/api/notifications/templates/email/images/abc' })
+    await expect(uploadEmailImage(file)).resolves.toEqual({ FileID: 'abc', Url: '/api/notifications/templates/email/images/abc' })
+  })
+})
+
+// ── emailImageUrl ──────────────────────────────────────────────────────────────
+
+describe('emailImageUrl', () => {
+  it('builds the cookie-authenticated image URL from a fileID', () => {
+    expect(emailImageUrl('abc')).toBe('/api/notifications/templates/email/images/abc')
   })
 })

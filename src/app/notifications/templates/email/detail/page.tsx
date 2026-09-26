@@ -43,7 +43,7 @@ import type {
   EmailTemplate,
   BlockPreset,
 } from "@/api/notifications/emailTemplates"
-import type { EmailBodyBlock, PresetBlock } from "@/components/notifications/editor/previewHtml"
+import type { EmailBodyBlock, PresetBlock } from "@/components/notifications/editor/emailBlocks"
 import { BlockEditor } from "@/components/notifications/editor/BlockEditor"
 import { EmailFooterEditor } from "@/components/notifications/editor/EmailFooterEditor"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"

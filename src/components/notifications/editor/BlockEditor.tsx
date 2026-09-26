@@ -23,13 +23,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
-import {
-  defaultBlockForType,
-  type EmailBodyBlock,
-  type ButtonBlock,
-  type ImageBlock,
-  type PresetBlock,
-} from "@/components/notifications/editor/previewHtml";
+import { defaultBlockForType } from "@/components/notifications/editor/previewHtml";
+import type {
+  EmailBodyBlock,
+  ButtonBlock,
+  ImageBlock,
+  PresetBlock,
+} from "@/components/notifications/editor/emailBlocks";
 import type { VariableDef } from "@/components/notifications/editor/variableUtils";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
 
@@ -52,6 +52,7 @@ const BLOCK_LABEL_KEYS: Record<EmailBodyBlock["type"], string> = {
   image: "admin.notif.editor.block.image",
   divider: "admin.notif.editor.block.divider",
   preset: "admin.notif.editor.block.preset",
+  logo: "admin.notif.editor.block.logo",
 };
 
 const ADD_BLOCK_ARIA_KEYS: Record<EmailBodyBlock["type"], string> = {
@@ -60,6 +61,7 @@ const ADD_BLOCK_ARIA_KEYS: Record<EmailBodyBlock["type"], string> = {
   image: "admin.notif.editor.addImageBlock",
   divider: "admin.notif.editor.addDividerBlock",
   preset: "admin.notif.editor.block.preset",
+  logo: "admin.notif.editor.addLogoBlock",
 };
 
 const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
@@ -68,7 +70,11 @@ const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
   image:     "bg-muted text-muted-foreground",
   divider:   "bg-muted text-muted-foreground",
   preset:    "bg-primary/10 text-primary",
+  logo:      "bg-muted text-muted-foreground",
 };
+
+// Logo blocks are not yet addable from this editor (no UI to pick/preview the
+// brand logo here — see Task 10/11); ADD_BLOCK_TYPES intentionally omits it.
 
 const ADD_BLOCK_TYPES: Array<EmailBodyBlock["type"]> = [
   "rich_text",

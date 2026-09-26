@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import type { EmailBodyBlock, LexicalEditorState } from './previewHtml'
+import type { EmailBodyBlock, LexicalEditorState } from './emailBlocks'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

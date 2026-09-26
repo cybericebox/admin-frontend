@@ -9,11 +9,11 @@
  * Body/Styling arrive as json.RawMessage (parsed JSON) → null-normalised to []/{}
  * on read so callers always get well-typed values.
  *
- * Block union imported from previewHtml — single source of truth, never redefined.
+ * Block union imported from emailBlocks — single source of truth, never redefined.
  */
 
-import type { EmailBodyBlock } from '@/components/notifications/editor/previewHtml'
-import { apiGet, apiPost, apiPut, apiDelete } from '@/api/client'
+import type { EmailBodyBlock } from '@/components/notifications/editor/emailBlocks'
+import { apiGet, apiPost, apiPut, apiDelete, apiPostMultipart } from '@/api/client'
 
 // ── Path constants ─────────────────────────────────────────────────────────────
 
@@ -222,4 +222,45 @@ export async function updateBlockPreset(id: string, input: PresetInput): Promise
 /** DELETE /api/notifications/templates/email/block-presets/:id */
 export function deleteBlockPreset(id: string): Promise<void> {
   return apiDelete<void>(`${PRESETS}/${id}`)
+}
+
+// ── Preview + image functions (Task 7/6 backend contract) ──────────────────────
+
+export type PreviewEmailTemplateInput = {
+  NotificationType: string
+  Subject:          string
+  Preheader:        string
+  Body:             EmailBodyBlock[]
+  Styling:          Record<string, unknown>
+  Values?:          Record<string, string>
+}
+
+export type PreviewEmailTemplateResult = {
+  Subject:   string
+  Preheader: string
+  HTML:      string
+}
+
+/**
+ * POST /api/notifications/templates/email/preview — the backend renders the
+ * draft exactly as it would dispatch it (see task-7-report.md). A draft that
+ * cannot be rendered (bad syntax, unknown subject/preheader variable) comes
+ * back as a 400 ApiError whose message is "Template cannot be rendered: …".
+ */
+export function previewEmailTemplate(input: PreviewEmailTemplateInput): Promise<PreviewEmailTemplateResult> {
+  return apiPost<PreviewEmailTemplateResult>(`${BASE}/preview`, input)
+}
+
+export type UploadedEmailImage = { FileID: string; Url: string }
+
+/** POST /api/notifications/templates/email/images (multipart, field "file"). */
+export function uploadEmailImage(file: File): Promise<UploadedEmailImage> {
+  const form = new FormData()
+  form.append('file', file)
+  return apiPostMultipart<UploadedEmailImage>(`${BASE}/images`, form)
+}
+
+/** GET /api/notifications/templates/email/images/:fileID (cookie-auth, suitable for <img src>). */
+export function emailImageUrl(fileId: string): string {
+  return `${BASE}/images/${fileId}`
 }

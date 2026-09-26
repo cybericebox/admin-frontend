@@ -1,6 +1,6 @@
 "use client"
 import { buildPreviewHtml } from "@/components/notifications/editor/previewHtml"
-import type { EmailBodyBlock } from "@/components/notifications/editor/previewHtml"
+import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
 import { t } from "@/i18n/t"
 
 export interface EmailPreviewProps {

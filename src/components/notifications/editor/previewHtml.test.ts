@@ -5,7 +5,7 @@ import {
   buildPreviewHtml,
   defaultBlockForType,
 } from './previewHtml'
-import type { EmailBodyBlock, LexicalEditorState } from './previewHtml'
+import type { EmailBodyBlock, LexicalEditorState } from './emailBlocks'
 
 // ── Node factories ─────────────────────────────────────────────────────────────
 
@@ -343,6 +343,17 @@ describe('renderBlockToHtml — preset', () => {
   })
 })
 
+// ── renderBlockToHtml — logo ──────────────────────────────────────────────────
+// The browser-side preview has no brand/logo URL (server-side only), so this
+// legacy renderer intentionally renders nothing for a logo block.
+
+describe('renderBlockToHtml — logo', () => {
+  it('renders as empty string (no client-side brand/logo URL)', () => {
+    const html = renderBlockToHtml({ type: 'logo' }, {}, {})
+    expect(html).toBe('')
+  })
+})
+
 // ── buildPreviewHtml ──────────────────────────────────────────────────────────
 
 describe('buildPreviewHtml', () => {
@@ -419,6 +430,11 @@ describe('defaultBlockForType', () => {
   it('returns preset block', () => {
     const b = defaultBlockForType('preset')
     expect(b.type).toBe('preset')
+  })
+
+  it('returns logo block', () => {
+    const b = defaultBlockForType('logo')
+    expect(b.type).toBe('logo')
   })
 })
 

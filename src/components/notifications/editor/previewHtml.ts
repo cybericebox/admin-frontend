@@ -19,37 +19,28 @@
  * `text-align`, so Lexical paragraph alignment is not reflected in delivery.
  * This preview matches that (no align) on purpose. Supporting alignment needs a
  * coordinated backend + frontend change. // TODO: honor paragraph alignment in both renderers
+ *
+ * Block types moved to emailBlocks.ts (Task 9) — that is now the single
+ * source of truth; this module imports them and (for back-compat with any
+ * caller still reaching through here) re-exports them. This file is legacy:
+ * the browser-side Lexical→HTML render it does is superseded by the
+ * backend-rendered preview (emailTemplates.ts's previewEmailTemplate) and is
+ * deleted in Task 12. It does not know how to render a LogoBlock (the browser
+ * has no brand/logo URL), so 'logo' renders as nothing here.
  */
 
-// ── Types — single source of truth (Task 6 imports from here) ─────────────────
+import type { EmailBodyBlock, LexicalEditorState } from './emailBlocks'
 
-export type LexicalEditorState = {
-  root: { children: unknown[]; type: 'root'; [k: string]: unknown }
-}
-
-export type RichTextBlock = { type: 'rich_text'; content: LexicalEditorState }
-export type ButtonBlock = {
-  type: 'button'
-  label: string
-  url: string
-  align?: 'left' | 'center' | 'right'
-}
-export type DividerBlock = { type: 'divider' }
-export type ImageBlock = {
-  type: 'image'
-  url?: string
-  alt?: string
-  width_pct?: number
-  align?: 'left' | 'center' | 'right'
-}
-export type PresetBlock = { type: 'preset'; preset_id: string; name: string; placement?: 'footer' }
-
-export type EmailBodyBlock =
-  | RichTextBlock
-  | ButtonBlock
-  | DividerBlock
-  | ImageBlock
-  | PresetBlock
+export type {
+  LexicalEditorState,
+  RichTextBlock,
+  ButtonBlock,
+  DividerBlock,
+  ImageBlock,
+  PresetBlock,
+  LogoBlock,
+  EmailBodyBlock,
+} from './emailBlocks'
 
 // ── Styling — mirrors blocks.go emailStyling + defaultEmailStyling ─────────────
 
@@ -285,6 +276,12 @@ export function renderBlockToHtml(
         .join('')
     }
 
+    case 'logo':
+      // The browser-side preview has no brand/logo URL to render (that lives
+      // server-side). The backend-rendered preview (previewEmailTemplate)
+      // shows the real logo; this legacy renderer shows nothing.
+      return ''
+
     default: {
       const _exhaustive: never = block
       void _exhaustive
@@ -341,6 +338,8 @@ export function defaultBlockForType(type: EmailBodyBlock['type']): EmailBodyBloc
       return { type: 'image', alt: '' }
     case 'preset':
       return { type: 'preset', preset_id: '', name: '' }
+    case 'logo':
+      return { type: 'logo' }
     default: {
       const _exhaustive: never = type
       void _exhaustive

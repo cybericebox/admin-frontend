@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import type { EmailBodyBlock, ButtonBlock } from './previewHtml'
+import type { EmailBodyBlock, ButtonBlock } from './emailBlocks'
 import type { BlockPreset } from '@/api/notifications/emailTemplates'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { FieldHelp } from "@/components/ui/field-help"
 import { BlockEditor } from "./BlockEditor"
 import type { BlockPreset } from "@/api/notifications/emailTemplates"
-import type { EmailBodyBlock } from "./previewHtml"
+import type { EmailBodyBlock } from "./emailBlocks"
 import type { VariableDef } from "./variableUtils"
 
 type Props = {

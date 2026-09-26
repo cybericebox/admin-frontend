@@ -75,27 +75,10 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
   redirectToSignInPage(signInUrl)
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit = {},
-  opts: ApiOptions = {}
-): Promise<T> {
-  const url = `${BASE_URL}${path}`
-
-  let res: Response
-  try {
-    res = await fetch(url, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
-    })
-  } catch (error) {
-    reportServiceUnavailable()
-    throw error
-  }
+// Shared by request() and apiPostMultipart(): 401 redirect, then envelope
+// unwrap into ApiError/Data. Split out so the multipart path can skip the
+// JSON-only fetch() call above without duplicating this logic.
+async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
   if (isUnavailableStatus(res.status)) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write return_to cookie
@@ -139,6 +122,57 @@ async function request<T>(
 
   // Data is absent for empty 200s (e.g. DELETE) — return undefined in that case.
   return (envelope ? envelope.Data : parsed) as T
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  opts: ApiOptions = {}
+): Promise<T> {
+  const url = `${BASE_URL}${path}`
+
+  let res: Response
+  try {
+    res = await fetch(url, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    })
+  } catch (error) {
+    reportServiceUnavailable()
+    throw error
+  }
+
+  return finishRequest<T>(res, opts)
+}
+
+// apiPostMultipart — POST a FormData body (e.g. a file upload) with the same
+// credentials / 401-redirect / envelope-unwrap / error conventions as
+// request(). NOT via apiPost: request() always sets Content-Type:
+// application/json, which breaks the multipart boundary. There is no CSRF
+// header convention in this client to preserve — auth here is the
+// __Host-session cookie sent via credentials:"include", same as every other
+// call. See api/exercises/files.ts for the XHR progress-reporting variant
+// used where upload progress must be surfaced to the caller.
+export async function apiPostMultipart<T>(
+  path: string,
+  form: FormData,
+  opts: ApiOptions = {}
+): Promise<T> {
+  const url = `${BASE_URL}${path}`
+
+  let res: Response
+  try {
+    res = await fetch(url, { method: "POST", credentials: "include", body: form })
+  } catch (error) {
+    reportServiceUnavailable()
+    throw error
+  }
+
+  return finishRequest<T>(res, opts)
 }
 
 export function apiGet<T>(path: string, init?: RequestInit, opts?: ApiOptions): Promise<T> {
