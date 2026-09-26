@@ -202,6 +202,10 @@
   "admin.notif.settings.empty": "Немає налаштувань",
   "admin.notif.settings.saveError": "Не вдалося зберегти",
 
+  "admin.notif.signalDefaults.title": "Типові сповіщення для подій",
+  "admin.notif.signalDefaults.colAudience": "Отримувач",
+  "admin.notif.audience.signal_subject": "Причетний учасник",
+
   "admin.notif.tpl.inapp": "Повідомлення на сайті",
   "admin.notif.tpl.email": "Пошта",
   "admin.notif.tpl.new": "Новий шаблон",

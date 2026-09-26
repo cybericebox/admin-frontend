@@ -202,6 +202,10 @@
   "admin.notif.settings.empty": "No settings",
   "admin.notif.settings.saveError": "Failed to save",
 
+  "admin.notif.signalDefaults.title": "Event notification defaults",
+  "admin.notif.signalDefaults.colAudience": "Audience",
+  "admin.notif.audience.signal_subject": "Participant concerned",
+
   "admin.notif.tpl.inapp": "In-app templates",
   "admin.notif.tpl.email": "Email templates",
   "admin.notif.tpl.new": "New template",

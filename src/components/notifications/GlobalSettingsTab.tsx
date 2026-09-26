@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
@@ -7,6 +7,7 @@ import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { toast } from "@/components/ui/toast"
+import { SignalDefaultsSection } from "@/components/notifications/SignalDefaultsSection"
 
 type Setting = {
   NotificationType: string
@@ -44,12 +45,15 @@ export function GlobalSettingsTab() {
     }
   }
 
-  if (error) return <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
-  if (loading) return <LoadingArea label={t("admin.loading")} />
-  if (rows.length === 0) return <EmptyState message={t("admin.notif.settings.empty")} />
-
-  return (
-    <div className="space-y-3 pt-4">
+  let globalSettings: ReactNode
+  if (error) {
+    globalSettings = <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
+  } else if (loading) {
+    globalSettings = <LoadingArea label={t("admin.loading")} />
+  } else if (rows.length === 0) {
+    globalSettings = <EmptyState message={t("admin.notif.settings.empty")} />
+  } else {
+    globalSettings = (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -74,6 +78,13 @@ export function GlobalSettingsTab() {
           </tbody>
         </table>
       </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 pt-4">
+      {globalSettings}
+      <SignalDefaultsSection />
     </div>
   )
 }

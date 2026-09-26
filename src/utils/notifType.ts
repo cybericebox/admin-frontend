@@ -36,6 +36,14 @@ export function notifChannelLabel(channel: string): string {
   return label === key ? channel : label
 }
 
+// Localized label for a signal-default audience kind (e.g. "signal_subject").
+// Falls back to the raw kind for values absent from the catalog.
+export function notifAudienceLabel(kind: string): string {
+  const key = `admin.notif.audience.${kind}`
+  const label = t(key)
+  return label === key ? kind : label
+}
+
 // The API keeps variable names stable for rendering. Translate only their
 // explanatory text in the admin UI; new variables retain the API description.
 export function notifVariableDescription(name: string, fallback: string): string {
