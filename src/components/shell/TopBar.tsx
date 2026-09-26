@@ -50,7 +50,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-secondary text-sm font-medium text-secondary-foreground"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images
