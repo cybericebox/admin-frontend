@@ -72,7 +72,7 @@ describe('EmailPreview', () => {
       Preheader: 'P',
       Body: body,
       Styling: styling,
-    })
+    }, expect.any(AbortSignal))
   })
 
   it('does not call the backend without a notification type', async () => {
@@ -86,7 +86,10 @@ describe('EmailPreview', () => {
     await flushDebounce()
     const iframe = document.querySelector('iframe')
     expect(iframe).not.toBeNull()
-    expect(iframe!.getAttribute('sandbox')).toBe('')
+    // Same-origin so the SameSite=Strict session cookie reaches the
+    // cookie-authed image/logo routes; scripts stay blocked.
+    expect(iframe!.getAttribute('sandbox')).toBe('allow-same-origin')
+    expect(iframe!.getAttribute('sandbox')!.split(/\s+/)).not.toContain('allow-scripts')
     expect(iframe!.getAttribute('title')).toBe('admin.notif.editor.previewTitle')
     expect(srcDoc().toLowerCase()).toContain('<!doctype html>')
     expect(srcDoc()).toContain('<p>Hello Ada</p>')
@@ -169,5 +172,34 @@ describe('EmailPreview', () => {
     expect(alert.textContent).toContain('admin.notif.editor.previewError')
     expect(alert.textContent).not.toContain('Failed to render template')
     expect(document.querySelector('iframe')).not.toBeNull()
+  })
+
+  it('aborts a superseded in-flight request when the fields change', async () => {
+    preview.mockReturnValueOnce(new Promise(() => {}))
+    const { rerender } = render(
+      <EmailPreview notificationType="user.welcome" subject="A" preheader="" body={body} styling={styling} />,
+    )
+    await flushDebounce()
+    const firstSignal = preview.mock.calls[0][1] as AbortSignal
+    expect(firstSignal.aborted).toBe(false)
+    rerender(<EmailPreview notificationType="user.welcome" subject="B" preheader="" body={body} styling={styling} />)
+    expect(firstSignal.aborted).toBe(true)
+  })
+
+  it('unmounting during a pending request aborts it and causes no state update or warning', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const pending = deferred<{ Subject: string; Preheader: string; HTML: string }>()
+    preview.mockReturnValue(pending.promise)
+    const { unmount } = render(
+      <EmailPreview notificationType="user.welcome" subject="A" preheader="" body={body} styling={styling} />,
+    )
+    await flushDebounce()
+    const signal = preview.mock.calls[0][1] as AbortSignal
+    unmount()
+    expect(signal.aborted).toBe(true)
+    await act(async () => { pending.resolve({ Subject: 'late', Preheader: '', HTML: '<p>late</p>' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(errorSpy).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
   })
 })

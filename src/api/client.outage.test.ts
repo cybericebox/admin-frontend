@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { apiGet, ApiError } from "./client"
+import { apiGet, apiPost, ApiError } from "./client"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
 
 afterEach(() => {
@@ -19,5 +19,13 @@ describe("API outage detection", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network failed")))
     await expect(apiGet("/api/auth/me", undefined, { required: false })).rejects.toBeInstanceOf(TypeError)
     expect(isServiceDown()).toBe(true)
+  })
+
+  it("does not report an outage when the caller aborted the request", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("aborted", "AbortError")))
+    await expect(apiPost("/api/x", {}, { signal: controller.signal })).rejects.toThrow("aborted")
+    expect(isServiceDown()).toBe(false)
   })
 })

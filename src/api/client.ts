@@ -142,7 +142,8 @@ async function request<T>(
       },
     })
   } catch (error) {
-    reportServiceUnavailable()
+    // A caller-initiated abort (AbortController) is not an outage.
+    if (!init.signal?.aborted) reportServiceUnavailable()
     throw error
   }
 

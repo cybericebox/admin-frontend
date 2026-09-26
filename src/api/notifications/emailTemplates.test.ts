@@ -357,6 +357,13 @@ describe('previewEmailTemplate', () => {
     mockApiPost.mockResolvedValueOnce(result)
     await expect(previewEmailTemplate(input)).resolves.toEqual(result)
   })
+
+  it('forwards an abort signal to the request', async () => {
+    mockApiPost.mockResolvedValueOnce({ Subject: '', Preheader: '', HTML: '' })
+    const controller = new AbortController()
+    await previewEmailTemplate(input, controller.signal)
+    expect(mockApiPost.mock.calls[0][2]).toEqual({ signal: controller.signal })
+  })
 })
 
 // ── uploadEmailImage ───────────────────────────────────────────────────────────

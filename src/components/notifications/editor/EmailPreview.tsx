@@ -38,8 +38,14 @@ function previewDocument(html: string): string {
  *
  * The current fields are sent to previewEmailTemplate 300 ms after the last
  * change (the backend resolves presets, brand tokens, logo and sample variable
- * values itself). The returned HTML goes into <iframe sandbox="" srcDoc=...>
- * for strict origin isolation. The last good render stays visible while a new
+ * values itself); a superseded or unmounted request is aborted. The returned
+ * HTML goes into <iframe sandbox="allow-same-origin" srcDoc=...>: the frame
+ * keeps the admin origin (same-site with api.<domain>) so the SameSite=Strict
+ * session cookie is sent and the cookie-authed uploaded images / brand logo
+ * load, while the missing allow-scripts token still blocks every script (and
+ * forms, popups, top navigation). Never add allow-scripts next to
+ * allow-same-origin — together they let the content remove its own sandbox.
+ * The last good render stays visible while a new
  * one is loading or after it fails; a 400 (draft cannot be rendered, e.g. a
  * half-typed `{{.us`) shows the backend's reason inline, anything else a
  * generic inline error.
@@ -50,7 +56,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
 
   useEffect(() => {
     if (!notificationType) return
-    let cancelled = false
+    const controller = new AbortController()
     const timer = setTimeout(() => {
       previewEmailTemplate({
         NotificationType: notificationType,
@@ -58,21 +64,21 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
         Preheader: preheader,
         Body: body,
         Styling: styling,
-      }).then(
+      }, controller.signal).then(
         (res) => {
-          if (cancelled) return
+          if (controller.signal.aborted) return
           setResult(res)
           setError(null)
         },
         (err: unknown) => {
-          if (cancelled) return
+          if (controller.signal.aborted) return
           setError(err instanceof ApiError && err.status === 400 ? err.message : t("admin.notif.editor.previewError"))
         },
       )
     }, PREVIEW_DEBOUNCE_MS)
     return () => {
-      cancelled = true
       clearTimeout(timer)
+      controller.abort()
     }
   }, [notificationType, subject, preheader, body, styling])
 
@@ -87,7 +93,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
       )}
       <iframe
         title={t("admin.notif.editor.previewTitle")}
-        sandbox=""
+        sandbox="allow-same-origin"
         srcDoc={previewDocument(result?.HTML ?? "")}
         className="h-[480px] w-full bg-white"
       />

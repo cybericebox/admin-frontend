@@ -246,9 +246,13 @@ export type PreviewEmailTemplateResult = {
  * draft exactly as it would dispatch it (see task-7-report.md). A draft that
  * cannot be rendered (bad syntax, unknown subject/preheader variable) comes
  * back as a 400 ApiError whose message is "Template cannot be rendered: …".
+ * An optional `signal` cancels the request (the editor aborts superseded previews).
  */
-export function previewEmailTemplate(input: PreviewEmailTemplateInput): Promise<PreviewEmailTemplateResult> {
-  return apiPost<PreviewEmailTemplateResult>(`${BASE}/preview`, input)
+export function previewEmailTemplate(
+  input: PreviewEmailTemplateInput,
+  signal?: AbortSignal,
+): Promise<PreviewEmailTemplateResult> {
+  return apiPost<PreviewEmailTemplateResult>(`${BASE}/preview`, input, signal ? { signal } : undefined)
 }
 
 export type UploadedEmailImage = { FileID: string; Url: string }
