@@ -43,6 +43,7 @@ vi.mock('@/api/notifications/emailTemplates', () => ({
   listBlockPresets:      vi.fn(),
   listEmailTemplates:    vi.fn(),
   createBlockPreset:     vi.fn(),
+  previewEmailTemplate:  vi.fn(() => new Promise(() => {})),
 }))
 
 // templateTypes hook

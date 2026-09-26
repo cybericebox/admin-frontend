@@ -288,6 +288,7 @@
   "admin.notif.editor.imageUrl": "Адреса зображення",
   "admin.notif.editor.imageAlt": "Альтернативний текст зображення",
   "admin.notif.editor.previewTitle": "Перегляд листа",
+  "admin.notif.editor.previewError": "Не вдалося побудувати перегляд листа. Спробуйте пізніше.",
   "admin.notif.editor.previewInApp": "Перегляд повідомлення на сайті",
   "admin.notif.editor.blocksSelected": "Вибрано блоків",
   "admin.notif.editor.clearSelection": "Очистити",

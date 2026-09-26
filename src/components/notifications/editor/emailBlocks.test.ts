@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { THEME_TOKENS, PLATFORM_BRAND } from './emailBlocks'
+import { THEME_TOKENS, PLATFORM_BRAND, defaultBlockForType } from './emailBlocks'
 import type { LogoBlock, ImageBlock, EmailBodyBlock } from './emailBlocks'
 
 describe('THEME_TOKENS', () => {
@@ -41,5 +41,44 @@ describe('block type shapes', () => {
   it('EmailBodyBlock accepts a LogoBlock member', () => {
     const blocks: EmailBodyBlock[] = [{ type: 'logo' }, { type: 'divider' }]
     expect(blocks[0].type).toBe('logo')
+  })
+})
+
+describe('defaultBlockForType', () => {
+  it('returns rich_text block with empty root', () => {
+    const b = defaultBlockForType('rich_text')
+    expect(b.type).toBe('rich_text')
+    if (b.type === 'rich_text') {
+      expect(b.content.root.children).toEqual([])
+    }
+  })
+
+  it('returns button block with empty label and url', () => {
+    const b = defaultBlockForType('button')
+    expect(b.type).toBe('button')
+    if (b.type === 'button') {
+      expect(b.label).toBe('')
+      expect(b.url).toBe('')
+    }
+  })
+
+  it('returns divider block', () => {
+    const b = defaultBlockForType('divider')
+    expect(b.type).toBe('divider')
+  })
+
+  it('returns image block', () => {
+    const b = defaultBlockForType('image')
+    expect(b.type).toBe('image')
+  })
+
+  it('returns preset block', () => {
+    const b = defaultBlockForType('preset')
+    expect(b.type).toBe('preset')
+  })
+
+  it('returns logo block', () => {
+    const b = defaultBlockForType('logo')
+    expect(b.type).toBe('logo')
   })
 })

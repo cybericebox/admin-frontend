@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor";
-import { defaultBlockForType } from "@/components/notifications/editor/previewHtml";
+import { defaultBlockForType } from "@/components/notifications/editor/emailBlocks";
 import type {
   EmailBodyBlock,
   ButtonBlock,

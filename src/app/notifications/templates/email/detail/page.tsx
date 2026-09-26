@@ -9,7 +9,7 @@
  * Layout:
  *   Left  — Subject (VariableRichText dotted), Preheader, BlockEditor body,
  *            STYLING section (4 ColorPickers + 2 numeric inputs)
- *   Right — EmailPreview (live, fed from current form state)
+ *   Right — EmailPreview (live, backend-rendered from current form state)
  *
  * Status rules:
  *   draft       → editable; Save + Publish buttons shown
@@ -142,19 +142,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     if (!entry || !entry.Channels.includes("email")) return []
     return entry.Variables.map((v) => ({ name: v.Name, description: v.Description, example: v.Default }))
   }, [notifTypes, notificationType])
-
-  // ── Derived: preview values (each variable's Default from catalog) ─────────
-  const previewValues = useMemo(() => {
-    const entry = notifTypes.find((nt) => nt.Type === notificationType)
-    if (!entry) return {}
-    return Object.fromEntries(entry.Variables.map((v) => [v.Name, v.Default]))
-  }, [notifTypes, notificationType])
-
-  // ── Derived: presets map for EmailPreview ─────────────────────────────────
-  const presetsMap = useMemo(
-    () => Object.fromEntries(presets.map((p) => [p.ID, p.Blocks])),
-    [presets],
-  )
 
   // ── Styling helpers ───────────────────────────────────────────────────────
   function setStylingKey(key: string, val: unknown) {
@@ -568,12 +555,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           </div>
           <div className="sticky top-4">
             <EmailPreview
+              notificationType={notificationType}
               subject={subject}
               preheader={preheader}
               body={body}
               styling={styling}
-              presets={presetsMap}
-              previewValues={previewValues}
             />
           </div>
         </div>

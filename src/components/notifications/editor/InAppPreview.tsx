@@ -23,7 +23,7 @@ function substituteHtml(text: string, values: Record<string, string>): string {
 // ── Security helpers ──────────────────────────────────────────────────────────
 
 /**
- * URL allowlist (mirrors previewHtml.ts safeURL):
+ * URL allowlist (mirrors the backend email renderer's safeURL, render/blocks.go):
  *   permitted: http://, https://, mailto:, leading "/" (NOT "//"), leading "#"
  *   blocked:   javascript:, data:, vbscript:, protocol-relative "//…", anything else
  */

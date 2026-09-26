@@ -288,6 +288,7 @@
   "admin.notif.editor.imageUrl": "Image URL",
   "admin.notif.editor.imageAlt": "Image alt text",
   "admin.notif.editor.previewTitle": "Email preview",
+  "admin.notif.editor.previewError": "The preview could not be rendered. Try again later.",
   "admin.notif.editor.previewInApp": "Notification preview",
   "admin.notif.editor.blocksSelected": "Selected blocks",
   "admin.notif.editor.clearSelection": "Clear",
