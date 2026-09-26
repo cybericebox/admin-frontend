@@ -339,7 +339,7 @@ export function defaultBlockForType(type: EmailBodyBlock['type']): EmailBodyBloc
     case 'preset':
       return { type: 'preset', preset_id: '', name: '' }
     case 'logo':
-      return { type: 'logo' }
+      return { type: 'logo', align: 'center', width_px: 64 }
     default: {
       const _exhaustive: never = type
       void _exhaustive

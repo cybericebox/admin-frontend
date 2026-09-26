@@ -12,8 +12,9 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import type { EmailBodyBlock, ButtonBlock } from './emailBlocks'
+import type { EmailBodyBlock, ButtonBlock, ImageBlock, LogoBlock } from './emailBlocks'
 import type { BlockPreset } from '@/api/notifications/emailTemplates'
+import { ApiError } from '@/api/client'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,13 @@ vi.mock('./RichTextEditor', () => ({
     <div data-testid="rich-text-editor" aria-label={placeholder ?? 'rich text editor'} />
   ),
 }))
+
+vi.mock('@/api/notifications/emailTemplates', () => ({
+  uploadEmailImage: vi.fn(),
+  emailImageUrl: (fileId: string) => `/api/notifications/templates/email/images/${fileId}`,
+}))
+
+import { uploadEmailImage } from '@/api/notifications/emailTemplates'
 
 // Import after mocks
 import { BlockEditor } from './BlockEditor'
@@ -44,6 +52,14 @@ function makeButton(): EmailBodyBlock {
 
 function makeDivider(): EmailBodyBlock {
   return { type: 'divider' }
+}
+
+function makeImage(overrides: Partial<ImageBlock> = {}): EmailBodyBlock {
+  return { type: 'image', alt: '', ...overrides }
+}
+
+function makeLogo(overrides: Partial<LogoBlock> = {}): EmailBodyBlock {
+  return { type: 'logo', align: 'center', width_px: 64, ...overrides }
 }
 
 const samplePreset: BlockPreset = {
@@ -481,5 +497,117 @@ describe('BlockEditor', () => {
         />
       )
     ).not.toThrow()
+  })
+
+  // ── Logo block (Task 11) ─────────────────────────────────────────────────
+
+  it('"Add block" tray has a Logo button', () => {
+    render(
+      <BlockEditor value={[]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    expect(screen.getByRole('button', { name: 'Додати блок логотипа' })).toBeInTheDocument()
+  })
+
+  it('clicking "Add logo block" inserts a default logo block (align:center, width_px:64)', () => {
+    render(
+      <BlockEditor value={[]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Додати блок логотипа' }))
+    expect(onChange).toHaveBeenCalledOnce()
+    const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
+    expect(next).toHaveLength(1)
+    expect(next[0]).toEqual({ type: 'logo', align: 'center', width_px: 64 })
+  })
+
+  it('logo block exposes an alignment select and a width_px input', () => {
+    render(
+      <BlockEditor value={[makeLogo()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    expect(screen.getByRole('button', { name: 'Вирівнювання' })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Ширина логотипа (px)' })).toHaveValue(64)
+  })
+
+  it('changing logo alignment calls onChange with the updated align field', async () => {
+    render(
+      <BlockEditor value={[makeLogo()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Вирівнювання' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Ліворуч' }))
+    expect(onChange).toHaveBeenCalledOnce()
+    const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
+    expect((next[0] as LogoBlock).align).toBe('left')
+  })
+
+  it('changing the logo width_px input calls onChange with the updated width', () => {
+    render(
+      <BlockEditor value={[makeLogo()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Ширина логотипа (px)' }), {
+      target: { value: '128' },
+    })
+    expect(onChange).toHaveBeenCalledOnce()
+    const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
+    expect((next[0] as LogoBlock).width_px).toBe(128)
+  })
+
+  // ── Image upload (Task 11) ────────────────────────────────────────────────
+
+  it('image block has an "Upload" button with a hidden file input', () => {
+    render(
+      <BlockEditor value={[makeImage()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    expect(screen.getByRole('button', { name: 'Завантажити' })).toBeInTheDocument()
+  })
+
+  it('uploading a file calls uploadEmailImage and updates the block with file_id, clearing url', async () => {
+    ;(uploadEmailImage as unknown as Mock).mockResolvedValue({ FileID: 'file-123', Url: '/api/notifications/templates/email/images/file-123' })
+    render(
+      <BlockEditor
+        value={[makeImage({ url: 'https://example.com/old.png' })]}
+        onChange={onChange}
+        presets={[]}
+        onSavePreset={onSavePreset}
+      />
+    )
+    const file = new File(['fake'], 'logo.png', { type: 'image/png' })
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
+    const [next] = onChange.mock.calls[onChange.mock.calls.length - 1] as [EmailBodyBlock[]]
+    const updated = next[0] as ImageBlock
+    expect(updated.file_id).toBe('file-123')
+    expect(updated.url).toBeUndefined()
+    expect(uploadEmailImage).toHaveBeenCalledWith(file)
+  })
+
+  it('a failed upload shows the backend error message inline on the block', async () => {
+    ;(uploadEmailImage as unknown as Mock).mockRejectedValue(new ApiError(400, {}, 'invalid image type'))
+    render(
+      <BlockEditor value={[makeImage()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
+    )
+    const file = new File(['fake'], 'logo.svg', { type: 'image/svg+xml' })
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    expect(await screen.findByText('invalid image type')).toBeInTheDocument()
+  })
+
+  it('the URL input is still editable and clears file_id when typed into', () => {
+    render(
+      <BlockEditor
+        value={[makeImage({ file_id: 'file-999' })]}
+        onChange={onChange}
+        presets={[]}
+        onSavePreset={onSavePreset}
+      />
+    )
+    const urlInput = screen.getByPlaceholderText('https://example.com/image.png')
+    fireEvent.change(urlInput, { target: { value: 'https://example.com/new.png' } })
+    expect(onChange).toHaveBeenCalledOnce()
+    const [next] = onChange.mock.calls[0] as [EmailBodyBlock[]]
+    const updated = next[0] as ImageBlock
+    expect(updated.url).toBe('https://example.com/new.png')
+    expect(updated.file_id).toBeUndefined()
   })
 })

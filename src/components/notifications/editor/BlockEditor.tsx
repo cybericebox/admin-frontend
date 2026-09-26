@@ -13,8 +13,8 @@
  * uncontrolled after mount).
  */
 
-import React, { useState } from "react";
-import { ChevronUp, ChevronDown, Trash2, Save } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { ChevronUp, ChevronDown, Trash2, Save, Upload } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
@@ -28,10 +28,13 @@ import type {
   EmailBodyBlock,
   ButtonBlock,
   ImageBlock,
+  LogoBlock,
   PresetBlock,
 } from "@/components/notifications/editor/emailBlocks";
 import type { VariableDef } from "@/components/notifications/editor/variableUtils";
+import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
+import { ApiError, mediaUrl } from "@/api/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,14 +76,12 @@ const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
   logo:      "bg-muted text-muted-foreground",
 };
 
-// Logo blocks are not yet addable from this editor (no UI to pick/preview the
-// brand logo here — see Task 10/11); ADD_BLOCK_TYPES intentionally omits it.
-
 const ADD_BLOCK_TYPES: Array<EmailBodyBlock["type"]> = [
   "rich_text",
   "button",
   "image",
   "divider",
+  "logo",
 ];
 
 // ── Key generation ────────────────────────────────────────────────────────────
@@ -118,6 +119,25 @@ export function BlockEditor({
   const [showSaveForm, setShowSaveForm]   = useState(false);
   const [presetName, setPresetName]       = useState("");
   const [savingPreset, setSavingPreset]   = useState(false);
+
+  // ── Image upload state (keyed by the block's stable key, not index, so it
+  //    survives reordering) ─────────────────────────────────────────────────
+  const [uploadState, setUploadState] = useState<Record<string, { uploading: boolean; error: string | null }>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleImageUpload = async (i: number, key: string, block: ImageBlock, file: File) => {
+    setUploadState((prev) => ({ ...prev, [key]: { uploading: true, error: null } }));
+    try {
+      const { FileID } = await uploadEmailImage(file);
+      updateBlock(i, { ...block, file_id: FileID, url: undefined });
+      setUploadState((prev) => ({ ...prev, [key]: { uploading: false, error: null } }));
+    } catch (err) {
+      setUploadState((prev) => ({
+        ...prev,
+        [key]: { uploading: false, error: err instanceof ApiError ? err.message : t("admin.notif.tpl.saveError") },
+      }));
+    }
+  };
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -370,14 +390,51 @@ export function BlockEditor({
 
             {block.type === "image" && (
               <div className="space-y-2">
-                {/* Plain URL input — spec drops media library */}
+                {/* Plain URL input, or upload a file — either sets file_id (clearing url)
+                    or url (clearing file_id); the two are mutually exclusive. */}
                 <Input
                   value={(block as ImageBlock).url ?? ""}
                   onChange={(e) =>
-                    updateBlock(i, { ...(block as ImageBlock), url: e.target.value })
+                    updateBlock(i, { ...(block as ImageBlock), url: e.target.value, file_id: undefined })
                   }
                   placeholder="https://example.com/image.png"
                 />
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={(el) => { fileInputRefs.current[stableKey] = el; }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif"
+                    data-testid="image-file-input"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void handleImageUpload(i, stableKey, block as ImageBlock, file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadState[stableKey]?.uploading}
+                    onClick={() => fileInputRefs.current[stableKey]?.click()}
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    {uploadState[stableKey]?.uploading
+                      ? t("admin.notif.editor.uploading")
+                      : t("admin.notif.editor.uploadImage")}
+                  </Button>
+                  {(block as ImageBlock).file_id && (
+                    <img
+                      src={mediaUrl(emailImageUrl((block as ImageBlock).file_id!))}
+                      alt=""
+                      className="h-10 w-10 rounded-md border border-border object-cover"
+                    />
+                  )}
+                </div>
+                {uploadState[stableKey]?.error && (
+                  <p className="text-xs text-destructive">{uploadState[stableKey]?.error}</p>
+                )}
                 <Input
                   value={(block as ImageBlock).alt ?? ""}
                   onChange={(e) =>
@@ -385,6 +442,44 @@ export function BlockEditor({
                   }
                   placeholder={t("admin.notif.editor.altPlaceholder")}
                 />
+              </div>
+            )}
+
+            {block.type === "logo" && (
+              <div className="space-y-2">
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">{t("admin.notif.editor.alignment")}</span>
+                  <SelectMenu
+                    value={(block as LogoBlock).align ?? "center"}
+                    onChange={(next) =>
+                      updateBlock(i, { ...(block as LogoBlock), align: next as "left" | "center" | "right" })
+                    }
+                    ariaLabel={t("admin.notif.editor.alignment")}
+                    options={[
+                      { value: "left", label: t("admin.notif.editor.alignLeft") },
+                      { value: "center", label: t("admin.notif.editor.alignCenter") },
+                      { value: "right", label: t("admin.notif.editor.alignRight") },
+                    ]}
+                    className="mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">{t("admin.notif.editor.logoWidth")}</span>
+                  <input
+                    type="number"
+                    min={16}
+                    max={400}
+                    aria-label={t("admin.notif.editor.logoWidth")}
+                    value={(block as LogoBlock).width_px ?? 64}
+                    onChange={(e) =>
+                      updateBlock(i, { ...(block as LogoBlock), width_px: parseInt(e.target.value, 10) || 64 })
+                    }
+                    className={cn(
+                      "mt-1 flex h-10 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground",
+                      "focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                    )}
+                  />
+                </label>
               </div>
             )}
 
