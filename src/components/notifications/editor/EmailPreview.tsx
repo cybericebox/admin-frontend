@@ -3,7 +3,6 @@ import { useEffect, useState } from "react"
 import { ApiError } from "@/api/client"
 import { previewEmailTemplate, type PreviewEmailTemplateResult } from "@/api/notifications/emailTemplates"
 import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
-import { apiOrigin } from "@/lib/origins"
 import { t } from "@/i18n/t"
 
 export interface EmailPreviewProps {
@@ -17,20 +16,13 @@ export interface EmailPreviewProps {
 /** Delay between the last draft change and the backend preview request. */
 const PREVIEW_DEBOUNCE_MS = 300
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&#34;").replace(/</g, "&lt;")
-}
-
 /**
- * Wraps the backend-rendered HTML fragment into a full document. The fragment
- * references images/logo by relative `/api/...` URLs, which must resolve
- * against the API host (not the admin host / about:srcdoc) — the same rule as
- * mediaUrl() in api/client.ts. With an empty apiOrigin (local same-origin dev)
- * the srcdoc document already inherits the parent's base URL.
+ * Wraps the backend-rendered HTML fragment into a full document. The backend
+ * embeds every image (uploaded images, brand logo) as a data: URI, so the
+ * document makes no image requests and needs no base URL.
  */
 function previewDocument(html: string): string {
-  const base = apiOrigin ? `<base href="${escapeAttr(apiOrigin)}/">` : ""
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">${base}</head><body>${html}</body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`
 }
 
 /**
@@ -38,13 +30,11 @@ function previewDocument(html: string): string {
  *
  * The current fields are sent to previewEmailTemplate 300 ms after the last
  * change (the backend resolves presets, brand tokens, logo and sample variable
- * values itself); a superseded or unmounted request is aborted. The returned
- * HTML goes into <iframe sandbox="allow-same-origin" srcDoc=...>: the frame
- * keeps the admin origin (same-site with api.<domain>) so the SameSite=Strict
- * session cookie is sent and the cookie-authed uploaded images / brand logo
- * load, while the missing allow-scripts token still blocks every script (and
- * forms, popups, top navigation). Never add allow-scripts next to
- * allow-same-origin — together they let the content remove its own sandbox.
+ * values itself, and inlines every image as a data: URI); a superseded or
+ * unmounted request is aborted. The returned HTML goes into
+ * <iframe sandbox="" srcDoc=...>: fully isolated — an opaque origin with no
+ * cookies, scripts, forms, popups or top navigation. It needs none of them,
+ * since the images are inline; never add allow-same-origin or allow-scripts.
  * The last good render stays visible while a new
  * one is loading or after it fails; a 400 (draft cannot be rendered, e.g. a
  * half-typed `{{.us`) shows the backend's reason inline, anything else a
@@ -104,7 +94,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
       )}
       <iframe
         title={t("admin.notif.editor.previewTitle")}
-        sandbox="allow-same-origin"
+        sandbox=""
         srcDoc={previewDocument(result?.HTML ?? "")}
         className="h-[480px] w-full bg-white"
       />

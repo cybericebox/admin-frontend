@@ -1,8 +1,8 @@
 /**
  * EmailPreview.test.tsx — the preview is rendered by the backend
  * (previewEmailTemplate). EmailPreview debounces the draft fields (300 ms),
- * renders the returned HTML in a sandboxed iframe srcDoc with a <base> pointing
- * at the API origin (the HTML carries relative /api/... image/logo URLs), keeps
+ * renders the returned HTML in a fully sandboxed iframe srcDoc (images arrive
+ * inline as data: URIs, so the frame needs no origin or cookies), keeps
  * the last good HTML while a new render is in flight or has failed, and shows
  * render errors inline.
  */
@@ -105,22 +105,23 @@ describe('EmailPreview', () => {
     await flushDebounce()
     const iframe = document.querySelector('iframe')
     expect(iframe).not.toBeNull()
-    // Same-origin so the SameSite=Strict session cookie reaches the
-    // cookie-authed image/logo routes; scripts stay blocked.
-    expect(iframe!.getAttribute('sandbox')).toBe('allow-same-origin')
-    expect(iframe!.getAttribute('sandbox')!.split(/\s+/)).not.toContain('allow-scripts')
+    // Fully isolated: images are inline data: URIs, so the frame needs no
+    // origin, cookies or scripts.
+    expect(iframe!.getAttribute('sandbox')).toBe('')
     expect(iframe!.getAttribute('title')).toBe('admin.notif.editor.previewTitle')
     expect(srcDoc().toLowerCase()).toContain('<!doctype html>')
     expect(srcDoc()).toContain('<p>Hello Ada</p>')
   })
 
-  it('resolves relative /api URLs against the API origin via <base href>', async () => {
-    preview.mockResolvedValue({ Subject: '', Preheader: '', HTML: '<img src="/api/notifications/templates/email/brand/logo"/>' })
+  it('passes inline data: images through without injecting a <base href>', async () => {
+    const img = '<img src="data:image/png;base64,iVBORw0KGgo="/>'
+    preview.mockResolvedValue({ Subject: '', Preheader: '', HTML: img })
     render(<EmailPreview notificationType="user.welcome" subject="" preheader="" body={body} styling={styling} />)
     await flushDebounce()
     const doc = srcDoc()
-    expect(doc).toContain('<base href="https://api.example.test/">')
-    expect(doc.indexOf('<base')).toBeLessThan(doc.indexOf('<img'))
+    expect(doc).toContain(img)
+    expect(doc).not.toContain('<base')
+    expect(doc).not.toContain('api.example.test')
   })
 
   it('shows the backend-rendered subject and preheader above the body', async () => {
