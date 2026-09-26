@@ -1118,7 +1118,7 @@
   "admin.events.val.dates": "Archive date must be after the availability start",
   "admin.events.err.generic": "The operation could not be completed",
   "admin.events.err.notFound": "Event not found",
-  "admin.events.err.exists": "A live event with this tag already exists",
+  "admin.events.err.exists": "This tag is already taken by another event for these dates",
   "admin.events.err.modified": "The data changed on the server — reload the page",
   "admin.events.err.tagInvalid": "Invalid tag: 3–64 chars, lowercase latin letters and digits only",
   "admin.events.err.datesInvalid": "Archive date must be after the availability start",

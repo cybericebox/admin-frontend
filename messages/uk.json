@@ -1118,7 +1118,7 @@
   "admin.events.val.dates": "Дата архівації має бути пізніше за дату початку",
   "admin.events.err.generic": "Не вдалося виконати операцію",
   "admin.events.err.notFound": "Захід не знайдено",
-  "admin.events.err.exists": "Активний захід із таким тегом уже існує",
+  "admin.events.err.exists": "Цей тег уже зайнятий іншим заходом на ці дати",
   "admin.events.err.modified": "Дані змінилися на сервері — оновіть сторінку",
   "admin.events.err.tagInvalid": "Некоректний тег: 3–64 символів, лише малі латинські літери та цифри",
   "admin.events.err.datesInvalid": "Дата архівації має бути пізніше за дату початку",
