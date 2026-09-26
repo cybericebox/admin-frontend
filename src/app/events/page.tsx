@@ -165,7 +165,7 @@ export default function Page() {
       {error && rows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.events.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }}>{t("admin.events.access.retry")}</Button></div>
       ) : loading && rows.length === 0 ? (
-        <LoadingArea label={t("admin.loading")} />
+        <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
         <EmptyState message={t(debounced || statusFilter !== "all" ? "admin.events.empty" : "admin.events.emptyInitial")} className="h-full" />
       ) : (

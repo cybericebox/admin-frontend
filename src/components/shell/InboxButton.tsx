@@ -8,7 +8,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { Bell, X } from "lucide-react"
 import { apiGet, apiPatch } from "@/api/client"
 import { useRole } from "@/lib/useRole"
-import { LoadingArea } from "@/components/ui/spinner"
+import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { onServiceRestored } from "@/lib/serviceStatus"
 import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
@@ -288,7 +288,7 @@ export function InboxButton() {
               />
             </li>
           })}</ul>}
-          {loadingOlder && <p role="status" className="px-4 py-3 text-center text-xs text-muted-foreground">Завантаження…</p>}
+          {loadingOlder && <div className="flex justify-center px-4 py-3"><Spinner size="sm" label="Завантаження…" /></div>}
         </div>
       </Popover.Content>
     </Popover.Portal>

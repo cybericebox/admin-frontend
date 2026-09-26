@@ -108,7 +108,7 @@ function Detail() {
   }
 
   if (loading && id) {
-    return <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
+    return <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
   }
   if (loadError) {
     return (
@@ -225,7 +225,7 @@ function Detail() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />}>
+    <Suspense fallback={<LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />}>
       <Detail />
     </Suspense>
   )

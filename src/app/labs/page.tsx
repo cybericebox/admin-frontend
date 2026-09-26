@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { capacityMetrics, formatBytes, formatCpu, monitoringUpdateDetails } from "@/lib/infrastructureMonitoring"
+import { LoadingArea } from "@/components/ui/spinner"
 
 type Agent = { id: string; key: string; name: string; configured: boolean; healthy: boolean }
 type Status = {
@@ -179,10 +180,10 @@ export default function Page() {
   useEffect(() => { if (allowed) queueMicrotask(() => void load()) }, [allowed, load])
 
   return <RequirePermission perm="infrastructure.read" fallback={<p className="text-sm text-muted-foreground">Немає доступу до інфраструктури.</p>}>
-    <div className="space-y-5">
+    <div className="flex min-h-full flex-col gap-5">
       <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-foreground">Лабораторії</h2><p className="mt-1 text-sm text-muted-foreground">Стан агентів і останні спостереження ресурсів платформи.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Оновити</Button></div>
       {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-      {loading && !status ? <p className="text-sm text-muted-foreground">Завантаження…</p> : status && <>
+      {loading && !status ? <LoadingArea className="flex-1" label="Завантаження…" /> : status && <>
         <Card><CardHeader><CardTitle className="text-base">Підключення</CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Available && status.Healthy}>{status.Available ? status.Healthy ? "Доступна" : "Потребує уваги" : "Не підключена"}</StateBadge><span className="text-sm text-muted-foreground">Режим: {modeLabel(status.mode)}</span></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}

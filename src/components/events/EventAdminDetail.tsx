@@ -126,7 +126,7 @@ export function EventAdminDetail({ id }: { id: string }) {
     }
   }
 
-  if (loading && id) return <LoadingArea label={t("admin.loading")} />
+  if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (!id || loadError || !event || !draft) return <div className="space-y-3"><p role="alert" className="text-sm text-destructive">{t("admin.events.loadError")}</p><Button variant="outline" onClick={retryEvent} disabled={!id}>{t("admin.events.access.retry")}</Button></div>
 
   return <div className="space-y-5">

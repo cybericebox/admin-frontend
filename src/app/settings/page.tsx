@@ -6,6 +6,7 @@ import { useRole } from "@/lib/useRole"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadingArea } from "@/components/ui/spinner"
 
 type Setting = {
   ID: string
@@ -66,10 +67,10 @@ export default function Page() {
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">Немає доступу до налаштувань платформи.</div>
       }
     >
-      <div className="space-y-5">
+      <div className="flex min-h-full flex-col gap-5">
         <div><h2 className="text-xl font-semibold text-foreground">Налаштування платформи</h2><p className="mt-1 text-sm text-muted-foreground">Загальні параметри, доступні адміністратору платформи.</p></div>
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-        {loading ? <p className="text-sm text-muted-foreground">Завантаження…</p> : items.length === 0 ? <Card><CardContent className="pt-5"><EmptyState message="Налаштувань поки немає." compact /></CardContent></Card> : (
+        {loading ? <LoadingArea className="flex-1" label="Завантаження…" /> : items.length === 0 ? <Card><CardContent className="pt-5"><EmptyState message="Налаштувань поки немає." compact /></CardContent></Card> : (
           <Card><CardContent className="divide-y divide-border pt-5">
             {items.map((item) => <div key={item.ID} className="py-4 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-4"><div className="min-w-0"><h3 className="font-medium text-foreground">{item.Key}</h3>{editing !== item.Key && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{typeof item.Value === "string" ? item.Value : JSON.stringify(item.Value, null, 2)}</pre>}</div>

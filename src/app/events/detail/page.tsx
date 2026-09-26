@@ -12,5 +12,5 @@ function Detail() {
 }
 
 export default function Page() {
-  return <Suspense fallback={<LoadingArea label={t("admin.loading")} />}><Detail /></Suspense>
+  return <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><Detail /></Suspense>
 }

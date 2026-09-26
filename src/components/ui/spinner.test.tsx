@@ -46,6 +46,7 @@ describe("PageLoader", () => {
     const { container } = render(<PageLoader label="Loading" />)
     expect(container.querySelector(".loading-area-page .crest-loader-auto")).toBeInTheDocument()
     expect(container.querySelector(".fixed.inset-0")).toBeInTheDocument()
+    expect(container.querySelector(".loading-area-label")).not.toBeInTheDocument()
   })
 })
 
@@ -54,5 +55,11 @@ describe("LoadingArea", () => {
     const { container } = render(<LoadingArea label="Loading this panel" />)
     expect(container.querySelector(".loading-area-panel .crest-loader-auto")).toBeInTheDocument()
     expect(screen.getByRole("status")).toHaveTextContent("Loading this panel")
+    expect(container.querySelector(".loading-area-label")).not.toBeInTheDocument()
+  })
+
+  it("shows a caption only for an explicit progress message", () => {
+    const { container } = render(<LoadingArea label="Loading" message="Step 2 of 3" />)
+    expect(container.querySelector(".loading-area-label")).toHaveTextContent("Step 2 of 3")
   })
 })

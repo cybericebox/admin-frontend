@@ -33,6 +33,7 @@ import {
 import { useUserNames } from "@/lib/userNames"
 import { notifTypeLabel } from "@/utils/notifType"
 import { useRole } from "@/lib/useRole"
+import { LoadingArea } from "@/components/ui/spinner"
 
 // ── Helper: pick the most relevant version for row link ──────────────────────
 
@@ -88,9 +89,7 @@ function InAppTemplateList() {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (!entries && !loadError) {
     return (
-      <div className="frost-in flex items-center justify-center rounded-lg border border-border bg-background p-8">
-        <span className="text-sm text-muted-foreground">{t("admin.loading")}</span>
-      </div>
+      <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
     )
   }
 
@@ -244,9 +243,7 @@ export default function Page() {
     >
       <Suspense
         fallback={
-          <div className="frost-in flex items-center justify-center rounded-lg border border-border bg-background p-8">
-            <span className="text-sm text-muted-foreground">{t("admin.loading")}</span>
-          </div>
+          <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
         }
       >
         <InAppTemplateList />

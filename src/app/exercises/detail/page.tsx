@@ -303,7 +303,7 @@ function Detail() {
   useEffect(() => { load() }, [load])
 
   if (loading) {
-    return <LoadingArea label={t("admin.loading")} />
+    return <LoadingArea className="h-full" label={t("admin.loading")} />
   }
   if (notFound || !exercise) {
     return (
@@ -339,7 +339,7 @@ function Detail() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingArea label={t("admin.loading")} />}>
+    <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}>
       <Detail />
     </Suspense>
   )

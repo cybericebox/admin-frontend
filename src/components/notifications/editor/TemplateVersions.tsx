@@ -10,6 +10,7 @@ import { statusLabelKey } from "@/lib/templateStatus"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { StatusPill } from "@/components/notifications/StatusPill"
+import { LoadingArea } from "@/components/ui/spinner"
 
 type Version = {
   ID: string
@@ -82,7 +83,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       </button>
       {open && <div className="border-t border-border px-4 py-2">
         {loadError && <p className="py-2 text-sm text-destructive">{t("admin.notif.versions.loadError")}</p>}
-        {!loadError && versions === null && <p className="py-2 text-sm text-muted-foreground">{t("admin.loading")}</p>}
+        {!loadError && versions === null && <LoadingArea compact label={t("admin.loading")} />}
         {!loadError && versions?.length === 0 && <p className="py-2 text-sm text-muted-foreground">{t("admin.notif.versions.empty")}</p>}
         {!loadError && versions?.map((version) => <div key={version.ID} className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 last:border-b-0">
           <div className="min-w-0 flex-1">

@@ -64,9 +64,9 @@ export default function Page() {
   const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? "Не підключена" : infrastructure.Healthy ? "Працює" : "Потребує уваги"
   const notificationErrors = notifications?.ByStatus?.find((item) => item.Key === "error")?.Count ?? 0
 
-  return <div className="space-y-7">
+  return <div className="flex min-h-full flex-col gap-7">
     <div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">Поточний стан платформи. Деталі та дії — у відповідних розділах.</p></div>
-    {loading ? <LoadingArea label={t("admin.loading")} /> : <>
+    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : <>
       {failedFeeds > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"><span>Частину даних не вдалося оновити. Перевірте зʼєднання та повторіть спробу.</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setRetry((current) => current + 1) }}>Повторити</Button></div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {usersAllowed && <Metric label="Користувачі" value={users?.Total ?? unavailable} href="/analytics/users" />}

@@ -308,7 +308,7 @@ function DraftEditor() {
   })
 
   if (loading) {
-    return <LoadingArea label={t("admin.loading")} />
+    return <LoadingArea className="h-full" label={t("admin.loading")} />
   }
   if (loadError) {
     return (
@@ -386,7 +386,7 @@ function DraftEditor() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingArea label={t("admin.loading")} />}>
+    <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}>
       <DraftEditor />
     </Suspense>
   )

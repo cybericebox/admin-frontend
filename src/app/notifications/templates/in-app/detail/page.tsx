@@ -275,7 +275,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
   if (loading) {
     return (
-      <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
+      <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
     )
   }
 
@@ -574,7 +574,7 @@ export default function Page() {
     >
       <Suspense
         fallback={
-          <LoadingArea className="frost-panel frost-in rounded-lg" label={t("admin.loading")} />
+          <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
         }
       >
         <RouteDetail />

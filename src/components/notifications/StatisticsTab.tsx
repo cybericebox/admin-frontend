@@ -37,7 +37,7 @@ export function StatisticsTab() {
   }, [days])
 
   return (
-    <div className="space-y-6 pt-4">
+    <div className="flex min-h-full flex-col gap-6 pt-4">
       <div className="flex items-center gap-2">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.notif.stats.window")}</span>
         {WINDOWS.map((w) => (
@@ -52,7 +52,7 @@ export function StatisticsTab() {
       {error ? (
         <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
       ) : loading || !stats ? (
-        <LoadingArea label={t("admin.loading")} />
+        <LoadingArea className="flex-1" label={t("admin.loading")} />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>

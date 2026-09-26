@@ -154,7 +154,7 @@ export default function Page() {
       {error && rows.length === 0 && !localDraft ? (
         <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.ex.retry")}</Button></div>
       ) : loading && rows.length === 0 && !localDraft ? (
-        <LoadingArea label={t("admin.loading")} />
+        <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 && !localDraft ? (
         <EmptyState message={t(debounced || tags.length > 0 || status !== "all" ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
       ) : (

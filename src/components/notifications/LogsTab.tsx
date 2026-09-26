@@ -105,7 +105,7 @@ export function LogsTab() {
       {error ? (
         <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-sm text-destructive">{t("admin.notif.loadError")}</p><Button variant="outline" onClick={() => setReload((value) => value + 1)}>{t("admin.events.access.retry")}</Button></div>
       ) : loading ? (
-        <div className="flex justify-center py-8"><Spinner label={t("admin.loading")} /></div>
+        <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
         <EmptyState message={t(type || status || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
       ) : (

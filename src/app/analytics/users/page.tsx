@@ -42,7 +42,7 @@ function UserAnalytics() {
     return () => { cancelled = true }
   }, [])
 
-  if (loading) return <LoadingArea label={t("admin.loading")} />
+  if (loading) return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (error || !stats) return <p role="alert" className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
 
   const days = last7Days()
