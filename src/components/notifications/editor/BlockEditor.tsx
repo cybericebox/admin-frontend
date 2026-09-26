@@ -114,6 +114,17 @@ export function BlockEditor({
     });
   }
 
+  // "Latest" refs for the async upload continuation below: mutated directly in
+  // the render body (not an effect — refs don't trigger re-renders, so there's
+  // no cascading-update concern), so a completion handler that runs after
+  // further renders (reorder / delete / other edits happened while the
+  // request was in flight) reads the CURRENT value/keys, never a stale
+  // snapshot closed over when the upload started.
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
+  const latestKeysRef = useRef(keyState.keys);
+  latestKeysRef.current = keyState.keys;
+
   // ── Selection + save-as-preset state ──────────────────────────────────────
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(new Set());
   const [showSaveForm, setShowSaveForm]   = useState(false);
@@ -125,11 +136,23 @@ export function BlockEditor({
   const [uploadState, setUploadState] = useState<Record<string, { uploading: boolean; error: string | null }>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const handleImageUpload = async (i: number, key: string, block: ImageBlock, file: File) => {
+  // Looks the block up by its stable key against the LATEST blocks/keys at
+  // completion time — never by the index/block snapshot captured when the
+  // upload started, which could be stale after a reorder, edit, or delete.
+  const handleImageUpload = async (key: string, file: File) => {
     setUploadState((prev) => ({ ...prev, [key]: { uploading: true, error: null } }));
     try {
       const { FileID } = await uploadEmailImage(file);
-      updateBlock(i, { ...block, file_id: FileID, url: undefined });
+      const idx = latestKeysRef.current.indexOf(key);
+      const current = idx === -1 ? undefined : latestValueRef.current[idx];
+      // Block gone (removed while uploading) or no longer an image block —
+      // drop the result rather than write it somewhere wrong.
+      if (current && current.type === "image") {
+        const next = latestValueRef.current.map((b, i) =>
+          i === idx ? { ...current, file_id: FileID, url: undefined } : b
+        );
+        onChange(next);
+      }
       setUploadState((prev) => ({ ...prev, [key]: { uploading: false, error: null } }));
     } catch (err) {
       setUploadState((prev) => ({
@@ -409,7 +432,7 @@ export function BlockEditor({
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       e.target.value = "";
-                      if (file) void handleImageUpload(i, stableKey, block as ImageBlock, file);
+                      if (file) void handleImageUpload(stableKey, file);
                     }}
                   />
                   <Button

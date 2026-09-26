@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { useState } from 'react'
 import type { EmailBodyBlock, ButtonBlock, ImageBlock, LogoBlock } from './emailBlocks'
 import type { BlockPreset } from '@/api/notifications/emailTemplates'
@@ -609,5 +609,110 @@ describe('BlockEditor', () => {
     const updated = next[0] as ImageBlock
     expect(updated.url).toBe('https://example.com/new.png')
     expect(updated.file_id).toBeUndefined()
+  })
+
+  // ── In-flight upload races (fix round 1) ──────────────────────────────────
+  // These use a real useState-backed Harness (not the `onChange` spy) so a
+  // reorder/edit/delete that happens *while the upload promise is pending*
+  // actually changes what BlockEditor re-renders with, the way it would in
+  // the real detail page (`onChange={setBodyContent}`).
+
+  it('reorder during an in-flight upload: the result lands on the moved block, the other block is untouched', async () => {
+    let resolveUpload: (v: { FileID: string; Url: string }) => void = () => {};
+    (uploadEmailImage as unknown as Mock).mockImplementation(
+      () => new Promise((resolve) => { resolveUpload = resolve; })
+    )
+
+    function Harness() {
+      const [blocks, setBlocks] = useState<EmailBodyBlock[]>([
+        makeImage({ alt: 'Block A' }),
+        makeButton(),
+      ])
+      return <BlockEditor value={blocks} onChange={setBlocks} presets={[]} onSavePreset={onSavePreset} />
+    }
+    render(<Harness />)
+
+    // Start the upload on block A (index 0, the image block).
+    const file = new File(['fake'], 'a.png', { type: 'image/png' })
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    // Reorder while the upload is still in flight: move block A down.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Перемістити блок вниз' })[0])
+
+    // Now resolve — the continuation must locate block A at its NEW position.
+    await act(async () => {
+      resolveUpload({ FileID: 'file-123-reorder', Url: '/x' })
+    })
+
+    await waitFor(() => {
+      const items = screen.getAllByTestId('block-item')
+      // Block A (image), now at index 1, got the uploaded thumbnail.
+      expect(items[1].querySelector('img')?.getAttribute('src')).toContain('file-123-reorder')
+      // Block B (button), now at index 0, is untouched — no thumbnail leaked onto it.
+      expect(items[0].querySelector('img')).toBeNull()
+    })
+    // Block A's own edits (its alt text) traveled with it to the new position.
+    expect(screen.getByDisplayValue('Block A')).toBeInTheDocument()
+  })
+
+  it('editing alt text while an upload is in flight is preserved after the upload completes', async () => {
+    let resolveUpload: (v: { FileID: string; Url: string }) => void = () => {};
+    (uploadEmailImage as unknown as Mock).mockImplementation(
+      () => new Promise((resolve) => { resolveUpload = resolve; })
+    )
+
+    function Harness() {
+      const [blocks, setBlocks] = useState<EmailBodyBlock[]>([makeImage({ alt: 'Original' })])
+      return <BlockEditor value={blocks} onChange={setBlocks} presets={[]} onSavePreset={onSavePreset} />
+    }
+    render(<Harness />)
+
+    const file = new File(['fake'], 'a.png', { type: 'image/png' })
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    // Edit alt text while the upload is still pending.
+    fireEvent.change(screen.getByPlaceholderText('Альт-текст…'), {
+      target: { value: 'Edited during upload' },
+    })
+
+    await act(async () => {
+      resolveUpload({ FileID: 'file-456', Url: '/x' })
+    })
+
+    // The in-flight edit was not clobbered by the upload's completion...
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Edited during upload')).toBeInTheDocument()
+    })
+    // ...and the upload result still landed on the same block.
+    expect(document.querySelector('img')?.getAttribute('src')).toContain('file-456')
+  })
+
+  it('deleting the block while an upload is in flight does not crash and applies no stray update', async () => {
+    let resolveUpload: (v: { FileID: string; Url: string }) => void = () => {};
+    (uploadEmailImage as unknown as Mock).mockImplementation(
+      () => new Promise((resolve) => { resolveUpload = resolve; })
+    )
+
+    function Harness() {
+      const [blocks, setBlocks] = useState<EmailBodyBlock[]>([makeImage({ alt: 'Doomed' })])
+      return <BlockEditor value={blocks} onChange={setBlocks} presets={[]} onSavePreset={onSavePreset} />
+    }
+    render(<Harness />)
+
+    const file = new File(['fake'], 'a.png', { type: 'image/png' })
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    // Delete the block while the upload is still pending.
+    fireEvent.click(screen.getByRole('button', { name: 'Видалити блок' }))
+    expect(screen.queryAllByTestId('block-item')).toHaveLength(0)
+
+    // Resolving after deletion must not throw, and must not resurrect the block.
+    await act(async () => {
+      resolveUpload({ FileID: 'file-789', Url: '/x' })
+    })
+    expect(screen.queryAllByTestId('block-item')).toHaveLength(0)
   })
 })
