@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   archiveExercise, deleteExercise, getExerciseUsage, unarchiveExercise, type ExerciseUsageEvent,
 } from "@/api/exercises/catalog"
-import { createCheckpoint, publishDraft, restoreVersion, type TaskDTO } from "@/api/exercises/versions"
+import { createCheckpoint, isStoredVersionId, publishDraft, restoreVersion, type TaskDTO } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
@@ -109,7 +109,7 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
   }
 
   async function restore(versionId: string): Promise<void> {
-    if (!exerciseId) return
+    if (!exerciseId || !isStoredVersionId(versionId)) return
     await run(async () => {
       await restoreVersion(exerciseId, versionId)
       toast.success(t("admin.exPage.toast.restored"))

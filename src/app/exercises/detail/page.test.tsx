@@ -28,7 +28,8 @@ vi.mock("@/api/exercises/versions", () => ({
   publishDraft: vi.fn(), createCheckpoint: vi.fn(), restoreVersion: vi.fn(),
 }))
 
-import { archiveExercise, getExercise, getExerciseUsage, unarchiveExercise, updateExercise } from "@/api/exercises/catalog"
+import { ApiError } from "@/api/client"
+import { archiveExercise, deleteExercise, getExercise, getExerciseUsage, unarchiveExercise, updateExercise } from "@/api/exercises/catalog"
 import { createCheckpoint, getDraft, getVersion, listVersions, publishDraft, restoreVersion, saveDraft } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
@@ -132,6 +133,16 @@ describe("exercise page — modes", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
     await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }), { timeout: 2000 })
   })
+
+  it("treats an empty version param as the working copy, not a version view", async () => {
+    h.search = "id=ex-1&version="
+    render(<Page />)
+    expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
+    expect(screen.queryByText("admin.exPage.version.banner")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
+    expect(getVersion).not.toHaveBeenCalled()
+    expect(getDraft).toHaveBeenCalledWith("ex-1")
+  })
 })
 
 describe("exercise page — publishing and history", () => {
@@ -141,6 +152,14 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.published"))
+  })
+
+  it("shows a mapped error and leaves Publish usable when publish fails", async () => {
+    vi.mocked(publishDraft).mockRejectedValue(new ApiError(409, { Status: { Code: 70904 } }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.ex.err.modified"))
+    expect(await screen.findByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
   })
 
   it("goes to the invalid task instead of publishing", async () => {
@@ -243,8 +262,37 @@ describe("exercise page — archive and delete", () => {
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
   })
 
+  it("deletes after confirmation and navigates to the list", async () => {
+    vi.mocked(deleteExercise).mockResolvedValue(undefined)
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.delete" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.delete.confirm" }))
+    await waitFor(() => expect(deleteExercise).toHaveBeenCalledWith("ex-1"))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.deleted"))
+    expect(h.push).toHaveBeenCalledWith("/exercises")
+  })
+
+  it("shows an error and does not navigate when delete fails", async () => {
+    vi.mocked(deleteExercise).mockRejectedValue(new ApiError(500, null))
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.delete" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.delete.confirm" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.ex.err.generic"))
+    expect(h.push).not.toHaveBeenCalled()
+  })
+
   it("shows not found without an id", async () => {
     h.search = ""
+    render(<Page />)
+    expect(await screen.findByText("admin.exDetail.notFound")).toBeInTheDocument()
+  })
+
+  it("shows not found when the exercise fails to load", async () => {
+    vi.mocked(getExercise).mockRejectedValue(new ApiError(404, null))
     render(<Page />)
     expect(await screen.findByText("admin.exDetail.notFound")).toBeInTheDocument()
   })
