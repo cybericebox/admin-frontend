@@ -791,6 +791,7 @@ function loadedVersion(): Version {
     ExerciseID: 'e1',
     Status: 'draft',
     AdminNote: 'wip',
+    Label: '',
     CreatedAt: '2026-01-01T00:00:00Z',
     CreatedBy: null,
     PublishedAt: null,

@@ -172,6 +172,7 @@ describe('exercise detail page', () => {
     ID: 'v1',
     Status: 'draft',
     AdminNote: 'wip',
+    Label: '',
     VariantCount: 1,
     CreatedAt: '2026-01-03T00:00:00Z',
     CreatedBy: 'u1',

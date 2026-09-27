@@ -12,7 +12,10 @@ import {
   saveDraft,
   publishDraft,
   discardDraft,
-  rollbackToVersion,
+  getDraft,
+  saveDraftKeepalive,
+  EMPTY_VERSION_ID,
+  isStoredVersionId,
   createCheckpoint,
   restoreVersion,
   normalizeVariant,
@@ -23,6 +26,7 @@ const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPut = vi.mocked(client.apiPut)
 const mockApiDelete = vi.mocked(client.apiDelete)
+const mockKeepalive = vi.mocked(client.apiKeepalive)
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const VER_ID = 'ffffffff-0000-1111-2222-333333333333'
@@ -76,22 +80,38 @@ describe('versions API paths', () => {
     expect(mockApiDelete.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
   })
 
-  it('rollbackToVersion POSTs to /:id/versions/:versionID/rollback', async () => {
-    mockApiPost.mockResolvedValueOnce(rawVersion)
-    await rollbackToVersion(EX_ID, VER_ID)
-    expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/versions/${VER_ID}/rollback`)
-  })
-
-  it('creates a checkpoint separately from autosaving the draft', async () => {
-    mockApiPost.mockResolvedValueOnce({ ...rawVersion, Status: 'checkpoint' })
-    await createCheckpoint(EX_ID)
-    expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/checkpoints`)
-  })
-
   it('restores a historical version while preserving the current draft', async () => {
     mockApiPost.mockResolvedValueOnce(rawVersion)
     await restoreVersion(EX_ID, VER_ID)
     expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/versions/${VER_ID}/restore`)
+  })
+
+  it('reads the working copy from GET /:id/draft and fills Label', async () => {
+    mockApiGet.mockResolvedValueOnce(rawVersion)
+    const draft = await getDraft(EX_ID)
+    expect(mockApiGet.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
+    expect(draft.Label).toBe('')
+  })
+
+  it('recognises the empty working copy by its zero ID', () => {
+    expect(isStoredVersionId(EMPTY_VERSION_ID)).toBe(false)
+    expect(isStoredVersionId('')).toBe(false)
+    expect(isStoredVersionId(VER_ID)).toBe(true)
+  })
+
+  it('creates a checkpoint with an optional trimmed note', async () => {
+    mockApiPost.mockResolvedValue({ ...rawVersion, Status: 'checkpoint', Label: 'Before rework' })
+    await createCheckpoint(EX_ID, '  Before rework ')
+    expect(mockApiPost.mock.calls[0]).toEqual([`/api/exercises/${EX_ID}/checkpoints`, { Note: 'Before rework' }])
+    await createCheckpoint(EX_ID)
+    expect(mockApiPost.mock.calls[1]).toEqual([`/api/exercises/${EX_ID}/checkpoints`, {}])
+  })
+
+  it('sends the working copy with keepalive on page unload', () => {
+    mockKeepalive.mockReturnValueOnce(true)
+    const input = { AdminNote: '', Variants: [] }
+    expect(saveDraftKeepalive(EX_ID, input)).toBe(true)
+    expect(mockKeepalive).toHaveBeenCalledWith('PUT', `/api/exercises/${EX_ID}/draft`, input)
   })
 })
 

@@ -23,7 +23,7 @@ const mockGetExercise = vi.mocked(getExercise)
 const mockGetVersion = vi.mocked(getVersion)
 const mockListTags = vi.mocked(listExerciseTags)
 const savedVersion: Awaited<ReturnType<typeof saveDraft>> = {
-  ID: "version-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "",
+  ID: "version-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "",
   CreatedAt: "", CreatedBy: null, PublishedAt: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [] }],

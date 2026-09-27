@@ -1,8 +1,8 @@
 /**
  * versions.ts — exercise versions/lifecycle and draft snapshot types.
  *
- * Routes: GET /api/exercises/:id/versions[/:versionID],
- *   POST :id/versions/:versionID/rollback, PUT/DELETE :id/draft, POST :id/publish.
+ * Routes: GET /api/exercises/:id/versions[/:versionID], GET/PUT/DELETE :id/draft,
+ *   POST :id/publish, POST :id/checkpoints, POST :id/versions/:versionID/restore.
  *
  * DTO types transcribe the backend's exercise.saveDraftRequest/versionResponse 1:1
  * (PascalCase, omitempty fields are optional). Normalized* is the read model for the
@@ -19,7 +19,7 @@
  *    is stored; an empty Value on save means "keep the stored one";
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
-import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
+import { apiGet, apiPost, apiPut, apiDelete, apiKeepalive } from "@/api/client"
 
 const BASE = "/api/exercises"
 
@@ -140,6 +140,7 @@ export type VersionListItem = {
   ID: string
   Status: VersionStatus
   AdminNote: string
+  Label: string // snapshot caption; "" when none
   VariantCount: number
   CreatedAt: string
   CreatedBy: string | null
@@ -211,6 +212,7 @@ export type Version = {
   ExerciseID: string
   Status: VersionStatus
   AdminNote: string
+  Label: string // snapshot caption; "" when none
   Variants: NormalizedVariant[]
   CreatedAt: string
   CreatedBy: string | null
@@ -301,18 +303,18 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
   }
 }
 
-type RawVersion = Omit<Version, "Variants"> & { Variants: VariantDTO[] | null }
+type RawVersion = Omit<Version, "Variants" | "Label"> & { Variants: VariantDTO[] | null; Label?: string }
 
 function normalizeVersion(raw: RawVersion): Version {
-  return { ...raw, Variants: (raw.Variants ?? []).map(normalizeVariant) }
+  return { ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant) }
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────
 
 /** GET /api/exercises/:id/versions */
 export async function listVersions(exerciseId: string): Promise<VersionListItem[]> {
-  const raw = await apiGet<VersionListItem[] | null>(`${BASE}/${exerciseId}/versions`)
-  return raw ?? []
+  const raw = await apiGet<(Omit<VersionListItem, "Label"> & { Label?: string })[] | null>(`${BASE}/${exerciseId}/versions`)
+  return (raw ?? []).map((item) => ({ ...item, Label: item.Label ?? "" }))
 }
 
 /** GET /api/exercises/:id/versions/:versionID */
@@ -338,15 +340,27 @@ export function discardDraft(exerciseId: string): Promise<void> {
   return apiDelete<void>(`${BASE}/${exerciseId}/draft`)
 }
 
-/** POST /api/exercises/:id/versions/:versionID/rollback */
-export async function rollbackToVersion(exerciseId: string, versionId: string): Promise<Version> {
-  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/versions/${versionId}/rollback`, {})
-  return normalizeVersion(raw)
+/** ID of the empty working copy (no draft row, nothing published). Never used in version routes. */
+export const EMPTY_VERSION_ID = "00000000-0000-0000-0000-000000000000"
+
+export function isStoredVersionId(id: string): boolean {
+  return id !== "" && id !== EMPTY_VERSION_ID
 }
 
-/** POST /api/exercises/:id/checkpoints — explicit history snapshot. */
-export async function createCheckpoint(exerciseId: string): Promise<Version> {
-  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/checkpoints`, {})
+/** GET /api/exercises/:id/draft — the working copy (published content when no draft row exists). */
+export async function getDraft(exerciseId: string): Promise<Version> {
+  return normalizeVersion(await apiGet<RawVersion>(`${BASE}/${exerciseId}/draft`))
+}
+
+/** PUT /api/exercises/:id/draft with keepalive — only for pagehide. */
+export function saveDraftKeepalive(exerciseId: string, input: SaveDraftInput): boolean {
+  return apiKeepalive("PUT", `${BASE}/${exerciseId}/draft`, input)
+}
+
+/** POST /api/exercises/:id/checkpoints — snapshot of the working copy with an optional caption (≤ 500). */
+export async function createCheckpoint(exerciseId: string, note = ""): Promise<Version> {
+  const trimmed = note.trim()
+  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/checkpoints`, trimmed ? { Note: trimmed } : {})
   return normalizeVersion(raw)
 }
 

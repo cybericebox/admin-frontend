@@ -24,6 +24,7 @@ function version(over: Partial<VersionListItem>): VersionListItem {
     ID: 'v1',
     Status: 'draft',
     AdminNote: 'note',
+    Label: '',
     VariantCount: 2,
     CreatedAt: '2026-01-01T00:00:00Z',
     CreatedBy: 'u1',
