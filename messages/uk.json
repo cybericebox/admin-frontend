@@ -483,6 +483,7 @@
   "admin.notif.inapp.body": "Тіло",
   "admin.notif.inapp.link": "Посилання",
   "admin.ex.err.generic": "Не вдалося виконати операцію",
+  "admin.exPage.date.today": "сьогодні о {time}",
   "admin.ex.err.archived": "Завдання в архіві. Розархівуйте його, щоб вносити зміни.",
   "admin.ex.err.inUse": "Завдання використовується в івентах. Його можна лише архівувати.",
   "admin.ex.err.notFound": "Завдання не знайдено",
