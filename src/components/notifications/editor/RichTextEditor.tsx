@@ -46,6 +46,7 @@ import {
   $isQuoteNode,
   HeadingNode,
   QuoteNode,
+  type HeadingTagType,
 } from "@lexical/rich-text";
 import { $setBlocksType } from "@lexical/selection";
 import {
@@ -110,6 +111,9 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -435,12 +439,8 @@ function ToolbarPlugin({
 
         if (type === "paragraph") {
           $setBlocksType(selection, () => $createParagraphNode());
-        } else if (type === "h1") {
-          $setBlocksType(selection, () => $createHeadingNode("h1"));
-        } else if (type === "h2") {
-          $setBlocksType(selection, () => $createHeadingNode("h2"));
-        } else if (type === "h3") {
-          $setBlocksType(selection, () => $createHeadingNode("h3"));
+        } else if (/^h[1-6]$/.test(type)) {
+          $setBlocksType(selection, () => $createHeadingNode(type as HeadingTagType));
         } else if (type === "quote") {
           $setBlocksType(selection, () => $createQuoteNode());
         } else if (type === "code") {
@@ -570,6 +570,9 @@ function ToolbarPlugin({
     { tag: "h1", Icon: Heading1, label: t("admin.notif.editor.heading1") },
     { tag: "h2", Icon: Heading2, label: t("admin.notif.editor.heading2") },
     { tag: "h3", Icon: Heading3, label: t("admin.notif.editor.heading3") },
+    { tag: "h4", Icon: Heading4, label: t("admin.notif.editor.heading4") },
+    { tag: "h5", Icon: Heading5, label: t("admin.notif.editor.heading5") },
+    { tag: "h6", Icon: Heading6, label: t("admin.notif.editor.heading6") },
   ] as const;
   const alignments = [
     { value: "left", Icon: AlignLeft, label: t("admin.notif.editor.alignLeftTitle") },
@@ -979,6 +982,9 @@ const editorTheme = {
     h1: "text-2xl font-bold mb-2",
     h2: "text-xl font-semibold mb-1.5",
     h3: "text-lg font-medium mb-1",
+    h4: "text-base font-semibold mb-1",
+    h5: "text-sm font-semibold mb-1",
+    h6: "text-sm font-medium text-muted-foreground mb-1",
   },
   quote: "border-l-4 border-input pl-4 text-muted-foreground italic my-2",
   code: "block font-mono text-sm bg-secondary/40 p-3 rounded my-2 whitespace-pre-wrap",
