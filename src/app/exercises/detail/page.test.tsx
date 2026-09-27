@@ -1,280 +1,252 @@
-/**
- * page.test.tsx — detail card: identity load, PATCH on save,
- * 409 ErrExerciseModified → reload alert.
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import type { Exercise } from "@/api/exercises/catalog"
+import type { Version, VersionListItem } from "@/api/exercises/versions"
 
-// Mutable mock state hoisted above vi.mock: `canDelete` toggles the RBAC gate on
-// the DeleteCard so a single useRole mock can serve both the gated and ungated tests.
-const h = vi.hoisted(() => ({ canDelete: true }))
+const h = vi.hoisted(() => ({ perms: new Set<string>(), search: "id=ex-1", push: vi.fn() }))
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
-vi.mock('@/lib/useRole', () => ({
-  useRole: () => ({
-    me: null,
-    role: 'admin',
-    isLoading: false,
-    permissions: ['*'],
-    can: (p: string) => (p === 'exercises.delete' ? h.canDelete : true),
-  }),
+vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "editor-1" }, isLoading: false, can: (p: string) => h.perms.has(p) }) }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams(h.search) }))
+vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
+vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
+vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
+vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
+vi.mock("@/components/exercises/DeployTestDialog", () => ({
+  DeployTestDialog: (p: { versionId: string; variantId: string }) => <div data-testid="deploy">{p.versionId}/{p.variantId}</div>,
 }))
-const push = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
-  useSearchParams: () => new URLSearchParams('id=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
+vi.mock("@/api/exercises/catalog", () => ({
+  getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
+  deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn(),
+  listExerciseTags: vi.fn().mockResolvedValue([]),
 }))
-vi.mock('@/api/exercises/catalog', () => ({
-  getExercise: vi.fn(),
-  updateExercise: vi.fn(),
-  deleteExercise: vi.fn(),
+vi.mock("@/api/exercises/versions", () => ({
+  EMPTY_VERSION_ID: "00000000-0000-0000-0000-000000000000",
+  isStoredVersionId: (id: string) => id !== "" && id !== "00000000-0000-0000-0000-000000000000",
+  getDraft: vi.fn(), getVersion: vi.fn(), saveDraft: vi.fn(), saveDraftKeepalive: vi.fn(), listVersions: vi.fn(),
+  publishDraft: vi.fn(), createCheckpoint: vi.fn(), restoreVersion: vi.fn(),
 }))
-vi.mock('@/api/exercises/versions', () => ({
-  listVersions: vi.fn().mockResolvedValue([]),
-  publishDraft: vi.fn(),
-  discardDraft: vi.fn(),
-  rollbackToVersion: vi.fn(),
-  restoreVersion: vi.fn(),
-  createCheckpoint: vi.fn(),
-}))
-// The versions table resolves author names via useUserNames; stub it so the
-// lifecycle tests never hit the network. Empty map → the row falls back to the
-// short id, which is irrelevant to these assertions.
-vi.mock('@/lib/userNames', () => ({ useUserNames: () => ({}) }))
 
-import { ApiError } from '@/api/client'
-import { getExercise, updateExercise, deleteExercise } from '@/api/exercises/catalog'
-import { listVersions, publishDraft, discardDraft, restoreVersion, createCheckpoint } from '@/api/exercises/versions'
-import type { VersionListItem } from '@/api/exercises/versions'
-import Page from './page'
-import { toast } from '@/components/ui/toast'
+import { archiveExercise, getExercise, getExerciseUsage, unarchiveExercise, updateExercise } from "@/api/exercises/catalog"
+import { createCheckpoint, getDraft, getVersion, listVersions, publishDraft, restoreVersion, saveDraft } from "@/api/exercises/versions"
+import { toast } from "@/components/ui/toast"
+import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
+import { toDraftFormValues } from "@/lib/exerciseSchemas"
+import Page from "./page"
 
-const mockGet = vi.mocked(getExercise)
-const mockUpdate = vi.mocked(updateExercise)
-const mockDelete = vi.mocked(deleteExercise)
-const mockList = vi.mocked(listVersions)
-const mockPublish = vi.mocked(publishDraft)
-const mockDiscard = vi.mocked(discardDraft)
-const mockRestore = vi.mocked(restoreVersion)
-const mockCheckpoint = vi.mocked(createCheckpoint)
+const ALL = ["exercises.read", "exercises.write", "exercises.publish", "exercises.delete", "exercises.export"]
+const exercise: Exercise = {
+  ID: "ex-1", Name: "Web 101", Description: "", Tags: [], DraftVersionID: "draft-1", PublishedVersionID: "pub-1",
+  ArchivedAt: null, HasChanges: true, CreatedAt: "2026-09-01T10:00:00Z", CreatedBy: null, UpdatedAt: "2026-09-20T10:00:00Z", UpdatedBy: null,
+}
+const task = { ID: "task-1", Name: "Find the flag", Description: null, Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [] }
+const device = {
+  ID: "dev-1", Name: "web", Type: "container" as const, SecurityPreset: "" as const, Image: "nginx",
+  Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }, Interfaces: [], EnvVars: [], External: null,
+}
+const workingCopy: Version = {
+  ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "2026-09-20T10:00:00Z", CreatedBy: null, PublishedAt: null,
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [task],
+    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+}
+const withDevice: Version = {
+  ...workingCopy,
+  Variants: [{ ...workingCopy.Variants[0], Topology: { ...workingCopy.Variants[0].Topology, Devices: [device] } }],
+}
+const listItem = (patch: Partial<VersionListItem>): VersionListItem => ({
+  ID: "x", Status: "checkpoint", AdminNote: "", Label: "", VariantCount: 1, CreatedAt: "2026-09-18T10:00:00Z", CreatedBy: null, PublishedAt: null, ...patch,
+})
 
-const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-const exercise = {
-  ID: EX_ID,
-  Name: 'SQLi basics',
-  Description: 'Intro',
-  Tags: ['web'],
-  DraftVersionID: null,
-  PublishedVersionID: null,
-  ArchivedAt: null,
-  HasChanges: true,
-  CreatedAt: '2026-01-01T00:00:00Z',
-  CreatedBy: null,
-  UpdatedAt: '2026-01-02T00:00:00Z',
-  UpdatedBy: null,
+function openMore() {
+  fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.more" }), { key: "ArrowDown" })
 }
 
-describe('exercise detail page', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    h.canDelete = true
-    mockGet.mockResolvedValue(exercise)
-  })
+beforeEach(() => {
+  vi.useRealTimers()
+  vi.clearAllMocks()
+  h.perms = new Set(ALL)
+  h.search = "id=ex-1"
+  const storage = new Map<string, string>()
+  Object.defineProperty(window, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => { storage.set(key, String(value)) },
+    removeItem: (key: string) => { storage.delete(key) },
+    clear: () => { storage.clear() },
+  } })
+  vi.mocked(getExercise).mockResolvedValue(exercise)
+  vi.mocked(getDraft).mockResolvedValue(workingCopy)
+  vi.mocked(saveDraft).mockResolvedValue(workingCopy)
+  vi.mocked(updateExercise).mockImplementation(async (_id, input) => ({ ...exercise, ...input }))
+  vi.mocked(getExerciseUsage).mockResolvedValue({ Events: [] })
+  vi.mocked(listVersions).mockResolvedValue([])
+})
 
-  it('loads the exercise into the identity form', async () => {
+describe("exercise page — modes", () => {
+  it("opens an existing exercise read-only with the viewing actions", async () => {
     render(<Page />)
-    await waitFor(() => expect(screen.getByDisplayValue('SQLi basics')).toBeInTheDocument())
-    expect(screen.getByDisplayValue('Intro')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Intro').tagName).toBe('TEXTAREA')
-    expect(screen.getByText('web')).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
+    expect(screen.getByText("admin.exPage.badge.changes")).toBeInTheDocument()
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
+    expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
   })
 
-  it('PATCHes the identity on save', async () => {
-    mockUpdate.mockResolvedValue({ ...exercise, Name: 'Renamed OK' })
+  it("edits with autosave and returns to viewing on Done", async () => {
     render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    fireEvent.change(screen.getByDisplayValue('SQLi basics'), { target: { value: 'Renamed OK' } })
-    fireEvent.click(screen.getByText('admin.exDetail.identity.save'))
-    await waitFor(() =>
-      expect(mockUpdate).toHaveBeenCalledWith(EX_ID, { Name: 'Renamed OK', Description: 'Intro', Tags: ['web'] }),
-    )
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
+    const name = screen.getByLabelText(/admin.ex.field.name/)
+    expect(name).toBeEnabled()
+    fireEvent.change(name, { target: { value: "Web 102" } })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }), { timeout: 2000 })
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText("admin.exPage.save.saved")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
+    expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
   })
 
-  it('shows the reload alert on 409 ErrExerciseModified', async () => {
-    const error = vi.spyOn(toast, 'error')
-    mockUpdate.mockRejectedValue(
-      new ApiError(409, { Status: { Code: 70904, Message: 'modified' } }, 'modified'),
-    )
+  it("hides every action the user has no permission for", async () => {
+    h.perms = new Set(["exercises.read"])
     render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    fireEvent.change(screen.getByDisplayValue('SQLi basics'), { target: { value: 'Updated' } })
-    fireEvent.click(screen.getByText('admin.exDetail.identity.save'))
-    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.modified'))
-  })
-
-  it('shows not-found state when the exercise is missing', async () => {
-    mockGet.mockRejectedValue(new ApiError(404, { Status: { Code: 30901 } }, 'nf'))
-    render(<Page />)
-    expect(await screen.findByText('admin.exDetail.notFound')).toBeInTheDocument()
-  })
-
-  // ── DeleteCard ──────────────────────────────────────────────────────────────
-
-  it('hides the delete action when the caller lacks exercises.delete', async () => {
-    h.canDelete = false
-    render(<Page />)
-    // Wait for the exercise to load so the card region is rendered, not the spinner.
-    await screen.findByDisplayValue('SQLi basics')
-    expect(screen.queryByText('admin.exDetail.delete.button')).not.toBeInTheDocument()
-  })
-
-  it('deletes the exercise and returns to the catalog on confirm', async () => {
-    mockDelete.mockResolvedValue(undefined)
-    render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-
-    // Open the confirm dialog, then confirm.
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exDetail.delete.button' }))
-    const confirm = await screen.findByRole('button', { name: 'admin.exDetail.delete.confirm' })
-    fireEvent.click(confirm)
-
-    await waitFor(() => expect(mockDelete).toHaveBeenCalledTimes(1))
-    expect(mockDelete).toHaveBeenCalledWith(EX_ID)
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/exercises'))
-  })
-
-  it('shows an error toast and stays put when delete fails', async () => {
-    const error = vi.spyOn(toast, 'error')
-    mockDelete.mockRejectedValue(
-      new ApiError(500, { Status: { Code: 99999, Message: 'boom' } }, 'boom'),
-    )
-    render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exDetail.delete.button' }))
-    const confirm = await screen.findByRole('button', { name: 'admin.exDetail.delete.confirm' })
-    fireEvent.click(confirm)
-
-    // exerciseErrorMessage (real, not mocked) maps the unknown code to the generic
-    // key and appends the backend message — proves the error path rendered it.
-    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.generic: boom'))
-    // No navigation on failure.
-    expect(push).not.toHaveBeenCalled()
-    // Busy state reset: the confirm button is re-enabled and the dialog stays open.
-    const confirmAfter = screen.getByRole('button', { name: 'admin.exDetail.delete.confirm' })
-    expect(confirmAfter).toBeInTheDocument()
-    expect(confirmAfter).not.toBeDisabled()
-  })
-
-  // ── VersionsCard: lifecycle wiring (confirm dialog → API → re-load) ────────────
-
-  const draftVersion: VersionListItem = {
-    ID: 'v1',
-    Status: 'draft',
-    AdminNote: 'wip',
-    Label: '',
-    VariantCount: 1,
-    CreatedAt: '2026-01-03T00:00:00Z',
-    CreatedBy: 'u1',
-    PublishedAt: null,
-  }
-
-  it('publishes the draft after confirming the dialog and reloads the card', async () => {
-    mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
-    mockList.mockResolvedValue([draftVersion])
-    mockPublish.mockResolvedValue({} as never)
-
-    render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1))
-    const listCalls = mockList.mock.calls.length
-    const getCalls = mockGet.mock.calls.length
-
-    // Two buttons share the publish label (status block + draft table row); the
-    // first opens the confirm dialog, whose footer confirm shares the label too.
-    fireEvent.click(screen.getAllByText('admin.exDetail.publish')[0])
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exDetail.publish' }))
-
-    await waitFor(() => expect(mockPublish).toHaveBeenCalledWith(EX_ID))
-    // Card refreshed: both the versions list and the exercise were re-fetched.
-    await waitFor(() => expect(mockList.mock.calls.length).toBeGreaterThan(listCalls))
-    await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThan(getCalls))
-  })
-
-  it('discards the draft after confirming the dialog and reloads the card', async () => {
-    mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
-    mockList.mockResolvedValue([draftVersion])
-    mockDiscard.mockResolvedValue(undefined)
-
-    render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1))
-    const listCalls = mockList.mock.calls.length
-
-    fireEvent.click(screen.getAllByText('admin.exDetail.discard')[0])
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exDetail.discard' }))
-
-    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(EX_ID))
-    await waitFor(() => expect(mockList.mock.calls.length).toBeGreaterThan(listCalls))
-  })
-
-  it('rolls back to an unpublished version and reloads the card', async () => {
-    const unpublished: VersionListItem = {
-      ...draftVersion, ID: 'v2', Status: 'unpublished', PublishedAt: '2026-01-04T00:00:00Z',
+    await screen.findByRole("heading", { name: "Web 101" })
+    for (const name of ["admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.more", "admin.exPage.action.test"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument()
     }
-    mockGet.mockResolvedValue({ ...exercise, PublishedVersionID: 'v3' })
-    mockList.mockResolvedValue([unpublished])
-    mockRestore.mockResolvedValue({} as never)
-
-    render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1))
-    const listCalls = mockList.mock.calls.length
-
-    // Rollback is offered only in the table row.
-    fireEvent.click(screen.getByText('admin.exVersions.rollback'))
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exVersions.rollback' }))
-
-    await waitFor(() => expect(mockRestore).toHaveBeenCalledWith(EX_ID, 'v2'))
-    await waitFor(() => expect(mockList.mock.calls.length).toBeGreaterThan(listCalls))
+    expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
   })
 
-  it('creates a deliberate checkpoint without publishing the draft', async () => {
-    mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
-    mockList.mockResolvedValue([draftVersion])
-    mockCheckpoint.mockResolvedValue({} as never)
+  it("disables Publish when the working copy matches the publication", async () => {
+    vi.mocked(getExercise).mockResolvedValue({ ...exercise, HasChanges: false })
     render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    fireEvent.click(await screen.findByRole('button', { name: 'admin.exVersions.checkpoint' }))
-    await waitFor(() => expect(mockCheckpoint).toHaveBeenCalledWith(EX_ID))
-    expect(mockPublish).not.toHaveBeenCalled()
+    expect(await screen.findByText("admin.exPage.badge.published")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
   })
 
-  it('shows the mapped error and re-enables the action when publish fails', async () => {
-    const error = vi.spyOn(toast, 'error')
-    mockGet.mockResolvedValue({ ...exercise, DraftVersionID: 'v1' })
-    mockList.mockResolvedValue([draftVersion])
-    mockPublish.mockRejectedValue(
-      new ApiError(500, { Status: { Code: 99999, Message: 'boom' } }, 'boom'),
-    )
-
+  it("restores unsent edits from the browser buffer, switches to editing and saves them", async () => {
+    writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, toDraftFormValues(workingCopy))
     render(<Page />)
-    await screen.findByDisplayValue('SQLi basics')
-    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1))
-
-    fireEvent.click(screen.getAllByText('admin.exDetail.publish')[0])
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exDetail.publish' }))
-
-    // Real exerciseErrorMessage (not mocked) maps the unknown code to the generic
-    // key and appends the backend message.
-    await waitFor(() => expect(error).toHaveBeenCalledWith('admin.ex.err.generic: boom'))
-    // Busy resets on failure: the dialog closes and the publish button is enabled.
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(screen.getAllByText('admin.exDetail.publish')[0].closest('button')).not.toBeDisabled()
-    expect(push).not.toHaveBeenCalled()
+    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
+    expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
+    expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }), { timeout: 2000 })
   })
 })
+
+describe("exercise page — publishing and history", () => {
+  it("publishes a valid working copy", async () => {
+    vi.mocked(publishDraft).mockResolvedValue({ ...workingCopy, Status: "published" })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.published"))
+  })
+
+  it("goes to the invalid task instead of publishing", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Name: "" }] }] })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    expect(await screen.findByRole("tab", { name: "admin.ex.create.tab.variants", selected: true })).toBeInTheDocument()
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
+  })
+
+  it("opens a history entry as a read-only version view", async () => {
+    vi.mocked(listVersions).mockResolvedValue([
+      listItem({ ID: "draft-1", Status: "draft", CreatedAt: "2026-09-20T10:00:00Z" }),
+      listItem({ ID: "snap-1", Status: "checkpoint", Label: "Before topology rework" }),
+    ])
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.history" }))
+    expect(await screen.findByText("«Before topology rework»")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exHistory.view" }))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/exercises/detail?id=ex-1&version=snap-1"))
+  })
+
+  it("shows a history version read-only and restores it", async () => {
+    h.search = "id=ex-1&version=snap-1"
+    vi.mocked(getVersion).mockResolvedValue({ ...workingCopy, ID: "snap-1", Status: "checkpoint", CreatedAt: "2026-09-18T10:00:00Z" })
+    vi.mocked(restoreVersion).mockResolvedValue(workingCopy)
+    render(<Page />)
+    expect(await screen.findByText("admin.exPage.version.banner")).toBeInTheDocument()
+    expect(getDraft).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.version.restore" }))
+    await waitFor(() => expect(restoreVersion).toHaveBeenCalledWith("ex-1", "snap-1"))
+    expect(h.push).toHaveBeenCalledWith("/exercises/detail?id=ex-1")
+  })
+
+  it("takes a snapshot with a caption", async () => {
+    vi.mocked(createCheckpoint).mockResolvedValue({ ...workingCopy, Status: "checkpoint" })
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.snapshot" }))
+    fireEvent.change(screen.getByLabelText("admin.exPage.snapshot.note"), { target: { value: "Before rework" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.snapshot.confirm" }))
+    await waitFor(() => expect(createCheckpoint).toHaveBeenCalledWith("ex-1", "Before rework"))
+  })
+
+  it("discards changes by restoring the published version after confirmation", async () => {
+    vi.mocked(restoreVersion).mockResolvedValue(workingCopy)
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.revert" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.revert.confirm" }))
+    await waitFor(() => expect(restoreVersion).toHaveBeenCalledWith("ex-1", "pub-1"))
+  })
+
+  it("runs a test deploy of the chosen variant from the header", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    render(<Page />)
+    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
+    expect(await screen.findByTestId("deploy")).toHaveTextContent("draft-1/variant-1")
+  })
+})
+
+describe("exercise page — archive and delete", () => {
+  it("disables Delete while events use the exercise", async () => {
+    vi.mocked(getExerciseUsage).mockResolvedValue({ Events: [{ ID: "ev-1", Name: "cybershield-2026", Archived: false }] })
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    expect(await screen.findByText("admin.exPage.action.deleteInUse")).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: "admin.exPage.action.delete" })).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("archives after confirmation and falls back to viewing", async () => {
+    vi.mocked(archiveExercise).mockResolvedValue({ ...exercise, ArchivedAt: "2026-09-26T10:00:00Z" })
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.archive" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.archive.confirm" }))
+    await waitFor(() => expect(archiveExercise).toHaveBeenCalledWith("ex-1"))
+    expect(await screen.findByText("admin.exPage.archived.banner")).toBeInTheDocument()
+  })
+
+  it("keeps an archived exercise read-only and unarchives it from the banner", async () => {
+    vi.mocked(getExercise).mockResolvedValue({ ...exercise, ArchivedAt: "2026-09-21T10:00:00Z" })
+    vi.mocked(unarchiveExercise).mockResolvedValue(exercise)
+    render(<Page />)
+    expect(await screen.findByText("admin.exPage.archived.banner")).toBeInTheDocument()
+    expect(screen.getByText("admin.exPage.badge.archived")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.unarchive" }))
+    await waitFor(() => expect(unarchiveExercise).toHaveBeenCalledWith("ex-1"))
+    expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
+  })
+
+  it("shows not found without an id", async () => {
+    h.search = ""
+    render(<Page />)
+    expect(await screen.findByText("admin.exDetail.notFound")).toBeInTheDocument()
+  })
+})
+

@@ -1,46 +1,20 @@
 "use client"
 
-import { type UseFormReturn } from "react-hook-form"
+import type { UseFormReturn } from "react-hook-form"
 import { ChevronDown } from "lucide-react"
 import { t } from "@/i18n/t"
 import { VariantTabs } from "./VariantTabs"
 import { TaskAccordion } from "./TaskAccordion"
 import { TopologySection } from "./TopologySection"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
 import { FieldHelp } from "@/components/ui/field-help"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { useEditorPosition } from "./EditorPosition"
 
-export function DraftSettings({ form, disabled }: { form: UseFormReturn<DraftFormValues>; disabled: boolean }) {
-  return <details className="frost-panel rounded-lg p-5">
-    <summary className="cursor-pointer select-none text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-      {t("admin.exDraft.settings.title")}
-    </summary>
-    <div className="mt-3 max-w-xl space-y-3">
-      <div>
-        <label htmlFor="draft-admin-note" className="text-sm font-medium text-foreground">{t("admin.exDraft.adminNote")}</label>
-        <Input id="draft-admin-note" className="mt-1" {...form.register("AdminNote")} disabled={disabled} />
-      </div>
-    </div>
-  </details>
-}
-
-export function DraftVariants({
-  form,
-  disabled,
-  onTestVariant,
-  canTestVariant = () => false,
-}: {
-  form: UseFormReturn<DraftFormValues>
-  disabled: boolean
-  onTestVariant?: (index: number) => void
-  canTestVariant?: (index: number) => boolean
-}) {
+export function DraftVariants({ form, disabled }: { form: UseFormReturn<DraftFormValues>; disabled: boolean }) {
   const [section, setSection] = useEditorPosition("section")
   return <section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
-    <VariantTabs disabled={disabled} toolbar={(variantIndex) => <>
+    <VariantTabs disabled={disabled} toolbar={() => <>
       <div role="tablist" aria-label={t("admin.exDraft.sections")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
         {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value}
           onClick={() => setSection(value)}
@@ -48,10 +22,6 @@ export function DraftVariants({
           {t(`admin.exDraft.tab.${value}`)}
         </button>)}
       </div>
-      {!disabled && onTestVariant && canTestVariant(variantIndex) &&
-        <Button type="button" variant="outline" size="sm" disabled={!form.getValues(`Variants.${variantIndex}.ID`) || form.formState.isDirty}
-          title={!form.getValues(`Variants.${variantIndex}.ID`) || form.formState.isDirty ? t("admin.exDeploy.saveFirst") : undefined}
-          onClick={() => onTestVariant(variantIndex)}>{t("admin.exDeploy.test")}</Button>}
     </>} renderVariant={(variantIndex) => <div data-variant-sections data-variant-index={variantIndex} className="min-h-[24rem] pt-2">
       <details key={variantIndex} className="group/notes mb-3 border-b border-border pb-2">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
@@ -73,3 +43,4 @@ export function DraftVariants({
     </div>} />
   </section>
 }
+

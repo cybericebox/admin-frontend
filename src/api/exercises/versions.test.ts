@@ -11,7 +11,6 @@ import {
   getVersion,
   saveDraft,
   publishDraft,
-  discardDraft,
   getDraft,
   saveDraftKeepalive,
   EMPTY_VERSION_ID,
@@ -25,7 +24,6 @@ import {
 const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPut = vi.mocked(client.apiPut)
-const mockApiDelete = vi.mocked(client.apiDelete)
 const mockKeepalive = vi.mocked(client.apiKeepalive)
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
@@ -72,12 +70,6 @@ describe('versions API paths', () => {
     mockApiPost.mockResolvedValueOnce(rawVersion)
     await publishDraft(EX_ID)
     expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/publish`)
-  })
-
-  it('discardDraft DELETEs /:id/draft', async () => {
-    mockApiDelete.mockResolvedValueOnce(undefined)
-    await discardDraft(EX_ID)
-    expect(mockApiDelete.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
   })
 
   it('restores a historical version while preserving the current draft', async () => {

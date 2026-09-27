@@ -1,7 +1,7 @@
 /**
  * versions.ts — exercise versions/lifecycle and draft snapshot types.
  *
- * Routes: GET /api/exercises/:id/versions[/:versionID], GET/PUT/DELETE :id/draft,
+ * Routes: GET /api/exercises/:id/versions[/:versionID], GET/PUT :id/draft,
  *   POST :id/publish, POST :id/checkpoints, POST :id/versions/:versionID/restore.
  *
  * DTO types transcribe the backend's exercise.saveDraftRequest/versionResponse 1:1
@@ -19,7 +19,7 @@
  *    is stored; an empty Value on save means "keep the stored one";
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
-import { apiGet, apiPost, apiPut, apiDelete, apiKeepalive } from "@/api/client"
+import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
 
 const BASE = "/api/exercises"
 
@@ -333,11 +333,6 @@ export async function saveDraft(exerciseId: string, input: SaveDraftInput): Prom
 export async function publishDraft(exerciseId: string): Promise<Version> {
   const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/publish`, {})
   return normalizeVersion(raw)
-}
-
-/** DELETE /api/exercises/:id/draft */
-export function discardDraft(exerciseId: string): Promise<void> {
-  return apiDelete<void>(`${BASE}/${exerciseId}/draft`)
 }
 
 /** ID of the empty working copy (no draft row, nothing published). Never used in version routes. */
