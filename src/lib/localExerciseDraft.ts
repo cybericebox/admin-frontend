@@ -1,28 +1,6 @@
 import type { DraftFormValues, IdentityFormValues } from "@/lib/exerciseSchemas"
-
-export type EditorPosition = {
-  tab: "general" | "variants"
-  variant: number
-  section: "tasks" | "topology"
-  task: number
-  topologySection: string
-  devicePanel: "basic" | "resources" | "interfaces" | "env" | "external"
-  interface: number
-  env: number
-  scrollTop: number
-}
-
-export const DEFAULT_EDITOR_POSITION: EditorPosition = {
-  tab: "general",
-  variant: 0,
-  section: "tasks",
-  task: 0,
-  topologySection: "diagram",
-  devicePanel: "basic",
-  interface: 0,
-  env: 0,
-  scrollTop: 0,
-}
+import { normalizeEditorPosition, type EditorPosition } from "@/lib/editorPosition"
+export { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
 
 export type LocalExerciseDraft = {
   version: 1
@@ -40,10 +18,6 @@ const STORAGE_PREFIX = "cybericebox.admin.exercise-draft.v1:"
 
 export function localDraftStorageKey(userId: string): string {
   return `${STORAGE_PREFIX}${userId}`
-}
-
-export function editorPositionStorageKey(userId: string, exerciseId: string): string {
-  return `cybericebox.admin.exercise-position.v1:${userId}:${exerciseId}`
 }
 
 export function existingDraftStorageKey(userId: string, exerciseId: string): string {
@@ -84,26 +58,6 @@ export function makeLocalDraft(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
-}
-
-function normalizeEditorPosition(position: unknown): EditorPosition | null {
-  if (!isRecord(position)) return null
-  return {
-    tab: position.tab === "variants" ? "variants" : "general",
-    variant: Number.isSafeInteger(position.variant) && Number(position.variant) >= 0 ? Number(position.variant) : 0,
-    section: position.section === "topology" ? "topology" : "tasks",
-    task: Number.isSafeInteger(position.task) && Number(position.task) >= 0 ? Number(position.task) : 0,
-    topologySection: typeof position.topologySection === "string" ? position.topologySection : "diagram",
-    devicePanel: position.devicePanel === "resources" || position.devicePanel === "interfaces" || position.devicePanel === "env" || position.devicePanel === "external" ? position.devicePanel : "basic",
-    interface: Number.isSafeInteger(position.interface) && Number(position.interface) >= 0 ? Number(position.interface) : 0,
-    env: Number.isSafeInteger(position.env) && Number(position.env) >= 0 ? Number(position.env) : 0,
-    scrollTop: typeof position.scrollTop === "number" && Number.isFinite(position.scrollTop) && position.scrollTop >= 0 ? position.scrollTop : 0,
-  }
-}
-
-export function parseEditorPosition(raw: string | null): EditorPosition | null {
-  if (!raw) return null
-  try { return normalizeEditorPosition(JSON.parse(raw) as unknown) } catch { return null }
 }
 
 function isStoredDraft(value: unknown): value is DraftFormValues {

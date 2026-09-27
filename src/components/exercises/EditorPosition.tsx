@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState } from "react"
-import { DEFAULT_EDITOR_POSITION, type EditorPosition } from "@/lib/localExerciseDraft"
+import { DEFAULT_EDITOR_POSITION, type EditorPosition } from "@/lib/editorPosition"
 
 type PositionContextValue = {
   position: EditorPosition

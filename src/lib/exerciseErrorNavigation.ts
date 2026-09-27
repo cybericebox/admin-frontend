@@ -1,5 +1,5 @@
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import type { EditorPosition } from "@/lib/localExerciseDraft"
+import type { EditorPosition } from "@/lib/editorPosition"
 
 export function positionForDraftIssue(
   current: EditorPosition,

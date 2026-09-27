@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { emptyDevice, emptyDraft } from "@/lib/exerciseSchemas"
-import { DEFAULT_EDITOR_POSITION } from "@/lib/localExerciseDraft"
+import { DEFAULT_EDITOR_POSITION } from "@/lib/editorPosition"
 import { positionForDraftIssue } from "./exerciseErrorNavigation"
 
 describe("positionForDraftIssue", () => {

@@ -10,7 +10,7 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
-import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/localExerciseDraft'
+import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
 
 function DeviceValues() {
