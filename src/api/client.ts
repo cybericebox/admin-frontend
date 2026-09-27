@@ -176,6 +176,66 @@ export async function apiPostMultipart<T>(
   return finishRequest<T>(res, opts)
 }
 
+/** File name from Content-Disposition (RFC 6266: filename* wins over filename). */
+export function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null
+  const extended = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(header)
+  if (extended) {
+    try { return decodeURIComponent(extended[1].trim().replace(/^"|"$/g, "")) } catch { /* fall back to filename= */ }
+  }
+  const plain = /filename\s*=\s*(?:"([^"]*)"|([^;]+))/.exec(header)
+  if (!plain) return null
+  const name = (plain[1] ?? plain[2] ?? "").trim()
+  return name || null
+}
+
+export type BlobResponse = { blob: Blob; filename: string | null }
+
+// apiPostBlob — POST JSON and receive a binary body (e.g. application/zip).
+// Errors go through finishRequest so 401 redirects and ApiError codes match
+// every other call. The API is cross-origin: the backend must list
+// Content-Disposition in Access-Control-Expose-Headers, otherwise the name is null.
+export async function apiPostBlob(path: string, body: unknown, opts: ApiOptions = {}): Promise<BlobResponse> {
+  const url = `${BASE_URL}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    reportServiceUnavailable()
+    throw error
+  }
+  if (!res.ok) return finishRequest<never>(res, opts)
+  return { blob: await res.blob(), filename: filenameFromContentDisposition(res.headers.get("Content-Disposition")) }
+}
+
+/** Browsers reject keepalive bodies above 64 KiB; keep a margin for headers. */
+export const KEEPALIVE_BODY_LIMIT = 60_000
+
+// apiKeepalive — fire-and-forget write that survives page unload (pagehide).
+// Returns false when the body is too large or fetch throws synchronously; the
+// caller keeps its browser-side copy in that case.
+export function apiKeepalive(method: "PUT" | "PATCH", path: string, body: unknown): boolean {
+  const payload = JSON.stringify(body)
+  if (new Blob([payload]).size > KEEPALIVE_BODY_LIMIT) return false
+  try {
+    void fetch(`${BASE_URL}${path}`, {
+      method,
+      keepalive: true,
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    }).catch(() => undefined)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function apiGet<T>(path: string, init?: RequestInit, opts?: ApiOptions): Promise<T> {
   return request<T>(path, { ...init, method: "GET" }, opts)
 }
