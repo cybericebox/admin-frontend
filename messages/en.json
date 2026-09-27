@@ -714,8 +714,6 @@
   "admin.exDraft.sections": "Variant sections",
   "admin.exDraft.adminNote": "Admin note",
   "admin.exDraft.adminNoteHelp": "Internal notes for this exercise version. Not shown in the catalog or to participants.",
-  "admin.exDraft.regenFlags": "Regenerate flags on publish",
-  "admin.exDraft.regenFlags.hint": "Fixed flag values are kept; random ones are regenerated on every publish.",
   "admin.exDraft.tasks.title": "Tasks",
   "admin.exDraft.topology.title": "Topology",
   "admin.exTopo.vpn": "VPN gateway",

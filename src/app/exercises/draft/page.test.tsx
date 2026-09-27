@@ -40,7 +40,6 @@ const exercise = {
 
 const version: Version = {
   ID: 'v1', ExerciseID: 'e1', Status: 'draft', AdminNote: 'wip note',
-  RegenerateFlagsOnPublish: false,
   CreatedAt: '2026-01-01T00:00:00Z', CreatedBy: null, PublishedAt: null,
   Variants: [{
     ID: 'var1', Index: 1, Note: '',

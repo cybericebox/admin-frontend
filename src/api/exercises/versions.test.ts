@@ -33,7 +33,6 @@ const rawVersion = {
   ExerciseID: EX_ID,
   Status: 'draft' as const,
   AdminNote: 'wip',
-  RegenerateFlagsOnPublish: false,
   Variants: null,
   CreatedAt: '2026-01-01T00:00:00Z',
   CreatedBy: null,
@@ -59,7 +58,7 @@ describe('versions API paths', () => {
 
   it('saveDraft PUTs the snapshot to /:id/draft', async () => {
     mockApiPut.mockResolvedValueOnce(rawVersion)
-    const input = { AdminNote: '', RegenerateFlagsOnPublish: false, Variants: [] }
+    const input = { AdminNote: '', Variants: [] }
     await saveDraft(EX_ID, input)
     expect(mockApiPut.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
     expect(mockApiPut.mock.calls[0][1]).toBe(input)

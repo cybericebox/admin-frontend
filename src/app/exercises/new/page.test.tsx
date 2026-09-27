@@ -24,7 +24,7 @@ const mockGetVersion = vi.mocked(getVersion)
 const mockListTags = vi.mocked(listExerciseTags)
 const savedVersion: Awaited<ReturnType<typeof saveDraft>> = {
   ID: "version-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "",
-  RegenerateFlagsOnPublish: false, CreatedAt: "", CreatedBy: null, PublishedAt: null,
+  CreatedAt: "", CreatedBy: null, PublishedAt: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
@@ -121,7 +121,6 @@ describe("new exercise page", () => {
     expect(screen.getByRole("button", { name: "admin.ex.field.tagsHelp" })).toBeInTheDocument()
     expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeVisible()
     expect(screen.getByRole("button", { name: "admin.exDraft.adminNoteHelp" })).toBeInTheDocument()
-    expect(screen.getByRole("checkbox", { name: /admin.exDraft.regenFlags/ })).toBeVisible()
     expect(screen.queryByText("admin.exDraft.settings.title")).not.toBeInTheDocument()
   })
 

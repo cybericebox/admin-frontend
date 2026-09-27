@@ -133,7 +133,6 @@ export type VariantDTO = {
 
 export type SaveDraftInput = {
   AdminNote: string
-  RegenerateFlagsOnPublish: boolean
   Variants: VariantDTO[]
 }
 
@@ -212,7 +211,6 @@ export type Version = {
   ExerciseID: string
   Status: VersionStatus
   AdminNote: string
-  RegenerateFlagsOnPublish: boolean
   Variants: NormalizedVariant[]
   CreatedAt: string
   CreatedBy: string | null

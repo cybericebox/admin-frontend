@@ -97,7 +97,6 @@ export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & 
 }
 export type DraftFormValues = {
   AdminNote: string
-  RegenerateFlagsOnPublish: boolean
   Variants: VariantFormValues[]
 }
 
@@ -433,7 +432,6 @@ const variantSchema = z.object({
 export const draftSchema = z
   .object({
     AdminNote: z.string(),
-    RegenerateFlagsOnPublish: z.boolean(),
     Variants: z.array(variantSchema).min(1, t("admin.ex.val.variantRequired")),
   })
   .superRefine((draft, ctx) => {
@@ -543,7 +541,7 @@ export function emptyVariant(index: number): VariantFormValues {
 }
 
 export function emptyDraft(): DraftFormValues {
-  return { AdminNote: "", RegenerateFlagsOnPublish: false, Variants: [emptyVariant(1)] }
+  return { AdminNote: "", Variants: [emptyVariant(1)] }
 }
 
 // ── Serialization: version → form → saveDraftRequest ────────────────────────────
@@ -553,7 +551,6 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
   if (!version) return emptyDraft()
   return {
     AdminNote: version.AdminNote,
-    RegenerateFlagsOnPublish: version.RegenerateFlagsOnPublish,
     Variants: version.Variants.map((v, vi) => ({
       ID: v.ID,
       Index: v.Index,
@@ -693,7 +690,6 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   }))
   return {
     AdminNote: values.AdminNote,
-    RegenerateFlagsOnPublish: values.RegenerateFlagsOnPublish,
     Variants: variants,
   }
 }

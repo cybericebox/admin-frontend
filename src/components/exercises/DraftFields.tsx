@@ -1,6 +1,6 @@
 "use client"
 
-import { Controller, type UseFormReturn } from "react-hook-form"
+import { type UseFormReturn } from "react-hook-form"
 import { ChevronDown } from "lucide-react"
 import { t } from "@/i18n/t"
 import { VariantTabs } from "./VariantTabs"
@@ -9,7 +9,6 @@ import { TopologySection } from "./TopologySection"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { FieldHelp } from "@/components/ui/field-help"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { useEditorPosition } from "./EditorPosition"
@@ -24,13 +23,6 @@ export function DraftSettings({ form, disabled }: { form: UseFormReturn<DraftFor
         <label htmlFor="draft-admin-note" className="text-sm font-medium text-foreground">{t("admin.exDraft.adminNote")}</label>
         <Input id="draft-admin-note" className="mt-1" {...form.register("AdminNote")} disabled={disabled} />
       </div>
-      <Controller control={form.control} name="RegenerateFlagsOnPublish" render={({ field }) => <div className="flex items-start gap-2">
-        <Checkbox id="regen-flags" ref={field.ref} checked={field.value} onChange={(event) => field.onChange(event.target.checked)} onBlur={field.onBlur} disabled={disabled} />
-        <div>
-          <label htmlFor="regen-flags" className="text-sm text-foreground">{t("admin.exDraft.regenFlags")}</label>
-          <p className="text-xs text-muted-foreground">{t("admin.exDraft.regenFlags.hint")}</p>
-        </div>
-      </div>} />
     </div>
   </details>
 }

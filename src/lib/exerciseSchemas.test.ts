@@ -791,7 +791,6 @@ function loadedVersion(): Version {
     ExerciseID: 'e1',
     Status: 'draft',
     AdminNote: 'wip',
-    RegenerateFlagsOnPublish: true,
     CreatedAt: '2026-01-01T00:00:00Z',
     CreatedBy: null,
     PublishedAt: null,
@@ -860,7 +859,7 @@ describe('toDraftFormValues', () => {
   it('maps a loaded version into form values (External → Enabled form)', () => {
     const values = toDraftFormValues(loadedVersion())
     expect(values.AdminNote).toBe('wip')
-    expect(values.RegenerateFlagsOnPublish).toBe(true)
+    expect(values).not.toHaveProperty('RegenerateFlagsOnPublish')
     expect(values.Variants[0].ID).toBe('var1')
     expect(values.Variants[0].Tasks[0].ID).toBe('task1')
     expect(values.Variants[0].Tasks[0].Placeholders[0].Key).toBe('ph_legacy_0_0_0')
@@ -898,7 +897,6 @@ describe('toSaveDraftInput', () => {
     const input = toSaveDraftInput(toDraftFormValues(loadedVersion()))
     expect(input).toEqual({
       AdminNote: 'wip',
-      RegenerateFlagsOnPublish: true,
       Variants: [{
         ID: 'var1',
         Index: 1,
@@ -967,5 +965,10 @@ describe('toSaveDraftInput', () => {
     expect(webDTO.Interfaces![0].IP).toEqual({ Type: 'dhcp' })
     expect(input.Variants[0].Tasks[0].Description).toBeUndefined()
     expect(input.Variants[0].Tasks[0].LinkedDeviceID).toBeUndefined()
+  })
+
+  it('has no flag-regeneration switch in drafts or save requests', () => {
+    expect(emptyDraft()).not.toHaveProperty('RegenerateFlagsOnPublish')
+    expect(toSaveDraftInput(emptyDraft())).not.toHaveProperty('RegenerateFlagsOnPublish')
   })
 })

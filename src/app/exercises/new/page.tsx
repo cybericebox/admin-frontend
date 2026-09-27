@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Controller, useForm, useWatch } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createExercise, getExercise, listExerciseTags, updateExercise, type ExerciseTagSuggestion } from "@/api/exercises/catalog"
 import { getVersion, saveDraft } from "@/api/exercises/versions"
@@ -13,7 +13,6 @@ import { TagInput } from "@/components/exercises/TagInput"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -446,10 +445,6 @@ export default function NewExercisePage() {
                     <Textarea id="draft-admin-note" rows={5} disabled={busy} {...draftForm.register("AdminNote")} />
                     <p className="min-h-4 text-xs text-destructive" />
                   </div>
-                  <Controller control={draftForm.control} name="RegenerateFlagsOnPublish" render={({ field }) => <div className="flex min-w-0 items-start gap-2 lg:col-span-2">
-                    <Checkbox id="regen-flags-new" ref={field.ref} checked={field.value} onChange={(event) => field.onChange(event.target.checked)} onBlur={field.onBlur} disabled={busy} />
-                    <ExerciseFieldLabel labelKey="admin.exDraft.regenFlags" helpKey="admin.exDraft.regenFlags.hint" htmlFor="regen-flags-new" />
-                  </div>} />
                 </div>
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">

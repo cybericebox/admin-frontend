@@ -61,7 +61,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isStoredDraft(value: unknown): value is DraftFormValues {
-  if (!isRecord(value) || typeof value.AdminNote !== "string" || typeof value.RegenerateFlagsOnPublish !== "boolean" || !Array.isArray(value.Variants)) return false
+  if (!isRecord(value) || typeof value.AdminNote !== "string" || !Array.isArray(value.Variants)) return false
   return value.Variants.length > 0 && value.Variants.every((variant: unknown) =>
     isRecord(variant) && Array.isArray(variant.Tasks) && variant.Tasks.every((task: unknown) => isRecord(task) && Array.isArray(task.Flag)) &&
     isRecord(variant.Topology) && Array.isArray(variant.Topology.Devices) && Array.isArray(variant.Topology.Connections) &&
