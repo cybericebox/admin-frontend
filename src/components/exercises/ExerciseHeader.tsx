@@ -64,7 +64,7 @@ function StatusBadge({ badge }: { badge: HeaderBadge }) {
     <span
       data-badge={badge.kind}
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-['']",
+        "inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium",
         BADGE_CLASS[badge.kind]
       )}
     >
