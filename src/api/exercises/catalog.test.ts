@@ -15,12 +15,17 @@ import {
   createExercise,
   updateExercise,
   deleteExercise,
+  archiveExercise,
+  unarchiveExercise,
+  getExerciseUsage,
+  updateExerciseKeepalive,
 } from './catalog'
 
 const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPatch = vi.mocked(client.apiPatch)
 const mockApiDelete = vi.mocked(client.apiDelete)
+const mockKeepalive = vi.mocked(client.apiKeepalive)
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
@@ -139,5 +144,47 @@ describe('deleteExercise', () => {
     mockApiDelete.mockResolvedValueOnce(undefined)
     await deleteExercise(EX_ID)
     expect(mockApiDelete.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}`)
+  })
+})
+
+describe('archive, usage and working-copy status', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('normalizes missing archive/change flags on list items and exercises', async () => {
+    mockApiGet.mockResolvedValueOnce({ Items: [rawListItem], Total: 1, Page: 1, PageSize: 50 })
+    const page = await listExercisesPage({ page: 1, pageSize: 50, sortBy: 'updated', sortDir: 'desc' })
+    expect(page.Items[0].ArchivedAt).toBeNull()
+    mockApiGet.mockResolvedValueOnce(rawExercise)
+    const exercise = await getExercise(EX_ID)
+    expect(exercise).toMatchObject({ ArchivedAt: null, HasChanges: false })
+  })
+
+  it('asks only for archived exercises with archived=only', async () => {
+    mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0, Page: 1, PageSize: 50 })
+    await listExercisesPage({ page: 1, pageSize: 50, sortBy: 'updated', sortDir: 'desc', archived: 'only' })
+    expect(new URL(mockApiGet.mock.calls[0][0] as string, 'https://x').searchParams.get('archived')).toBe('only')
+  })
+
+  it('archives and unarchives through dedicated routes', async () => {
+    mockApiPost.mockResolvedValueOnce({ ...rawExercise, ArchivedAt: '2026-09-20T00:00:00Z', HasChanges: true })
+    expect(await archiveExercise(EX_ID)).toMatchObject({ ArchivedAt: '2026-09-20T00:00:00Z', HasChanges: true })
+    expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/archive`)
+    mockApiPost.mockResolvedValueOnce(rawExercise)
+    await unarchiveExercise(EX_ID)
+    expect(mockApiPost.mock.calls[1][0]).toBe(`/api/exercises/${EX_ID}/unarchive`)
+  })
+
+  it('reads the events using the exercise', async () => {
+    mockApiGet.mockResolvedValueOnce({ Events: [{ ID: 'ev1', Name: 'Cybershield', Archived: false }] })
+    expect(await getExerciseUsage(EX_ID)).toEqual({ Events: [{ ID: 'ev1', Name: 'Cybershield', Archived: false }] })
+    expect(mockApiGet.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/usage`)
+    mockApiGet.mockResolvedValueOnce({ Events: null })
+    expect(await getExerciseUsage(EX_ID)).toEqual({ Events: [] })
+  })
+
+  it('sends identity edits with keepalive on page unload', () => {
+    mockKeepalive.mockReturnValueOnce(true)
+    expect(updateExerciseKeepalive(EX_ID, { Name: 'SQLi', Description: '', Tags: [] })).toBe(true)
+    expect(mockKeepalive).toHaveBeenCalledWith('PATCH', `/api/exercises/${EX_ID}`, { Name: 'SQLi', Description: '', Tags: [] })
   })
 })

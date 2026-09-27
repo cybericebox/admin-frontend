@@ -35,6 +35,7 @@ const mockCapabilities = vi.mocked(getExerciseCapabilities)
 const exercise = {
   ID: 'e1', Name: 'SQLi', Description: '', Tags: [],
   DraftVersionID: 'v1', PublishedVersionID: null,
+  ArchivedAt: null, HasChanges: true,
   CreatedAt: '', CreatedBy: null, UpdatedAt: '', UpdatedBy: null,
 }
 

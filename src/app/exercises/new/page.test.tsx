@@ -83,7 +83,7 @@ describe("new exercise page", () => {
     mockSaveDraft.mockResolvedValue({ ...savedVersion, Variants: [{ ...savedVersion.Variants[0], Tasks: [
       { ...savedVersion.Variants[0].Tasks[0], Flag: ["ICE{secret}"] },
     ] }] })
-    mockGetExercise.mockResolvedValue({ ID: "new-exercise", Name: "Saved exercise", Description: "", Tags: [], DraftVersionID: "version-1", PublishedVersionID: null, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null })
+    mockGetExercise.mockResolvedValue({ ID: "new-exercise", Name: "Saved exercise", Description: "", Tags: [], DraftVersionID: "version-1", PublishedVersionID: null, ArchivedAt: null, HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null })
     mockGetVersion.mockImplementation(async () => await mockSaveDraft.mock.results[0].value)
     const first = render(<NewExercisePage />)
     vi.useFakeTimers()

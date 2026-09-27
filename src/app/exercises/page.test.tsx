@@ -46,6 +46,7 @@ const item = {
   Tags: ['web', 'sql'],
   HasDraft: true,
   HasPublished: false,
+  ArchivedAt: null,
   CreatedAt: '2026-01-01T00:00:00Z',
   UpdatedAt: '2026-01-02T00:00:00Z',
 }
