@@ -13,8 +13,10 @@ export function useExerciseLeaveGuard(shouldGuard: boolean) {
   useEffect(() => { guardRef.current = shouldGuard }, [shouldGuard])
 
   useEffect(() => {
-    const currentUrl = window.location.href
+    // Read the location at event time: the page may swap its own address in place
+    // (e.g. /exercises/new → /exercises/detail?id=… after create).
     const request = (href: string) => {
+      const currentUrl = window.location.href
       const target = new URL(href, currentUrl)
       if (target.href === currentUrl || !guardRef.current || bypassRef.current) return false
       setDestination(target.origin === window.location.origin ? target.pathname + target.search + target.hash : target.href)
@@ -35,7 +37,8 @@ export function useExerciseLeaveGuard(shouldGuard: boolean) {
     const navigation = (window as Window & { navigation?: EventTarget }).navigation
     const onNavigate = (event: Event) => {
       const nav = event as NavigationEvent
-      if (nav.navigationType === "reload" || !nav.canIntercept) return
+      // "replace" is an in-place address swap (history.replaceState / router.replace), not leaving.
+      if (nav.navigationType === "reload" || nav.navigationType === "replace" || !nav.canIntercept) return
       if (request(nav.destination.url)) event.preventDefault()
     }
     document.addEventListener("click", onClick, true)

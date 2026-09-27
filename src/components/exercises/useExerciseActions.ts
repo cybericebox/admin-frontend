@@ -55,13 +55,8 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
   }
 
   async function flushOrWarn(): Promise<boolean> {
-    const ok = await editor.autosave.flush()
-    if (!ok) toast.error(t("admin.exPage.toast.saveFailed"))
-    return ok
-  }
-
-  async function publish(): Promise<void> {
-    if (!exerciseId || !(await flushOrWarn())) return
+    // An invalid identity is never sent, so flush() would report "not saved";
+    // point the user at the field instead of a misleading save-failed toast.
     const identity = identitySchema.safeParse(editor.identityForm.getValues())
     if (!identity.success) {
       if (canWrite) setMode("edit")
@@ -69,8 +64,15 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
       setPosition((current) => ({ ...current, tab: "general" }))
       focusField(identity.error.issues[0]?.path ?? [])
       toast.error(t("admin.exPage.toast.invalid"))
-      return
+      return false
     }
+    const ok = await editor.autosave.flush()
+    if (!ok) toast.error(t("admin.exPage.toast.saveFailed"))
+    return ok
+  }
+
+  async function publish(): Promise<void> {
+    if (!exerciseId || !(await flushOrWarn())) return
     if (!(await editor.draftForm.trigger())) {
       const values = editor.draftForm.getValues()
       const parsed = draftSchema.safeParse(values)

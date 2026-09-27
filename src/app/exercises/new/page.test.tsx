@@ -31,7 +31,7 @@ vi.mock("@/api/exercises/versions", () => ({
 }))
 
 import { createExercise, getExercise } from "@/api/exercises/catalog"
-import { saveDraft } from "@/api/exercises/versions"
+import { publishDraft, saveDraft } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import NewExercisePage from "./page"
 
@@ -90,6 +90,23 @@ describe("new exercise page", () => {
     expect(screen.getByText("admin.exPage.save.saved")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
+  })
+
+  it("blocks Publish on an invalid name with the invalid toast, not a save failure", async () => {
+    render(<NewExercisePage />)
+    vi.useFakeTimers()
+    const name = screen.getByLabelText(/admin.ex.field.name/)
+    fireEvent.change(name, { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    fireEvent.change(name, { target: { value: "Qz" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" })) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.invalid")
+    expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()
+    expect(document.activeElement).toBe(name)
   })
 
   it("keeps a too-short name in the browser only and forgets it on Cancel", async () => {
