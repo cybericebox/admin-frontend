@@ -103,4 +103,33 @@ describe("useExerciseAutosave", () => {
     expect(hook.result.current.status).toBe("idle")
     expect(options.onSaved).not.toHaveBeenCalled()
   })
+
+  it("flushes an unsaved change on unmount", async () => {
+    const { options, hook } = setup()
+    act(() => hook.result.current.markChanged())
+    await act(async () => { hook.unmount() })
+    expect(options.writeBuffer).toHaveBeenCalled()
+    expect(options.save).toHaveBeenCalledTimes(1)
+  })
+
+  it("lets a save already in flight at unmount finish and still applies its result", async () => {
+    let resolveSave: (value: boolean) => void = () => {}
+    const save = vi.fn().mockImplementation(() => new Promise<boolean>((resolve) => { resolveSave = resolve }))
+    const { options, hook } = setup({ save })
+    act(() => hook.result.current.markChanged())
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(options.save).toHaveBeenCalledTimes(1)
+
+    act(() => { hook.unmount() })
+    expect(options.onSaved).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveSave(true)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(options.clearBuffer).toHaveBeenCalled()
+    expect(options.onSaved).toHaveBeenCalledTimes(1)
+  })
 })

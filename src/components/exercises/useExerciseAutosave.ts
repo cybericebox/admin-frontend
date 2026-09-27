@@ -40,8 +40,17 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
     bufferTimer.current = null
   }, [])
 
+  const writeBufferNow = useCallback(() => {
+    cancelBufferWrite()
+    optionsRef.current.writeBuffer()
+  }, [cancelBufferWrite])
+
   // Constructed once on mount; every callback below reaches it through the ref,
   // never through a render-scoped local, so a fresh `options` never forces a new queue.
+  // Never disposed: the same cleanup that would dispose it is also the one place that
+  // must still be able to flush an unsaved change left at unmount, so instead of
+  // disposing we just let an orphaned queue (nothing dirty, no timer) get collected —
+  // StrictMode's simulated unmount always finds it inert since nothing has changed yet.
   useEffect(() => {
     queueRef.current = new AutosaveQueue({
       delayMs: optionsRef.current.delayMs ?? 1000,
@@ -54,15 +63,13 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
       },
     })
     return () => {
-      queueRef.current?.dispose()
-      queueRef.current = null
+      const queue = queueRef.current
+      if (queue?.hasUnsaved()) {
+        writeBufferNow()
+        void queue.flush()
+      }
     }
-  }, [cancelBufferWrite])
-
-  const writeBufferNow = useCallback(() => {
-    cancelBufferWrite()
-    optionsRef.current.writeBuffer()
-  }, [cancelBufferWrite])
+  }, [cancelBufferWrite, writeBufferNow])
 
   const markChanged = useCallback(() => {
     queueRef.current?.markChanged()
@@ -109,14 +116,6 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("pagehide", onPageHide)
     }
-  }, [writeBufferNow])
-
-  // Leaving the page inside the app: keep the buffer and send what is left.
-  useEffect(() => () => {
-    const queue = queueRef.current
-    if (!queue?.hasUnsaved()) return
-    writeBufferNow()
-    void queue.flush()
   }, [writeBufferNow])
 
   return useMemo(() => ({ status, markChanged, flush, hasUnsaved, discard }), [status, markChanged, flush, hasUnsaved, discard])
