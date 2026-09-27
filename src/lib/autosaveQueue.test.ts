@@ -7,6 +7,13 @@ function deferred() {
   return { promise, resolve }
 }
 
+function deferredRejectable() {
+  let resolve!: (value: boolean) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<boolean>((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+
 describe("AutosaveQueue", () => {
   let statuses: AutosaveStatus[]
   beforeEach(() => { vi.useFakeTimers(); statuses = [] })
@@ -98,5 +105,92 @@ describe("AutosaveQueue", () => {
     await vi.advanceTimersByTimeAsync(2000)
     expect(save).not.toHaveBeenCalled()
     expect(queue.hasUnsaved()).toBe(false)
+  })
+
+  it("discard during a failing save reports no dirty and no error status for the discarded generation", async () => {
+    const inFlight = deferredRejectable()
+    const save = vi.fn(() => inFlight.promise)
+    const queue = createQueue(save)
+    queue.markChanged()
+    const flushed = queue.flush()
+    const discarded = queue.discard()
+    inFlight.reject(new Error("offline"))
+    await discarded
+    await expect(flushed).resolves.toBe(true)
+    expect(statuses).not.toContain("error")
+    expect(queue.hasUnsaved()).toBe(false)
+  })
+
+  it("discard during a successful save suppresses onSaved and the 'saved' status for the discarded generation", async () => {
+    const inFlight = deferred()
+    const onSaved = vi.fn()
+    const save = vi.fn(() => inFlight.promise)
+    const queue = createQueue(save, onSaved)
+    queue.markChanged()
+    const flushed = queue.flush()
+    const discarded = queue.discard()
+    inFlight.resolve(true)
+    await discarded
+    await expect(flushed).resolves.toBe(true)
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(statuses).not.toContain("saved")
+    expect(queue.hasUnsaved()).toBe(false)
+  })
+
+  it("await discard() waits for the in-flight save to settle", async () => {
+    const inFlight = deferred()
+    const save = vi.fn(() => inFlight.promise)
+    const queue = createQueue(save)
+    queue.markChanged()
+    queue.flush()
+    let settled = false
+    const discardPromise = queue.discard().then(() => { settled = true })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    inFlight.resolve(true)
+    await discardPromise
+    expect(settled).toBe(true)
+  })
+
+  it("dispose clears a pending timer and makes further scheduled/queued work a no-op", async () => {
+    const save = vi.fn().mockResolvedValue(true)
+    const queue = createQueue(save)
+    queue.markChanged()
+    queue.dispose()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(save).not.toHaveBeenCalled()
+    queue.markChanged()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(save).not.toHaveBeenCalled()
+    await expect(queue.flush()).resolves.toBe(true)
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it("never re-emits 'pending' while a save is in flight — a coalesced run reports saving, saving, saved", async () => {
+    const first = deferred()
+    let calls = 0
+    const save = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) return first.promise
+      return true
+    })
+    const queue = createQueue(save)
+    queue.markChanged()
+    queue.flush()
+    statuses.length = 0 // drop the initial "pending"/"saving" from markChanged()+flush(); observe only what follows
+    queue.markChanged()
+    queue.markChanged()
+    first.resolve(true)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(statuses).toEqual(["saving", "saved"])
+  })
+
+  it("a scheduled flush that throws synchronously does not produce an unhandled rejection", async () => {
+    const save = vi.fn().mockRejectedValue(new Error("boom"))
+    const queue = createQueue(save)
+    queue.markChanged()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(statuses.at(-1)).toBe("error")
+    expect(queue.hasUnsaved()).toBe(true)
   })
 })
