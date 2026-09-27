@@ -46,6 +46,15 @@ function identityOf(exercise: Exercise): IdentityFormValues {
   return { Name: exercise.Name, Description: exercise.Description, Tags: exercise.Tags }
 }
 
+/**
+ * Thrown by save() after the draft went out while an invalid identity edit was held
+ * back: the queue reports "error" (indicator, leave guard, buffer kept). No toast —
+ * the field already shows the validation message.
+ */
+class IdentityRejectedError extends Error {
+  constructor() { super("identity rejected") }
+}
+
 /** The empty working copy (Variants: []) opens like a new exercise: one empty variant. */
 function workingCopyValues(version: Version): DraftFormValues {
   const values = toDraftFormValues(version)
@@ -137,9 +146,9 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           }
         } else if (identityChanged) {
           // Invalid identity edit: never send it, but don't report the round as "saved"
-          // either — the draft below still goes out so it isn't lost, but the caller
-          // (AutosaveQueue) must see `false` so the indicator stays unsaved and the
-          // buffer (holding the invalid identity) is kept, not cleared.
+          // either — the draft below still goes out so it isn't lost, then the round
+          // fails with IdentityRejectedError so the indicator shows "not saved", the
+          // leave guard stays armed and the buffer (holding the invalid identity) is kept.
           identityRejected = true
         }
       }
@@ -155,8 +164,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         lastSignatureRef.current = signature()
       }
       lastSaveErrorRef.current = null
-      return !identityRejected
+      if (identityRejected) throw new IdentityRejectedError()
+      return true
     } catch (error) {
+      if (error instanceof IdentityRejectedError) throw error
       // One toast per distinct failure reason, not one per retry: the queue retries the
       // same save on every subsequent markChanged() until it succeeds, and would
       // otherwise spam identical "not saved" toasts for a single ongoing problem

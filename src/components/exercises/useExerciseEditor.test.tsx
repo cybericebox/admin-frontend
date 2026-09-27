@@ -242,9 +242,11 @@ describe("useExerciseEditor", () => {
     expect(mockUpdate).not.toHaveBeenCalled()
     // The draft still goes out so it isn't lost...
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
-    // ...but the round is not reported as saved, and the buffer (holding "ab") stays.
-    expect(screen.getByTestId("status")).toHaveTextContent("idle")
+    // ...but the round is reported as not saved (error: indicator + leave guard), the
+    // buffer (holding "ab") stays, and no save-failed toast — the field shows the error.
+    expect(screen.getByTestId("status")).toHaveTextContent("error")
     expect(storage.get(pendingBufferKey("editor-1", "ex-1"))).toContain("\"ab\"")
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it("waits for userId before loading, then never reloads on a later userId change", async () => {
