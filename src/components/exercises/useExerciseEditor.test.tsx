@@ -183,4 +183,79 @@ describe("useExerciseEditor", () => {
     render(<Harness exerciseId="missing" />)
     expect(await screen.findByText("not found")).toBeInTheDocument()
   })
+
+  it("does not call onCreated after unmount, but still migrates the buffer to the exercise key", async () => {
+    let resolveCreate: (value: Exercise) => void = () => undefined
+    mockCreate.mockImplementationOnce(() => new Promise((resolve) => { resolveCreate = resolve }))
+    // The draft save never succeeds here — this keeps the buffer observable after the
+    // round settles instead of it being cleared by a fully successful save cycle, which
+    // isn't what this test is about (see the "adopts server-assigned IDs" test for that).
+    mockSaveDraft.mockRejectedValue(new Error("offline"))
+    const onCreated = vi.fn()
+    const { unmount } = render(<Harness onCreated={onCreated} />)
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    // The create request is still in flight when the page (and this hook instance)
+    // unmounts — the autosave queue's unmount-flush keeps the save running.
+    const inFlightAutosave = latest.autosave
+    unmount()
+    await act(async () => {
+      resolveCreate(created)
+      // The queue instance survives the unmount (nothing disposes it) — flush() chains
+      // onto the still-running save and resolves once the whole chain has settled.
+      await inFlightAutosave.flush()
+    })
+    expect(onCreated).not.toHaveBeenCalled()
+    expect(storage.get(pendingBufferKey("editor-1", "new-exercise"))).toContain("Buffer overflow")
+    expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
+  })
+
+  it("shows one error toast for repeated identical save failures, not one per retry", async () => {
+    mockSaveDraft.mockRejectedValue(new Error("offline"))
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Renamed once" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(screen.getByTestId("status")).toHaveTextContent("error")
+    expect(toast.error).toHaveBeenCalledTimes(1)
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Renamed twice" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(screen.getByTestId("status")).toHaveTextContent("error")
+    // Same underlying failure both times — still only one toast.
+    expect(toast.error).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not report an invalidated identity edit as saved, and keeps the buffer", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "ab" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockUpdate).not.toHaveBeenCalled()
+    // The draft still goes out so it isn't lost...
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+    // ...but the round is not reported as saved, and the buffer (holding "ab") stays.
+    expect(screen.getByTestId("status")).toHaveTextContent("idle")
+    expect(storage.get(pendingBufferKey("editor-1", "ex-1"))).toContain("\"ab\"")
+  })
+
+  it("waits for userId before loading, then never reloads on a later userId change", async () => {
+    const { rerender } = render(<Harness exerciseId="ex-1" userId={null} />)
+    expect(screen.getByText("loading")).toBeInTheDocument()
+    expect(mockGetExercise).not.toHaveBeenCalled()
+
+    rerender(<Harness exerciseId="ex-1" userId="editor-1" />)
+    expect(await screen.findByDisplayValue("Web 101")).toBeInTheDocument()
+    expect(mockGetExercise).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Typed after userId arrived" } })
+    // A later userId change (e.g. a session refresh) must not re-trigger the load and
+    // wipe out what was just typed.
+    rerender(<Harness exerciseId="ex-1" userId="editor-2" />)
+    expect(screen.getByDisplayValue("Typed after userId arrived")).toBeInTheDocument()
+    expect(mockGetExercise).toHaveBeenCalledTimes(1)
+  })
 })

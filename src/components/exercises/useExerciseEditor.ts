@@ -7,6 +7,7 @@ import { createExercise, getExercise, updateExercise, updateExerciseKeepalive, t
 import { getDraft, getVersion, isStoredVersionId, saveDraft, saveDraftKeepalive, type Version } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import {
   draftSchema, emptyDraft, identitySchema, toDraftFormValues, toSaveDraftInput,
   type DraftFormValues, type IdentityFormValues,
@@ -56,7 +57,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  const [loadState, setLoadState] = useState<ExerciseLoadState>(exerciseId ? "loading" : "ready")
+  const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [version, setVersion] = useState<Version | null>(null)
   const exerciseIdRef = useRef<string | null>(exerciseId)
@@ -64,6 +65,14 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const savedIdentityRef = useRef("")
   const suppressRef = useRef(false)
   const lastSignatureRef = useRef("")
+  const lastSaveErrorRef = useRef<string | null>(null)
+  const loadStartedRef = useRef(false)
+  // Guards a create/save that keeps running after unmount (the autosave queue's
+  // unmount-flush lets an in-flight save finish so nothing is lost) from firing
+  // onCreated / setExercise for a hook instance nothing is listening to anymore —
+  // onCreated typically drives a router.replace, which must not happen post-unmount.
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   const identityForm = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
@@ -90,40 +99,68 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     const identity = identityForm.getValues()
     const fullIdentity = identitySchema.safeParse(identity)
     let id = exerciseIdRef.current
-    if (!id) {
-      const name = identitySchema.shape.Name.safeParse(identity.Name)
-      if (!name.success) return false
-      const input = fullIdentity.success ? fullIdentity.data : { Name: name.data, Description: "", Tags: [] }
-      const createdExercise = await createExercise(input)
-      id = createdExercise.ID
-      exerciseIdRef.current = id
-      savedIdentityRef.current = JSON.stringify(input)
-      if (userId) {
-        writePendingChanges(pendingBufferKey(userId, id), identity, draftForm.getValues())
-        clearPendingChanges(pendingBufferKey(userId, null))
+    let identityRejected = false
+    try {
+      if (!id) {
+        const name = identitySchema.shape.Name.safeParse(identity.Name)
+        if (!name.success) return false
+        const input = fullIdentity.success ? fullIdentity.data : { Name: name.data, Description: "", Tags: [] }
+        const createdExercise = await createExercise(input)
+        id = createdExercise.ID
+        exerciseIdRef.current = id
+        savedIdentityRef.current = JSON.stringify(input)
+        if (userId) {
+          writePendingChanges(pendingBufferKey(userId, id), identity, draftForm.getValues())
+          clearPendingChanges(pendingBufferKey(userId, null))
+        }
+        if (mountedRef.current) {
+          setExercise(createdExercise)
+          optionsRef.current.onCreated(createdExercise)
+        }
+      } else {
+        // Compare the raw form values, not just the parsed ones: an edit that fails full
+        // validation (e.g. Name cut below the minimum length) still needs to be recognized
+        // as "not yet persisted" below, even though there is no `fullIdentity.data` for it.
+        const identityChanged = JSON.stringify(identity) !== savedIdentityRef.current
+        if (fullIdentity.success) {
+          if (identityChanged) {
+            const updated = await updateExercise(id, fullIdentity.data)
+            savedIdentityRef.current = JSON.stringify(fullIdentity.data)
+            if (mountedRef.current) setExercise(updated)
+          }
+        } else if (identityChanged) {
+          // Invalid identity edit: never send it, but don't report the round as "saved"
+          // either — the draft below still goes out so it isn't lost, but the caller
+          // (AutosaveQueue) must see `false` so the indicator stays unsaved and the
+          // buffer (holding the invalid identity) is kept, not cleared.
+          identityRejected = true
+        }
       }
-      setExercise(createdExercise)
-      optionsRef.current.onCreated(createdExercise)
-    } else if (fullIdentity.success) {
-      const next = JSON.stringify(fullIdentity.data)
-      if (next !== savedIdentityRef.current) {
-        const updated = await updateExercise(id, fullIdentity.data)
-        savedIdentityRef.current = next
-        setExercise(updated)
+      const payload = draftForm.getValues()
+      const sent = capturedDraftIds(payload)
+      const saved = await saveDraft(id, toSaveDraftInput(payload))
+      rememberDraftVersion(saved.ID)
+      const updates = serverIdUpdates(sent, saved, draftForm.getValues())
+      if (updates.length > 0) {
+        suppressRef.current = true
+        for (const update of updates) draftForm.setValue(update.path, update.value)
+        suppressRef.current = false
+        lastSignatureRef.current = signature()
       }
+      lastSaveErrorRef.current = null
+      return !identityRejected
+    } catch (error) {
+      // One toast per distinct failure reason, not one per retry: the queue retries the
+      // same save on every subsequent markChanged() until it succeeds, and would
+      // otherwise spam identical "not saved" toasts for a single ongoing problem
+      // (409 exists, archived, modified server-side, offline, ...).
+      const message = exerciseErrorMessage(error)
+      if (lastSaveErrorRef.current !== message) {
+        toast.error(message)
+        lastSaveErrorRef.current = message
+      }
+      throw error
     }
-    const payload = draftForm.getValues()
-    const sent = capturedDraftIds(payload)
-    const saved = await saveDraft(id, toSaveDraftInput(payload))
-    rememberDraftVersion(saved.ID)
-    const updates = serverIdUpdates(sent, saved, draftForm.getValues())
-    if (updates.length > 0) {
-      suppressRef.current = true
-      for (const update of updates) draftForm.setValue(update.path, update.value)
-      suppressRef.current = false
-      lastSignatureRef.current = signature()
-    }
-    return true
   }, [identityForm, draftForm, signature, userId, rememberDraftVersion])
 
   const autosave = useExerciseAutosave({
@@ -150,15 +187,29 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   })
 
   useEffect(() => {
+    // userId can arrive asynchronously (e.g. from a session that resolves after mount).
+    // Loading before it's known would restore/skip the pending buffer against the wrong
+    // key; re-running once it arrives would re-fetch and reset whatever the user already
+    // typed in the meantime. So: stay in "loading" until userId is known, then load
+    // exactly once — loadStartedRef makes any later userId change a no-op here (a real
+    // route change remounts this hook entirely via the page's key, which is the
+    // supported way to point it at a different exercise/version).
+    if (userId === null || loadStartedRef.current) return
+    loadStartedRef.current = true
+    // TS doesn't carry the narrowing above into the nested closure below; a fresh
+    // const does (its type is fixed at this assignment, not re-derived from `userId`).
+    const knownUserId = userId
     let cancelled = false
     async function load() {
       if (!exerciseId) {
-        const pending = userId ? readPendingChanges(pendingBufferKey(userId, null)) : null
-        if (!pending || cancelled) return
-        applyValues(pending.identity, pending.draft)
-        toast.success(t("admin.exPage.toast.pendingRestored"))
-        optionsRef.current.onPendingRestored()
-        autosave.markChanged()
+        const pending = readPendingChanges(pendingBufferKey(knownUserId, null))
+        if (pending && !cancelled) {
+          applyValues(pending.identity, pending.draft)
+          toast.success(t("admin.exPage.toast.pendingRestored"))
+          optionsRef.current.onPendingRestored()
+          autosave.markChanged()
+        }
+        if (!cancelled) setLoadState("ready")
         return
       }
       try {
@@ -167,7 +218,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           versionId ? getVersion(exerciseId, versionId) : getDraft(exerciseId),
         ])
         if (cancelled) return
-        const key = !versionId && userId ? pendingBufferKey(userId, exerciseId) : null
+        const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
         const pending = key ? readPendingChanges(key) : null
         const apply = pending !== null && canWrite && !loaded.ArchivedAt
         if (key && pending && !apply) clearPendingChanges(key)
@@ -189,7 +240,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     }
     void load()
     return () => { cancelled = true }
-    // Load once per route (the detail page remounts on id/version change).
+    // Load once per route (the detail page remounts on id/version change) — see
+    // loadStartedRef above for why later userId changes don't re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, versionId, userId])
 
