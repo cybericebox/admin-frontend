@@ -19,7 +19,7 @@ import { createExercise, getExercise, updateExercise } from "@/api/exercises/cat
 import { getDraft, getVersion, saveDraft } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
-import { emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
 
 const mockCreate = vi.mocked(createExercise)
@@ -249,6 +249,32 @@ describe("useExerciseEditor", () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it("sends the identity once for a name with surrounding spaces, not on every save", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: " Web 102 " } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    act(() => { latest.draftForm.setValue("AdminNote", "note") })
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it("skips the identity PATCH when only spaces were added around the saved name", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 101 " } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
   it("waits for userId before loading, then never reloads on a later userId change", async () => {
     const { rerender } = render(<Harness exerciseId="ex-1" userId={null} />)
     expect(screen.getByText("loading")).toBeInTheDocument()
@@ -282,6 +308,39 @@ describe("useExerciseEditor", () => {
     // never fired at all.
     expect(mockCreate).toHaveBeenCalledTimes(1)
     expect(onCreated).toHaveBeenCalledTimes(1)
+  })
+
+  it("under StrictMode, a restored /new buffer creates the exercise exactly once, even with typing during the create", async () => {
+    writePendingChanges(pendingBufferKey("editor-1", null), { Name: "Buffer overflow", Description: "", Tags: [] }, emptyDraft())
+    let resolveCreate: (value: Exercise) => void = () => undefined
+    mockCreate.mockImplementationOnce(() => new Promise((resolve) => { resolveCreate = resolve }))
+    vi.useFakeTimers()
+    render(
+      <StrictMode>
+        <Harness />
+      </StrictMode>,
+    )
+    expect(screen.getByDisplayValue("Buffer overflow")).toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow 2" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { resolveCreate(created) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledWith("new-exercise", { Name: "Buffer overflow 2", Description: "", Tags: [] })
+  })
+
+  it("forgets a /new buffer instead of restoring it without write permission", async () => {
+    writePendingChanges(pendingBufferKey("editor-1", null), { Name: "Buffer overflow", Description: "", Tags: [] }, emptyDraft())
+    const onPendingRestored = vi.fn()
+    vi.useFakeTimers()
+    render(<Harness canWrite={false} editable={false} onPendingRestored={onPendingRestored} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(screen.getByLabelText("name")).toHaveValue("")
+    expect(onPendingRestored).not.toHaveBeenCalled()
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
   })
 
   it("under StrictMode, an existing exercise still reaches ready instead of getting stuck loading", async () => {

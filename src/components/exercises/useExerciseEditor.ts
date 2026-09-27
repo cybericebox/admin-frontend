@@ -69,6 +69,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [version, setVersion] = useState<Version | null>(null)
+  // Set once a buffer is restored; the effect below marks the change against the live
+  // queue. Calling markChanged() inside the load effect itself would, under StrictMode,
+  // mark the queue that the simulated unmount then orphans and flushes (a duplicate create).
+  const [restored, setRestored] = useState(false)
   const exerciseIdRef = useRef<string | null>(exerciseId)
   const draftVersionIdRef = useRef("")
   const savedIdentityRef = useRef("")
@@ -134,17 +138,16 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           optionsRef.current.onCreated(createdExercise)
         }
       } else {
-        // Compare the raw form values, not just the parsed ones: an edit that fails full
-        // validation (e.g. Name cut below the minimum length) still needs to be recognized
-        // as "not yet persisted" below, even though there is no `fullIdentity.data` for it.
-        const identityChanged = JSON.stringify(identity) !== savedIdentityRef.current
+        // A valid edit compares in its parsed (trimmed) form, the one that is stored, so
+        // surrounding spaces don't re-send it on every save. An invalid edit has no parsed
+        // form; its raw values tell whether it differs from what is persisted.
         if (fullIdentity.success) {
-          if (identityChanged) {
+          if (JSON.stringify(fullIdentity.data) !== savedIdentityRef.current) {
             const updated = await updateExercise(id, fullIdentity.data)
             savedIdentityRef.current = JSON.stringify(fullIdentity.data)
             if (mountedRef.current) setExercise(updated)
           }
-        } else if (identityChanged) {
+        } else if (JSON.stringify(identity) !== savedIdentityRef.current) {
           // Invalid identity edit: never send it, but don't report the round as "saved"
           // either — the draft below still goes out so it isn't lost, then the round
           // fails with IdentityRejectedError so the indicator shows "not saved", the
@@ -222,12 +225,14 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     async function load() {
       try {
         if (!exerciseId) {
-          const pending = readPendingChanges(pendingBufferKey(knownUserId, null))
-          if (pending && !cancelled) {
+          const key = pendingBufferKey(knownUserId, null)
+          const pending = readPendingChanges(key)
+          if (pending && !canWrite) clearPendingChanges(key)
+          if (pending && canWrite && !cancelled) {
             applyValues(pending.identity, pending.draft)
             toast.success(t("admin.exPage.toast.pendingRestored"))
             optionsRef.current.onPendingRestored()
-            autosave.markChanged()
+            setRestored(true)
           }
           if (!cancelled) setLoadState("ready")
           return
@@ -252,7 +257,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (apply) {
             toast.success(t("admin.exPage.toast.pendingRestored"))
             optionsRef.current.onPendingRestored()
-            autosave.markChanged()
+            setRestored(true)
           }
         } catch {
           if (!cancelled) setLoadState("notFound")
@@ -278,6 +283,12 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // loadStartedRef above for why later userId changes don't re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, versionId, userId])
+
+  useEffect(() => {
+    if (restored) autosave.markChanged()
+    // Once per restore; autosave.markChanged is stable (see the watch effect below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored])
 
   useEffect(() => {
     if (!editable || loadState !== "ready") return
