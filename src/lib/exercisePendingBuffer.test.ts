@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { emptyDevice, emptyDraft, emptyTask } from "@/lib/exerciseSchemas"
+import { emptyDevice, emptyDraft, emptyTask, emptyVariant } from "@/lib/exerciseSchemas"
 import {
   clearPendingChanges, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
 } from "./exercisePendingBuffer"
@@ -71,5 +71,62 @@ describe("exercise pending buffer", () => {
     const merged = mergePendingDraft(server, pending)
     expect(merged.Variants[0].Tasks[0]).toMatchObject({ Name: "Edited offline", Flag: ["ICE{kept}"] })
     expect(merged.Variants[0].Tasks[1]).toMatchObject({ Name: "Brand new", Flag: [] })
+  })
+
+  it("drops pending variants deleted on the server while keeping ID-less new variants", () => {
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    const pending = structuredClone(server)
+    pending.Variants[0].ID = "v-deleted" // no longer exists server-side
+    pending.Variants.push(emptyVariant(2)) // brand new, ID ""
+    const merged = mergePendingDraft(server, pending)
+    expect(merged.Variants.map((variant) => variant.ID)).toEqual([""])
+  })
+
+  it("drops pending tasks deleted on the server while keeping new tasks", () => {
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    server.Variants[0].Tasks[0] = { ...emptyTask(), ID: "t1", Name: "Known" }
+    const pending = structuredClone(server)
+    pending.Variants[0].Tasks.push({ ...emptyTask(), ID: "t-deleted", Name: "Removed upstream" })
+    pending.Variants[0].Tasks.push({ ...emptyTask(), Name: "Brand new" })
+    const merged = mergePendingDraft(server, pending)
+    expect(merged.Variants[0].Tasks.map((task) => task.Name)).toEqual(["Known", "Brand new"])
+  })
+
+  it("refreshes env-var HasValue from the server copy so a restored secret doesn't fail validation", () => {
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    const device = emptyDevice()
+    device.ID = "d1"
+    device.EnvVars = [{ Name: "DB_PASSWORD", Value: "", Secret: true, HasValue: true }]
+    server.Variants[0].Topology.Devices = [device]
+    const pending = structuredClone(server)
+    pending.Variants[0].Topology.Devices[0].EnvVars[0].HasValue = false // stale: buffered before the secret existed
+    const merged = mergePendingDraft(server, pending)
+    expect(merged.Variants[0].Topology.Devices[0].EnvVars[0]).toMatchObject({ HasValue: true, Value: "" })
+  })
+
+  it("copies flag arrays instead of sharing references with the server draft", () => {
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    server.Variants[0].Tasks[0] = { ...emptyTask(), ID: "t1", Flag: ["ICE{kept}"] }
+    const pending = structuredClone(server)
+    const merged = mergePendingDraft(server, pending)
+    merged.Variants[0].Tasks[0].Flag.push("mutated")
+    expect(server.Variants[0].Tasks[0].Flag).toEqual(["ICE{kept}"])
+  })
+
+  it("fails safe when localStorage throws on write, read, or clear", () => {
+    Object.defineProperty(window, "localStorage", { configurable: true, value: {
+      getItem: () => { throw new Error("blocked") },
+      setItem: () => { throw new Error("blocked") },
+      removeItem: () => { throw new Error("blocked") },
+      clear: () => { throw new Error("blocked") },
+    } })
+    const key = pendingBufferKey("u1", "e1")
+    expect(writePendingChanges(key, identity, emptyDraft())).toBe(false)
+    expect(readPendingChanges(key)).toBeNull()
+    expect(() => clearPendingChanges(key)).not.toThrow()
   })
 })
