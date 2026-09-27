@@ -76,7 +76,7 @@ describe('TaskForm inline placeholders', () => {
 
   it('creates the definition and inline token in one insert action without a bottom configuration list', async () => {
     render(<Harness />)
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити підстановку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити підстановку' }))
     expect(screen.getByRole('dialog', { name: 'Вставити підстановку' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Підмережа VPN/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
@@ -89,7 +89,7 @@ describe('TaskForm inline placeholders', () => {
 
   it('inserts a token without a duplicate formatting menu', async () => {
     render(<Harness />)
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити підстановку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити підстановку' }))
     fireEvent.click(screen.getByRole('button', { name: /^Підмережа VPN/ }))
     expect(screen.queryByRole('button', { name: 'Курсив' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))

@@ -21,6 +21,7 @@ import {
   $isTextNode,
   $setSelection,
   COMMAND_PRIORITY_LOW,
+  PASTE_COMMAND,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
@@ -56,6 +57,25 @@ import {
   REMOVE_LIST_COMMAND,
 } from "@lexical/list";
 import { LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
+import {
+  $generateNodesFromMarkdownString,
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  BOLD_STAR,
+  BOLD_UNDERSCORE,
+  CODE,
+  HEADING,
+  INLINE_CODE,
+  ITALIC_STAR,
+  ITALIC_UNDERSCORE,
+  LINK,
+  ORDERED_LIST,
+  QUOTE,
+  STRIKETHROUGH,
+  UNORDERED_LIST,
+  type TextMatchTransformer,
+  type Transformer,
+} from "@lexical/markdown";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
@@ -75,12 +95,14 @@ import {
   Underline,
   Strikethrough,
   Code,
+  Code2,
   List,
   ListOrdered,
   Link,
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   Quote,
   Pilcrow,
   RemoveFormatting,
@@ -96,6 +118,12 @@ import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { type VariableDef } from "./variableUtils";
 import { VariablePickerMenu } from "./VariablePickerMenu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -323,21 +351,14 @@ function ToolbarPlugin({
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [showVarsMenu, setShowVarsMenu] = useState(false);
-  const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const varsRef = useRef<HTMLDivElement>(null);
-  const headingRef = useRef<HTMLDivElement>(null);
+  const savedSelection = useRef<BaseSelection | null>(null);
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (varsRef.current && !varsRef.current.contains(e.target as Node)) {
         setShowVarsMenu(false);
-      }
-      if (
-        headingRef.current &&
-        !headingRef.current.contains(e.target as Node)
-      ) {
-        setShowHeadingMenu(false);
       }
     };
     document.addEventListener("mousedown", handle);
@@ -496,233 +517,163 @@ function ToolbarPlugin({
 
   const handleLinkInsert = () => {
     if (!showLinkInput) {
+      rememberSelection();
       setShowLinkInput(true);
       setTimeout(() => linkInputRef.current?.focus(), 0);
       return;
     }
     if (linkUrl) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl);
+      withSavedSelection(() => editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl));
     }
     setShowLinkInput(false);
     setLinkUrl("");
   };
 
+  const rememberSelection = () => {
+    editor.getEditorState().read(() => {
+      savedSelection.current = $getSelection()?.clone() ?? null;
+    });
+  };
+
+  // Menu items take focus from the editor; put the caret back before applying.
+  const withSavedSelection = (action: () => void) => {
+    const saved = savedSelection.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    action();
+    editor.focus();
+  };
+
   const btnBase =
-    "inline-flex items-center justify-center w-7 h-7 rounded transition-colors";
+    "inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors";
   const btnInactive = cn(
     btnBase,
-    "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+    "text-foreground hover:bg-accent hover:text-accent-foreground"
   );
   const btnActive = cn(btnBase, "bg-primary text-primary-foreground");
+  const group = "flex items-center gap-0.5 pr-1.5 mr-1 border-r border-input";
+  const menuTrigger = "relative w-11";
+  const menuChevron = "absolute right-0.5 top-1/2 -translate-y-1/2";
 
-  const chipBase =
-    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors";
-  const chipInactive = cn(
-    chipBase,
-    "bg-secondary/40 text-foreground hover:bg-secondary/60"
+  const toolButton = (label: string, active: boolean, onPress: () => void, icon: JSX.Element) => (
+    <Tooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onPress}
+        className={active ? btnActive : btnInactive}
+      >
+        {icon}
+      </button>
+    </Tooltip>
   );
-  const chipActiveStyle = cn(chipBase, "bg-primary text-primary-foreground");
 
-  const isHeading =
-    blockType === "h1" || blockType === "h2" || blockType === "h3";
-  const headingLabel =
-    blockType === "h1"
-      ? "H1"
-      : blockType === "h2"
-        ? "H2"
-        : blockType === "h3"
-          ? "H3"
-          : t("admin.notif.editor.heading");
+  const headings = [
+    { tag: "h1", Icon: Heading1, label: t("admin.notif.editor.heading1") },
+    { tag: "h2", Icon: Heading2, label: t("admin.notif.editor.heading2") },
+    { tag: "h3", Icon: Heading3, label: t("admin.notif.editor.heading3") },
+  ] as const;
+  const alignments = [
+    { value: "left", Icon: AlignLeft, label: t("admin.notif.editor.alignLeftTitle") },
+    { value: "center", Icon: AlignCenter, label: t("admin.notif.editor.alignCenterTitle") },
+    { value: "right", Icon: AlignRight, label: t("admin.notif.editor.alignRightTitle") },
+    { value: "justify", Icon: AlignJustify, label: t("admin.notif.editor.alignJustifyTitle") },
+  ] as const;
+  const isHeading = headings.some((item) => item.tag === blockType);
+  const HeadingIcon = headings.find((item) => item.tag === blockType)?.Icon ?? Heading1;
+  const AlignIcon = alignments.find((item) => item.value === alignment)?.Icon ?? AlignLeft;
+  const variableLabel = t(onInsertVariable ? "admin.exPh.insert" : "admin.notif.editor.insertVariable");
+  const markerLabel = t(highlightVariables ? "admin.exPh.cleanView" : "admin.exPh.showMarkers");
 
   return (
-    <div className={cn("rounded-t-lg border-b border-input bg-muted/30", onInsertVariable && "exercise-editor-toolbar")}>
-      {/* Row 1 — inline formatting + actions */}
-      <div className="flex flex-wrap items-center gap-0.5 px-3 py-2">
-        <Tooltip label={t("admin.notif.editor.bold")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatText("bold");
-            }}
-            className={formats.has("bold") ? btnActive : btnInactive}
-          >
-            <Bold size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <Tooltip label={t("admin.notif.editor.italic")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatText("italic");
-            }}
-            className={formats.has("italic") ? btnActive : btnInactive}
-          >
-            <Italic size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <Tooltip label={t("admin.notif.editor.underline")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatText("underline");
-            }}
-            className={formats.has("underline") ? btnActive : btnInactive}
-          >
-            <Underline size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <Tooltip label={t("admin.notif.editor.strikethrough")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatText("strikethrough");
-            }}
-            className={formats.has("strikethrough") ? btnActive : btnInactive}
-          >
-            <Strikethrough size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <Tooltip label={t("admin.notif.editor.inlineCode")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatText("code");
-            }}
-            className={formats.has("code") ? btnActive : btnInactive}
-          >
-            <Code size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <div className="w-px h-5 bg-border mx-1 shrink-0" />
-
-        {(
-          [
-            { value: "left", title: t("admin.notif.editor.alignLeftTitle"), Icon: AlignLeft },
-            { value: "center", title: t("admin.notif.editor.alignCenterTitle"), Icon: AlignCenter },
-            { value: "right", title: t("admin.notif.editor.alignRightTitle"), Icon: AlignRight },
-          ] as const
-        ).map(({ value: alignValue, title, Icon }) => (
-          <Tooltip key={alignValue} label={title}>
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignValue);
-              }}
-              className={alignment === alignValue ? btnActive : btnInactive}
-            >
-              <Icon size={14} aria-hidden />
-            </button>
-          </Tooltip>
-        ))}
-
-        <div className="w-px h-5 bg-border mx-1 shrink-0" />
-
-        <Tooltip label={t("admin.notif.editor.blockquote")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              formatBlock("quote");
-            }}
-            className={blockType === "quote" ? btnActive : btnInactive}
-          >
-            <Quote size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        <div className="relative flex items-center gap-1">
-          <Tooltip label={t("admin.notif.editor.insertLink")}>
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleLinkInsert();
-              }}
-              className={showLinkInput ? btnActive : btnInactive}
-            >
-              <Link size={14} aria-hidden />
-            </button>
-          </Tooltip>
-          {showLinkInput && (
-            <input
-              ref={linkInputRef}
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleLinkInsert();
-                }
-                if (e.key === "Escape") {
-                  setShowLinkInput(false);
-                  setLinkUrl("");
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  setShowLinkInput(false);
-                  setLinkUrl("");
-                }, 150);
-              }}
-              placeholder="https://…"
-              className="text-xs border border-input rounded px-2 py-0.5 w-44 outline-none focus:border-primary bg-background text-foreground"
-            />
-          )}
+    <div className="rounded-t-lg border-b border-input">
+      <div role="toolbar" aria-label={t("admin.notif.editor.toolbar")} className="exercise-editor-toolbar flex flex-wrap items-center gap-0.5 p-1.5">
+        <div className={group}>
+          {toolButton(t("admin.notif.editor.bold"), formats.has("bold"), () => formatText("bold"), <Bold size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.italic"), formats.has("italic"), () => formatText("italic"), <Italic size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.underline"), formats.has("underline"), () => formatText("underline"), <Underline size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.strikethrough"), formats.has("strikethrough"), () => formatText("strikethrough"), <Strikethrough size={16} aria-hidden />)}
         </div>
 
-        <div className="w-px h-5 bg-border mx-1 shrink-0" />
-
-        <Tooltip label={t("admin.notif.editor.clearFormatting")}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              clearFormatting();
-            }}
-            className={btnInactive}
-          >
-            <RemoveFormatting size={14} aria-hidden />
-          </button>
-        </Tooltip>
-
-        {(variables.length > 0 || onInsertVariable) && (
-          <>
-            <div className="w-px h-5 bg-border mx-1 shrink-0" />
-            <div className="relative" ref={varsRef}>
-              <Tooltip label={t(onInsertVariable ? "admin.exPh.insert" : "admin.notif.editor.insertVariable")}>
-                <button
-                  type="button"
-                  aria-label={t(onInsertVariable ? "admin.exPh.insert" : "admin.notif.editor.insertVariable")}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (onInsertVariable) {
-                      requestVariableInsertion();
-                      return;
-                    }
-                    setShowVarsMenu((v) => !v);
-                  }}
-                  onClick={(event) => { if (event.detail === 0) requestVariableInsertion() }}
-                  className={cn(
-                    showVarsMenu ? btnActive : btnInactive,
-                    "gap-0.5"
-                  )}
-                >
-                  <Braces size={14} aria-hidden />
-                  <ChevronDown size={9} aria-hidden />
+        <div className={group}>
+          <DropdownMenu modal={false}>
+            <Tooltip label={t("admin.notif.editor.heading")}>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label={t("admin.notif.editor.heading")} onPointerDown={rememberSelection}
+                  className={cn(isHeading ? btnActive : btnInactive, menuTrigger)}>
+                  <HeadingIcon size={16} aria-hidden />
+                  <ChevronDown size={12} aria-hidden className={menuChevron} />
                 </button>
-              </Tooltip>
+              </DropdownMenuTrigger>
+            </Tooltip>
+            <DropdownMenuContent align="start" className="min-w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
+              {headings.map(({ tag, Icon, label }) => (
+                <DropdownMenuItem key={tag} className={cn("gap-2", blockType === tag && "text-primary")}
+                  onSelect={() => withSavedSelection(() => formatBlock(tag))}>
+                  <Icon size={16} aria-hidden />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {toolButton(t("admin.notif.editor.paragraph"), blockType === "paragraph", () => formatBlock("paragraph"), <Pilcrow size={16} aria-hidden />)}
+        </div>
+
+        <div className={group}>
+          <DropdownMenu modal={false}>
+            <Tooltip label={t("admin.notif.editor.alignment")}>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label={t("admin.notif.editor.alignment")} onPointerDown={rememberSelection}
+                  className={cn(btnInactive, menuTrigger)}>
+                  <AlignIcon size={16} aria-hidden />
+                  <ChevronDown size={12} aria-hidden className={menuChevron} />
+                </button>
+              </DropdownMenuTrigger>
+            </Tooltip>
+            <DropdownMenuContent align="start" className="min-w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
+              {alignments.map(({ value, Icon, label }) => (
+                <DropdownMenuItem key={value} className={cn("gap-2", (alignment || "left") === value && "text-primary")}
+                  onSelect={() => withSavedSelection(() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, value))}>
+                  <Icon size={16} aria-hidden />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className={group}>
+          {toolButton(t("admin.notif.editor.bulletList"), blockType === "ul", () => insertList("ul"), <List size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.numberedList"), blockType === "ol", () => insertList("ol"), <ListOrdered size={16} aria-hidden />)}
+        </div>
+
+        <div className={group}>
+          {toolButton(t("admin.notif.editor.blockquote"), blockType === "quote", () => formatBlock(blockType === "quote" ? "paragraph" : "quote"), <Quote size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.codeBlock"), blockType === "code", () => formatBlock(blockType === "code" ? "paragraph" : "code"), <Code2 size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.inlineCode"), formats.has("code"), () => formatText("code"), <Code size={16} aria-hidden />)}
+        </div>
+
+        <div className={group}>
+          <Tooltip label={t("admin.notif.editor.insertLink")}>
+            <button type="button" aria-label={t("admin.notif.editor.insertLink")} aria-pressed={showLinkInput}
+              onMouseDown={(e) => e.preventDefault()} onClick={handleLinkInsert} className={showLinkInput ? btnActive : btnInactive}>
+              <Link size={16} aria-hidden />
+            </button>
+          </Tooltip>
+        </div>
+
+        <div className={cn(group, "mr-0 border-r-0 pr-0")}>
+          {toolButton(t("admin.notif.editor.clearFormatting"), false, clearFormatting, <RemoveFormatting size={16} aria-hidden />)}
+        </div>
+
+        <div className="ml-auto flex items-center gap-0.5">
+          {(variables.length > 0 || onInsertVariable) && (
+            <div className="relative" ref={varsRef}>
+              {toolButton(variableLabel, showVarsMenu, () => {
+                if (onInsertVariable) requestVariableInsertion();
+                else setShowVarsMenu((v) => !v);
+              }, <Braces size={16} aria-hidden />)}
               {showVarsMenu && !onInsertVariable && (
                 <VariablePickerMenu
                   variables={variables}
@@ -732,104 +683,39 @@ function ToolbarPlugin({
                 />
               )}
             </div>
-          </>
-        )}
-        {onInsertVariable && (
-          <div className="ml-auto">
-            <Tooltip label={t(highlightVariables ? "admin.exPh.cleanView" : "admin.exPh.showMarkers")}>
-              <button type="button" aria-label={t(highlightVariables ? "admin.exPh.cleanView" : "admin.exPh.showMarkers")}
-                aria-pressed={highlightVariables} onMouseDown={(event) => event.preventDefault()} onClick={onToggleVariableHighlight}
-                className={btnInactive}>
-                {highlightVariables ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
-              </button>
-            </Tooltip>
-          </div>
-        )}
-      </div>
-
-      {/* Row 2 — block types */}
-      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border-t border-input">
-        <div className="relative" ref={headingRef}>
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setShowHeadingMenu((v) => !v);
-            }}
-            className={isHeading ? chipActiveStyle : chipInactive}
-          >
-            <Heading1 size={12} aria-hidden />
-            {headingLabel}
-            <ChevronDown size={10} aria-hidden />
-          </button>
-          {showHeadingMenu && (
-            <div className="absolute left-0 top-full mt-1 z-20 bg-popover rounded-xl border border-input shadow-md py-1 min-w-[120px]">
-              {(
-                [
-                  { tag: "h1" as const, Icon: Heading1, label: t("admin.notif.editor.heading1") },
-                  { tag: "h2" as const, Icon: Heading2, label: t("admin.notif.editor.heading2") },
-                  { tag: "h3" as const, Icon: Heading3, label: t("admin.notif.editor.heading3") },
-                ] as const
-              ).map(({ tag, Icon, label }) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    formatBlock(tag);
-                    setShowHeadingMenu(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs font-semibold transition-colors",
-                    blockType === tag
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-secondary/40"
-                  )}
-                >
-                  <Icon size={12} aria-hidden />
-                  {label}
-                </button>
-              ))}
-            </div>
           )}
+          {onInsertVariable && toolButton(markerLabel, highlightVariables, onToggleVariableHighlight,
+            highlightVariables ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />)}
         </div>
-
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            formatBlock("paragraph");
-          }}
-          className={blockType === "paragraph" ? chipActiveStyle : chipInactive}
-        >
-          <Pilcrow size={12} aria-hidden />
-          {t("admin.notif.editor.paragraph")}
-        </button>
-
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            insertList("ul");
-          }}
-          className={blockType === "ul" ? chipActiveStyle : chipInactive}
-        >
-          <List size={12} aria-hidden />
-          {t("admin.notif.editor.bulletList")}
-        </button>
-
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            insertList("ol");
-          }}
-          className={blockType === "ol" ? chipActiveStyle : chipInactive}
-        >
-          <ListOrdered size={12} aria-hidden />
-          {t("admin.notif.editor.numberedList")}
-        </button>
       </div>
+
+      {showLinkInput && (
+        <div className="flex gap-2 px-3 py-2 border-t border-input">
+          <input
+            ref={linkInputRef}
+            type="url"
+            aria-label={t("admin.notif.editor.insertLink")}
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleLinkInsert();
+              }
+              if (e.key === "Escape") {
+                setShowLinkInput(false);
+                setLinkUrl("");
+              }
+            }}
+            placeholder="https://…"
+            className="h-8 flex-1 text-sm border border-input rounded-md px-2 outline-none focus:border-primary bg-background text-foreground"
+          />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleLinkInsert} disabled={!linkUrl}
+            className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            {t("admin.notif.editor.addLink")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -991,39 +877,93 @@ export function insertVariableAtSavedSelection(editor: LexicalEditor, savedSelec
 }
 
 // ---------------------------------------------------------------------------
-// ExternalStateSync — sync value prop → editor state on mount
+// ExternalStateSync — apply value prop changes that did not come from typing
 // ---------------------------------------------------------------------------
 
-interface ExternalStateSyncProps {
-  value: LexicalState | null;
-}
-
-function ExternalStateSync({ value }: ExternalStateSyncProps): null {
+function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | null; lastEmittedRef: RefObject<string | null> }): null {
   const [editor] = useLexicalComposerContext();
-  const initialised = useRef(false);
 
   useEffect(() => {
-    if (initialised.current) return;
-    initialised.current = true;
-
-    if (!value) return;
-
-    try {
-      const stateStr = JSON.stringify(value);
-      const editorState = editor.parseEditorState(stateStr);
-      // Defer past the current React flush — Lexical's setEditorState calls
-      // flushSync internally, which throws when invoked from a lifecycle method.
-      queueMicrotask(() => {
-        try {
-          editor.setEditorState(editorState);
-        } catch {
-          // empty or unrecognised root state — skip
+    const serialized = value ? JSON.stringify(value) : null;
+    if (serialized === lastEmittedRef.current) return;
+    lastEmittedRef.current = serialized;
+    // Defer past the current React flush — Lexical's setEditorState calls
+    // flushSync internally, which throws when invoked from a lifecycle method.
+    queueMicrotask(() => {
+      try {
+        if (serialized) {
+          editor.setEditorState(editor.parseEditorState(serialized));
+        } else {
+          editor.update(() => $getRoot().clear().append($createParagraphNode()));
         }
-      });
-    } catch {
-      // malformed state — leave editor empty
-    }
-  }, [editor, value]);
+      } catch {
+        // malformed or empty root state — leave the editor as is
+      }
+    });
+  }, [editor, value, lastEmittedRef]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// EditableSync — Lexical reads `editable` only on mount
+// ---------------------------------------------------------------------------
+
+function EditableSync({ editable }: { editable: boolean }): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => editor.setEditable(editable), [editor, editable]);
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// MarkdownPastePlugin — pasted Markdown becomes formatted content
+// ---------------------------------------------------------------------------
+
+const MARKDOWN_TRANSFORMERS: Transformer[] = [
+  HEADING, QUOTE, CODE, UNORDERED_LIST, ORDERED_LIST,
+  INLINE_CODE, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE,
+  ITALIC_STAR, ITALIC_UNDERSCORE, STRIKETHROUGH, LINK,
+];
+
+const MARKDOWN_HINT = /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|```)|\*\*\S|__\S|~~\S|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)|\{\{[^}\n]+\}\}/;
+const VARIABLE_MARKDOWN = /\{\{\s*\.?([A-Za-z_][\w.]*)\s*\}\}/;
+
+function variableTransformer(known: Set<string>): TextMatchTransformer {
+  return {
+    type: "text-match",
+    dependencies: [VariableNode],
+    export: (node) => ($isVariableNode(node) ? `{{${node.__varName}}}` : null),
+    importRegExp: VARIABLE_MARKDOWN,
+    regExp: new RegExp(`${VARIABLE_MARKDOWN.source}$`),
+    // Unknown names stay plain text instead of becoming broken pills.
+    replace: (node, match) => {
+      if (known.has(match[1])) node.replace($createVariableNode(match[1]));
+    },
+  };
+}
+
+function MarkdownPastePlugin({ variables }: { variables: VariableDef[] }): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    const transformers = [...MARKDOWN_TRANSFORMERS, variableTransformer(new Set(variables.map((variable) => variable.name)))];
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event) => {
+        const clipboard = (event as ClipboardEvent).clipboardData;
+        const text = clipboard?.getData("text/plain") ?? "";
+        if (!MARKDOWN_HINT.test(text)) return false;
+        event.preventDefault();
+        editor.update(() => {
+          const selection = $getSelection();
+          if (!selection) return;
+          selection.insertNodes($generateNodesFromMarkdownString(text.replace(/\r\n?/g, "\n"), transformers));
+        });
+        return true;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+  }, [editor, variables]);
 
   return null;
 }
@@ -1072,6 +1012,7 @@ export function RichTextEditor({
   showVariableNames = false,
 }: RichTextEditorProps): JSX.Element {
   const [highlightVariables, setHighlightVariables] = useState(!onInsertVariable);
+  const lastEmitted = useRef<string | null>(null);
   const initialConfig = {
     namespace: "RichTextEditor",
     theme: editorTheme,
@@ -1093,6 +1034,9 @@ export function RichTextEditor({
   const handleChange = useCallback(
     (editorState: EditorState) => {
       const json = editorState.toJSON() as unknown as LexicalState;
+      const serialized = JSON.stringify(json);
+      if (serialized === lastEmitted.current) return;
+      lastEmitted.current = serialized;
       onChange(json);
     },
     [onChange]
@@ -1136,7 +1080,9 @@ export function RichTextEditor({
         <ListPlugin />
         <LinkPlugin />
         <VariablePlugin variables={variables} />
-        <ExternalStateSync value={value} />
+        <MarkdownPastePlugin variables={variables} />
+        <EditableSync editable={!disabled} />
+        <ExternalStateSync value={value} lastEmittedRef={lastEmitted} />
       </div>
     </LexicalComposer>
     </VariablePreviewContext.Provider>

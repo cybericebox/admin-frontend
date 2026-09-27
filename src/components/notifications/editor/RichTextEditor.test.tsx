@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, onTestFinished } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $setSelection } from 'lexical'
 import {
@@ -124,7 +124,7 @@ describe('RichTextEditor', () => {
       { name: 'event_name', description: 'Event name', example: 'CyberICEBox CTF' },
       { name: 'user_email', description: 'Recipient email' },
     ]} />)
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити змінну' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити змінну' }))
     const search = screen.getByRole('searchbox', { name: 'Знайти змінну' })
     expect(search).toHaveFocus()
     expect(screen.getByText('event_name', { selector: 'code' })).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('RichTextEditor', () => {
     window.getSelection()!.removeAllRanges()
     window.getSelection()!.addRange(range)
     fireEvent(document, new Event('selectionchange'))
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити змінну' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити змінну' }))
     fireEvent.click(screen.getByText('event_name', { selector: 'code' }).closest('button')!)
     await waitFor(() => expect(JSON.stringify(onChange.mock.calls.at(-1)?.[0])).toContain('"varName":"event_name"'))
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('RichTextEditor', () => {
   it('opens inline placeholder creation from the task editor without a preconfigured list', () => {
     const request = vi.fn()
     render(<RichTextEditor value={null} onChange={vi.fn()} variables={[]} onInsertVariable={request} />)
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Вставити підстановку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити підстановку' }))
     expect(request).toHaveBeenCalledOnce()
     expect(typeof request.mock.calls[0][0]).toBe('function')
     expect(screen.queryByText('Спочатку налаштуйте підстановку нижче.')).not.toBeInTheDocument()
@@ -318,6 +318,41 @@ describe('VariableNode', () => {
       expect($toggleSelectedVariableFormat('bold')).toBe(true)
       expect(token.getFormats()).not.toContain('bold')
     }, { discrete: true })
+  })
+
+  it('becomes editable when disabled turns off after mount', async () => {
+    const { rerender } = render(<RichTextEditor value={null} onChange={vi.fn()} disabled />)
+    expect(document.querySelector('[contenteditable]')).toHaveAttribute('contenteditable', 'false')
+    rerender(<RichTextEditor value={null} onChange={vi.fn()} />)
+    await waitFor(() => expect(document.querySelector('[contenteditable]')).toHaveAttribute('contenteditable', 'true'))
+  })
+
+  it('turns pasted Markdown into formatted blocks and known variables into nodes', async () => {
+    // jsdom has no layout; Lexical measures the caret to scroll it into view.
+    const rect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
+    const rangeProto = Range.prototype as Partial<Range>
+    rangeProto.getBoundingClientRect = rect
+    onTestFinished(() => { delete rangeProto.getBoundingClientRect })
+    const onChange = vi.fn()
+    render(<RichTextEditor value={null} onChange={onChange} variables={[{ name: 'event_name', description: 'Event name' }]} />)
+    const editable = document.querySelector('[contenteditable="true"]') as HTMLElement
+    editable.focus()
+    const paragraph = await waitFor(() => { const p = editable.querySelector('p'); expect(p).not.toBeNull(); return p! })
+    const range = document.createRange()
+    range.setStart(paragraph, 0)
+    range.collapse(true)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    fireEvent(document, new Event('selectionchange'))
+    fireEvent.paste(editable, { clipboardData: { getData: (type: string) => type === 'text/plain' ? '# Title\n\n- **one** {{event_name}} {{unknown}}\n\n```\nls -la\n```' : '' } })
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
+    const state = JSON.stringify(onChange.mock.calls.at(-1)?.[0])
+    expect(state).toContain('"tag":"h1"')
+    expect(state).toContain('"listType":"bullet"')
+    expect(state).toContain('"varName":"event_name"')
+    expect(state).toContain('{{unknown}}')
+    expect(state).toContain('"format":1')
+    expect(state).toContain('"type":"code"')
   })
 
   it('VariableNode.getType() returns "variable"', () => {
