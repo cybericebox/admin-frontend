@@ -71,8 +71,15 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   // unmount-flush lets an in-flight save finish so nothing is lost) from firing
   // onCreated / setExercise for a hook instance nothing is listening to anymore —
   // onCreated typically drives a router.replace, which must not happen post-unmount.
+  // Set (not just declared as) true in the effect itself, not only at useRef's initial
+  // value: StrictMode's dev mount→cleanup→mount would otherwise leave this stuck at
+  // `false` forever after the simulated cleanup, suppressing onCreated/setExercise for
+  // the rest of the component's real lifetime.
   const mountedRef = useRef(true)
-  useEffect(() => () => { mountedRef.current = false }, [])
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const identityForm = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
@@ -200,46 +207,62 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // const does (its type is fixed at this assignment, not re-derived from `userId`).
     const knownUserId = userId
     let cancelled = false
+    let finished = false
     async function load() {
-      if (!exerciseId) {
-        const pending = readPendingChanges(pendingBufferKey(knownUserId, null))
-        if (pending && !cancelled) {
-          applyValues(pending.identity, pending.draft)
-          toast.success(t("admin.exPage.toast.pendingRestored"))
-          optionsRef.current.onPendingRestored()
-          autosave.markChanged()
-        }
-        if (!cancelled) setLoadState("ready")
-        return
-      }
       try {
-        const [loaded, loadedVersion] = await Promise.all([
-          getExercise(exerciseId),
-          versionId ? getVersion(exerciseId, versionId) : getDraft(exerciseId),
-        ])
-        if (cancelled) return
-        const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
-        const pending = key ? readPendingChanges(key) : null
-        const apply = pending !== null && canWrite && !loaded.ArchivedAt
-        if (key && pending && !apply) clearPendingChanges(key)
-        setExercise(loaded)
-        setVersion(loadedVersion)
-        if (!versionId) rememberDraftVersion(loadedVersion.ID)
-        savedIdentityRef.current = JSON.stringify(identityOf(loaded))
-        const serverDraft = workingCopyValues(loadedVersion)
-        applyValues(apply ? pending.identity : identityOf(loaded), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
-        setLoadState("ready")
-        if (apply) {
-          toast.success(t("admin.exPage.toast.pendingRestored"))
-          optionsRef.current.onPendingRestored()
-          autosave.markChanged()
+        if (!exerciseId) {
+          const pending = readPendingChanges(pendingBufferKey(knownUserId, null))
+          if (pending && !cancelled) {
+            applyValues(pending.identity, pending.draft)
+            toast.success(t("admin.exPage.toast.pendingRestored"))
+            optionsRef.current.onPendingRestored()
+            autosave.markChanged()
+          }
+          if (!cancelled) setLoadState("ready")
+          return
         }
-      } catch {
-        if (!cancelled) setLoadState("notFound")
+        try {
+          const [loaded, loadedVersion] = await Promise.all([
+            getExercise(exerciseId),
+            versionId ? getVersion(exerciseId, versionId) : getDraft(exerciseId),
+          ])
+          if (cancelled) return
+          const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
+          const pending = key ? readPendingChanges(key) : null
+          const apply = pending !== null && canWrite && !loaded.ArchivedAt
+          if (key && pending && !apply) clearPendingChanges(key)
+          setExercise(loaded)
+          setVersion(loadedVersion)
+          if (!versionId) rememberDraftVersion(loadedVersion.ID)
+          savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+          const serverDraft = workingCopyValues(loadedVersion)
+          applyValues(apply ? pending.identity : identityOf(loaded), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
+          setLoadState("ready")
+          if (apply) {
+            toast.success(t("admin.exPage.toast.pendingRestored"))
+            optionsRef.current.onPendingRestored()
+            autosave.markChanged()
+          }
+        } catch {
+          if (!cancelled) setLoadState("notFound")
+        }
+      } finally {
+        finished = true
       }
     }
     void load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      // StrictMode's dev mount→cleanup→mount cancels this run before it ever gets a
+      // chance to settle (it's still awaiting the fetch, or — for a synchronous /new
+      // pass — hasn't even reached this point yet, since `finished` is set by a
+      // synchronous `finally` before any awaited call). Let the next invocation retry
+      // from scratch instead of leaving loadStartedRef permanently set and the page
+      // stuck on "loading". Once a run HAS settled, later cleanups (real unmount, or a
+      // dependency changing again) must NOT re-arm it — only a genuine route change
+      // (which remounts this hook via the page's key) should start a new load.
+      if (!finished) loadStartedRef.current = false
+    }
     // Load once per route (the detail page remounts on id/version change) — see
     // loadStartedRef above for why later userId changes don't re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { StrictMode, useEffect } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
@@ -216,6 +216,10 @@ describe("useExerciseEditor", () => {
     mockSaveDraft.mockRejectedValue(new Error("offline"))
     render(<Harness exerciseId="ex-1" />)
     await screen.findByDisplayValue("Web 101")
+    // Let any still-settling microtasks from the load drain before switching to fake
+    // timers — otherwise a stray real-timer/microtask tick can race the first
+    // advanceTimersByTimeAsync below and flake this assertion.
+    await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Renamed once" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
@@ -231,6 +235,7 @@ describe("useExerciseEditor", () => {
   it("does not report an invalidated identity edit as saved, and keeps the buffer", async () => {
     render(<Harness exerciseId="ex-1" />)
     await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "ab" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
@@ -257,5 +262,41 @@ describe("useExerciseEditor", () => {
     rerender(<Harness exerciseId="ex-1" userId="editor-2" />)
     expect(screen.getByDisplayValue("Typed after userId arrived")).toBeInTheDocument()
     expect(mockGetExercise).toHaveBeenCalledTimes(1)
+  })
+
+  it("under StrictMode, creates the exercise exactly once and calls onCreated exactly once", async () => {
+    const onCreated = vi.fn()
+    render(
+      <StrictMode>
+        <Harness onCreated={onCreated} />
+      </StrictMode>,
+    )
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    // Before the fix, mountedRef's effect only ever returned a cleanup (no setup), so
+    // StrictMode's dev mount→cleanup→mount left it stuck at `false` forever and
+    // onCreated (and the create call gated behind the same mounted check further down)
+    // never fired at all.
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    expect(onCreated).toHaveBeenCalledTimes(1)
+  })
+
+  it("under StrictMode, an existing exercise still reaches ready instead of getting stuck loading", async () => {
+    render(
+      <StrictMode>
+        <Harness exerciseId="ex-1" />
+      </StrictMode>,
+    )
+    // Before the fix: the first StrictMode pass sets loadStartedRef and starts the
+    // fetch; the simulated cleanup cancels that run without resetting loadStartedRef;
+    // the second pass then sees loadStartedRef already set and returns immediately —
+    // no load ever completes, and the page is stuck on "loading" forever.
+    expect(await screen.findByDisplayValue("Web 101")).toBeInTheDocument()
+    expect(latest.loadState).toBe("ready")
+    // Exactly one of the two StrictMode invocations settles ("effective load"): the
+    // first is cancelled before it can apply its result, so `identityForm`/`draftForm`
+    // are reset exactly once with the loaded data, not corrupted by a double-apply.
+    expect(latest.identityForm.getValues("Name")).toBe("Web 101")
   })
 })
