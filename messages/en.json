@@ -552,6 +552,7 @@
   "admin.exImport.done": "Exercises imported: {count}",
   "admin.exImport.resultTitle": "Imported exercises",
   "admin.exImport.close": "Close",
+  "admin.exPage.toast.pendingRestored": "Unsaved changes restored",
   "admin.ex.err.archived": "The exercise is archived. Unarchive it to make changes.",
   "admin.ex.err.inUse": "The exercise is used in events. It can only be archived.",
   "admin.ex.err.notFound": "Exercise not found",
