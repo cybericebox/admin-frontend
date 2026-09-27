@@ -15,6 +15,8 @@ export const ERR_EXERCISE_EXISTS = 40903
 export const ERR_EXERCISE_MODIFIED = 70904
 export const ERR_NO_DRAFT = 70905
 export const ERR_DRAFT_ALREADY_EXISTS = 70906
+export const ERR_EXERCISE_ARCHIVED = 70948
+export const ERR_EXERCISE_IN_USE = 70949
 
 export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
@@ -25,6 +27,8 @@ export const CODE_TO_KEY: Record<number, string> = {
   70905: "admin.ex.err.noDraft",
   70906: "admin.ex.err.draftExists",
   70907: "admin.ex.err.secretsNotConfigured",
+  70948: "admin.ex.err.archived",
+  70949: "admin.ex.err.inUse",
   // exercise: identity validation
   20908: "admin.ex.err.nameInvalid",
   20909: "admin.ex.err.descriptionTooLong",

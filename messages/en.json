@@ -483,6 +483,8 @@
   "admin.notif.inapp.body": "Body",
   "admin.notif.inapp.link": "Link",
   "admin.ex.err.generic": "Operation failed",
+  "admin.ex.err.archived": "The exercise is archived. Unarchive it to make changes.",
+  "admin.ex.err.inUse": "The exercise is used in events. It can only be archived.",
   "admin.ex.err.notFound": "Exercise not found",
   "admin.ex.err.versionNotFound": "Version not found",
   "admin.ex.err.exists": "An exercise with this name already exists",

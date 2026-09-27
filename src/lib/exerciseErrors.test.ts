@@ -14,6 +14,8 @@ import {
   ERR_EXERCISE_MODIFIED,
   ERR_NO_DRAFT,
   ERR_DRAFT_ALREADY_EXISTS,
+  ERR_EXERCISE_ARCHIVED,
+  ERR_EXERCISE_IN_USE,
 } from './exerciseErrors'
 
 function apiError(status: number, code: number, message: string): ApiError {
@@ -46,5 +48,12 @@ describe('exerciseErrorMessage', () => {
 
   it('falls back to plain generic for non-ApiError', () => {
     expect(exerciseErrorMessage(new TypeError('offline'))).toBe('admin.ex.err.generic')
+  })
+})
+
+describe('archive and usage conflicts', () => {
+  it('maps the archived and in-use conflicts to their own messages', () => {
+    expect(exerciseErrorMessage(apiError(409, ERR_EXERCISE_ARCHIVED, 'archived'))).toBe('admin.ex.err.archived')
+    expect(exerciseErrorMessage(apiError(409, ERR_EXERCISE_IN_USE, 'in use'))).toBe('admin.ex.err.inUse')
   })
 })

@@ -483,6 +483,8 @@
   "admin.notif.inapp.body": "Тіло",
   "admin.notif.inapp.link": "Посилання",
   "admin.ex.err.generic": "Не вдалося виконати операцію",
+  "admin.ex.err.archived": "Завдання в архіві. Розархівуйте його, щоб вносити зміни.",
+  "admin.ex.err.inUse": "Завдання використовується в івентах. Його можна лише архівувати.",
   "admin.ex.err.notFound": "Завдання не знайдено",
   "admin.ex.err.versionNotFound": "Версію не знайдено",
   "admin.ex.err.exists": "Завдання з такою назвою вже існує",
