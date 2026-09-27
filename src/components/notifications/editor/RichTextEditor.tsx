@@ -106,7 +106,6 @@ import {
   Quote,
   Pilcrow,
   RemoveFormatting,
-  ChevronDown,
   Braces,
   Heading1,
   Heading2,
@@ -551,8 +550,6 @@ function ToolbarPlugin({
   );
   const btnActive = cn(btnBase, "bg-primary text-primary-foreground");
   const group = "flex items-center gap-0.5 pr-1.5 mr-1 border-r border-input";
-  const menuTrigger = "relative w-11";
-  const menuChevron = "absolute right-0.5 top-1/2 -translate-y-1/2";
 
   const toolButton = (label: string, active: boolean, onPress: () => void, icon: JSX.Element) => (
     <Tooltip label={label}>
@@ -601,9 +598,8 @@ function ToolbarPlugin({
             <Tooltip label={t("admin.notif.editor.heading")}>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label={t("admin.notif.editor.heading")} onPointerDown={rememberSelection}
-                  className={cn(isHeading ? btnActive : btnInactive, menuTrigger)}>
+                  className={isHeading ? btnActive : btnInactive}>
                   <HeadingIcon size={16} aria-hidden />
-                  <ChevronDown size={12} aria-hidden className={menuChevron} />
                 </button>
               </DropdownMenuTrigger>
             </Tooltip>
@@ -625,9 +621,8 @@ function ToolbarPlugin({
             <Tooltip label={t("admin.notif.editor.alignment")}>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label={t("admin.notif.editor.alignment")} onPointerDown={rememberSelection}
-                  className={cn(btnInactive, menuTrigger)}>
+                  className={btnInactive}>
                   <AlignIcon size={16} aria-hidden />
-                  <ChevronDown size={12} aria-hidden className={menuChevron} />
                 </button>
               </DropdownMenuTrigger>
             </Tooltip>
