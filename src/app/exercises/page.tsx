@@ -2,32 +2,35 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { listExercisesPage, type ExerciseListItem } from "@/api/exercises/catalog"
+import { EXPORT_LIMIT } from "@/api/exercises/archive"
+import { ExportDialog } from "@/components/exercises/ExportDialog"
+import { ImportDialog } from "@/components/exercises/ImportDialog"
 import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { toast } from "@/components/ui/toast"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { SelectMenu } from "@/components/ui/select-menu"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { localDraftStorageKey, parseLocalDraft, type LocalExerciseDraft } from "@/lib/localExerciseDraft"
-import { Trash2 } from "lucide-react"
 
 function StatusBadges({ item }: { item: ExerciseListItem }) {
   return (
     <span className="flex flex-wrap gap-1">
+      {item.ArchivedAt && (
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("admin.ex.status.archived")}</span>
+      )}
       {item.HasDraft && (
         <span className="rounded-full bg-secondary/40 px-2 py-0.5 text-xs">{t("admin.ex.status.draft")}</span>
       )}
       {item.HasPublished && (
         <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{t("admin.ex.status.published")}</span>
       )}
-      {!item.HasDraft && !item.HasPublished && <span className="text-xs text-muted-foreground">—</span>}
+      {!item.ArchivedAt && !item.HasDraft && !item.HasPublished && <span className="text-xs text-muted-foreground">—</span>}
     </span>
   )
 }
@@ -47,58 +50,41 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const [localDraft, setLocalDraft] = useState<LocalExerciseDraft | null>(null)
-  const [draftDialog, setDraftDialog] = useState<"create" | "delete" | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [exportOpen, setExportOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
-  const { can, me } = useRole()
-  const storageKey = me?.ID ? localDraftStorageKey(me.ID) : null
+  const { can } = useRole()
+  const canWrite = can("exercises.write")
+  const canExport = can("exercises.export")
+  const atLimit = selected.size >= EXPORT_LIMIT
+  const pageIds = rows.map((row) => row.ID)
+  const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
+  const selectionLabel = t("admin.ex.selection.count").replace("{count}", String(selected.size))
 
-  useEffect(() => {
-    if (!storageKey) return
-    const refresh = () => {
-      try { setLocalDraft(parseLocalDraft(window.localStorage.getItem(storageKey))) }
-      catch { setLocalDraft(null) }
-    }
-    const onStorage = (event: StorageEvent) => { if (event.key === storageKey) refresh() }
-    const onVisible = () => { if (document.visibilityState === "visible") refresh() }
-    refresh()
-    window.addEventListener("storage", onStorage)
-    window.addEventListener("focus", refresh)
-    document.addEventListener("visibilitychange", onVisible)
-    return () => {
-      window.removeEventListener("storage", onStorage)
-      window.removeEventListener("focus", refresh)
-      document.removeEventListener("visibilitychange", onVisible)
-    }
-  }, [storageKey])
-
-  function createExercise() {
-    if (storageKey) {
-      try {
-        const stored = parseLocalDraft(window.localStorage.getItem(storageKey))
-        if (stored) {
-          setLocalDraft(stored)
-          setDraftDialog("create")
-          return
-        }
-      } catch { /* No accessible browser draft; open the editor. */ }
-    }
-    router.push("/exercises/new")
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else if (next.size < EXPORT_LIMIT) next.add(id)
+      return next
+    })
   }
 
-  function clearBrowserDraft(): boolean {
-    if (!storageKey) return false
-    try {
-      window.localStorage.removeItem(storageKey)
-      setLocalDraft(null)
-      toast.success("Локальну чернетку видалено.")
-      setDraftDialog(null)
-      return true
-    } catch {
-      toast.error(t("admin.ex.localDraft.deleteError"))
-      return false
-    }
+  function toggleAll() {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (allOnPage) {
+        for (const id of pageIds) next.delete(id)
+      } else {
+        for (const id of pageIds) {
+          if (next.size >= EXPORT_LIMIT) break
+          next.add(id)
+        }
+      }
+      return next
+    })
   }
 
   useEffect(() => {
@@ -109,7 +95,12 @@ export default function Page() {
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
-    listExercisesPage({ search: debounced, tags, status: status === "all" ? "" : status, page, pageSize, sortBy, sortDir })
+    listExercisesPage({
+      search: debounced, tags,
+      status: status === "all" || status === "archived" ? "" : status,
+      archived: status === "archived" ? "only" : undefined,
+      page, pageSize, sortBy, sortDir,
+    })
       .then((data) => { if (active) { setRows(data.Items); setTotal(data.Total) } })
       .catch(() => { if (active) setError(true) })
       .finally(() => { if (active) setLoading(false) })
@@ -128,6 +119,8 @@ export default function Page() {
     goToPage(1)
   }
 
+  const retry = () => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }
+
   return (
     <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
       <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -143,25 +136,48 @@ export default function Page() {
           <TagInput value={tags} onChange={(value) => { setTags(value); goToPage(1) }} placeholder={t("admin.ex.filterTags.placeholder")} className="min-h-10" />
         </div>
         <SelectMenu value={status} onChange={(value) => { setStatus(value); goToPage(1) }}
-          options={[{ value: "all", label: t("admin.ex.filterStatusAll") }, { value: "draft", label: t("admin.ex.status.draft") }, { value: "published", label: t("admin.ex.status.published") }, { value: "none", label: t("admin.ex.filterStatusNone") }]}
+          options={[
+            { value: "all", label: t("admin.ex.filterStatusAll") },
+            { value: "draft", label: t("admin.ex.status.draft") },
+            { value: "published", label: t("admin.ex.status.published") },
+            { value: "none", label: t("admin.ex.filterStatusNone") },
+            { value: "archived", label: t("admin.ex.filterStatusArchived") },
+          ]}
           ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
-        {can("exercises.write") && (
-          <Button type="button" onClick={createExercise} className="ml-auto h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>
+        {canWrite && (
+          <div className="ml-auto flex shrink-0 gap-2">
+            <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-10 text-sm">
+              <Upload aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.exImport.button")}
+            </Button>
+            <Button type="button" onClick={() => router.push("/exercises/new")} className="h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>
+          </div>
         )}
       </div>
 
+      {canExport && selected.size > 0 && (
+        <div role="region" aria-label={selectionLabel} className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
+          <span className="font-medium">{selectionLabel}</span>
+          <Button type="button" size="sm" onClick={() => setExportOpen(true)}>{t("admin.ex.selection.export")}</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t("admin.ex.selection.clear")}</Button>
+          {atLimit && <span className="text-xs text-muted-foreground">{t("admin.ex.selection.limit")}</span>}
+        </div>
+      )}
+
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && rows.length === 0 && !localDraft ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.ex.retry")}</Button></div>
-      ) : loading && rows.length === 0 && !localDraft ? (
+      {error && rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={retry}>{t("admin.ex.retry")}</Button></div>
+      ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
-      ) : rows.length === 0 && !localDraft ? (
+      ) : rows.length === 0 ? (
         <EmptyState message={t(debounced || tags.length > 0 || status !== "all" ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
       ) : (
         <div>
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                {canExport && <th className="w-10 px-3 py-2">
+                  <input type="checkbox" aria-label={t("admin.ex.select.all")} checked={allOnPage} onChange={toggleAll} className="h-4 w-4 accent-primary" />
+                </th>}
                 <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
@@ -169,19 +185,12 @@ export default function Page() {
               </tr>
             </thead>
             <tbody>
-              {localDraft && <tr className="border-b border-amber-300/70 bg-amber-50/70 dark:border-amber-700/50 dark:bg-amber-950/25">
-                <td className="border-l-2 border-l-amber-400 px-3 py-2">
-                  <Link href="/exercises/new" className="block">
-                    <span className="font-medium text-foreground">{localDraft.identity.Name || t("admin.ex.localDraft.untitled")}</span>
-                    {localDraft.identity.Description && <span className="block max-w-md truncate text-xs text-muted-foreground">{localDraft.identity.Description}</span>}
-                  </Link>
-                </td>
-                <td className="px-3 py-2"><span className="flex flex-wrap gap-1">{localDraft.identity.Tags.map((tag) => <span key={tag} className="rounded-full bg-secondary/40 px-2 py-0.5 text-xs">{tag}</span>)}</span></td>
-                <td className="px-3 py-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">{t("admin.ex.localDraft.badge")}</span></td>
-                <td className="px-3 py-2"><div className="flex items-center justify-between gap-2"><time className="whitespace-nowrap text-muted-foreground" dateTime={new Date(localDraft.updatedAt).toISOString()}>{new Date(localDraft.updatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><Button type="button" variant="ghost" size="icon" aria-label={t("admin.ex.localDraft.delete")} className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDraftDialog("delete")}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button></div></td>
-              </tr>}
-              {rows.filter((item) => item.ID !== localDraft?.createdId).map((item) => (
-                <tr key={item.ID} className="border-b border-border/50 transition-colors hover:bg-accent/10">
+              {rows.map((item) => (
+                <tr key={item.ID} className={`border-b border-border/50 transition-colors hover:bg-accent/10 ${item.ArchivedAt ? "text-muted-foreground" : ""}`}>
+                  {canExport && <td className="px-3 py-2">
+                    <input type="checkbox" aria-label={`${t("admin.ex.select.row")}: ${item.Name}`} checked={selected.has(item.ID)}
+                      disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item.ID)} className="h-4 w-4 accent-primary" />
+                  </td>}
                   <td className="px-3 py-2">
                     <Link href={`/exercises/detail?id=${item.ID}`} className="block">
                       <span className="font-medium text-foreground">{item.Name}</span>
@@ -207,23 +216,12 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && (rows.length > 0 || localDraft) && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.ex.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.ex.retry")}</Button></div>}
+      {error && rows.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.ex.loadError")}</span><Button variant="outline" size="sm" onClick={retry}>{t("admin.ex.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
-      <Dialog open={draftDialog !== null} onOpenChange={(open) => { if (!open) setDraftDialog(null) }}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteTitle" : "admin.ex.localDraft.confirmTitle")}</DialogTitle>
-            <DialogDescription>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteDescription" : "admin.ex.localDraft.confirmDescription")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-wrap gap-2 sm:space-x-0">
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDraftDialog(null)}>{t("admin.ex.create.cancel")}</Button>
-            {draftDialog === "create" && <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => { setDraftDialog(null); router.push("/exercises/new") }}>{t("admin.ex.localDraft.continue")}</Button>}
-            <Button type="button" variant={draftDialog === "delete" ? "destructive" : "default"} className="w-full max-w-full whitespace-normal text-center sm:w-auto" onClick={() => { if (clearBrowserDraft() && draftDialog === "create") router.push("/exercises/new") }}>{t(draftDialog === "delete" ? "admin.ex.localDraft.deleteConfirm" : "admin.ex.localDraft.reset")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {exportOpen && <ExportDialog exerciseIds={[...selected]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Set())} />}
+      {importOpen && <ImportDialog onClose={() => setImportOpen(false)} onImported={() => setReloadKey((key) => key + 1)} />}
     </div>
   )
 }

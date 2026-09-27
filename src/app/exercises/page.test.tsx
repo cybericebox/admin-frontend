@@ -3,11 +3,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { emptyDraft } from '@/lib/exerciseSchemas'
-import { DEFAULT_EDITOR_POSITION, localDraftStorageKey, makeLocalDraft } from '@/lib/localExerciseDraft'
 
 // Mutable permission state for the create link.
-const h = vi.hoisted(() => ({ canWrite: true, userId: 'editor-1', push: vi.fn() }))
+const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn() }))
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 vi.mock('@/lib/useRole', () => ({
@@ -16,13 +14,18 @@ vi.mock('@/lib/useRole', () => ({
     role: 'admin',
     isLoading: false,
     permissions: ['*'],
-    can: (p: string) => (p === 'exercises.write' ? h.canWrite : true),
+    can: (p: string) => (p === 'exercises.write' ? h.canWrite : p === 'exercises.export' ? h.canExport : true),
   }),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock('@/api/exercises/catalog', () => ({
   listExercisesPage: vi.fn(),
 }))
+vi.mock('@/api/exercises/archive', () => ({ EXPORT_LIMIT: 100 }))
+vi.mock('@/components/exercises/ExportDialog', () => ({
+  ExportDialog: ({ exerciseIds }: { exerciseIds: string[] }) => <div data-testid="export-dialog">{exerciseIds.join(',')}</div>,
+}))
+vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: () => <div data-testid="import-dialog" /> }))
 
 import { listExercisesPage } from '@/api/exercises/catalog'
 import Page from './page'
@@ -57,6 +60,7 @@ describe('exercises catalog page', () => {
     resetStorage()
     mockList.mockReset()
     h.canWrite = true
+    h.canExport = true
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
@@ -192,6 +196,7 @@ describe('exercises catalog — create link', () => {
     resetStorage()
     mockList.mockReset()
     h.canWrite = true
+    h.canExport = true
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
@@ -209,45 +214,63 @@ describe('exercises catalog — create link', () => {
     expect(h.push).toHaveBeenCalledWith('/exercises/new')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+})
 
-  it('pins the browser draft before server rows despite filters and lets it be deleted', async () => {
-    window.localStorage.setItem(localDraftStorageKey(h.userId), JSON.stringify(makeLocalDraft(
-      { Name: 'Browser draft', Description: 'Local description', Tags: ['web'] },
-      emptyDraft(), DEFAULT_EDITOR_POSITION, null,
-    )))
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    const draftRow = screen.getByText('Browser draft').closest('tr')
-    expect(draftRow).toBe(screen.getAllByRole('row')[1])
-    expect(draftRow).toHaveTextContent('admin.ex.localDraft.badge')
-    expect(draftRow?.querySelector('a')).toHaveAttribute('href', '/exercises/new')
-    fireEvent.change(screen.getByPlaceholderText('admin.ex.search'), { target: { value: 'different' } })
-    expect(screen.getByText('Browser draft')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.deleteConfirm' }))
-    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).toBeNull()
-    expect(screen.queryByText('Browser draft')).not.toBeInTheDocument()
+describe('exercises catalog — archive, export and import', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    mockList.mockReset()
+    h.canWrite = true
+    h.canExport = true
+    mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
-  it('offers continue or reset before creating another exercise', async () => {
-    window.localStorage.setItem(localDraftStorageKey(h.userId), JSON.stringify(makeLocalDraft(
-      { Name: 'Existing draft', Description: '', Tags: [] },
-      emptyDraft(), DEFAULT_EDITOR_POSITION, null,
-    )))
+  it('filters archived exercises through archived=only and marks them', async () => {
+    mockList.mockResolvedValue({ Items: [{ ...item, ArchivedAt: '2026-09-20T00:00:00Z' }], Total: 1, Page: 1, PageSize: 50 })
     render(<Page />)
-    await screen.findByText('Existing draft')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('admin.ex.localDraft.confirmTitle')
-    expect(dialog).toHaveClass('max-w-xl')
-    expect(screen.getByRole('button', { name: 'admin.ex.localDraft.reset' }).parentElement).toHaveClass('flex-wrap')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.continue' }))
-    expect(h.push).toHaveBeenCalledWith('/exercises/new')
-    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).not.toBeNull()
-    h.push.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.localDraft.reset' }))
-    expect(window.localStorage.getItem(localDraftStorageKey(h.userId))).toBeNull()
-    expect(h.push).toHaveBeenCalledWith('/exercises/new')
+    await screen.findByText('SQLi basics')
+    expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.ex.filterStatus' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.ex.filterStatusArchived' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ archived: 'only', status: '' })))
+  })
+
+  it('selects rows and opens bulk export', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.row: SQLi basics' }))
+    expect(screen.getByText('admin.ex.selection.count')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.export' }))
+    expect(screen.getByTestId('export-dialog')).toHaveTextContent(item.ID)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.clear' }))
+    expect(screen.queryByText('admin.ex.selection.count')).not.toBeInTheDocument()
+  })
+
+  it('caps the selection at 100 exercises', async () => {
+    const many = Array.from({ length: 101 }, (_, i) => ({ ...item, ID: `id-${i}`, Name: `Exercise ${i}` }))
+    mockList.mockResolvedValue({ Items: many, Total: 101, Page: 1, PageSize: 101 })
+    render(<Page />)
+    await screen.findByText('Exercise 0')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.all' }))
+    expect(screen.getByText('admin.ex.selection.limit')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 99' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 100' })).toBeDisabled()
+  })
+
+  it('hides selection without export and import without write', async () => {
+    h.canExport = false
+    h.canWrite = false
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
+  })
+
+  it('opens the import dialog', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.button' }))
+    expect(screen.getByTestId('import-dialog')).toBeInTheDocument()
   })
 })
