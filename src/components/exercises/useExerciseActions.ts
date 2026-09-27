@@ -24,9 +24,13 @@ export type UseExerciseActionsOptions = {
   setMode: (mode: "view" | "edit") => void
   setPosition: Dispatch<SetStateAction<EditorPosition>>
   focusField: (path: PropertyKey[]) => void
+  /** Lets the next programmatic navigation past the leave guard. */
+  allowNavigation: () => void
 }
 
-export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPosition, focusField }: UseExerciseActionsOptions) {
+export function useExerciseActions({
+  editor, canWrite, canDelete, setMode, setPosition, focusField, allowNavigation,
+}: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [usage, setUsage] = useState<{ exerciseId: string; events: ExerciseUsageEvent[] } | null>(null)
@@ -41,11 +45,16 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
     return () => { cancelled = true }
   }, [exerciseId, canDelete])
 
-  async function run(action: () => Promise<void>): Promise<boolean> {
+  /**
+   * Busy from the first moment (before the flush), so confirm buttons disable at once
+   * and a double click can't start the action twice. With `flushFirst`, unsaved edits
+   * are saved first; an action returning false reports "not done" without a toast.
+   */
+  async function run(action: () => Promise<boolean | void>, flushFirst = false): Promise<boolean> {
     setBusy(true)
     try {
-      await action()
-      return true
+      if (flushFirst && !(await flushOrWarn())) return false
+      return (await action()) !== false
     } catch (cause) {
       toast.error(exerciseErrorMessage(cause))
       return false
@@ -72,40 +81,40 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
   }
 
   async function publish(): Promise<void> {
-    if (!exerciseId || !(await flushOrWarn())) return
-    if (!(await editor.draftForm.trigger())) {
-      const values = editor.draftForm.getValues()
-      const parsed = draftSchema.safeParse(values)
-      const issue = parsed.success ? null : parsed.error.issues[0]
-      if (canWrite) setMode("edit")
-      setPosition((current) => issue ? positionForDraftIssue(current, values, issue.path) : { ...current, tab: "variants" })
-      if (issue) focusField(issue.path)
-      toast.error(t("admin.exPage.toast.invalid"))
-      return
-    }
+    if (!exerciseId) return
     await run(async () => {
+      if (!(await editor.draftForm.trigger())) {
+        const values = editor.draftForm.getValues()
+        const parsed = draftSchema.safeParse(values)
+        const issue = parsed.success ? null : parsed.error.issues[0]
+        if (canWrite) setMode("edit")
+        setPosition((current) => issue ? positionForDraftIssue(current, values, issue.path) : { ...current, tab: "variants" })
+        if (issue) focusField(issue.path)
+        toast.error(t("admin.exPage.toast.invalid"))
+        return false
+      }
       await publishDraft(exerciseId)
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.published"))
-    })
+    }, true)
   }
 
   async function snapshot(note: string): Promise<boolean> {
-    if (!exerciseId || !(await flushOrWarn())) return false
+    if (!exerciseId) return false
     return run(async () => {
       await createCheckpoint(exerciseId, note)
       toast.success(t("admin.exPage.toast.snapshot"))
-    })
+    }, true)
   }
 
   async function revert(): Promise<boolean> {
     const publishedId = editor.exercise?.PublishedVersionID
-    if (!exerciseId || !publishedId || !(await flushOrWarn())) return false
+    if (!exerciseId || !publishedId) return false
     return run(async () => {
       await restoreVersion(exerciseId, publishedId)
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.reverted"))
-    })
+    }, true)
   }
 
   async function restore(versionId: string): Promise<void> {
@@ -113,17 +122,18 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
     await run(async () => {
       await restoreVersion(exerciseId, versionId)
       toast.success(t("admin.exPage.toast.restored"))
+      allowNavigation()
       router.push(exerciseHref(exerciseId))
     })
   }
 
   async function archive(): Promise<boolean> {
-    if (!exerciseId || !(await flushOrWarn())) return false
+    if (!exerciseId) return false
     return run(async () => {
       editor.setExercise(await archiveExercise(exerciseId))
       setMode("view")
       toast.success(t("admin.exPage.toast.archived"))
-    })
+    }, true)
   }
 
   async function unarchive(): Promise<void> {
@@ -136,11 +146,12 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
 
   async function remove(): Promise<boolean> {
     if (!exerciseId) return false
-    await editor.autosave.flush()
     setBusy(true)
     try {
+      await editor.autosave.flush()
       await deleteExercise(exerciseId)
       toast.success(t("admin.exPage.toast.deleted"))
+      allowNavigation()
       router.push("/exercises")
       return true
     } catch (cause) {

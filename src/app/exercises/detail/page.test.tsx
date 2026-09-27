@@ -209,6 +209,33 @@ describe("exercise page — publishing and history", () => {
     await waitFor(() => expect(createCheckpoint).toHaveBeenCalledWith("ex-1", "Before rework"))
   })
 
+  it("sends one snapshot for a double click on confirm", async () => {
+    vi.mocked(createCheckpoint).mockReturnValue(new Promise(() => undefined))
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.snapshot" }))
+    const confirm = screen.getByRole("button", { name: "admin.exPage.snapshot.confirm" })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    await waitFor(() => expect(createCheckpoint).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(createCheckpoint).toHaveBeenCalledTimes(1)
+  })
+
+  it("locks the form while a publish is in flight", async () => {
+    let resolvePublish: (value: Version) => void = () => undefined
+    vi.mocked(publishDraft).mockReturnValue(new Promise((resolve) => { resolvePublish = resolve }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    resolvePublish({ ...workingCopy, Status: "published" })
+    await waitFor(() => expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled())
+  })
+
   it("discards changes by restoring the published version after confirmation", async () => {
     vi.mocked(restoreVersion).mockResolvedValue(workingCopy)
     render(<Page />)

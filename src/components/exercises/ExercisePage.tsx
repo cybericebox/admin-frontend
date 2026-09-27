@@ -102,8 +102,11 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
   const exercise = editor.exercise
   const archived = Boolean(exercise?.ArchivedAt)
   const editing = !isVersion && !archived && mode === "edit" && permissions.write
+  const saveStatus = editor.autosave.status
+  const leave = useExerciseLeaveGuard(editing && exercise !== null && (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error"))
   const actions = useExerciseActions({
     editor, canWrite: permissions.write, canDelete: permissions.delete, setMode, setPosition, focusField,
+    allowNavigation: leave.allowNavigation,
   })
 
   const positionKey = userId && exercise ? editorPositionStorageKey(userId, exercise.ID) : null
@@ -149,8 +152,6 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
   }, [currentId, publishedVersionId])
   const publishedAt = published && published.versionId === publishedVersionId ? published.at : null
 
-  const saveStatus = editor.autosave.status
-  const leave = useExerciseLeaveGuard(editing && exercise !== null && (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error"))
   useEffect(() => {
     if (!leave.destination) return
     let cancelled = false
@@ -233,10 +234,10 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
           <Form {...editor.draftForm}>
             <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-1 flex-col gap-5">
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing} autoFocusName={!exerciseId} />
+                <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                <DraftVariants form={editor.draftForm} disabled={!editing} />
+                <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} />
               </TabsContent>
             </form>
           </Form>
