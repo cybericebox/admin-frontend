@@ -92,7 +92,7 @@ describe("new exercise page", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
   })
 
-  it("blocks Publish on an invalid name with the invalid toast, not a save failure", async () => {
+  it("blocks Publish on an invalid name with the name toast, not a save failure", async () => {
     render(<NewExercisePage />)
     vi.useFakeTimers()
     const name = screen.getByLabelText(/admin.ex.field.name/)
@@ -102,7 +102,7 @@ describe("new exercise page", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" })) })
     await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-    expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.invalid")
+    expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.invalidName")
     expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
     expect(publishDraft).not.toHaveBeenCalled()
     expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()

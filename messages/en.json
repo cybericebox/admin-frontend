@@ -577,6 +577,7 @@
   "admin.exPage.toast.deleted": "Exercise deleted",
   "admin.exPage.toast.saveFailed": "Could not save the changes. Try again.",
   "admin.exPage.toast.invalid": "Fix the errors to publish the exercise",
+  "admin.exPage.toast.invalidName": "Fix the name to save your changes",
   "admin.ex.err.archived": "The exercise is archived. Unarchive it to make changes.",
   "admin.ex.err.inUse": "The exercise is used in events. It can only be archived.",
   "admin.ex.err.notFound": "Exercise not found",

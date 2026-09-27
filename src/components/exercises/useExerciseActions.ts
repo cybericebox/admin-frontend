@@ -63,7 +63,7 @@ export function useExerciseActions({ editor, canWrite, canDelete, setMode, setPo
       await editor.identityForm.trigger()
       setPosition((current) => ({ ...current, tab: "general" }))
       focusField(identity.error.issues[0]?.path ?? [])
-      toast.error(t("admin.exPage.toast.invalid"))
+      toast.error(t("admin.exPage.toast.invalidName"))
       return false
     }
     const ok = await editor.autosave.flush()

@@ -577,6 +577,7 @@
   "admin.exPage.toast.deleted": "Завдання видалено",
   "admin.exPage.toast.saveFailed": "Не вдалося зберегти зміни. Спробуйте ще раз.",
   "admin.exPage.toast.invalid": "Виправте помилки, щоб опублікувати завдання",
+  "admin.exPage.toast.invalidName": "Виправте назву, щоб зберегти зміни",
   "admin.ex.err.archived": "Завдання в архіві. Розархівуйте його, щоб вносити зміни.",
   "admin.ex.err.inUse": "Завдання використовується в івентах. Його можна лише архівувати.",
   "admin.ex.err.notFound": "Завдання не знайдено",
