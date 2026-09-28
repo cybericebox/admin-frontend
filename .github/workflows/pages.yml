@@ -20,6 +20,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Build reads the github-pages environment's variables and secrets too, so the
+    # Pages configuration lives in one place (Settings → Environments → github-pages).
+    environment: github-pages
     steps:
       - name: Check repository
         uses: actions/checkout@v4
