@@ -5,3 +5,6 @@ metadata:
   namespace: cybericebox
 data:
   DOMAIN: "cybericebox.com"
+  # Optional host overrides (bare host, no scheme). Empty → <service>.<DOMAIN>.
+  API_DOMAIN: ""
+  ID_DOMAIN: ""
