@@ -1,4 +1,5 @@
 import "./globals.css"
+import { GoogleAnalytics } from "@next/third-parties/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { RoleProvider } from "@/lib/useRole"
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider><AdminShell>{children}</AdminShell></ToastProvider>
         </RoleProvider>
         <ServiceStatusGate />
+        {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />}
       </body>
     </html>
   )

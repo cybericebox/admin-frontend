@@ -36,6 +36,11 @@ spec:
                 configMapKeyRef:
                   name: admin-frontend-config
                   key: API_DOMAIN
+            - name: NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: admin-frontend-config
+                  key: GOOGLE_ANALYTICS_ID
             - name: NEXT_PUBLIC_ID_DOMAIN
               valueFrom:
                 configMapKeyRef:
