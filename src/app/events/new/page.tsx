@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useSyncExternalStore, type FormEvent } from "react"
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react"
 import Link from "next/link"
-import { createEvent, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
+import { createEvent, getInfrastructureAvailable, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -29,6 +30,22 @@ export default function NewEventPage() {
   const [managersError, setManagersError] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [infrastructure, setInfrastructure] = useState(true)
+  // null = unknown (no infrastructure.read or the status request failed):
+  // keep the choice enabled and let the backend validate it.
+  const [infrastructureAvailable, setInfrastructureAvailable] = useState<boolean | null>(null)
+  const canReadInfrastructure = can("infrastructure.read")
+
+  useEffect(() => {
+    if (!canReadInfrastructure) return
+    let active = true
+    getInfrastructureAvailable().then((available) => {
+      if (!active) return
+      setInfrastructureAvailable(available)
+      if (!available) setInfrastructure(false)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [canReadInfrastructure])
 
   async function refreshManagers(eventID: string) {
     try {
@@ -54,6 +71,7 @@ export default function NewEventPage() {
         Tag: draft.Tag,
         AvailableFrom: localToIso(draft.AvailableFrom),
         ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null,
+        InfrastructureAllowed: infrastructure,
       })
       setCreated(saved)
       toast.success("Захід створено.")
@@ -81,6 +99,7 @@ export default function NewEventPage() {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={busy} /></div>
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={busy} /></div>
         </div>
+        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><Checkbox id="new-event-infrastructure" checked={infrastructure} onChange={(event) => setInfrastructure(event.target.checked)} disabled={busy || infrastructureAvailable === false} label={t("admin.events.field.infrastructure")} /><FieldHelp text={t("admin.events.field.infrastructureHelp")} /></div>{infrastructureAvailable === false && <p className="text-xs text-muted-foreground">{t("admin.events.field.infrastructureUnavailable")}</p>}</div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" disabled={busy || !draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>

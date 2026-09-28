@@ -148,6 +148,7 @@ export function EventAdminDetail({ id }: { id: string }) {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={!writable || saving} /></div>
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable || saving} /></div>
         </div>
+        <p className="text-sm text-muted-foreground" data-testid="event-infrastructure">{t("admin.events.field.infrastructure")}: <span className="font-medium text-foreground">{t(event.InfrastructureAllowed ? "admin.events.field.infrastructureYes" : "admin.events.field.infrastructureNo")}</span></p>
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         {writable && <div className="flex justify-end"><Button type="submit" disabled={saving || !isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>
