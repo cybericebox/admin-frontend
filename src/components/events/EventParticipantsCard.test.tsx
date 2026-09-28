@@ -27,6 +27,22 @@ describe("EventParticipantsCard", () => {
     expect(screen.getByText("Підтверджено")).toBeInTheDocument()
   })
 
+  it("shows invitations as awaiting the invited person without decision buttons", async () => {
+    mocks.get.mockImplementation((path: string) => {
+      if (path.startsWith("/api/events/event-1/participants?")) return Promise.resolve({
+        Items: [{ UserID: "user-1", Status: 1, CreatedAt: "2026-09-24T09:00:00Z", DecidedAt: null, Invited: true, InvitedTeamName: "Blue" }],
+        NextCursor: "",
+      })
+      if (path === "/api/users/user-1") return Promise.resolve({ ID: "user-1", FirstName: "Марія", LastName: "Савчук", Email: "maria@example.com" })
+      return Promise.reject(new Error(path))
+    })
+    render(<EventParticipantsCard eventID="event-1" editable />)
+    expect(await screen.findByText("Марія Савчук")).toBeInTheDocument()
+    expect(screen.getByText("Запрошено до «Blue» · очікує відповіді")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Підтвердити/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Відхилити/ })).not.toBeInTheDocument()
+  })
+
   it("keeps participant decisions read-only without event write permission", async () => {
     render(<EventParticipantsCard eventID="event-1" editable={false} />)
     expect(await screen.findByText("Марія Савчук")).toBeInTheDocument()
