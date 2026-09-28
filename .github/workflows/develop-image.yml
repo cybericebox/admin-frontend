@@ -3,6 +3,7 @@ name: Build for develop test
 on:
   push:
     branches: [ "develop" ]
+  workflow_dispatch:
 
 jobs:
   push_to_registry:

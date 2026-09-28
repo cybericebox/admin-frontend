@@ -26,7 +26,7 @@ export function applyTheme(choice: ThemeChoice): void {
 export function setThemeChoice(choice: ThemeChoice): void {
   const domain = process.env.NEXT_PUBLIC_DOMAIN
   const parts = [`${COOKIE}=${choice}`, "path=/", `max-age=${MAX_AGE}`, "SameSite=Lax"]
-  if (domain && domain !== "NEXT_PUBLIC_DOMAIN") parts.push(`domain=.${domain}`)
+  if (domain) parts.push(`domain=.${domain}`)
   if (location.protocol === "https:") parts.push("Secure")
   document.cookie = parts.join("; ")
   applyTheme(choice)

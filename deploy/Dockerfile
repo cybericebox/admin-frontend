@@ -4,6 +4,7 @@
 # rebuild per env change), we build with placeholders equal to the variable
 # names, and an entrypoint substitutes the real values at container start
 # (nginx:alpine runs /docker-entrypoint.d/*.sh before launching).
+# Run with: -e NEXT_PUBLIC_DOMAIN=… [-e NEXT_PUBLIC_{API,ID}_DOMAIN=…]
 FROM node:26-alpine AS build
 WORKDIR /app
 COPY package*.json ./
@@ -11,6 +12,8 @@ RUN npm ci
 COPY . .
 
 ENV NEXT_PUBLIC_DOMAIN="NEXT_PUBLIC_DOMAIN"
+ENV NEXT_PUBLIC_API_DOMAIN="NEXT_PUBLIC_API_DOMAIN"
+ENV NEXT_PUBLIC_ID_DOMAIN="NEXT_PUBLIC_ID_DOMAIN"
 RUN npm run build
 
 FROM nginx:1.30.5-alpine AS runner

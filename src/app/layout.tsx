@@ -7,7 +7,8 @@ import { ServiceStatusGate } from "@/components/ServiceStatusGate"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
 
-export const metadata = { title: "Cyber ICE Box Platform Admin" }
+// noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
+export const metadata = { title: "Cyber ICE Box Platform Admin", robots: { index: false, follow: false } }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
