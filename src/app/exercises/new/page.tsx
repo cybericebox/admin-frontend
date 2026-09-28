@@ -1,12 +1,7 @@
-import {Page, PageBody} from "@/components/common/page";
-import {ExerciseForm} from "@/components/exercises";
+"use client"
+
+import { ExercisePage } from "@/components/exercises/ExercisePage"
 
 export default function NewExercisePage() {
-    return (
-        <Page>
-            <PageBody>
-                <ExerciseForm/>
-            </PageBody>
-        </Page>
-    );
+  return <ExercisePage exerciseId={null} versionId={null} />
 }
