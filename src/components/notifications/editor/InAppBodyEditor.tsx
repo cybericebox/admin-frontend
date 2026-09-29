@@ -168,6 +168,7 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
       </div>}
     </div>
     <div className="editor-scroll min-h-28 has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-ring">
+    <div className="editor-scroll__body">
     <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true"
       aria-label={t("admin.notif.tpl.body")}
       onKeyDown={(event) => {
@@ -186,6 +187,7 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
       onBlur={() => { if (editorRef.current) decorateVariables(editorRef.current, variables) }}
       onPaste={(event) => { event.preventDefault(); insertNode(document.createTextNode(event.clipboardData.getData("text/plain"))) }}
       className="px-3 py-2 text-sm leading-relaxed text-foreground outline-none" />
+    </div>
     </div>
   </div>
 }
