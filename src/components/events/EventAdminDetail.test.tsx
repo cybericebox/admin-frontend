@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
-const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(), canWrite: true }))
+const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(), setInfra: vi.fn(), canWrite: true }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission === "events.write" ? mock.canWrite : true }) }))
-vi.mock("@/api/events/catalog", () => ({ getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers }))
+vi.mock("@/api/events/catalog", () => ({ getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers, setEventInfrastructure: mock.setInfra }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ editable }: { editable: boolean }) => <div>access:{String(editable)}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
 
@@ -43,11 +43,58 @@ describe("EventAdminDetail", () => {
     expect(mock.managers).toHaveBeenCalledWith("event-1")
   })
 
-  it("shows the immutable infrastructure flag read-only", async () => {
+  it("turns infrastructure on before publication after a confirmation", async () => {
+    mock.get.mockResolvedValue({ ...event, LifecycleStatus: "not_published", InfrastructureAllowed: false })
+    mock.setInfra.mockResolvedValue({ ...event, InfrastructureAllowed: true, UpdatedAt: "later" })
+    const success = vi.spyOn(toast, "success")
+    render(<EventAdminDetail id="event-1" />)
+    const toggle = await screen.findByRole("switch", { name: "admin.events.field.infrastructure" })
+    expect(toggle).toBeEnabled()
+    expect(toggle).toHaveAttribute("aria-checked", "false")
+    expect(screen.getByRole("button", { name: "admin.events.field.infrastructureHelp" })).toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(mock.setInfra).not.toHaveBeenCalled()
+    expect(await screen.findByText("admin.events.infra.confirmOnTitle")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.events.infra.confirmOn" }))
+    await waitFor(() => expect(mock.setInfra).toHaveBeenCalledWith("event-1", true))
+    await waitFor(() => expect(success).toHaveBeenCalledWith("admin.events.infra.savedOn"))
+    await waitFor(() => expect(screen.getByRole("switch", { name: "admin.events.field.infrastructure" })).toHaveAttribute("aria-checked", "true"))
+  })
+
+  it("cancelling the confirmation changes nothing", async () => {
     mock.get.mockResolvedValue({ ...event, InfrastructureAllowed: true })
     render(<EventAdminDetail id="event-1" />)
-    expect(await screen.findByTestId("event-infrastructure")).toHaveTextContent("admin.events.field.infrastructure: admin.events.field.infrastructureYes")
-    expect(screen.queryByRole("switch", { name: "admin.events.field.infrastructure" })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("switch", { name: "admin.events.field.infrastructure" }))
+    expect(await screen.findByText("admin.events.infra.confirmOffTitle")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "confirm.cancel" }))
+    expect(mock.setInfra).not.toHaveBeenCalled()
+    expect(screen.getByRole("switch", { name: "admin.events.field.infrastructure" })).toHaveAttribute("aria-checked", "true")
+  })
+
+  it("keeps the dialog open with the reason when the server refuses", async () => {
+    mock.get.mockResolvedValue({ ...event, InfrastructureAllowed: true })
+    mock.setInfra.mockRejectedValue(new Error("refused"))
+    render(<EventAdminDetail id="event-1" />)
+    fireEvent.click(await screen.findByRole("switch", { name: "admin.events.field.infrastructure" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.events.infra.confirmOff" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("admin.events.err.generic")
+    expect(screen.getByText("admin.events.infra.confirmOffTitle")).toBeInTheDocument()
+  })
+
+  it("locks the switch after publication and explains why in a tooltip", async () => {
+    mock.get.mockResolvedValue({ ...event, LifecycleStatus: "published", InfrastructureAllowed: true })
+    render(<EventAdminDetail id="event-1" />)
+    const toggle = await screen.findByRole("switch", { name: "admin.events.field.infrastructure" })
+    expect(toggle).toBeDisabled()
+    expect(toggle).toHaveAttribute("aria-checked", "true")
+    fireEvent.mouseEnter(toggle.parentElement as HTMLElement)
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("admin.events.infra.locked")
+  })
+
+  it("keeps the switch read-only without events.write", async () => {
+    mock.canWrite = false
+    render(<EventAdminDetail id="event-1" />)
+    expect(await screen.findByRole("switch", { name: "admin.events.field.infrastructure" })).toBeDisabled()
   })
 
   it("keeps the event editable when loading managers fails and lets the user retry access", async () => {

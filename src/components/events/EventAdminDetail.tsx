@@ -2,16 +2,19 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
-import { getEvent, listEventManagers, updateEvent, type Event, type EventManager } from "@/api/events/catalog"
+import { getEvent, listEventManagers, setEventInfrastructure, updateEvent, type Event, type EventManager } from "@/api/events/catalog"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { FieldHelp } from "@/components/ui/field-help"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, isoToLocal, localToIso } from "@/lib/eventSchemas"
@@ -38,6 +41,9 @@ export function EventAdminDetail({ id }: { id: string }) {
   const [managersError, setManagersError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
+  const [infraTarget, setInfraTarget] = useState<boolean | null>(null)
+  const [infraBusy, setInfraBusy] = useState(false)
+  const [infraError, setInfraError] = useState("")
 
   const load = useCallback(async () => {
     try {
@@ -127,6 +133,26 @@ export function EventAdminDetail({ id }: { id: string }) {
     }
   }
 
+  const published = Boolean(event && event.Status !== "archived" && (event.LifecycleStatus ?? "not_published") !== "not_published")
+  const infraEditable = writable && !published
+  const infraLockReason = !can("events.write") ? t("admin.events.infra.noRights") : event?.Status === "archived" || published ? t("admin.events.infra.locked") : ""
+
+  async function confirmInfrastructure() {
+    if (!event || infraTarget === null || infraBusy) return
+    setInfraBusy(true)
+    setInfraError("")
+    try {
+      const next = await setEventInfrastructure(event.ID, infraTarget)
+      setEvent((current) => current ? { ...current, InfrastructureAllowed: next.InfrastructureAllowed, UpdatedAt: next.UpdatedAt } : next)
+      toast.success(t(infraTarget ? "admin.events.infra.savedOn" : "admin.events.infra.savedOff"))
+      setInfraTarget(null)
+    } catch (error) {
+      setInfraError(eventErrorMessage(error))
+    } finally {
+      setInfraBusy(false)
+    }
+  }
+
   if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (!id || loadError || !event || !draft) return <LoadError message={t("admin.events.loadError")} onRetry={id ? retryEvent : undefined} className="h-full" />
 
@@ -149,11 +175,28 @@ export function EventAdminDetail({ id }: { id: string }) {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={!writable || saving} /></div>
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable || saving} /></div>
         </div>
-        <p className="text-sm text-muted-foreground" data-testid="event-infrastructure">{t("admin.events.field.infrastructure")}: <span className="font-medium text-foreground">{t(event.InfrastructureAllowed ? "admin.events.field.infrastructureYes" : "admin.events.field.infrastructureNo")}</span></p>
+        <div className="flex items-center gap-1.5" data-testid="event-infrastructure">
+          {infraEditable
+            ? <Switch id="event-infrastructure" checked={Boolean(event.InfrastructureAllowed)} onCheckedChange={(next) => { setInfraError(""); setInfraTarget(next) }} disabled={saving} />
+            : <HoverTooltip text={infraLockReason}><span className="inline-flex"><Switch id="event-infrastructure" checked={Boolean(event.InfrastructureAllowed)} onCheckedChange={() => undefined} disabled /></span></HoverTooltip>}
+          <label htmlFor="event-infrastructure" className="cursor-pointer select-none text-sm font-medium">{t("admin.events.field.infrastructure")}</label>
+          <FieldHelp text={t("admin.events.field.infrastructureHelp")} />
+        </div>
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         {writable && <div className="flex justify-end"><Button type="submit" busy={saving} disabled={!isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>
     </CardContent></Card>
+
+    <ConfirmDialog
+      open={infraTarget !== null}
+      onCancel={() => setInfraTarget(null)}
+      title={t(infraTarget ? "admin.events.infra.confirmOnTitle" : "admin.events.infra.confirmOffTitle")}
+      description={t(infraTarget ? "admin.events.infra.confirmOnDescription" : "admin.events.infra.confirmOffDescription")}
+      confirmLabel={t(infraTarget ? "admin.events.infra.confirmOn" : "admin.events.infra.confirmOff")}
+      busy={infraBusy}
+      error={infraError}
+      onConfirm={() => void confirmInfrastructure()}
+    />
 
     {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
       eventID={event.ID}
