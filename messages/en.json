@@ -178,7 +178,6 @@
   "admin.userDetail.back": "Back to users",
   "admin.userDetail.notFound": "User not found",
   "admin.userDetail.loadError": "Failed to load user",
-  "admin.userDetail.retry": "Try again",
   "admin.userDetail.protectedSuperAdmin": "Only a super administrator can change a super administrator account.",
   "admin.userDetail.signInMethods": "Sign-in methods",
   "admin.userDetail.emailConfirmed": "Email confirmed",

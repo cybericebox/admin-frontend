@@ -178,7 +178,6 @@
   "admin.userDetail.back": "До користувачів",
   "admin.userDetail.notFound": "Користувача не знайдено",
   "admin.userDetail.loadError": "Не вдалося завантажити користувача",
-  "admin.userDetail.retry": "Спробувати ще раз",
   "admin.userDetail.protectedSuperAdmin": "Обліковий запис суперадміністратора може змінювати лише суперадміністратор.",
   "admin.userDetail.signInMethods": "Способи входу",
   "admin.userDetail.emailConfirmed": "Електронну пошту підтверджено",
