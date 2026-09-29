@@ -22,7 +22,7 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
   })
 
-  it("customize → accept selected with analytics off (the default)", () => {
+  it("customize → save choice with analytics off (the default)", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("consent.customize")
     const panel = screen.getByRole("dialog")
@@ -30,16 +30,16 @@ describe("ConsentBanner", () => {
     expect(screen.getByRole("switch", { name: "consent.necessary.switch" })).toBeDisabled()
     expect(screen.getByRole("switch", { name: "consent.necessary.switch" })).toHaveAttribute("aria-checked", "true")
     expect(screen.getByRole("switch", { name: "consent.analytics.title" })).toHaveAttribute("aria-checked", "false")
-    click("consent.acceptSelected")
+    click("consent.saveChoice")
     expect(readConsent()).toEqual({ analytics: false })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("customize → accept selected with analytics on", () => {
+  it("customize → save choice with analytics on", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("consent.customize")
     fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
-    click("consent.acceptSelected")
+    click("consent.saveChoice")
     expect(readConsent()).toEqual({ analytics: true })
   })
 
@@ -56,12 +56,15 @@ describe("ConsentBanner", () => {
     expect(readConsent()).toBeNull()
   })
 
-  it("reject all from the panel", () => {
+  it("the panel has only save choice and accept all; saving with analytics off drops _ga", () => {
+    document.cookie = "_ga=GA1.1.1; path=/"
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("consent.customize")
-    click("consent.rejectAll")
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["consent.saveChoice", "consent.acceptAll"])
+    expect(screen.queryByRole("button", { name: "consent.rejectAll" })).not.toBeInTheDocument()
+    click("consent.saveChoice")
     expect(readConsent()).toEqual({ analytics: false })
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(document.cookie).not.toMatch(/(^|; )_ga=/)
   })
 
   it("Esc never consents: from the panel it steps back to the banner", () => {
