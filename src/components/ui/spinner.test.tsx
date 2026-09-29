@@ -5,6 +5,7 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { Spinner, LoadingArea, PageLoader } from "./spinner"
+import { t } from "@/i18n/t"
 
 describe("Spinner", () => {
   it("renders a status role containing the original crest", () => {
@@ -32,7 +33,7 @@ describe("Spinner", () => {
 
   it("falls back to aria-label when no label is given", () => {
     render(<Spinner />)
-    expect(screen.getByRole("status")).toHaveAttribute("aria-label", "loading")
+    expect(screen.getByRole("status")).toHaveAttribute("aria-label", t("admin.loading"))
   })
 
   it("merges a caller className", () => {

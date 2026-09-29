@@ -23,7 +23,10 @@ import Link from "next/link"
 import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { ApiError } from "@/api/client"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
@@ -62,7 +65,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [template, setTemplate] = useState<InAppTemplate | null>(null)
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
+  const busy = busyAction !== ""
   const [formError, setFormError] = useState(false)
   const [versionRevision, setVersionRevision] = useState(0)
 
@@ -113,7 +118,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setActions(tpl.Actions)
         setLoadNonce((n) => n + 1)
       })
-      .catch(() => setNotFound(true))
+      .catch((cause) => { if (cause instanceof ApiError && cause.status === 404) setNotFound(true); else setLoadError({ cause }) })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -142,7 +147,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       return
     }
     setFormError(false)
-    setBusy(true)
+    setBusyAction("save")
     try {
       const payload = {
         Title:         title,
@@ -165,39 +170,39 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setTemplate(created)
         setVersionRevision((value) => value + 1)
         router.replace(`/notifications/templates/in-app/detail?id=${created.ID}`)
-        toast.success("Шаблон створено.")
+        toast.success(t("admin.notif.tpl.created"))
       } else {
         // Update existing draft
         const updated = await updateInAppTemplate(template.ID, payload)
         setTemplate(updated)
         setVersionRevision((value) => value + 1)
-        toast.success("Шаблон збережено.")
+        toast.success(t("admin.notif.tpl.saved"))
       }
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handlePublish() {
     if (!template || template.Status !== "draft" || isDirty || busy) return
-    setBusy(true)
+    setBusyAction("publish")
     try {
       const updated = await publishInAppTemplate(template.ID)
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
-      toast.success("Шаблон опубліковано.")
+      toast.success(t("admin.notif.tpl.published"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handleRollback(sourceId: string): Promise<boolean> {
     if (!template) return false
-    setBusy(true)
+    setBusyAction("rollback")
     try {
       const updated = await rollbackInAppTemplate(sourceId)
       setTemplate(updated)
@@ -215,13 +220,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setActions(updated.Actions)
       setLoadNonce((n) => n + 1)
       router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
-      toast.success("Версію шаблону відновлено.")
+      toast.success(t("admin.notif.tpl.restored"))
       return true
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
       return false
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -230,7 +235,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   // version stays live until the draft is published (unlike Rollback).
   async function handleEdit() {
     if (!template) return
-    setBusy(true)
+    setBusyAction("edit")
     try {
       const existing = await listInAppTemplates({ type: template.NotificationType, status: "draft" })
       const draft = existing.Templates[0] ?? await createInAppTemplate({
@@ -247,11 +252,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         Actions:       actions,
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
-      toast.success("Чернетку відкрито для редагування.")
+      toast.success(t("admin.notif.tpl.draftOpened"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -279,16 +284,25 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
+        <Link href="/notifications/templates/in-app" className="text-sm text-primary hover:underline">← {t("admin.notif.tpl.inapp")}</Link>
+        <LoadError error={loadError.cause} className="flex-1" onRetry={() => { setLoadError(null); setLoading(true); load() }} />
+      </div>
+    )
+  }
+
   if (notFound) {
     return (
-      <div className="frost-panel frost-in rounded-lg p-8">
+      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
         <Link
           href="/notifications/templates/in-app"
           className="text-sm text-primary hover:underline"
         >
           ← {t("admin.notif.tpl.inapp")}
         </Link>
-        <EmptyState message={t("admin.notif.tpl.empty")} />
+        <EmptyState message={t("admin.notif.tpl.empty")} className="flex-1" />
       </div>
     )
   }
@@ -334,25 +348,32 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} disabled={busy || !isDirty || !notificationType}>
+            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !isDirty || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (
-            <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
+            <Button variant="outline" onClick={() => void handlePublish()} busy={busyAction === "publish"} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
           {canWrite && isReadOnly && (
-            <Button onClick={() => void handleEdit()} disabled={busy}>
+            <Button onClick={() => void handleEdit()} busy={busyAction === "edit"} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
           {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
         </div>
       </div>
+
+      {/* ── Read-only notice: one orange warning under the header ── */}
+      {template && isReadOnly && (
+        <Alert variant="warning" data-testid="body-readonly" className="mb-5">
+          {t("admin.notif.tpl.readonlyHint")}
+        </Alert>
+      )}
 
       {template && <TemplateVersions channel="in-app" notificationType={template.NotificationType} currentId={template.ID}
         canWrite={canWrite} dirty={isDirty} busy={busy} refreshKey={versionRevision} onRestore={handleRollback} />}

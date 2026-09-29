@@ -347,6 +347,17 @@ describe('In-app template editor page', () => {
     })
   })
 
+  it('shows the orange read-only notice only for a published template', async () => {
+    vi.mocked(getInAppTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'published' }))
+    const { unmount } = render(<Page />)
+    expect(await screen.findByTestId('body-readonly')).toHaveTextContent('admin.notif.tpl.readonlyHint')
+    unmount()
+    vi.mocked(getInAppTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'draft' }))
+    render(<Page />)
+    await waitFor(() => expect(document.querySelector('[data-testid="fields-wrapper"]')).not.toBeNull())
+    expect(screen.queryByTestId('body-readonly')).not.toBeInTheDocument()
+  })
+
   // ── New template (no id) ──────────────────────────────────────────────────
 
   it('renders blank form (no getInAppTemplate call) when id is empty', async () => {
@@ -380,7 +391,8 @@ describe('In-app template editor page', () => {
       expect(createInAppTemplate).toHaveBeenCalledTimes(1)
     })
 
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    // The button is renamed while busy; wait for the create request to settle.
+    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.inapp.autoDismissMs'), { target: { value: '6.5' } })
     fireEvent.click(save)

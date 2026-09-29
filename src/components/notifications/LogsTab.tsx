@@ -13,10 +13,12 @@ import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { useNotificationTypes } from "./templateTypes"
 import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // W7 journal fields (ScopeEventID … Targets) are optional so an older backend
 // without them still renders the list.
@@ -78,8 +80,8 @@ function TargetLine({ target }: { target: Target }) {
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
-      {target.FallbackError && <span className="max-w-72 truncate text-xs text-muted-foreground" title={target.FallbackError}>{t("admin.notif.logs.fallback")}: {target.FallbackError}</span>}
-      {target.Error && <span className="max-w-72 truncate text-xs text-destructive" title={target.Error}>{target.Error}</span>}
+      {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
+      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-destructive">{target.Error}</span></HoverTooltip>}
     </div>
   )
 }
@@ -99,11 +101,12 @@ export function LogsTab() {
   const types = useNotificationTypes()
   const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null)
   const [data, setData] = useState<{ query: string; page: ListResp } | null>(null)
-  const [errorQuery, setErrorQuery] = useState<string | null>(null)
+  const [errorQuery, setErrorQuery] = useState<{ query: string; cause: unknown } | null>(null)
   const [detail, setDetail] = useState<DispatchDetail | null>(null)
   const [open, setOpen] = useState(false)
   const reqId = useRef(0)
-  const [detailError, setDetailError] = useState(false)
+  const [detailError, setDetailError] = useState<{ cause: unknown } | null>(null)
+  const [detailID, setDetailID] = useState("")
 
   const params = new URLSearchParams()
   if (type) params.set("type", type)
@@ -117,23 +120,24 @@ export function LogsTab() {
   if (userFilter) params.set("user", userFilter.id)
   const requestQuery = params.toString()
   const query = `${requestQuery}&reload=${reload}`
-  const error = errorQuery === query
+  const failure = errorQuery?.query === query ? errorQuery : null
+  const error = failure !== null
   const loading = !error && data?.query !== query
 
   useEffect(() => {
     let cancelled = false
     apiGet<ListResp>(`/api/notifications/dispatches?${requestQuery}`)
       .then((page) => { if (!cancelled) { setData({ query, page }); setErrorQuery(null) } })
-      .catch(() => { if (!cancelled) setErrorQuery(query) })
+      .catch((cause) => { if (!cancelled) setErrorQuery({ query, cause }) })
     return () => { cancelled = true }
   }, [query, requestQuery])
 
   function openDetail(id: string) {
     const my = ++reqId.current
-    setDetail(null); setDetailError(false); setOpen(true)
+    setDetail(null); setDetailError(null); setDetailID(id); setOpen(true)
     apiGet<DispatchDetail>(`/api/notifications/dispatches/${id}`)
       .then((d) => { if (my === reqId.current) setDetail(d) })
-      .catch(() => { if (my === reqId.current) setDetailError(true) })
+      .catch((cause) => { if (my === reqId.current) setDetailError({ cause }) })
   }
 
   function resetPage() { setPage(1); setCursors([null]); setData(null) }
@@ -170,11 +174,11 @@ export function LogsTab() {
 
       <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-sm text-destructive">{t("admin.notif.loadError")}</p><Button variant="outline" onClick={() => setReload((value) => value + 1)}>{t("admin.events.access.retry")}</Button></div>
+        <LoadError message={t("admin.notif.loadError")} error={failure?.cause} onRetry={() => setReload((value) => value + 1)} className="h-full" />
       ) : loading ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
+        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} className="h-full" />
       ) : (
         <div className="min-w-[1080px]">
           <table className="w-full text-sm">
@@ -207,7 +211,8 @@ export function LogsTab() {
                           {d.RecipientUserID.slice(0, 8)}
                         </span>
                       )}
-                      <button
+                      <HoverTooltip text={t("admin.notif.logs.filterByUser")}><button
+                        type="button"
                         aria-label={t("admin.notif.logs.filterByUser")}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -218,10 +223,9 @@ export function LogsTab() {
                           resetPage()
                         }}
                         className="ml-0.5 text-muted-foreground hover:text-foreground"
-                        title={t("admin.notif.logs.filterByUser")}
                       >
                         ⊞
-                      </button>
+                      </button></HoverTooltip>
                     </div>
                     {d.RecipientEmail && <div className="text-xs text-muted-foreground">{d.RecipientEmail}</div>}
                   </td>
@@ -254,7 +258,7 @@ export function LogsTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("admin.notif.logs.targets")}</DialogTitle></DialogHeader>
           {detailError ? (
-            <p className="py-4 text-sm text-destructive">{t("admin.notif.loadError")}</p>
+            <LoadError message={t("admin.notif.loadError")} error={detailError.cause} compact onRetry={() => openDetail(detailID)} />
           ) : !detail ? (
             <LoadingArea compact label={t("admin.loading")} />
           ) : detail.Targets.length === 0 ? (

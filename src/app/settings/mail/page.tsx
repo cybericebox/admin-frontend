@@ -1,66 +1,77 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { domainOf, getMailSettings, resetMailSettings, saveMailSettings, testMailSettings, type MailSettings, type MailSettingsInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
+import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
+import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { MailFooterCard } from "@/components/settings/MailFooterCard"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
-
-const DEFAULT_FROM_NAME = "CyberICEBox"
-const FROM_ADDRESS_EXAMPLE = "notifications@mail.cybericebox.com"
-const REPLY_TO_EXAMPLE = "support@cybericebox.com"
+import { LoadError } from "@/components/ui/load-error"
 
 const TLS_OPTIONS: { value: MailTLSMode; label: string }[] = [
   { value: "starttls", label: "STARTTLS (587)" },
   { value: "tls", label: "TLS (465)" },
 ]
 
-const SOURCE_LABEL = {
-  database: "Налаштування платформи",
-  env: "Резервні налаштування з оточення (SMTP_*)",
-  none: "Пошту не налаштовано",
+const SOURCE_LABEL_KEY = {
+  database: "admin.mail.source.database",
+  env: "admin.mail.source.env",
+  none: "admin.mail.source.none",
 } as const
 
-type Form = Omit<MailSettingsInput, "Port"> & { Port: string }
-type Busy = "" | "save" | "test" | "reset"
+type SmtpForm = Omit<MailSmtpInput, "Port"> & { Port: string }
+type IdentityForm = { SenderName: string; SenderAddress: string; ReplyToName: string; ReplyToAddress: string; SendingDomain: string }
+type Busy = "" | "identity" | "save" | "test" | "reset"
 
-// The form starts from the stored platform row. With the env fallback active it
-// is prefilled from the env summary so saving moves that config into the
+function identityFrom(settings: MailSettings): IdentityForm {
+  const { Sender, ReplyTo } = settings.Identity
+  return { SenderName: Sender.Name, SenderAddress: Sender.Address, ReplyToName: ReplyTo.Name, ReplyToAddress: ReplyTo.Address, SendingDomain: settings.SavedSendingDomain }
+}
+
+// The SMTP form starts from the stored row. With the env fallback active it is
+// prefilled from the env summary so saving moves that config into the
 // database — the env password is never exposed, so it has to be typed in.
-function formFrom(settings: MailSettings): Form {
+function smtpFrom(settings: MailSettings): SmtpForm {
   const env = settings.Source === "env" ? settings.Env : null
-  const port = env ? env.Port : settings.Port
-  const tls: MailTLSMode = settings.TLSMode || (port === 465 ? "tls" : "starttls")
+  const stored = settings.SMTP
+  const port = env ? env.Port : stored?.Port ?? 0
+  const tls: MailTLSMode = (stored?.TLSMode || "") || (port === 465 ? "tls" : "starttls")
   return {
-    Host: env ? env.Host : settings.Host,
+    Host: env ? env.Host : stored?.Host ?? "",
     Port: port ? String(port) : "587",
     TLSMode: tls,
-    Username: env ? "" : settings.Username,
+    Username: env ? "" : stored?.Username ?? "",
     Password: "",
     ClearPassword: false,
-    FromName: (env ? env.FromName : settings.FromName) || DEFAULT_FROM_NAME,
-    FromAddress: env ? env.FromAddress : settings.FromAddress,
-    ReplyTo: env ? env.ReplyTo : settings.ReplyTo,
   }
 }
 
-function validate(form: Form): string {
-  if (!form.Host.trim()) return "Вкажіть SMTP-сервер."
-  const port = Number(form.Port)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return "Порт має бути цілим числом від 1 до 65535."
-  if (form.FromAddress.trim() && !domainOf(form.FromAddress)) return "Адреса відправника має містити домен."
+function validateIdentity(form: IdentityForm): string {
+  if (form.SenderName.trim().length > MAIL_NAME_MAX || form.ReplyToName.trim().length > MAIL_NAME_MAX) return t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
+  if (!isValidEmail(form.SenderAddress.trim()) || !isValidEmail(form.ReplyToAddress.trim())) return t("admin.mail.error.emailInvalid")
+  if (!isValidSendingDomain(form.SendingDomain.trim().toLowerCase())) return t("admin.mail.error.domainInvalid")
   return ""
 }
 
-function toInput(form: Form): MailSettingsInput {
+function validateSmtp(form: SmtpForm): string {
+  if (!form.Host.trim()) return t("admin.mail.error.hostRequired")
+  const port = Number(form.Port)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return t("admin.mail.error.portInvalid")
+  return ""
+}
+
+function smtpInput(form: SmtpForm): MailSmtpInput {
   return {
     Host: form.Host.trim(),
     Port: Number(form.Port),
@@ -68,9 +79,6 @@ function toInput(form: Form): MailSettingsInput {
     Username: form.Username.trim(),
     Password: form.ClearPassword ? "" : form.Password,
     ClearPassword: form.ClearPassword,
-    FromName: form.FromName.trim(),
-    FromAddress: form.FromAddress.trim(),
-    ReplyTo: form.ReplyTo.trim(),
   }
 }
 
@@ -79,32 +87,39 @@ export default function Page() {
   const allowed = can("platform.settings.read")
   const canWrite = can("platform.settings.write")
   const [settings, setSettings] = useState<MailSettings | null>(null)
-  const [form, setForm] = useState<Form | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [identity, setIdentity] = useState<IdentityForm | null>(null)
+  const [smtp, setSmtp] = useState<SmtpForm | null>(null)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState<Busy>("")
   const [testResult, setTestResult] = useState<MailTestResult | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
-  const apply = useCallback((next: MailSettings) => {
+  const apply = useCallback((next: MailSettings, part: "all" | "identity" | "smtp" = "all") => {
     setSettings(next)
-    setForm(formFrom(next))
+    if (part !== "smtp") setIdentity(identityFrom(next))
+    if (part !== "identity") setSmtp(smtpFrom(next))
   }, [])
 
   const load = useCallback(async () => {
-    setLoadError(false)
+    setLoadError(null)
     try {
       apply(await getMailSettings())
-    } catch {
-      setLoadError(true)
+    } catch (cause) {
+      setLoadError({ cause })
     }
   }, [apply])
 
   useEffect(() => { if (allowed) queueMicrotask(() => void load()) }, [allowed, load])
 
-  function change<K extends keyof Form>(key: K, value: Form[K]) {
-    setForm((current) => current && { ...current, [key]: value })
+  function changeIdentity<K extends keyof IdentityForm>(key: K, value: IdentityForm[K]) {
+    setIdentity((current) => current && { ...current, [key]: value })
+    setNotice("")
+  }
+
+  function changeSmtp<K extends keyof SmtpForm>(key: K, value: SmtpForm[K]) {
+    setSmtp((current) => current && { ...current, [key]: value })
     setNotice("")
   }
 
@@ -121,151 +136,198 @@ export default function Page() {
     }
   }
 
-  function save() {
-    if (!form) return
-    const invalid = validate(form)
+  function saveIdentity() {
+    if (!identity) return
+    const invalid = validateIdentity(identity)
+    if (invalid) { setError(invalid); return }
+    void run("identity", async () => {
+      // Only the identity part is refreshed: unsaved SMTP edits stay in the form.
+      apply(await saveMailIdentity({
+        Sender: { Name: identity.SenderName.trim(), Address: identity.SenderAddress.trim() },
+        ReplyTo: { Name: identity.ReplyToName.trim(), Address: identity.ReplyToAddress.trim() },
+        SendingDomain: identity.SendingDomain.trim().toLowerCase(),
+      }), "identity")
+      setNotice(t("admin.mail.identitySaved"))
+    })
+  }
+
+  function saveSmtp() {
+    if (!smtp) return
+    const invalid = validateSmtp(smtp)
     if (invalid) { setError(invalid); return }
     void run("save", async () => {
-      apply(await saveMailSettings(toInput(form)))
-      setNotice("Налаштування пошти збережено.")
+      apply(await saveMailSmtp(smtpInput(smtp)), "smtp")
+      setNotice(t("admin.mail.saved"))
     })
   }
 
   function test() {
-    if (!form) return
-    const invalid = validate(form)
+    if (!smtp) return
+    const invalid = validateSmtp(smtp)
     if (invalid) { setError(invalid); return }
     setTestResult(null)
-    void run("test", async () => { setTestResult(await testMailSettings(toInput(form))) })
+    void run("test", async () => { setTestResult(await testMailSmtp(smtpInput(smtp))) })
   }
 
   function reset() {
     setConfirmReset(false)
     setTestResult(null)
     void run("reset", async () => {
-      apply(await resetMailSettings())
-      setNotice("Повернуто до налаштувань оточення.")
+      apply(await resetMailSmtp(), "smtp")
+      setNotice(t("admin.mail.resetDone"))
     })
   }
 
   const disabled = !canWrite || busy !== ""
-  const sendingDomain = (form && domainOf(form.FromAddress)) || settings?.SendingDomain || ""
+  const effective = settings?.Effective
+  const sendingDomain = settings?.SendingDomain || ""
 
   return (
     <RequirePermission
       perm="platform.settings.read"
-      fallback={<div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">Немає доступу до налаштувань платформи.</div>}
+      fallback={<div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">{t("admin.settings.noAccess")}</div>}
     >
       <div className="flex min-h-full flex-col gap-5">
         <SettingsTabs />
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Пошта</h2>
-          <p className="mt-1 text-sm text-muted-foreground">SMTP-сервер і відправник листів платформи. Заходи без власного SMTP надсилають листи через нього.</p>
+          <h2 className="text-xl font-semibold text-foreground">{t("admin.mail.title")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("admin.mail.description")}</p>
         </div>
 
         {loadError ? (
-          <Card><CardContent className="flex flex-col items-center gap-3 pt-5"><p role="alert" className="text-sm text-destructive">Не вдалося завантажити налаштування пошти.</p><Button variant="outline" onClick={() => void load()}>Спробувати ще раз</Button></CardContent></Card>
-        ) : !settings || !form ? (
-          <LoadingArea className="flex-1" label="Завантаження…" />
+          <LoadError message={t("admin.mail.loadError")} error={loadError.cause} onRetry={() => void load()} className="flex-1" />
+        ) : !settings || !identity || !smtp || !effective ? (
+          <LoadingArea className="flex-1" label={t("admin.loading")} />
         ) : (
           <>
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">Джерело налаштувань</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                <p className={settings.Source === "none" ? "font-medium text-destructive" : "font-medium text-foreground"} data-testid="mail-source">{SOURCE_LABEL[settings.Source] ?? settings.Source}</p>
-                {settings.Source === "database" && settings.UpdatedAt && <p className="text-muted-foreground">Оновлено {new Date(settings.UpdatedAt).toLocaleString("uk-UA")}</p>}
-                {settings.Source === "env" && settings.Env && (
-                  <p className="text-muted-foreground">
-                    {settings.Env.Host}:{settings.Env.Port} · {settings.Env.FromName} &lt;{settings.Env.FromAddress}&gt;{settings.Env.ReplyTo ? ` · Reply-To ${settings.Env.ReplyTo}` : ""}
-                  </p>
-                )}
-                {settings.Source === "env" && <p className="text-muted-foreground">Збережіть форму, щоб перенести налаштування в платформу. Пароль з оточення не показується — введіть його ще раз.</p>}
-                {settings.Source === "none" && <p className="text-muted-foreground">Листи не надсилаються, доки не буде збережено SMTP-сервер.</p>}
+              <CardHeader>
+                <CardTitle className="text-base">{t("admin.mail.addressesTitle")}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <section className="space-y-2">
+                  <SectionTitle id="mail-sending-domain-title" title={t("admin.mail.sendingDomain")} help={withSource(t("admin.mail.sendingDomainHelp"), settings.Sources.SendingDomain, "SMTP_SENDER_EMAIL")} />
+                  <div className="grid gap-4 md:grid-cols-2"><Input id="mail-sending-domain" aria-labelledby="mail-sending-domain-title" value={identity.SendingDomain} onChange={(event) => changeIdentity("SendingDomain", event.target.value)} disabled={disabled} placeholder={settings.EnvSendingDomain || t("admin.mail.domainPlaceholder")} autoComplete="off" spellCheck={false} /></div>
+                  <p className="text-sm text-muted-foreground">{t("admin.mail.eventSenderHint", { domain: sendingDomain || t("admin.mail.domainPlaceholder") })}</p>
+                </section>
+                <section className="space-y-2">
+                  <SectionTitle title={t("admin.mail.senderTitle")} help={t("admin.mail.senderDescription")} />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field id="mail-sender-name" label={t("admin.mail.senderName")} help={withSource(t("admin.mail.senderNameHelp"), settings.Sources.SenderName, "SMTP_SENDER_NAME")}><Input id="mail-sender-name" value={identity.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("SenderName", event.target.value)} disabled={disabled} placeholder={effective.Sender.Name} autoComplete="off" /></Field>
+                    <Field id="mail-sender-address" label={t("admin.mail.senderAddress")} help={withSource(t("admin.mail.senderAddressHelp"), settings.Sources.SenderAddress, "SMTP_SENDER_EMAIL")}><Input id="mail-sender-address" type="email" value={identity.SenderAddress} onChange={(event) => changeIdentity("SenderAddress", event.target.value)} disabled={disabled} placeholder={effective.Sender.Address} autoComplete="off" /></Field>
+                  </div>
+                </section>
+                <section className="space-y-2">
+                  <SectionTitle title={t("admin.mail.replyToTitle")} help={t("admin.mail.replyToHelp")} />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field id="mail-reply-to-name" label={t("admin.mail.replyToName")} help={withSource(t("admin.mail.replyToNameHelp"), settings.Sources.ReplyToName, "SMTP_REPLY_TO_NAME")}><Input id="mail-reply-to-name" value={identity.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("ReplyToName", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Name} autoComplete="off" /></Field>
+                    <Field id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
+                  </div>
+                </section>
+                <RequirePermission perm="platform.settings.write">
+                  <Button onClick={saveIdentity} disabled={busy !== ""} busy={busy === "identity"}>{t("admin.mail.save")}</Button>
+                </RequirePermission>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle className="text-base">SMTP-сервер</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <Field id="mail-host" label="Сервер"><Input id="mail-host" value={form.Host} onChange={(event) => change("Host", event.target.value)} disabled={disabled} placeholder="email-smtp.eu-central-1.amazonaws.com" autoComplete="off" /></Field>
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
-                  <Field id="mail-port" label="Порт"><Input id="mail-port" type="number" min={1} max={65535} value={form.Port} onChange={(event) => change("Port", event.target.value)} disabled={disabled} /></Field>
-                  <div className="space-y-1.5"><span className="block text-sm font-medium">Шифрування</span><SelectMenu value={form.TLSMode} onChange={(value) => { change("TLSMode", value as MailTLSMode); if (value === "tls" && form.Port === "587") change("Port", "465"); if (value === "starttls" && form.Port === "465") change("Port", "587") }} options={TLS_OPTIONS} ariaLabel="Шифрування" disabled={disabled} className="w-full" /></div>
-                </div>
-                <Field id="mail-username" label="Користувач"><Input id="mail-username" value={form.Username} onChange={(event) => change("Username", event.target.value)} disabled={disabled} autoComplete="off" /></Field>
-                <Field id="mail-password" label="Пароль">
-                  {form.ClearPassword ? (
-                    <div className="flex h-10 items-center justify-between gap-3 rounded-md border border-border bg-secondary px-3 text-sm">
-                      <span className="text-muted-foreground">Пароль буде видалено після збереження</span>
-                      <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => change("ClearPassword", false)}>Скасувати</Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Input id="mail-password" type="password" value={form.Password} onChange={(event) => change("Password", event.target.value)} disabled={disabled} autoComplete="new-password" placeholder={settings.PasswordSet ? "Пароль збережено" : ""} />
-                      {settings.PasswordSet && canWrite && <Button type="button" variant="outline" className="h-10 shrink-0" disabled={disabled} onClick={() => { change("ClearPassword", true); change("Password", "") }}>Видалити пароль</Button>}
-                    </div>
-                  )}
-                  {settings.PasswordSet && !form.ClearPassword && <p className="text-xs text-muted-foreground">Пароль збережено. Залиште поле порожнім, щоб не змінювати його.</p>}
-                </Field>
-              </CardContent>
-            </Card>
+            <MailFooterCard footer={settings.Footer} canWrite={canWrite} onSaved={(next) => setSettings((current) => current && { ...current, Footer: next.Footer })} />
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Відправник</CardTitle>
-                <CardDescription>Від імені кого надходять листи платформи.</CardDescription>
+                <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.smtpTitle")}<FieldHelp text={t("admin.mail.smtpDescription")} /></CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Field id="mail-from-name" label="Ім'я відправника"><Input id="mail-from-name" value={form.FromName} onChange={(event) => change("FromName", event.target.value)} disabled={disabled} placeholder={DEFAULT_FROM_NAME} /></Field>
-                  <Field id="mail-from-address" label="Адреса відправника"><Input id="mail-from-address" type="email" value={form.FromAddress} onChange={(event) => change("FromAddress", event.target.value)} disabled={disabled} placeholder={FROM_ADDRESS_EXAMPLE} /></Field>
-                  <Field id="mail-reply-to" label="Reply-To"><Input id="mail-reply-to" type="email" value={form.ReplyTo} onChange={(event) => change("ReplyTo", event.target.value)} disabled={disabled} placeholder={REPLY_TO_EXAMPLE} /></Field>
+                <div className="space-y-1 text-sm">
+                  <p className={`flex items-center gap-1.5 ${settings.Source === "none" ? "font-medium text-destructive" : "font-medium text-foreground"}`} data-testid="mail-source">
+                    {settings.Source in SOURCE_LABEL_KEY ? t(SOURCE_LABEL_KEY[settings.Source]) : settings.Source}
+                    {sourceHelp(settings) && <FieldHelp text={sourceHelp(settings)} />}
+                  </p>
+                  {settings.Source === "database" && settings.SMTP?.UpdatedAt && <p className="text-muted-foreground">{t("admin.mail.updatedAt", { date: new Date(settings.SMTP.UpdatedAt).toLocaleString("uk-UA") })}</p>}
                 </div>
-                <div className="rounded-md bg-[var(--ib-soft)] p-3 text-sm">
-                  <p className="text-foreground">Домен відправлення: <span className="font-mono">{sendingDomain || "—"}</span></p>
-                  <p className="mt-1 text-muted-foreground">Листи учасникам заходу надсилаються як «&lt;Назва заходу&gt; &lt;тег@{sendingDomain || "домен"}&gt;». SMTP заходу має бути авторизований для цього домену.</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field id="mail-host" label={t("admin.mail.host")} required><Input id="mail-host" value={smtp.Host} onChange={(event) => changeSmtp("Host", event.target.value)} disabled={disabled} placeholder="email-smtp.eu-central-1.amazonaws.com" autoComplete="off" /></Field>
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
+                    <Field id="mail-port" label={t("admin.mail.port")} required><Input id="mail-port" type="number" min={1} max={65535} value={smtp.Port} onChange={(event) => changeSmtp("Port", event.target.value)} disabled={disabled} /></Field>
+                    <div className="space-y-1.5"><span className="block text-sm font-medium">{t("admin.mail.encryption")}</span><SelectMenu value={smtp.TLSMode} onChange={(value) => { changeSmtp("TLSMode", value as MailTLSMode); if (value === "tls" && smtp.Port === "587") changeSmtp("Port", "465"); if (value === "starttls" && smtp.Port === "465") changeSmtp("Port", "587") }} options={TLS_OPTIONS} ariaLabel={t("admin.mail.encryption")} disabled={disabled} className="w-full" /></div>
+                  </div>
+                  <Field id="mail-username" label={t("admin.mail.username")}><Input id="mail-username" value={smtp.Username} onChange={(event) => changeSmtp("Username", event.target.value)} disabled={disabled} autoComplete="off" /></Field>
+                  <Field id="mail-password" label={t("admin.mail.password")}>
+                    {smtp.ClearPassword ? (
+                      <div className="flex h-10 items-center justify-between gap-3 rounded-md border border-border bg-secondary px-3 text-sm">
+                        <span className="text-muted-foreground">{t("admin.mail.passwordWillClear")}</span>
+                        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => changeSmtp("ClearPassword", false)}>{t("admin.mail.cancel")}</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <PasswordInput id="mail-password" value={smtp.Password} onChange={(event) => changeSmtp("Password", event.target.value)} disabled={disabled} autoComplete="new-password" placeholder={settings.SMTP?.PasswordSet ? t("admin.mail.passwordSet") : ""} />
+                        {settings.SMTP?.PasswordSet && canWrite && <Button type="button" variant="outline" className="h-10 shrink-0" disabled={disabled} onClick={() => { changeSmtp("ClearPassword", true); changeSmtp("Password", "") }}>{t("admin.mail.clearPassword")}</Button>}
+                      </div>
+                    )}
+                    {settings.SMTP?.PasswordSet && !smtp.ClearPassword && <p className="text-xs text-muted-foreground">{t("admin.mail.passwordKeepHint")}</p>}
+                  </Field>
                 </div>
+
+                {testResult && (
+                  <Alert variant={testResult.Sent ? "success" : "destructive"}>
+                    {testResult.Sent
+                      ? testResult.Transport
+                        ? t("admin.mail.test.sentVia", { recipient: testResult.Recipient, transport: mailTransportLabel(testResult.Transport) })
+                        : t("admin.mail.test.sent", { recipient: testResult.Recipient })
+                      : t(testResult.Recipient ? "admin.mail.test.failedTo" : "admin.mail.test.failed", { recipient: testResult.Recipient, error: testResult.Error || t("admin.mail.test.unknownError") })}
+                  </Alert>
+                )}
+
+                <RequirePermission perm="platform.settings.write">
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={saveSmtp} disabled={busy !== ""} busy={busy === "save"}>{t("admin.mail.save")}</Button>
+                    <Button variant="outline" onClick={test} disabled={busy !== ""} busy={busy === "test"}>{t("admin.mail.test")}</Button>
+                    {settings.Source === "database" && <Button variant="outline" className="sm:ml-auto" onClick={() => setConfirmReset(true)} disabled={busy !== ""} busy={busy === "reset"}>{t("admin.mail.reset")}</Button>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("admin.mail.testHint")}</p>
+                </RequirePermission>
               </CardContent>
             </Card>
 
             {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
             {notice && <p role="status" className="rounded-md bg-[var(--ib-ok-bg)] p-3 text-sm text-foreground">{notice}</p>}
-            {testResult && (
-              <Alert variant={testResult.Sent ? "success" : "destructive"}>
-                {testResult.Sent
-                  ? `Тестовий лист надіслано на ${testResult.Recipient}${testResult.Transport ? ` (${mailTransportLabel(testResult.Transport)})` : ""}.`
-                  : `Не вдалося надіслати тестовий лист${testResult.Recipient ? ` на ${testResult.Recipient}` : ""}: ${testResult.Error || "невідома помилка"}`}
-              </Alert>
-            )}
-
-            <RequirePermission perm="platform.settings.write">
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={save} disabled={busy !== ""}>{busy === "save" ? "Збереження…" : "Зберегти"}</Button>
-                <Button variant="outline" onClick={test} disabled={busy !== ""}>{busy === "test" ? "Перевірка…" : "Перевірити підключення"}</Button>
-                {settings.Source === "database" && <Button variant="outline" className="sm:ml-auto" onClick={() => setConfirmReset(true)} disabled={busy !== ""}>Повернутися до налаштувань оточення</Button>}
-              </div>
-              <p className="text-xs text-muted-foreground">Тестовий лист надсилається на вашу адресу з поточними значеннями форми, без збереження.</p>
-            </RequirePermission>
           </>
         )}
       </div>
 
-      <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Повернутися до налаштувань оточення?</DialogTitle>
-            <DialogDescription>Збережені SMTP-налаштування платформи буде видалено. Пошта надсилатиметься через SMTP_* з оточення, а якщо їх немає — не надсилатиметься.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmReset(false)}>Скасувати</Button>
-            <Button variant="destructive" onClick={reset}>Видалити налаштування</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={confirmReset} onCancel={() => setConfirmReset(false)} tone="danger"
+        title={t("admin.mail.resetConfirmTitle")} description={t("admin.mail.resetConfirmBody")}
+        cancelLabel={t("admin.mail.cancel")} confirmLabel={t("admin.mail.resetConfirm")} onConfirm={reset} />
     </RequirePermission>
   )
 }
 
-function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><label htmlFor={id} className="block text-sm font-medium">{label}</label>{children}</div>
+// The details of the SMTP source (server config values, what to do) sit behind the (?).
+function sourceHelp(settings: MailSettings): string {
+  if (settings.Source === "none") return t("admin.mail.noneHint")
+  if (settings.Source !== "env" || !settings.Env) return ""
+  const env = settings.Env
+  const summary = t(env.ReplyTo ? "admin.mail.envSummaryReplyTo" : "admin.mail.envSummary", { host: env.Host, port: env.Port, name: env.FromName, address: env.FromAddress, replyTo: env.ReplyTo })
+  return `${summary}. ${t("admin.mail.envHint")}`
+}
+
+// A field tooltip: what the field is, then where its current value comes from.
+function withSource(help: string, source: MailFieldSource, envName: string): string {
+  return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
+}
+
+function SectionTitle({ id, title, help }: { id?: string; title: string; help: string }) {
+  return <h3 id={id} className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{title}<FieldHelp text={help} /></h3>
+}
+
+function Field({ id, label, help, required, children }: { id: string; label: string; help?: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <label htmlFor={id} className="block text-sm font-medium">{label}</label>
+        {required && <span aria-hidden="true" className="-ml-1 text-sm text-destructive">*</span>}
+        {help && <FieldHelp text={help} />}
+      </div>
+      {children}
+    </div>
+  )
 }

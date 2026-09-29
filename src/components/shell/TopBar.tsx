@@ -9,7 +9,13 @@ import { t } from "@/i18n/t"
 import { Menu } from "lucide-react"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { idOrigin } from "@/lib/origins"
+import { exercisesOrigin, idOrigin } from "@/lib/origins"
+import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
+import { initials } from "@/lib/initials"
+import { CookieSettingsMenuItem } from "@/components/consent/CookieSettingsMenuItem"
+
+// Unified account menu (lib/accountMenu): same entries, labels and icons in every app.
+const ICON_CLASS = "shrink-0 text-muted-foreground group-focus:text-accent-foreground"
 
 // Sign out from the ADMIN origin so DeAuthenticate clears this subdomain's local
 // token (httpOnly, out of the id app's reach) and deletes the master session
@@ -30,18 +36,25 @@ async function signOutAndRedirect(): Promise<void> {
 export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
   const { me, role } = useRole()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
-  const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
+  // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
+  const adminTier = role !== null && role !== "user"
+  const entries = accountMenu(
+    "admin",
+    { adminTier, catalog: adminTier, returnTo },
+    { id: idOrigin, admin: "", exercises: exercisesOrigin },
+  )
+  const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
     <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <button type="button" aria-label="Відкрити меню" onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />
-        <InboxButton />
+        <InboxButton defaultTab="requestsIfOpen" />
         {role === "admin_viewer" && (
           <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {t("admin.role.viewOnlyBadge")}
@@ -61,7 +74,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
                 className="h-full w-full object-cover"
               />
             ) : (
-              initials || "?"
+              avatarInitials
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -70,13 +83,24 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href={`${idOrigin}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-              {t("admin.signOut")}
-            </DropdownMenuItem>
+            {entries.map((entry, i) => {
+              if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
+              if (entry.kind === "cookies") return <CookieSettingsMenuItem key={i} />
+              if (entry.kind === "signOut") {
+                const Icon = ACCOUNT_MENU_ICONS.signOut
+                return (
+                  <DropdownMenuItem key={i} className="group gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
+                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.signOut)}
+                  </DropdownMenuItem>
+                )
+              }
+              const Icon = ACCOUNT_MENU_ICONS[entry.key]
+              return (
+                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
+                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS[entry.key])}</a>
+                </DropdownMenuItem>
+              )
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

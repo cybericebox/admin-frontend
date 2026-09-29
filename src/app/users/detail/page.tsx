@@ -5,14 +5,14 @@ import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
+import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
-import {
-  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 
 type UserDetail = {
@@ -54,20 +54,22 @@ function Detail() {
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(false)
 
   async function load() {
     if (!id) { setNotFound(true); setLoading(false); return }
     setLoading(true)
     setNotFound(false)
-    setLoadError(false)
+    setLoadError(null)
     try {
       setUser(await apiGet<UserDetail>(`/api/users/${id}`))
     } catch (error) {
       setNotFound(isNotFound(error))
-      setLoadError(!isNotFound(error))
+      setLoadError(isNotFound(error) ? null : { cause: error })
     } finally {
       setLoading(false)
     }
@@ -77,7 +79,7 @@ function Detail() {
     let active = true
     apiGet<UserDetail>(`/api/users/${id}`)
       .then((data) => { if (active) setUser(data) })
-      .catch((error) => { if (active) { setNotFound(isNotFound(error)); setLoadError(!isNotFound(error)) } })
+      .catch((error) => { if (active) { setNotFound(isNotFound(error)); setLoadError(isNotFound(error) ? null : { cause: error }) } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [id, reloadKey])
@@ -87,7 +89,7 @@ function Detail() {
     try {
       await apiPatch(`/api/users/${id}/role`, { Role: role })
       await load()
-      toast.success("Роль користувача змінено.")
+      toast.success(t("admin.userDetail.roleChanged"))
     } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function setStatus(status: string) {
@@ -95,16 +97,17 @@ function Detail() {
     try {
       await apiPatch(`/api/users/${id}/status`, { Status: status })
       await load()
-      toast.success("Статус користувача змінено.")
+      toast.success(t("admin.userDetail.statusChanged"))
     } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function remove() {
     setBusy(true)
+    setDeleteError(false)
     try {
       await apiDelete(`/api/users/${id}`)
-      toast.success("Користувача видалено.")
+      toast.success(t("admin.userDetail.deleted"))
       router.push("/users")
-    } catch { toast.error(t("admin.userDetail.actionError")); setBusy(false) }
+    } catch { setDeleteError(true); setBusy(false) }
   }
 
   if (loading && id) {
@@ -114,16 +117,15 @@ function Detail() {
     return (
       <div className="frost-panel frost-in rounded-lg p-8">
         <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <p role="alert" className="mt-4 text-sm text-destructive">{t("admin.userDetail.loadError")}</p>
-        <Button variant="outline" className="mt-3" onClick={() => { setLoading(true); setLoadError(false); setReloadKey((k) => k + 1) }}>{t("admin.userDetail.retry")}</Button>
+        <LoadError message={t("admin.userDetail.loadError")} error={loadError.cause} onRetry={() => { setLoading(true); setLoadError(null); setReloadKey((k) => k + 1) }} />
       </div>
     )
   }
   if (notFound || !user) {
     return (
-      <div className="frost-panel frost-in rounded-lg p-8">
+      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
         <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <EmptyState message={t("admin.userDetail.notFound")} />
+        <EmptyState className="flex-1" message={t("admin.userDetail.notFound")} />
       </div>
     )
   }
@@ -182,7 +184,7 @@ function Detail() {
               <SelectMenu
                 value={user.Role}
                 onChange={changeRole}
-                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: t(`admin.role.${r}`) }))}
+                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: roleLabel(r) }))}
                 disabled={busy}
                 className="w-48"
               />
@@ -198,23 +200,13 @@ function Detail() {
           )}
 
           {can("users.delete") && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" disabled={busy}>{t("admin.userDetail.delete")}</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
-                  <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
-                  </DialogClose>
-                  <Button variant="destructive" disabled={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <>
+              <Button variant="destructive" disabled={busy} onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
+              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={busy}
+                title={t("admin.userDetail.deleteConfirmTitle")} description={t("admin.userDetail.deleteConfirmBody")}
+                cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.delete")}
+                error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />
+            </>
           )}
 
         </div>

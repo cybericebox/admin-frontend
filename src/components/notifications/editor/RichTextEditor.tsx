@@ -118,8 +118,9 @@ import {
   EyeOff,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { t } from "@/i18n/t";
-import { type VariableDef } from "./variableUtils";
+import { VARIABLE_TOKEN, type VariableDef } from "./variableUtils";
 import { VariablePickerMenu } from "./VariablePickerMenu";
 import {
   DropdownMenu,
@@ -255,26 +256,32 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
   const { definitions, unavailableLabels, onEdit, highlight, showNames } = useContext(VariablePreviewContext);
   const definition = definitions.get(name);
   const missing = name.startsWith("ph_") && !definition;
+  // A name the type does not declare is flagged (once the list is loaded), never shown as a normal pill.
+  const unknown = !missing && !definition && definitions.size > 0;
   const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : showNames ? name : definition?.example ?? `{{${name}}}`;
-  const marked = highlight || missing;
+  const marked = highlight || missing || unknown;
   const style = cn(marked ? "inline-flex items-baseline rounded border px-1 align-baseline leading-[inherit]" : "inline align-baseline leading-[inherit]",
-    missing ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
+    missing || unknown ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
+    unknown && "underline decoration-wavy",
     formats.includes("bold") && "font-bold", formats.includes("italic") && "italic", formats.includes("underline") && "underline",
     formats.includes("strikethrough") && "line-through", formats.includes("code") && "font-mono");
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
-  if (onEdit) return <button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
-    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`} title={definition?.description ?? (missing ? content : name)}
-    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button>;
+  const hint = definition?.description ?? (missing ? content : unknown ? t("admin.notif.editor.unknownVariable", { name }) : name);
+  if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
+    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
+    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
+    <HoverTooltip text={hint} className="inline">
       <span
         data-notif-variable={showNames ? name : undefined}
+        data-notif-variable-invalid={unknown ? name : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}
-        title={definition?.description ?? (missing ? content : name)}
       >
         {content}
       </span>
+    </HoverTooltip>
   );
 }
 
@@ -315,7 +322,7 @@ function Tooltip({
       {children}
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity shadow-md"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
       >
         {label}
       </div>
@@ -801,7 +808,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const rect = anchorElementRef.current.getBoundingClientRect();
     return createPortal(
       <div
-        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input shadow-lg"
+        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
         style={{ top: rect.bottom + 4, left: rect.left }}
       >
         {menuOptions.map((opt, idx) => (
@@ -899,6 +906,67 @@ function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | nu
       }
     });
   }, [editor, value, lastEmittedRef]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// VariableTokenPlugin — a {{token}} left as plain text becomes a variable node
+// ---------------------------------------------------------------------------
+
+// The email renderer substitutes variable NODES only; a `{{name}}` typed, pasted
+// or stored as plain text would be sent literally. Every such token turns into a
+// node: a known name is a normal pill, an unknown one is flagged by VariablePreview.
+// Runs after each update of an editable editor, so it also covers stored content
+// and the moment the variable list finishes loading. Code-formatted text is left alone.
+function isConvertibleText(node: TextNode): boolean {
+  return node.isSimpleText() && !node.hasFormat("code") && VARIABLE_TOKEN.test(node.getTextContent());
+}
+
+export function $convertVariableTokens(): boolean {
+  let changed = false;
+  for (const node of $getRoot().getAllTextNodes()) {
+    let current: TextNode | null = node;
+    while (current && current.isAttached() && isConvertibleText(current)) {
+      const source: TextNode = current;
+      const text: string = source.getTextContent();
+      const match = VARIABLE_TOKEN.exec(text);
+      if (!match) break;
+      const start = match.index;
+      const end = start + match[0].length;
+      const formats = VARIABLE_TEXT_FORMATS.filter((format) => source.hasFormat(format));
+      const offsets: number[] = [start, end].filter((offset) => offset > 0 && offset < text.length);
+      const parts: TextNode[] = offsets.length ? source.splitText(...offsets) : [source];
+      const token: TextNode = parts[start > 0 ? 1 : 0];
+      const rest: TextNode | null = parts[start > 0 ? 2 : 1] ?? null;
+      token.replace($createVariableNode(match[1], formats));
+      changed = true;
+      current = rest;
+    }
+  }
+  return changed;
+}
+
+function VariableTokenPlugin({ enabled }: { enabled: boolean }): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    // With no variable list (still loading) nothing can be judged yet.
+    if (!enabled) return;
+    let scheduled = false;
+    const sweepIfNeeded = () => {
+      if (scheduled || !editor.isEditable()) return;
+      const pending = editor.getEditorState().read(() => $getRoot().getAllTextNodes().some(isConvertibleText));
+      if (!pending) return;
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        editor.update(() => { $convertVariableTokens(); }, { tag: "history-merge" });
+      });
+    };
+    sweepIfNeeded();
+    return editor.registerUpdateListener(sweepIfNeeded);
+  }, [editor, enabled]);
 
   return null;
 }
@@ -1055,12 +1123,12 @@ export function RichTextEditor({
         {!disabled && <ToolbarPlugin variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
-        <div className="relative">
+        <div className="editor-scroll relative min-h-[200px] has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring">
           <RichTextPlugin
             contentEditable={
-              placeholder ? (
+              <div className="editor-scroll__body">{placeholder ? (
                 <ContentEditable
-                  className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="px-4 py-3 text-sm text-foreground outline-none"
                   aria-placeholder={placeholder}
                   placeholder={() => (
                     <div className="absolute top-3 left-4 text-sm text-muted-foreground pointer-events-none">
@@ -1069,18 +1137,19 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none" />
-              )
+                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" />
+              )}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
         </div>
 
-        <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
+        <OnChangePlugin onChange={handleChange} ignoreSelectionChange ignoreHistoryMergeTagChange={false} />
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
         <VariablePlugin variables={variables} />
+        <VariableTokenPlugin enabled={variables.length > 0 && !disabled} />
         <MarkdownPastePlugin variables={variables} />
         <EditableSync editable={!disabled} />
         <ExternalStateSync value={value} lastEmittedRef={lastEmitted} />

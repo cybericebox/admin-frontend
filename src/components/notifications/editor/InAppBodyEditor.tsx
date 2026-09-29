@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react"
 import DOMPurify from "isomorphic-dompurify"
 import { Bold, Braces, ChevronDown, Italic } from "lucide-react"
 import { t } from "@/i18n/t"
-import type { VariableDef } from "./variableUtils"
+import { INVALID_PILL_CLASS, VARIABLE_TOKEN, unknownVariableHint, type VariableDef } from "./variableUtils"
 import { VariablePickerMenu } from "./VariablePickerMenu"
 import { historyDirection, placeCaretAtEnd, TemplateFieldHistory } from "./templateFieldHistory"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // Preserve formatting in templates authored before the per-message font control was removed.
 const LEGACY_FONTS = ["Arial", "Georgia", "Verdana"] as const
@@ -41,16 +42,26 @@ export function normalizeInAppBody(html: string): string {
   return Array.from(root.childNodes).map(visit).join("").replace(/(?:<br>)+$/, "")
 }
 
-function variablePill(name: string): HTMLSpanElement {
+const VALID_PILL_CLASS = "mx-0.5 rounded border border-amber-300 bg-amber-100 px-1 text-amber-950 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+const INVALID_PILL_STYLE = `${INVALID_PILL_CLASS} mx-0.5 rounded border border-destructive/40 bg-destructive/10 px-1 text-destructive underline decoration-wavy`
+
+function variablePill(name: string, invalid = false): HTMLSpanElement {
   const pill = document.createElement("span")
   pill.dataset.var = name
   pill.contentEditable = "false"
-  pill.className = "mx-0.5 rounded border border-amber-300 bg-amber-100 px-1 text-amber-950 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+  pill.className = invalid ? INVALID_PILL_STYLE : VALID_PILL_CLASS
+  if (invalid) {
+    pill.dataset.invalid = "true"
+    pill.title = unknownVariableHint(name)
+  }
   pill.textContent = name
   return pill
 }
 
+// Every {{token}} in the text becomes a pill: valid for a declared variable,
+// flagged red for an unknown one. Skipped while the list is empty (not loaded).
 function decorateVariables(editor: HTMLElement, variables: VariableDef[]) {
+  if (variables.length === 0) return
   const known = new Set(variables.map((item) => item.name))
   const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
   const nodes: Text[] = []
@@ -58,15 +69,14 @@ function decorateVariables(editor: HTMLElement, variables: VariableDef[]) {
   for (const node of nodes) {
     if (node.parentElement?.dataset.var) continue
     const text = node.textContent ?? ""
-    const pattern = /\{\{\.?([A-Za-z_]\w*)\}\}/g
+    const pattern = new RegExp(VARIABLE_TOKEN.source, "g")
     let match: RegExpExecArray | null
     let last = 0
     const fragment = document.createDocumentFragment()
     let replaced = false
     while ((match = pattern.exec(text))) {
-      if (!known.has(match[1])) continue
       fragment.appendChild(document.createTextNode(text.slice(last, match.index)))
-      fragment.appendChild(variablePill(match[1]))
+      fragment.appendChild(variablePill(match[1], !known.has(match[1])))
       last = pattern.lastIndex
       replaced = true
     }
@@ -151,12 +161,12 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
 
   return <div className="rounded-md border border-border bg-background">
     <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5">
-      <button type="button" title={t("admin.notif.editor.bold")} aria-label={t("admin.notif.editor.bold")} disabled={disabled}
+      <HoverTooltip text={t("admin.notif.editor.bold")}><button type="button" aria-label={t("admin.notif.editor.bold")} disabled={disabled}
         onMouseDown={(event) => event.preventDefault()} onClick={() => format("strong")}
-        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Bold className="h-4 w-4" /></button>
-      <button type="button" title={t("admin.notif.editor.italic")} aria-label={t("admin.notif.editor.italic")} disabled={disabled}
+        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Bold className="h-4 w-4" /></button></HoverTooltip>
+      <HoverTooltip text={t("admin.notif.editor.italic")}><button type="button" aria-label={t("admin.notif.editor.italic")} disabled={disabled}
         onMouseDown={(event) => event.preventDefault()} onClick={() => format("em")}
-        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Italic className="h-4 w-4" /></button>
+        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Italic className="h-4 w-4" /></button></HoverTooltip>
       {variables.length > 0 && <div className="relative ml-auto">
         <button type="button" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => setMenuOpen((open) => !open)}
           aria-label={t("admin.notif.editor.insertVariable")}
@@ -167,6 +177,8 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
           className="absolute right-0 top-full mt-1" />}
       </div>}
     </div>
+    <div className="editor-scroll min-h-28 has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-ring">
+    <div className="editor-scroll__body">
     <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true"
       aria-label={t("admin.notif.tpl.body")}
       onKeyDown={(event) => {
@@ -184,6 +196,8 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
       onInput={emit} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onFocus={rememberSelection}
       onBlur={() => { if (editorRef.current) decorateVariables(editorRef.current, variables) }}
       onPaste={(event) => { event.preventDefault(); insertNode(document.createTextNode(event.clipboardData.getData("text/plain"))) }}
-      className="min-h-28 px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      className="px-3 py-2 text-sm leading-relaxed text-foreground outline-none" />
+    </div>
+    </div>
   </div>
 }

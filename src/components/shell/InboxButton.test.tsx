@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { InboxButton } from "./InboxButton"
 
-const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }))
+const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), post: vi.fn() }))
 const access = vi.hoisted(() => ({ allowed: true }))
 const navigation = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock("@/api/client", () => ({ apiGet: api.get, apiPatch: api.patch }))
+vi.mock("@/api/client", async (importOriginal) => ({ ...await importOriginal<typeof import("@/api/client")>(), apiGet: api.get, apiPatch: api.patch, apiPost: api.post }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => access.allowed }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }))
 
@@ -36,8 +36,10 @@ describe("top-bar inbox", () => {
     })
     api.get.mockReset()
     api.patch.mockReset()
+    api.post.mockReset()
     navigation.push.mockReset()
     access.allowed = true
+    Element.prototype.scrollTo = vi.fn() as unknown as Element["scrollTo"]
     mockInbox([{ ID: "1", Title: "Запрошення", Body: "Деталі запрошення", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     api.patch.mockResolvedValue(undefined)
   })
@@ -48,24 +50,38 @@ describe("top-bar inbox", () => {
     render(<InboxButton />)
     expect(await screen.findByText("1")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: /Вхідні/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Вхідні: 1 непрочитаних" }))
-    fireEvent.click(await screen.findByRole("button", { name: "Позначити прочитаним" }))
+    fireEvent.click(screen.getByRole("button", { name: "Вхідні, непрочитані: 1" }))
+    fireEvent.click(within(await screen.findByRole("listitem")).getByRole("button", { name: "Позначити прочитаним" }))
     expect(screen.getByText("Деталі запрошення")).toBeInTheDocument()
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/1/read", {}))
   })
 
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
-    fireEvent.click(await screen.findByRole("button", { name: "Позначити все прочитаним" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+    await screen.findByRole("listitem")
+    // The header action comes first; each row has its own.
+    fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
+  })
+
+  it("lists every notification and labels Event-bound ones with the Event name", async () => {
+    mockInbox([
+      { ID: "1", Title: "Старт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventID: "e1", EventName: "Зимовий CTF", EventTag: "winter" },
+      { ID: "2", Title: "Акаунт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", EventID: null, EventName: null, EventTag: null },
+    ])
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+    expect((await screen.findByText("Старт")).closest("li")).toHaveTextContent("Зимовий CTF")
+    expect(screen.getByText("Акаунт").closest("li")).not.toHaveTextContent("Зимовий CTF")
+    for (const [path] of api.get.mock.calls) expect(new URL(path as string, "http://x").searchParams.has("event")).toBe(false)
   })
 
   it("shows the saved notification icon in the inbox", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Icon: "calendar", Tone: "info", AccentColor: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect((await screen.findByText("Подія")).closest("li")).toContainHTML("lucide-calendar-days")
   })
 
@@ -79,10 +95,10 @@ describe("top-bar inbox", () => {
         ? { Items: [older], NextCursor: null }
         : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 25 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 25" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(await screen.findByText("Раніше")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Вхідні: 25 непрочитаних" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 25" })).toBeInTheDocument()
     expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before_id=recent"))
     expect(screen.queryByRole("button", { name: "Завантажити ще" })).not.toBeInTheDocument()
   })
@@ -96,7 +112,7 @@ describe("top-bar inbox", () => {
         ? { Items: [older], NextCursor: null }
         : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 2 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(screen.queryByText("Раніше")).not.toBeInTheDocument()
     act(() => observers.at(-1)?.trigger())
@@ -106,7 +122,7 @@ describe("top-bar inbox", () => {
   it("shows a safe transition link below the message", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "/events", Actions: [{ label: "Інша дія", href: "/other" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(screen.getByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
     expect(screen.queryByRole("link", { name: "Інша дія" })).not.toBeInTheDocument()
   })
@@ -114,9 +130,9 @@ describe("top-bar inbox", () => {
   it("does not turn a pop-in action into the optional inbox link", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
+    expect(within(screen.getByRole("listitem")).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
   })
 
   it("pops only fresh unread messages with a configured duration", async () => {
@@ -128,13 +144,13 @@ describe("top-bar inbox", () => {
         ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 1 }
         : { Items: [old], NextCursor: null }))
     render(<InboxButton />)
-    expect(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" })).toBeInTheDocument()
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
 
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     expect(popIn).toHaveTextContent("Нове")
-    expect(screen.getByRole("button", { name: "Вхідні: 2 непрочитаних" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 2" })).toBeInTheDocument()
   })
 
   it("pops a fresh message for five seconds when the template duration is empty", async () => {
@@ -206,17 +222,81 @@ describe("top-bar inbox", () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/events"))
   })
 
-  it("centers the unframed shared icon and disables read-all when the inbox is empty", async () => {
+  it("centers the framed shared icon and disables read-all when the inbox is empty", async () => {
     mockInbox([])
     render(<InboxButton />)
     fireEvent.click(screen.getByRole("button", { name: "Вхідні" }))
-    const empty = await screen.findByText("Повідомлень поки немає.")
+    const empty = await screen.findByText("Немає сповіщень")
     expect(empty.closest("[data-empty-state]")?.querySelector("svg path")?.getAttribute("d"))
       .toBe("M4.5 5.5h15L21.5 18a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2l2-12.5Z")
-    expect(empty.closest("[data-empty-state]")?.querySelector("span")).not.toHaveClass("border")
-    expect(empty.closest("[data-empty-state]")?.querySelector("svg")).toHaveClass("h-8", "w-8")
-    expect(screen.getByRole("button", { name: "Позначити все прочитаним" })).toBeDisabled()
+    expect(empty.closest("[data-empty-state]")?.querySelector("span")).toHaveClass("border")
+    expect(empty.closest("[data-empty-state]")?.querySelector("svg")).toHaveClass("h-5", "w-5")
+    expect(empty.closest("[data-empty-state]")?.parentElement).toHaveClass("min-h-48", "items-center", "justify-center")
+    expect(screen.getByRole("button", { name: "Позначити прочитаним" })).toBeDisabled()
     expect(document.querySelectorAll("svg.lucide-bell")).toHaveLength(2)
+  })
+
+  describe("categories", () => {
+    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", Type: "event.lab.failed", Category: "requests", ActionRequired: true, ResolvedAt: null }
+    const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:30:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u", Name: "Іван П." } }
+    const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal" }
+    function mockCategories(requests: number) {
+      api.get.mockImplementation((path: string) => {
+        const url = new URL(path, "http://x")
+        if (url.pathname.endsWith("/poll")) return Promise.resolve({ Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: { All: requests + 1, Requests: requests, Personal: 1, Activity: 0 }, OtherEventsCount: 0 })
+        const category = url.searchParams.get("category")
+        const all = [done, lab, personal]
+        return Promise.resolve({ Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: null })
+      })
+    }
+
+    it("opens on «Запити» when requests are open: open first, resolved below with who resolved them", async () => {
+      mockCategories(1)
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+      expect(await screen.findByRole("tab", { name: "Запити: 1", selected: true })).toBeInTheDocument()
+      await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?category=requests"))
+      const rows = (await screen.findAllByRole("listitem")).map((row) => row.textContent)
+      expect(rows[0]).toContain("Лабораторія впала")
+      expect(rows[1]).toMatch(/Схвалив Іван П\., /)
+      expect(screen.queryByText("Особисте повідомлення")).not.toBeInTheDocument()
+    })
+
+    it("opens on «Усі» without open requests", async () => {
+      mockCategories(0)
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+      expect(await screen.findByRole("tab", { name: "Усі: 1", selected: true })).toBeInTheDocument()
+    })
+
+    it("marks only the current tab read", async () => {
+      mockCategories(0)
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+      fireEvent.click(await screen.findByRole("tab", { name: "Особисте: 1" }))
+      expect(await screen.findByText("Особисте повідомлення")).toBeInTheDocument()
+      fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?category=personal", {}))
+    })
+
+    it("resolves a failed lab by hand and shows a localized error", async () => {
+      mockCategories(1)
+      const { ApiError } = await import("@/api/client")
+      api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219))
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+      fireEvent.click(await screen.findByRole("button", { name: "Вирішено" }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/lab/resolve", {}))
+      expect(await screen.findByRole("alert")).toHaveTextContent("Запит уже вирішено")
+      expect(screen.getAllByRole("button", { name: "Вирішено" })).toHaveLength(1)
+    })
+  })
+
+  it("shows only «Усі» when the backend sends no counts", async () => {
+    render(<InboxButton defaultTab="requestsIfOpen" />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+    expect(await screen.findByText("Запрошення")).toBeInTheDocument()
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
   })
 
   it("is absent without access to own notifications", () => {

@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { notifTypeLabel, notifChannelLabel, notifAudienceLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { useRole } from "@/lib/useRole"
 import { listSignalDefaults, updateSignalDefault, type SignalDefault } from "@/api/notifications/signalDefaults"
@@ -51,16 +52,17 @@ export function SignalDefaultsSection() {
   const canWrite = useRole().can("notifications.settings.write")
   const [items, setItems] = useState<SignalDefault[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     listSignalDefaults()
       .then((d) => { if (!cancelled) setItems(d ?? []) })
-      .catch(() => { if (!cancelled) setError(true) })
+      .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [attempt])
 
   async function toggle(current: SignalDefault, enabled: boolean) {
     const next = { ...current, Enabled: enabled }
@@ -75,7 +77,7 @@ export function SignalDefaultsSection() {
     }
   }
 
-  if (error) return <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
+  if (error) return <LoadError message={t("admin.notif.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setAttempt((key) => key + 1) }} />
   if (loading) return <LoadingArea label={t("admin.loading")} />
 
   const rows = groupBySignalType(items)

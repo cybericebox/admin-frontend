@@ -88,7 +88,7 @@ describe("admin users page", () => {
     mocks.get.mockRejectedValueOnce(new Error("offline"))
     render(<Page />)
     expect(await screen.findByText("admin.users.loadError")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.users.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
   })
 
@@ -114,16 +114,27 @@ describe("admin users page", () => {
     expect(screen.queryByText("Старий Коваль")).not.toBeInTheDocument()
   })
 
+  it("keeps the requested page when the idle search debounce settles", async () => {
+    const first = { ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", CreatedAt: "2026-09-01T00:00:00Z" }
+    mocks.get.mockResolvedValue({ Items: [first], Total: 51 })
+    render(<Page />)
+    await screen.findByText("Олена Коваль")
+    fireEvent.click(screen.getByRole("button", { name: "admin.table.next" }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)))
+    expect(mocks.get.mock.calls.at(-1)?.[0]).toContain("page=2")
+  })
+
   it("lets the operator retry a failed next page", async () => {
     const first = { ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", CreatedAt: "2026-09-01T00:00:00Z" }
     mocks.get.mockResolvedValueOnce({ Items: [first], Total: 51 })
-      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(Object.assign(new Error("offline"), { status: 503 }))
       .mockResolvedValueOnce({ Items: [{ ...first, ID: "user-2", FirstName: "Іван" }], Total: 51 })
     render(<Page />)
     await screen.findByText("Олена Коваль")
     fireEvent.click(screen.getByRole("button", { name: "admin.table.next" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.users.loadError")
-    fireEvent.click(screen.getByRole("button", { name: "admin.users.retry" }))
+    expect(screen.getByRole("alert")).toHaveTextContent("error.load.code")
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Іван Коваль")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.table.previous" }))
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()

@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import {
@@ -17,6 +18,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
+import { PLATFORM_ROLES, roleLabel } from "@/lib/roles"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -33,7 +35,6 @@ export type UserRow = {
 }
 type ListResp = OffsetPage<UserRow>
 
-const ROLES = ["super_admin", "admin", "admin_viewer", "user"]
 const STATUSES = ["active", "blocked", "incomplete"]
 
 function fullName(u: UserRow): string {
@@ -53,7 +54,7 @@ export default function Page() {
   const [sortBy, setSortBy] = useState("created")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
 
   const { can } = useRole()
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -62,9 +63,12 @@ export default function Page() {
 
   // Debounce the search box.
   useEffect(() => {
-    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
+    const next = search.trim()
+    // An unchanged query must not reset the page the user already moved to.
+    if (next === debounced) return
+    const id = setTimeout(() => { setDebounced(next); setPage(1) }, 300)
     return () => clearTimeout(id)
-  }, [search])
+  }, [search, debounced])
 
   const query = (() => {
     const p = new URLSearchParams()
@@ -80,10 +84,10 @@ export default function Page() {
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
     apiGet<ListResp>(`/api/users?${query}`)
       .then((d) => { if (active) { setUsers(d.Items ?? []); setTotal(d.Total ?? 0) } })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [query, reloadKey])
@@ -119,20 +123,20 @@ export default function Page() {
               <span className="truncate">
                 {roles.length === 0
                   ? t("admin.users.filterRolesAll")
-                  : ROLES.filter((r) => roles.includes(r)).map((r) => t(`admin.role.${r}`)).join(", ")}
+                  : PLATFORM_ROLES.filter((r) => roles.includes(r)).map(roleLabel).join(", ")}
               </span>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-48">
-            {ROLES.map((r) => (
+            {PLATFORM_ROLES.map((r) => (
               <DropdownMenuCheckboxItem
                 key={r}
                 checked={roles.includes(r)}
                 onCheckedChange={() => toggleRole(r)}
                 onSelect={(e) => e.preventDefault()}
               >
-                {t(`admin.role.${r}`)}
+                {roleLabel(r)}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -152,12 +156,12 @@ export default function Page() {
       <InviteUsersDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        onClosed={() => { goToPage(1); setError(false); setReloadKey((k) => k + 1) }}
+        onClosed={() => { goToPage(1); setError(null); setReloadKey((k) => k + 1) }}
       />
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && users.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.users.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>
+      {error ? (
+        <LoadError message={t("admin.users.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1) }} className="h-full" />
       ) : loading && users.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : users.length === 0 ? (
@@ -191,7 +195,6 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && users.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.users.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />

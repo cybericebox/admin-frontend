@@ -5,8 +5,9 @@ import Link from "next/link"
 import { createEvent, getInfrastructureAvailable, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { Button } from "@/components/ui/button"
+import { LoadError } from "@/components/ui/load-error"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,7 @@ export default function NewEventPage() {
   const [draft, setDraft] = useState<EventFormValues>({ Name: "", Tag: "", AvailableFrom: "", ArchiveAt: "" })
   const [created, setCreated] = useState<Event | null>(null)
   const [managers, setManagers] = useState<EventManager[]>([])
-  const [managersError, setManagersError] = useState(false)
+  const [managersError, setManagersError] = useState<{ cause: unknown } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [infrastructure, setInfrastructure] = useState(true)
@@ -50,9 +51,9 @@ export default function NewEventPage() {
   async function refreshManagers(eventID: string) {
     try {
       setManagers(await listEventManagers(eventID))
-      setManagersError(false)
-    } catch {
-      setManagersError(true)
+      setManagersError(null)
+    } catch (cause) {
+      setManagersError({ cause })
     }
   }
 
@@ -74,7 +75,7 @@ export default function NewEventPage() {
         InfrastructureAllowed: infrastructure,
       })
       setCreated(saved)
-      toast.success("Захід створено.")
+      toast.success(t("admin.events.create.created"))
       await refreshManagers(saved.ID)
     } catch (cause) {
       toast.error(eventErrorMessage(cause))
@@ -83,13 +84,13 @@ export default function NewEventPage() {
     }
   }
 
-  if (!can("events.write")) return <p role="alert" className="text-sm text-destructive">Недостатньо прав для створення заходу.</p>
+  if (!can("events.write")) return <p role="alert" className="text-sm text-destructive">{t("admin.events.create.forbidden")}</p>
 
   return <div className="w-full space-y-5">
     <div>
       <Link href="/events" className="text-sm text-primary hover:underline">← {t("admin.events.back")}</Link>
       <h1 className="mt-2 text-2xl font-semibold text-foreground">{t("admin.events.create.title")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{created ? "Захід створено. Надайте доступ модераторам або завершіть." : t("admin.events.create.description")}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t(created ? "admin.events.create.createdNext" : "admin.events.create.description")}</p>
     </div>
     {!created ? <Card><CardContent className="pt-5">
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
@@ -99,13 +100,13 @@ export default function NewEventPage() {
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={busy} /></div>
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={busy} /></div>
         </div>
-        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><Checkbox id="new-event-infrastructure" checked={infrastructure} onChange={(event) => setInfrastructure(event.target.checked)} disabled={busy || infrastructureAvailable === false} label={t("admin.events.field.infrastructure")} /><FieldHelp text={t("admin.events.field.infrastructureHelp")} /></div>{infrastructureAvailable === false && <p className="text-xs text-muted-foreground">{t("admin.events.field.infrastructureUnavailable")}</p>}</div>
+        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><div className="flex items-center gap-2"><Switch id="new-event-infrastructure" checked={infrastructure} onCheckedChange={setInfrastructure} disabled={busy || infrastructureAvailable === false} /><label htmlFor="new-event-infrastructure" className="text-sm leading-snug cursor-pointer select-none">{t("admin.events.field.infrastructure")}</label></div><FieldHelp text={t("admin.events.field.infrastructureHelp")} /></div>{infrastructureAvailable === false && <p className="text-xs text-muted-foreground">{t("admin.events.field.infrastructureUnavailable")}</p>}</div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" disabled={busy || !draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
+        <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" busy={busy} disabled={!draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>
     </CardContent></Card> : <>
-      {managersError ? <Card><CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5"><p role="alert" className="text-sm text-destructive">{t("admin.events.access.loadError")}</p><Button type="button" variant="outline" onClick={() => void refreshManagers(created.ID)}>{t("admin.events.access.retry")}</Button></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
-      <div className="flex justify-end"><Button asChild><Link href={`/events/detail?id=${encodeURIComponent(created.ID)}`}>Завершити</Link></Button></div>
+      {managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} error={managersError.cause} onRetry={() => void refreshManagers(created.ID)} /></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
+      <div className="flex justify-end"><Button asChild><Link href={`/events/detail?id=${encodeURIComponent(created.ID)}`}>{t("admin.events.create.finish")}</Link></Button></div>
     </>}
   </div>
 }

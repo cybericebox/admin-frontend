@@ -8,7 +8,7 @@ describe("RoleBadge", () => {
   it("uses one visual style for every platform role", () => {
     const classes = ["super_admin", "admin", "admin_viewer", "user"].map((role) => {
       const { unmount } = render(<RoleBadge role={role} />)
-      const value = screen.getByText(`admin.role.${role}`).className
+      const value = screen.getByText(`role.${role}`).className
       unmount()
       return value
     })

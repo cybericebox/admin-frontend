@@ -28,7 +28,7 @@ export type Event = {
   ArchiveAt: string | null
   Status: EventStatus
   LifecycleStatus?: EventLifecycleStatus
-  /** Admin-set at creation, immutable afterwards (older API builds omit it). */
+  /** Admin-set at creation; changeable only before publication (older API builds omit it). */
   InfrastructureAllowed?: boolean
   CreatedAt: string
   UpdatedAt: string
@@ -111,6 +111,11 @@ export async function getInfrastructureAvailable(): Promise<boolean> {
 /** PUT /api/events/:id */
 export async function updateEvent(id: string, input: EventInput): Promise<Event> {
   return normalizeEvent(await apiPut<Event>(`${BASE}/${id}`, input))
+}
+
+/** PUT /api/events/:id/infrastructure — refused after publication and while infrastructure sets are attached. */
+export async function setEventInfrastructure(id: string, allowed: boolean): Promise<Event> {
+  return normalizeEvent(await apiPut<Event>(`${BASE}/${id}/infrastructure`, { InfrastructureAllowed: allowed }))
 }
 
 /** POST /api/events/:id/archive (empty body) */

@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t"
+import { roleLabel } from "@/lib/roles"
 
 const ROLE_STYLE = "bg-secondary/40 text-foreground"
 
@@ -18,7 +19,7 @@ function pill(styles: string, label: string) {
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  return pill(ROLE_STYLE, t(`admin.role.${role}`))
+  return pill(ROLE_STYLE, roleLabel(role))
 }
 
 export function StatusBadge({ status }: { status: string }) {

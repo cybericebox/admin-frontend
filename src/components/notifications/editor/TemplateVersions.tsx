@@ -8,9 +8,11 @@ import { listInAppTemplates } from "@/api/notifications/inAppTemplates"
 import { t } from "@/i18n/t"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 
 type Version = {
   ID: string
@@ -35,7 +37,8 @@ type Props = {
 export function TemplateVersions({ channel, notificationType, currentId, canWrite, dirty, busy, refreshKey, onRestore }: Props) {
   const [open, setOpen] = useState(false)
   const [versions, setVersions] = useState<Version[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [restoreSource, setRestoreSource] = useState<Version | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState(false)
@@ -51,10 +54,10 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       setVersions(result.Templates
         .filter((version) => version.NotificationType === notificationType)
         .sort((a, b) => Date.parse(b.PublishedAt ?? b.UpdatedAt) - Date.parse(a.PublishedAt ?? a.UpdatedAt)))
-      setLoadError(false)
-    }).catch(() => { if (active) setLoadError(true) })
+      setLoadError(null)
+    }).catch((cause) => { if (active) setLoadError({ cause }) })
     return () => { active = false }
-  }, [channel, notificationType, open, refreshKey])
+  }, [channel, notificationType, open, refreshKey, attempt])
 
   async function restore() {
     if (!restoreSource || restoring || busy) return
@@ -75,16 +78,16 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
   return <>
     <section className="mb-6 rounded-lg border border-border bg-card">
       <button type="button" aria-expanded={open} onClick={() => {
-        if (!open) { setVersions(null); setLoadError(false) }
+        if (!open) { setVersions(null); setLoadError(null) }
         setOpen(!open)
       }} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-foreground hover:bg-accent/50">
         {t("admin.notif.versions.title")}
         <ChevronDown aria-hidden="true" className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="border-t border-border px-4 py-2">
-        {loadError && <p className="py-2 text-sm text-destructive">{t("admin.notif.versions.loadError")}</p>}
+        {loadError && <LoadError message={t("admin.notif.versions.loadError")} error={loadError.cause} compact onRetry={() => { setLoadError(null); setVersions(null); setAttempt((key) => key + 1) }} />}
         {!loadError && versions === null && <LoadingArea compact label={t("admin.loading")} />}
-        {!loadError && versions?.length === 0 && <p className="py-2 text-sm text-muted-foreground">{t("admin.notif.versions.empty")}</p>}
+        {!loadError && versions?.length === 0 && <EmptyState message={t("admin.notif.versions.empty")} compact />}
         {!loadError && versions?.map((version) => <div key={version.ID} className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 last:border-b-0">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -104,21 +107,15 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       </div>}
     </section>
 
-    <Dialog open={restoreSource !== null} onOpenChange={(next) => { if (!next && !restoring) setRestoreSource(null) }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.notif.versions.restoreTitle")}</DialogTitle>
-          <DialogDescription>{t(versions?.some((version) => version.Status === "draft")
-            ? "admin.notif.versions.restoreDescription"
-            : "admin.notif.versions.restoreDescriptionNoDraft")}</DialogDescription>
-        </DialogHeader>
-        {dirty && <p className="text-sm text-destructive">{t("admin.notif.versions.unsavedWarning")}</p>}
-        {restoreError && <p className="text-sm text-destructive">{t("admin.notif.versions.restoreError")}</p>}
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={restoring} onClick={() => setRestoreSource(null)}>{t("admin.notif.tpl.cancel")}</Button>
-          <Button type="button" disabled={restoring || busy} onClick={() => void restore()}>{t("admin.notif.tpl.rollback")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={restoreSource !== null} onCancel={() => { if (!restoring) setRestoreSource(null) }}
+      busy={restoring} disabled={busy} error={restoreError ? t("admin.notif.versions.restoreError") : null}
+      title={t("admin.notif.versions.restoreTitle")}
+      description={t(versions?.some((version) => version.Status === "draft")
+        ? "admin.notif.versions.restoreDescription"
+        : "admin.notif.versions.restoreDescriptionNoDraft")}
+      cancelLabel={t("admin.notif.tpl.cancel")} confirmLabel={t("admin.notif.tpl.rollback")}
+      onConfirm={() => void restore()}>
+      {dirty && <p className="text-sm text-destructive">{t("admin.notif.versions.unsavedWarning")}</p>}
+    </ConfirmDialog>
   </>
 }

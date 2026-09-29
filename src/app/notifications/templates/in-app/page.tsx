@@ -19,6 +19,7 @@ import Link from "next/link"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import {
   latestInAppTemplates,
@@ -70,14 +71,15 @@ function pickUpdatedBy(entry: InAppLatestEntry): string | null {
 function InAppTemplateList() {
   const canWrite = useRole().can("notifications.templates.write")
   const [entries, setEntries] = useState<InAppLatestEntry[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [search, setSearch] = useState("")
 
   useEffect(() => {
     latestInAppTemplates()
       .then(setEntries)
-      .catch(() => setLoadError(true))
-  }, [])
+      .catch((cause) => setLoadError({ cause }))
+  }, [attempt])
 
   // Collect all UpdatedByUserID values using fallback logic
   const userIds: (string | null | undefined)[] = (entries ?? []).map((entry) => {
@@ -96,9 +98,7 @@ function InAppTemplateList() {
   // ── Error state ───────────────────────────────────────────────────────────
   if (loadError) {
     return (
-      <div className="frost-in rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
-        {t("admin.notif.inapp.list.loadError")}
-      </div>
+      <LoadError message={t("admin.notif.inapp.list.loadError")} error={loadError.cause} onRetry={() => { setLoadError(null); setAttempt((key) => key + 1) }} className="frost-panel frost-in h-full rounded-lg" />
     )
   }
 
@@ -113,7 +113,7 @@ function InAppTemplateList() {
         </h1>
         {canWrite && <Link
           href="/notifications/templates/in-app/detail"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           + {t("admin.notif.inapp.list.new")}
         </Link>}
@@ -124,7 +124,7 @@ function InAppTemplateList() {
 
       {/* Empty state */}
       {list.length === 0 ? (
-        <EmptyState message={t("admin.notif.inapp.list.empty")} />
+        <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.inapp.list.empty")} /></div>
       ) : (
         /* Grouped version table */
         <div className="overflow-hidden rounded-lg border border-border bg-background">

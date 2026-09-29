@@ -11,7 +11,6 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({
 }) }))
 
 import Page from "./page"
-import { toast } from "@/components/ui/toast"
 
 const user = {
   ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test",
@@ -53,7 +52,7 @@ describe("admin user detail", () => {
     render(<Page />)
     expect(await screen.findByText("admin.userDetail.loadError")).toBeInTheDocument()
     expect(screen.queryByText("admin.userDetail.notFound")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
   })
 
@@ -65,15 +64,14 @@ describe("admin user detail", () => {
     expect(screen.queryByRole("button", { name: "admin.userDetail.unblock" })).not.toBeInTheDocument()
   })
 
-  it("reports a failed deletion with a toast and keeps the dialog open", async () => {
+  it("reports a failed deletion inside the dialog and keeps it open", async () => {
     mocks.del.mockRejectedValueOnce(new Error("delete failed"))
-    const error = vi.spyOn(toast, "error")
     render(<Page />)
     await screen.findByText("Олена Коваль")
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.delete" }))
     const dialog = screen.getByRole("dialog")
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.delete" }))
-    await waitFor(() => expect(error).toHaveBeenCalledWith("admin.userDetail.actionError"))
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("admin.userDetail.actionError")
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(mocks.push).not.toHaveBeenCalled()
   })
@@ -101,9 +99,9 @@ describe("admin user detail", () => {
     render(<Page />)
     await screen.findByText("Олена Коваль")
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.role.admin_viewer" }))
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" }))
     await waitFor(() => expect(mocks.patch).toHaveBeenCalledWith("/api/users/user-1/role", { Role: "admin_viewer" }))
-    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("admin.role.admin_viewer"))
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer"))
   })
 
   it("hides all account mutations for a super administrator from an ordinary administrator", async () => {

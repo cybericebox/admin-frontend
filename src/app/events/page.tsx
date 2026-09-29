@@ -9,6 +9,7 @@ import {
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toast"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -21,9 +22,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { isUnsetEventDate } from "@/lib/eventDates"
 import { Archive, Trash2, TriangleAlert } from "lucide-react"
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 type DisplayStatus = EventLifecycleStatus | "not_available" | "archived"
 const STATUS_FILTERS: DisplayStatus[] = ["not_available", "not_published", "published", "started", "finished", "withdrawn", "archived"]
@@ -75,30 +74,34 @@ export default function Page() {
   const [sortBy, setSortBy] = useState("updated")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
+    const next = search.trim()
+    // An unchanged query must not reset the page the user already moved to.
+    if (next === debounced) return
+    const id = setTimeout(() => { setDebounced(next); setPage(1) }, 300)
     return () => clearTimeout(id)
-  }, [search])
+  }, [search, debounced])
 
   const filter = { search: debounced, status: statusFilter === "all" ? "" : statusFilter, page, pageSize, sortBy, sortDir }
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
     listEventsPage(filter)
       .then((d) => {
         if (!active) return
         setRows(d.Items); setTotal(d.Total ?? 0)
       })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   // The primitive filter fields, rather than a new object identity, own this request.
@@ -120,26 +123,27 @@ export default function Page() {
   }
 
 
-  function closeConfirm(next: boolean) {
-    if (!next && !confirmBusy) setConfirming(null)
+  function closeConfirm() {
+    if (!confirmBusy) { setConfirming(null); setConfirmError(null) }
   }
 
   async function runConfirm() {
     if (!confirming) return
     setConfirmBusy(true)
+    setConfirmError(null)
     try {
       if (confirming.kind === "archive") {
         const updated = await archiveEvent(confirming.event.ID)
         setRows((prev) => prev.map((r) => (r.ID === updated.ID ? updated : r)))
-        toast.success("Захід архівовано.")
+        toast.success(t("admin.events.archived"))
       } else {
         await deleteEvent(confirming.event.ID)
         setRows((prev) => prev.filter((r) => r.ID !== confirming.event.ID))
-        toast.success("Захід видалено.")
+        toast.success(t("admin.events.deleted"))
       }
       setConfirming(null)
     } catch (e) {
-      toast.error(eventErrorMessage(e))
+      setConfirmError(eventErrorMessage(e))
     } finally {
       setConfirmBusy(false)
     }
@@ -162,8 +166,8 @@ export default function Page() {
       </div>
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.events.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }}>{t("admin.events.access.retry")}</Button></div>
+      {error ? (
+        <LoadError message={t("admin.events.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((value) => value + 1) }} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
@@ -221,44 +225,26 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && rows.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.events.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }}>{t("admin.events.access.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
 
-      <Dialog open={confirming !== null} onOpenChange={closeConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
-            </DialogTitle>
-            <DialogDescription>
-              {t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
-            </DialogDescription>
-          </DialogHeader>
-          {earlyArchiveWarning && (
-            <Alert variant={earlyArchiveWarning === "public" ? "destructive" : "warning"}>
-              <TriangleAlert aria-hidden="true" className="h-4 w-4" />
-              <div>
-                <AlertTitle>{t(`admin.events.archive.${earlyArchiveWarning}Title`)}</AlertTitle>
-                <AlertDescription>{t(`admin.events.archive.${earlyArchiveWarning}Body`)}</AlertDescription>
-              </div>
-            </Alert>
-          )}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" disabled={confirmBusy}>{t("admin.events.dialog.cancel")}</Button>
-            </DialogClose>
-            <Button
-              variant={confirming?.kind === "delete" ? "destructive" : "default"}
-              disabled={confirmBusy}
-              onClick={runConfirm}
-            >
-              {t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} error={confirmError}
+        title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
+        description={t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
+        cancelLabel={t("admin.events.dialog.cancel")}
+        confirmLabel={t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}
+        onConfirm={() => void runConfirm()}>
+        {earlyArchiveWarning && (
+          <Alert variant={earlyArchiveWarning === "public" ? "destructive" : "warning"}>
+            <TriangleAlert aria-hidden="true" className="h-4 w-4" />
+            <div>
+              <AlertTitle>{t(`admin.events.archive.${earlyArchiveWarning}Title`)}</AlertTitle>
+              <AlertDescription>{t(`admin.events.archive.${earlyArchiveWarning}Body`)}</AlertDescription>
+            </div>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

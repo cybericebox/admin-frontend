@@ -35,6 +35,7 @@ import type { VariableDef } from "@/components/notifications/editor/variableUtil
 import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
 import { ApiError, mediaUrl } from "@/api/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -273,11 +274,12 @@ export function BlockEditor({
               <Button
                 type="button"
                 size="sm"
-                disabled={savingPreset || !presetName.trim()}
+                busy={savingPreset}
+                disabled={!presetName.trim()}
                 onClick={() => void handleSavePreset()}
                 aria-label={t("admin.notif.editor.save")}
               >
-                {savingPreset ? t("admin.notif.editor.saving") : t("admin.notif.editor.save")}
+                {t("admin.notif.editor.save")}
               </Button>
               <Button
                 type="button"
@@ -309,9 +311,7 @@ export function BlockEditor({
             {/* Block header row */}
             <div className="flex items-center gap-2 mb-3">
               {/* Selection checkbox */}
-              {showPresetSave && <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              {showPresetSave && <Checkbox
                   checked={selectedIdxs.has(i)}
                   onChange={(e) => {
                     const next = new Set(selectedIdxs);
@@ -319,9 +319,7 @@ export function BlockEditor({
                     else next.delete(i);
                     setSelectedIdxs(next);
                   }}
-                  className="rounded"
-                />
-              </label>}
+                />}
 
               {/* Type pill */}
               <div className="flex-1">
@@ -439,13 +437,11 @@ export function BlockEditor({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={uploadState[stableKey]?.uploading}
+                    busy={uploadState[stableKey]?.uploading}
                     onClick={() => fileInputRefs.current[stableKey]?.click()}
                   >
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    {uploadState[stableKey]?.uploading
-                      ? t("admin.notif.editor.uploading")
-                      : t("admin.notif.editor.uploadImage")}
+                    {!uploadState[stableKey]?.uploading && <Upload className="h-3.5 w-3.5 mr-1.5" />}
+                    {t("admin.notif.editor.uploadImage")}
                   </Button>
                   {(block as ImageBlock).file_id && (
                     <img

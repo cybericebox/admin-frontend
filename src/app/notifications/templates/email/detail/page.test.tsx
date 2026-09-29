@@ -316,7 +316,8 @@ describe('Email template editor page', () => {
       expect(createEmailTemplate).toHaveBeenCalledTimes(1)
     })
 
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    // The button is renamed while busy; wait for the create request to settle.
+    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.editor.ctaBorderRadius'), { target: { value: '6' } })
     fireEvent.click(save)
@@ -447,6 +448,22 @@ describe('Email template editor page', () => {
       expect(banner).toHaveTextContent('admin.notif.tpl.readonlyHint')
       expect(screen.getByText('admin.notif.status.published')).toBeInTheDocument()
     })
+  })
+
+  it('puts the read-only notice at the top as a warning, outside the body section, and none on a draft', async () => {
+    vi.mocked(getEmailTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'published' }))
+    const { unmount } = render(<Page />)
+    const notice = await screen.findByTestId('body-readonly')
+    expect(notice.className).toContain('--ib-warn-bg')
+    expect(notice.className).not.toMatch(/border-l|shadow/)
+    expect(notice.compareDocumentPosition(screen.getByTestId('subject-wrapper')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByText('admin.notif.tpl.body')).not.toBeInTheDocument()
+    unmount()
+
+    vi.mocked(getEmailTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'draft' }))
+    render(<Page />)
+    await screen.findByText('admin.notif.tpl.body')
+    expect(screen.queryByTestId('body-readonly')).not.toBeInTheDocument()
   })
 
   // ── Styling px unit fix ───────────────────────────────────────────────────

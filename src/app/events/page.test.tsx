@@ -107,7 +107,7 @@ describe('events catalog page', () => {
     render(<Page />)
 
     expect(await screen.findByText('admin.events.loadError')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.events.access.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByRole('link', { name: 'Spring CTF' })).toBeInTheDocument()
   })
 
@@ -121,8 +121,17 @@ describe('events catalog page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     expect(await screen.findByText('admin.events.loadError')).toBeInTheDocument()
     expect(mockList).toHaveBeenCalledTimes(2)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.events.access.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByRole('link', { name: 'Autumn CTF' })).toBeInTheDocument()
+  })
+
+  it('keeps the requested page when the idle search debounce settles', async () => {
+    mockList.mockResolvedValue({ Items: [activeEvent], Total: 51, Page: 1, PageSize: 50 })
+    render(<Page />)
+    await screen.findByRole('link', { name: 'Spring CTF' })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)))
+    expect(mockList.mock.calls.at(-1)?.[0]).toMatchObject({ page: 2 })
   })
 
   it('does not append an old page after the search filter changes', async () => {

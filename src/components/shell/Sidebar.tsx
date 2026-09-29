@@ -2,11 +2,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Bell, Users, Puzzle, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink } from "lucide-react"
+import { LayoutDashboard, Bell, Users, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink, Puzzle } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { exercisesOrigin } from "@/lib/origins"
+import { withReturnTo } from "@/lib/accountMenu"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 type Child = { href: string; label: string; perm?: string }
 type Item = {
@@ -14,7 +16,7 @@ type Item = {
   label: string
   icon: React.ComponentType<{ className?: string }>
   perm?: string
-  // Opens another platform app (full navigation, not a Next.js route).
+  // Opens another platform app (full navigation, not a Next.js route) with return_to back here.
   external?: boolean
   children?: Child[]
 }
@@ -52,6 +54,12 @@ const SECTIONS: Section[] = [
   ] },
 ]
 
+// Collapsed rail: icon-only items name themselves in a tooltip to the right (hover and focus).
+function RailTip({ collapsed, label, children }: { collapsed?: boolean; label: string; children: React.ReactElement }) {
+  if (!collapsed) return children
+  return <HoverTooltip text={label} side="right" className="flex w-full">{children}</HoverTooltip>
+}
+
 const itemBase = "flex min-h-9 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--ib-on-brand)]"
 const activeCls = "bg-[var(--ib-brand-active)] text-[var(--ib-on-brand)]"
 const idleCls = "text-[var(--ib-on-brand-2)] hover:bg-[var(--ib-brand-hover)] hover:text-[var(--ib-on-brand)]"
@@ -78,9 +86,9 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
           <span className="block truncate text-sm font-semibold">Cyber <span className="text-[var(--ib-ice-on-brand)]">ICE</span> Box</span>
           <span className="block text-xs text-[var(--ib-on-brand-3)]">{t("admin.shell.title")}</span>
         </div>
-        {onClose && <button type="button" onClick={onClose} aria-label="Закрити меню" className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" aria-label="Розділи адміністрування">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" aria-label={t("admin.shell.navLabel")}>
         {sections.map((section) => (
           <div key={section.items[0].href} className="flex flex-col gap-1">
             {section.divider && <div className="my-2 h-px bg-[var(--ib-brand-line)]" />}
@@ -95,26 +103,31 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
           </div>
         ))}
       </nav>
-      {onToggleCollapse && <div className="border-t border-[var(--ib-brand-line)] p-2"><button type="button" onClick={onToggleCollapse} aria-label={collapsed ? "Розгорнути панель" : "Згорнути панель"} title={collapsed ? "Розгорнути панель" : "Згорнути панель"} className={`${itemBase} ${idleCls} ${collapsed ? "justify-center px-2" : ""}`}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" /><span>Згорнути панель</span></>}</button></div>}
+      {onToggleCollapse && <div className="border-t border-[var(--ib-brand-line)] p-2"><RailTip collapsed={collapsed} label={t("admin.shell.expandPanel")}><button type="button" onClick={onToggleCollapse} aria-label={t(collapsed ? "admin.shell.expandPanel" : "admin.shell.collapsePanel")} className={`${itemBase} ${idleCls} ${collapsed ? "justify-center px-2" : ""}`}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" /><span>{t("admin.shell.collapsePanel")}</span></>}</button></RailTip></div>}
     </aside>
   )
 }
 
 function NavLink({ href, label, icon: Icon, active, onNavigate, collapsed }: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; active: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   return (
-    <Link href={href} aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`${itemBase} ${collapsed ? "justify-center px-2" : ""} ${active ? activeCls : idleCls}`}>
-      <Icon className="h-4 w-4" />
-      {!collapsed && label}
-    </Link>
+    <RailTip collapsed={collapsed} label={label}>
+      <Link href={href} aria-label={collapsed ? label : undefined} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`${itemBase} ${collapsed ? "justify-center px-2" : ""} ${active ? activeCls : idleCls}`}>
+        <Icon className="h-4 w-4" />
+        {!collapsed && label}
+      </Link>
+    </RailTip>
   )
 }
 
 function ExternalNavLink({ href, label, icon: Icon, collapsed }: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; collapsed?: boolean }) {
+  const returnTo = typeof window !== "undefined" ? window.location.href : ""
   return (
-    <a href={href} aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined} className={`${itemBase} ${collapsed ? "justify-center px-2" : ""} ${idleCls}`}>
-      <Icon className="h-4 w-4" />
-      {!collapsed && <><span className="flex-1">{label}</span><ExternalLink aria-hidden="true" className="h-3.5 w-3.5 text-[var(--ib-on-brand-3)]" /></>}
-    </a>
+    <RailTip collapsed={collapsed} label={label}>
+      <a href={withReturnTo(href, returnTo)} aria-label={collapsed ? label : undefined} className={`${itemBase} ${collapsed ? "justify-center px-2" : ""} ${idleCls}`}>
+        <Icon className="h-4 w-4" />
+        {!collapsed && <><span className="flex-1">{label}</span><ExternalLink aria-hidden="true" className="h-3.5 w-3.5 text-[var(--ib-on-brand-3)]" /></>}
+      </a>
+    </RailTip>
   )
 }
 
@@ -125,20 +138,21 @@ function NavGroup({ item, pathname, onNavigate, collapsed, onExpand }: { item: I
   const Icon = item.icon
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={() => {
-          if (collapsed) { setExpanded(true); onExpand?.() }
-          else setExpanded((v) => !v)
-        }}
-        aria-label={collapsed ? t(item.label) : undefined}
-        title={collapsed ? t(item.label) : undefined}
-        aria-expanded={collapsed ? false : open}
-        className={`${itemBase} ${collapsed ? "justify-center px-2" : "justify-between"} ${groupActive ? activeCls : idleCls}`}
-      >
-        <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{!collapsed && t(item.label)}</span>
-        {!collapsed && (open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
-      </button>
+      <RailTip collapsed={collapsed} label={t(item.label)}>
+        <button
+          type="button"
+          onClick={() => {
+            if (collapsed) { setExpanded(true); onExpand?.() }
+            else setExpanded((v) => !v)
+          }}
+          aria-label={collapsed ? t(item.label) : undefined}
+          aria-expanded={collapsed ? false : open}
+          className={`${itemBase} ${collapsed ? "justify-center px-2" : "justify-between"} ${groupActive ? activeCls : idleCls}`}
+        >
+          <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{!collapsed && t(item.label)}</span>
+          {!collapsed && (open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+        </button>
+      </RailTip>
       {open && !collapsed && (
         <div className="ml-5 flex flex-col gap-1 border-l border-[var(--ib-brand-line)] pl-2">
           {item.children!.map((c) => {
