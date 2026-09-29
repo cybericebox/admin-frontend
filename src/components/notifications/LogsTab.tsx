@@ -9,7 +9,7 @@ import { useUserNames } from "@/lib/userNames"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { StatusPill } from "./StatusPill"
-import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
+import { isSmtpTest, journalTypeValues, notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { useNotificationTypes } from "./templateTypes"
 import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -151,7 +151,7 @@ export function LogsTab() {
   return (
     <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
       <div className="mb-3 flex flex-wrap gap-3">
-        <SelectMenu value={type} onChange={(next) => { resetPage(); setType(next) }} ariaLabel={t("admin.notif.logs.type")} options={[{ value: "", label: t("admin.notif.logs.allTypes") }, ...types.map((kind) => ({ value: kind.Type, label: notifTypeLabel(kind.Type) }))]} className="min-w-48" />
+        <SelectMenu value={type} onChange={(next) => { resetPage(); setType(next) }} ariaLabel={t("admin.notif.logs.type")} options={[{ value: "", label: t("admin.notif.logs.allTypes") }, ...journalTypeValues(types.map((kind) => kind.Type)).map((kind) => ({ value: kind, label: notifTypeLabel(kind) }))]} className="min-w-48" />
         <SelectMenu value={status} onChange={(next) => { resetPage(); setStatus(next) }} ariaLabel={t("admin.notif.logs.status")} options={[{ value: "", label: t("admin.notif.logs.allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: t(statusLabelKey(s)) }))]} className="min-w-40" />
         {eventOptions.length > 0 && <SelectMenu value={eventFilter} onChange={(next) => { resetPage(); setEventFilter(next) }} ariaLabel={t("admin.notif.logs.event")} options={[{ value: "", label: t("admin.notif.logs.allEvents") }, ...eventOptions]} className="min-w-48 max-w-72" />}
         <SelectMenu value={channel} onChange={(next) => { resetPage(); setChannel(next) }} ariaLabel={t("admin.notif.logs.channel")} options={[{ value: "", label: t("admin.notif.logs.allChannels") }, ...CHANNELS.map((c) => ({ value: c, label: notifChannelLabel(c) }))]} className="min-w-36" />
@@ -195,7 +195,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button></td>
+                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       {names[d.RecipientUserID] ? (

@@ -12,6 +12,19 @@ export function formatNotifType(type: string): string {
     .join(" ")
 }
 
+// Journal kind of an SMTP test send from the mail settings. It is not a
+// template-backed type, so the type catalog does not list it.
+export const SMTP_TEST_TYPE = "smtp_test"
+
+export function isSmtpTest(type: string): boolean {
+  return type === SMTP_TEST_TYPE
+}
+
+// Type filter values of the journal: the catalog types plus the SMTP test kind.
+export function journalTypeValues(catalog: string[]): string[] {
+  return catalog.includes(SMTP_TEST_TYPE) ? catalog : [...catalog, SMTP_TEST_TYPE]
+}
+
 // Localized label for a notification type. Falls back to the humanized key for
 // types absent from the catalog (admin.notif.type.<key>), so a new backend type
 // still renders readably before it is translated.
