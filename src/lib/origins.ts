@@ -13,3 +13,5 @@ const origin = (override: string | undefined, fallback: string) => {
 export const apiOrigin = origin(process.env.NEXT_PUBLIC_API_DOMAIN, domain && `api.${domain}`)
 export const idOrigin = origin(process.env.NEXT_PUBLIC_ID_DOMAIN, domain && `id.${domain}`)
 export const mainOrigin = domain ? `https://${domain}` : "/"
+// The exercise catalog lives in its own app (exercises-frontend).
+export const exercisesOrigin = domain ? `https://exercises.${domain}` : "/"
