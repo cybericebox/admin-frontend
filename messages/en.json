@@ -1011,5 +1011,16 @@
   "admin.mail.footer.previewEmpty": "The footer is empty: no line has values.",
   "admin.mail.footer.resetDefault": "Default text",
   "admin.mail.footer.saved": "Email footer saved.",
-  "admin.mail.footer.tooLong": "The text must be at most {max} characters."
+  "admin.mail.footer.tooLong": "The text must be at most {max} characters.",
+  "admin.notif.type.event.application.submitted": "Event application submitted",
+  "admin.notif.type.exercise.proposal.submitted": "Exercise proposal submitted",
+  "admin.notif.type.exercise.proposal.approved": "Exercise proposal approved",
+  "admin.notif.type.exercise.proposal.rejected": "Exercise proposal rejected",
+  "admin.notif.type.participant.event.results_published": "Event results published",
+  "admin.notif.audience.all_participants": "All participants",
+  "admin.notif.audience.all_captains": "All captains",
+  "admin.notif.audience.selected_users": "Selected users",
+  "admin.notif.audience.selected_teams": "Selected teams",
+  "admin.notif.audience.participants_without_team": "Participants without a team",
+  "admin.notif.audience.teams_below_size": "Teams below the minimum size"
 }

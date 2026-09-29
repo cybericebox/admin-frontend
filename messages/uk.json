@@ -1011,5 +1011,16 @@
   "admin.mail.footer.previewEmpty": "Підвал порожній: жоден рядок не має значень.",
   "admin.mail.footer.resetDefault": "Типовий текст",
   "admin.mail.footer.saved": "Підвал листів збережено.",
-  "admin.mail.footer.tooLong": "Текст має бути не довшим за {max} символів."
+  "admin.mail.footer.tooLong": "Текст має бути не довшим за {max} символів.",
+  "admin.notif.type.event.application.submitted": "Подано заявку на захід",
+  "admin.notif.type.exercise.proposal.submitted": "Подано пропозицію вправи",
+  "admin.notif.type.exercise.proposal.approved": "Пропозицію вправи схвалено",
+  "admin.notif.type.exercise.proposal.rejected": "Пропозицію вправи відхилено",
+  "admin.notif.type.participant.event.results_published": "Результати заходу опубліковано",
+  "admin.notif.audience.all_participants": "Усі учасники",
+  "admin.notif.audience.all_captains": "Усі капітани",
+  "admin.notif.audience.selected_users": "Вибрані користувачі",
+  "admin.notif.audience.selected_teams": "Вибрані команди",
+  "admin.notif.audience.participants_without_team": "Учасники без команди",
+  "admin.notif.audience.teams_below_size": "Команди з малою кількістю учасників"
 }
