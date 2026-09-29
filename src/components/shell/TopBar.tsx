@@ -9,7 +9,7 @@ import { t } from "@/i18n/t"
 import { Menu } from "lucide-react"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { exercisesOrigin, idOrigin, mainOrigin } from "@/lib/origins"
+import { exercisesOrigin, idOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
 import { CookieSettingsMenuItem } from "@/components/consent/CookieSettingsMenuItem"
@@ -41,7 +41,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
   const entries = accountMenu(
     "admin",
     { adminTier, catalog: adminTier, returnTo },
-    { id: idOrigin, admin: "", exercises: exercisesOrigin, main: mainOrigin },
+    { id: idOrigin, admin: "", exercises: exercisesOrigin },
   )
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
