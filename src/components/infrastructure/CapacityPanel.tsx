@@ -1,5 +1,6 @@
 "use client"
 
+import { FieldHelp } from "@/components/ui/field-help"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -20,7 +21,7 @@ function ResourceBar({ label, requested, allocatable, format }: { label: string;
 
 export function CapacityPanel({ rows, agents, loadError, errorCause, onRetry }: { rows: CapacityObservation[]; agents: InfrastructureAgent[]; loadError: string; errorCause?: unknown; onRetry: () => void }) {
   return <Card id="capacity" className="scroll-mt-4">
-    <CardHeader><CardTitle className="text-base">{t("admin.labs.capacity.title")}</CardTitle></CardHeader>
+    <CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.capacity.title")}<FieldHelp text={t("admin.labs.capacity.titleHelp")} /></CardTitle></CardHeader>
     <CardContent className="space-y-5">
       {loadError ? <LoadError message={loadError} error={errorCause} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
         const agent = agents.find((item) => item.ID === row.AgentID || item.Key === row.AgentID)

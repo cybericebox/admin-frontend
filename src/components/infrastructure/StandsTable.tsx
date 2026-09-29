@@ -53,7 +53,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
 }) {
   const block = "flex min-h-64 items-center justify-center"
   return <Card>
-    <CardHeader><CardTitle className="text-base">{t("admin.labs.stands.title")}</CardTitle></CardHeader>
+    <CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.stands.title")}<FieldHelp text={t("admin.labs.stands.titleHelp")} /></CardTitle></CardHeader>
     <CardContent className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <Input type="search" value={searchInput} onChange={(event) => onSearchInput(event.target.value)} placeholder={t("admin.labs.stands.search")} aria-label={t("admin.labs.stands.search")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
@@ -77,9 +77,9 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.event")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.team")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.status")}</th>
-                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.reason")}</th>
+                  <th scope="col" className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5">{t("admin.labs.stands.col.reason")}<FieldHelp text={t("admin.labs.stands.col.reasonHelp")} /></span></th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.time")}</th>
-                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.generation")}</th>
+                  <th scope="col" className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5">{t("admin.labs.stands.col.generation")}<FieldHelp text={t("admin.labs.stands.col.generationHelp")} /></span></th>
                   {canWrite && <th scope="col" className="w-12 px-3 py-2"><span className="sr-only">{t("admin.labs.stands.col.actions")}</span></th>}
                 </tr>
               </thead>

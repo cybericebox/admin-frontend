@@ -21,7 +21,7 @@ export function CurrentState({ rows, includeRecent, onIncludeRecent, loadError, 
 }) {
   return <Card>
     <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
-      <CardTitle className="text-base">{t("admin.labs.obs.title")}</CardTitle>
+      <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.obs.title")}<FieldHelp text={t("admin.labs.obs.titleHelp")} /></CardTitle>
       <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
         <Switch checked={includeRecent} onCheckedChange={onIncludeRecent} aria-label={t("admin.labs.obs.includeRecent")} />
         <span>{t("admin.labs.obs.includeRecent")}</span>
