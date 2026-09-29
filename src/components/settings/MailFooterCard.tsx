@@ -22,8 +22,9 @@ type PreviewState = { status: "loading" } | { status: "error"; message: string }
 const PILL_CLASS = "[&_[data-notif-variable]]:border-amber-300 [&_[data-notif-variable]]:bg-amber-100 [&_[data-notif-variable]]:text-amber-950 dark:[&_[data-notif-variable]]:border-amber-700 dark:[&_[data-notif-variable]]:bg-amber-900/40 dark:[&_[data-notif-variable]]:text-amber-200"
 
 // What the editor shows: the saved footer, else the default that is sent.
-export function footerDraft(footer: MailFooter): LexicalState {
-  return footer.Content ?? footer.DefaultContent
+// An older backend sends neither (plain-text footer): the editor starts empty.
+export function footerDraft(footer: MailFooter): LexicalState | null {
+  return footer.Content ?? footer.DefaultContent ?? null
 }
 
 // The variable menu of the editor: the footer variables with their help.
@@ -50,16 +51,16 @@ export function documentSignature(node: unknown): string {
   }
 }
 
-function signature(doc: LexicalState): string {
-  return documentSignature((doc as { root?: unknown }).root).trim()
+function signature(doc: LexicalState | null | undefined): string {
+  return documentSignature((doc as { root?: unknown } | null | undefined)?.root).trim()
 }
 
-function byteLength(doc: LexicalState): number {
+function byteLength(doc: LexicalState | null): number {
   return new TextEncoder().encode(JSON.stringify(doc)).length
 }
 
 export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFooter; canWrite: boolean; onSaved: (settings: MailSettings) => void }) {
-  const [draft, setDraft] = useState<LexicalState>(() => footerDraft(footer))
+  const [draft, setDraft] = useState<LexicalState | null>(() => footerDraft(footer))
   const [preview, setPreview] = useState<PreviewState>({ status: "loading" })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -78,7 +79,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
     return () => { cancelled = true; clearTimeout(timer) }
   }, [draft, retry])
 
-  function change(value: LexicalState) {
+  function change(value: LexicalState | null) {
     setDraft(value)
     setPreview({ status: "loading" })
     setNotice("")
@@ -149,7 +150,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
         <RequirePermission perm="platform.settings.write">
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void save()} disabled={busy} busy={busy}>{t("admin.mail.save")}</Button>
-            <Button variant="outline" onClick={() => change(footer.DefaultContent)} disabled={busy || isDefault}>{t("admin.mail.footer.resetDefault")}</Button>
+            <Button variant="outline" onClick={() => change(footer.DefaultContent ?? null)} disabled={busy || isDefault}>{t("admin.mail.footer.resetDefault")}</Button>
           </div>
         </RequirePermission>
       </CardContent>
