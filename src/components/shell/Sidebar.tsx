@@ -10,7 +10,8 @@ import { exercisesOrigin } from "@/lib/origins"
 import { withReturnTo } from "@/lib/accountMenu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
-type Child = { href: string; label: string; perm?: string }
+// perm: one permission, or a list of which any grants the item. exact: active only on this very path.
+type Child = { href: string; label: string; perm?: string | string[]; exact?: boolean }
 type Item = {
   href: string
   label: string
@@ -32,7 +33,12 @@ const SECTIONS: Section[] = [
   { divider: true, items: [{
     href: "/analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
     children: [
-      { href: "/analytics/users", label: "admin.nav.analyticsUsers", perm: "users.read" },
+      { href: "/analytics", label: "admin.nav.analyticsOverview", perm: "analytics.read", exact: true },
+      { href: "/analytics/users", label: "admin.nav.analyticsUsers", perm: ["analytics.read", "users.read"] },
+      { href: "/analytics/events", label: "admin.nav.analyticsEvents", perm: "analytics.read" },
+      { href: "/analytics/tasks", label: "admin.nav.analyticsTasks", perm: "analytics.read" },
+      { href: "/analytics/infrastructure", label: "admin.nav.analyticsInfrastructure", perm: "analytics.read" },
+      { href: "/analytics/mail", label: "admin.nav.analyticsMail", perm: "analytics.read" },
       { href: "/analytics/notifications", label: "admin.nav.analyticsNotifications", perm: "notifications.templates.read" },
     ],
   }] },
@@ -73,7 +79,7 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
       ...s,
       items: s.items
         .filter((it) => !it.perm || can(it.perm))
-        .map((it) => ({ ...it, children: it.children?.filter((c) => !c.perm || can(c.perm)) }))
+        .map((it) => ({ ...it, children: it.children?.filter((c) => !c.perm || (Array.isArray(c.perm) ? c.perm.some(can) : can(c.perm))) }))
         .filter((it) => !it.children || it.children.length > 0),
     }))
     .filter((s) => s.items.length > 0)
@@ -156,7 +162,7 @@ function NavGroup({ item, pathname, onNavigate, collapsed, onExpand }: { item: I
       {open && !collapsed && (
         <div className="ml-5 flex flex-col gap-1 border-l border-[var(--ib-brand-line)] pl-2">
           {item.children!.map((c) => {
-            const active = pathname === c.href || pathname.startsWith(c.href + "/")
+            const active = pathname === c.href || (!c.exact && pathname.startsWith(c.href + "/"))
             return (
               <Link key={c.href} href={c.href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`${itemBase} ${active ? activeCls : idleCls}`}>
                 {t(c.label)}

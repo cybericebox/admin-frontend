@@ -2,15 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { Sidebar } from "./Sidebar"
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/events" }))
-const rights = vi.hoisted(() => ({ infrastructure: true }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission !== "platform.settings.read" && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
+const nav = vi.hoisted(() => ({ path: "/events" }))
+vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
+const rights = vi.hoisted(() => ({ infrastructure: true, denied: new Set<string>() }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission !== "platform.settings.read" && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span> }))
 vi.mock("@/lib/origins", () => ({ exercisesOrigin: "https://exercises.cybericebox.local" }))
 
 describe("admin sidebar", () => {
-  beforeEach(() => { rights.infrastructure = true })
+  beforeEach(() => { rights.infrastructure = true; rights.denied = new Set(); nav.path = "/events" })
   it("links to available administration sections and respects permissions", () => {
     render(<Sidebar />)
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("href", "/events")
@@ -20,8 +21,11 @@ describe("admin sidebar", () => {
     expect(exercises).toHaveAttribute("href", `https://exercises.cybericebox.local?return_to=${encodeURIComponent(window.location.href)}`)
     expect(exercises).not.toHaveAttribute("aria-current")
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.analytics" }))
-    expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("href", "/analytics/users")
-    expect(screen.getByRole("link", { name: "admin.nav.analyticsNotifications" })).toHaveAttribute("href", "/analytics/notifications")
+    const analytics = ["Overview:/analytics", "Users:/analytics/users", "Events:/analytics/events", "Tasks:/analytics/tasks", "Infrastructure:/analytics/infrastructure", "Mail:/analytics/mail", "Notifications:/analytics/notifications"]
+    for (const entry of analytics) {
+      const [name, href] = entry.split(":")
+      expect(screen.getByRole("link", { name: `admin.nav.analytics${name}` })).toHaveAttribute("href", href)
+    }
     expect(screen.queryByRole("link", { name: "admin.nav.settings" })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("aria-current", "page")
   })
@@ -61,5 +65,21 @@ describe("admin sidebar", () => {
     render(<Sidebar />)
     expect(screen.queryByRole("link", { name: "admin.nav.labs" })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.nav.section.platform")).not.toBeInTheDocument()
+  })
+
+  it("keeps Users in analytics for the old users.read right and hides the rest without analytics.read", () => {
+    rights.denied = new Set(["analytics.read", "notifications.templates.read"])
+    nav.path = "/analytics/users"
+    render(<Sidebar />)
+    expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("aria-current", "page")
+    expect(screen.queryByRole("link", { name: "admin.nav.analyticsOverview" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "admin.nav.analyticsMail" })).not.toBeInTheDocument()
+  })
+
+  it("marks Overview current only on /analytics itself", () => {
+    nav.path = "/analytics/events"
+    render(<Sidebar />)
+    expect(screen.getByRole("link", { name: "admin.nav.analyticsOverview" })).not.toHaveAttribute("aria-current")
+    expect(screen.getByRole("link", { name: "admin.nav.analyticsEvents" })).toHaveAttribute("aria-current", "page")
   })
 })
