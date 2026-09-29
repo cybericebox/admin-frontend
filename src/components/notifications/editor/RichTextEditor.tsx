@@ -1055,12 +1055,12 @@ export function RichTextEditor({
         {!disabled && <ToolbarPlugin variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
-        <div className="relative">
+        <div className="editor-scroll relative min-h-[200px] has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring">
           <RichTextPlugin
             contentEditable={
               placeholder ? (
                 <ContentEditable
-                  className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="px-4 py-3 text-sm text-foreground outline-none"
                   aria-placeholder={placeholder}
                   placeholder={() => (
                     <div className="absolute top-3 left-4 text-sm text-muted-foreground pointer-events-none">
@@ -1069,7 +1069,7 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none" />
+                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" />
               )
             }
             ErrorBoundary={LexicalErrorBoundary}
