@@ -6,7 +6,7 @@ import {
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { Flag, House, LogOut, Menu, Settings, UserRound, type LucideIcon } from "lucide-react"
+import { House, LogOut, Menu, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin, mainOrigin } from "@/lib/origins"
@@ -16,7 +16,7 @@ import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
 const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
   profile: { label: "admin.profile", icon: UserRound },
   admin: { label: "admin.account.admin", icon: Settings },
-  exercises: { label: "admin.account.exercises", icon: Flag },
+  exercises: { label: "admin.account.exercises", icon: Puzzle },
   main: { label: "admin.account.home", icon: House },
 }
 
