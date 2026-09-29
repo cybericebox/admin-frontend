@@ -767,7 +767,7 @@
   "admin.mail.envSummaryReplyTo": "{host}:{port} · {name} <{address}> · Reply-To {replyTo}",
   "admin.mail.envHint": "Save the form to move the settings into the platform. The environment password is not shown, so enter it again.",
   "admin.mail.noneHint": "No email is sent until an SMTP server is saved.",
-  "admin.mail.smtpTitle": "Custom SMTP server",
+  "admin.mail.smtpTitle": "SMTP server",
   "admin.mail.host": "Server",
   "admin.mail.port": "Port",
   "admin.mail.encryption": "Encryption",
