@@ -35,7 +35,7 @@ function csvIssueText(issue: CsvIssue): string {
 }
 
 function downloadTemplate() {
-  const content = csvTemplate(userInviteColumns, [t("admin.users.invite.template.email"), t("admin.users.invite.template.firstName"), t("admin.users.invite.template.lastName"), "user"])
+  const content = csvTemplate(userInviteColumns, [[t("admin.users.invite.template.email"), t("admin.users.invite.template.firstName"), t("admin.users.invite.template.lastName"), "user"]])
   const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }))
   const link = document.createElement("a")
   link.href = url

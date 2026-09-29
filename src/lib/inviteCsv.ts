@@ -4,7 +4,7 @@
 import type { Role } from "@/lib/useRole"
 import { isValidEmail } from "@/lib/emailParse"
 
-export type CsvIssueCode = "empty" | "missingColumn" | "missingEmail" | "invalidEmail" | "invalidRole" | "roleForbidden"
+export type CsvIssueCode = "empty" | "missingColumn" | "exampleRow" | "missingEmail" | "invalidEmail" | "invalidRole" | "roleForbidden"
 export type CsvIssue = { row: number; code: CsvIssueCode; column?: string; value?: string }
 export type UserInviteEntry = { email: string; firstName: string; lastName: string; role?: Role; row: number }
 
@@ -77,6 +77,7 @@ export function parseUserInviteCsv(source: string, assignable: readonly Role[]):
     const rawRole = get(line, "role").toLowerCase()
     if (!email) { issues.push({ row: line.row, code: "missingEmail" }); continue }
     if (!isValidEmail(email)) { issues.push({ row: line.row, code: "invalidEmail", value: email }); continue }
+    if (isExampleAddress(email)) { issues.push({ row: line.row, code: "exampleRow" }); continue }
     if (rawRole && !knownRoles.includes(rawRole as Role)) { issues.push({ row: line.row, code: "invalidRole", value: rawRole }); continue }
     if (rawRole && !assignable.includes(rawRole as Role)) { issues.push({ row: line.row, code: "roleForbidden", value: rawRole }); continue }
     if (seen.has(email)) continue
@@ -86,7 +87,15 @@ export function parseUserInviteCsv(source: string, assignable: readonly Role[]):
   return { entries, issues }
 }
 
-export function csvTemplate(columns: readonly string[], example: readonly string[]): string {
+// UTF-8 with a BOM (Excel opens Cyrillic correctly): the header row, then
+// the filled example rows.
+export function csvTemplate(columns: readonly string[], examples: ReadonlyArray<readonly string[]>): string {
   const quote = (value: string) => /[",;\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
-  return `\uFEFF${columns.join(",")}\r\n${example.map(quote).join(",")}\r\n`
+  return `\uFEFF${[columns, ...examples].map((row) => row.map(quote).join(",")).join("\r\n")}\r\n`
+}
+
+// Template examples use example.com: such a row is an unchanged template
+// line, never a real invitation.
+export function isExampleAddress(email: string): boolean {
+  return email.endsWith("@example.com")
 }

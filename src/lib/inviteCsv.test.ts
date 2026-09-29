@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { csvTemplate, parseUserInviteCsv, readCsvLines } from "./inviteCsv"
+import { csvTemplate, parseUserInviteCsv, readCsvLines, userInviteColumns } from "./inviteCsv"
 
 describe("platform invitation CSV", () => {
   it("matches English headers in any case and order and ignores unknown columns", () => {
@@ -29,6 +29,13 @@ describe("platform invitation CSV", () => {
 
   it("keeps quoted delimiters and builds a template", () => {
     expect(readCsvLines('a,b\n"x, y","z ""q"""\n')[1].cells).toEqual(["x, y", 'z "q"'])
-    expect(csvTemplate(["email", "role"], ["a@x.test", "user"])).toBe("\uFEFFemail,role\r\na@x.test,user\r\n")
+    expect(csvTemplate(["email", "role"], [["a@x.test", "user"]])).toBe("\uFEFFemail,role\r\na@x.test,user\r\n")
+  })
+
+  it("rejects the unchanged template row instead of inviting example.com", () => {
+    const csv = csvTemplate(userInviteColumns, [["olena.koval@example.com", "Олена", "Коваль", "user"]]) + "real@school.test,,,\r\n"
+    const result = parseUserInviteCsv(csv, ["user"])
+    expect(result.issues).toEqual([{ row: 2, code: "exampleRow" }])
+    expect(result.entries.map((entry) => entry.email)).toEqual(["real@school.test"])
   })
 })
