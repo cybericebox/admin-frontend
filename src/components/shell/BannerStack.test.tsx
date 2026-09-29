@@ -19,6 +19,7 @@ describe("admin banner stack", () => {
   it("shows the newest banner and reveals the previous one after dismissal", async () => {
     render(<BannerStack />)
     expect(await screen.findByText("Новий банер")).toBeInTheDocument()
+    expect(api.get).toHaveBeenCalledWith("/api/notifications/banners?event=none")
     expect(screen.queryByText("Старий банер")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/banners/new/dismiss", {}))

@@ -31,7 +31,8 @@ export function BannerStack() {
     let active = true
     const refresh = () => {
       if (document.visibilityState === "hidden") return
-      apiGet<Banner[]>("/api/notifications/banners")
+      // Like the inbox, admin shows only banners without an Event.
+      apiGet<Banner[]>("/api/notifications/banners?event=none")
         .then((items) => { if (active) setBanners(items ?? []) })
         .catch(() => { /* A banner outage must not block administration. */ })
     }
