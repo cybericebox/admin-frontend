@@ -8,7 +8,7 @@ import { EmailHtmlFrame } from "@/components/notifications/editor/EmailPreview"
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor"
 import type { VariableDef } from "@/components/notifications/editor/variableUtils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldHelp } from "@/components/ui/field-help"
 import { LoadError } from "@/components/ui/load-error"
@@ -16,7 +16,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 
 const PREVIEW_DELAY_MS = 300
 
-type PreviewState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; preview: MailFooterPreview }
+type PreviewState = { status: "loading" } | { status: "error"; message: string; cause: unknown } | { status: "ready"; preview: MailFooterPreview }
 
 // Pills look like the ones of the email body editor: the variable name on an amber chip.
 const PILL_CLASS = "[&_[data-notif-variable]]:border-amber-300 [&_[data-notif-variable]]:bg-amber-100 [&_[data-notif-variable]]:text-amber-950 dark:[&_[data-notif-variable]]:border-amber-700 dark:[&_[data-notif-variable]]:bg-amber-900/40 dark:[&_[data-notif-variable]]:text-amber-200"
@@ -74,7 +74,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
     const timer = setTimeout(() => {
       previewMailFooter(draft)
         .then((result) => { if (!cancelled) setPreview({ status: "ready", preview: result }) })
-        .catch((err: unknown) => { if (!cancelled) setPreview({ status: "error", message: localizedError(err) }) })
+        .catch((err: unknown) => { if (!cancelled) setPreview({ status: "error", message: localizedError(err), cause: err }) })
     }, PREVIEW_DELAY_MS)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [draft, retry])
@@ -108,8 +108,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("admin.mail.footer.title")}</CardTitle>
-        <CardDescription>{t("admin.mail.footer.description")}</CardDescription>
+        <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.footer.title")}<FieldHelp text={t("admin.mail.footer.description")} /></CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
@@ -134,7 +133,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
               {preview.status === "loading" ? (
                 <LoadingArea compact label={t("admin.loading")} />
               ) : preview.status === "error" ? (
-                <LoadError compact message={preview.message} onRetry={() => { setPreview({ status: "loading" }); setRetry((n) => n + 1) }} />
+                <LoadError compact message={preview.message} error={preview.cause} onRetry={() => { setPreview({ status: "loading" }); setRetry((n) => n + 1) }} />
               ) : preview.preview.HTML ? (
                 <EmailHtmlFrame html={preview.preview.HTML} className="h-40" />
               ) : (

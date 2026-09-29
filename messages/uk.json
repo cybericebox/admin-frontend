@@ -1016,7 +1016,7 @@
   "admin.mail.identitySaved": "Відправника збережено.",
   "admin.mail.error.emailInvalid": "Вкажіть коректну адресу електронної пошти.",
   "admin.mail.error.nameTooLong": "Ім'я має бути не довшим за {max} символів.",
-  "admin.mail.smtpDescription": "Необов'язково: один сервер, через який платформа надсилає листи. Заходи без власного SMTP користуються ним.",
+  "admin.mail.smtpDescription": "Сервер, через який платформа надсилає листи. Заходи без власного SMTP користуються ним.",
   "admin.mail.footer.title": "Підвал листів",
   "admin.mail.footer.description": "Текст у кінці кожного листа платформи та заходів. Заходи не можуть його змінити.",
   "admin.mail.footer.text": "Текст підвалу",

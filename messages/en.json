@@ -1016,7 +1016,7 @@
   "admin.mail.identitySaved": "Sender saved.",
   "admin.mail.error.emailInvalid": "Enter a valid email address.",
   "admin.mail.error.nameTooLong": "The name must be at most {max} characters.",
-  "admin.mail.smtpDescription": "Optional: one server the platform sends email through. Events without their own SMTP use it.",
+  "admin.mail.smtpDescription": "The server the platform sends email through. Events without their own SMTP use it.",
   "admin.mail.footer.title": "Email footer",
   "admin.mail.footer.description": "The text at the end of every platform and event email. Events cannot change it.",
   "admin.mail.footer.text": "Footer text",

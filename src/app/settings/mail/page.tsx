@@ -10,7 +10,7 @@ import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -89,7 +89,7 @@ export default function Page() {
   const [settings, setSettings] = useState<MailSettings | null>(null)
   const [identity, setIdentity] = useState<IdentityForm | null>(null)
   const [smtp, setSmtp] = useState<SmtpForm | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState<Busy>("")
@@ -103,11 +103,11 @@ export default function Page() {
   }, [])
 
   const load = useCallback(async () => {
-    setLoadError(false)
+    setLoadError(null)
     try {
       apply(await getMailSettings())
-    } catch {
-      setLoadError(true)
+    } catch (cause) {
+      setLoadError({ cause })
     }
   }, [apply])
 
@@ -195,15 +195,14 @@ export default function Page() {
         </div>
 
         {loadError ? (
-          <LoadError message={t("admin.mail.loadError")} onRetry={() => void load()} className="flex-1" />
+          <LoadError message={t("admin.mail.loadError")} error={loadError.cause} onRetry={() => void load()} className="flex-1" />
         ) : !settings || !identity || !smtp || !effective ? (
           <LoadingArea className="flex-1" label={t("admin.loading")} />
         ) : (
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">{t("admin.mail.senderTitle")}</CardTitle>
-                <CardDescription>{t("admin.mail.senderDescription")}</CardDescription>
+                <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.senderTitle")}<FieldHelp text={t("admin.mail.senderDescription")} /></CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -231,8 +230,7 @@ export default function Page() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">{t("admin.mail.smtpTitle")}</CardTitle>
-                <CardDescription>{t("admin.mail.smtpDescription")}</CardDescription>
+                <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.smtpTitle")}<FieldHelp text={t("admin.mail.smtpDescription")} /></CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1 text-sm">
