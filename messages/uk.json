@@ -908,5 +908,11 @@
   "admin.events.create.createdNext": "Захід створено. Надайте доступ модераторам або завершіть.",
   "admin.events.create.finish": "Завершити",
   "admin.events.archived": "Захід архівовано.",
-  "admin.events.deleted": "Захід видалено."
+  "admin.events.deleted": "Захід видалено.",
+  "consent.title": "Аналітичні cookie",
+  "consent.text": "Ми хочемо використовувати Google Analytics, щоб розуміти, як відвідувачі користуються платформою. Аналітичні cookie встановлюються лише з вашої згоди; відмова не обмежує жодних функцій. Докладніше — у {link}.",
+  "consent.policyLink": "Політиці cookie",
+  "consent.accept": "Прийняти аналітику",
+  "consent.reject": "Відхилити",
+  "consent.settings": "Налаштування cookie"
 }

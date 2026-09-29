@@ -908,5 +908,11 @@
   "admin.events.create.createdNext": "Event created. Grant moderators access or finish.",
   "admin.events.create.finish": "Finish",
   "admin.events.archived": "Event archived.",
-  "admin.events.deleted": "Event deleted."
+  "admin.events.deleted": "Event deleted.",
+  "consent.title": "Analytics cookies",
+  "consent.text": "We would like to use Google Analytics to understand how visitors use the platform. Analytics cookies are set only with your consent; declining does not limit any features. See the {link} for details.",
+  "consent.policyLink": "Cookie Policy",
+  "consent.accept": "Accept analytics",
+  "consent.reject": "Decline",
+  "consent.settings": "Cookie settings"
 }

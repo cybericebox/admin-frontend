@@ -6,12 +6,13 @@ import {
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { House, LogOut, Menu, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
+import { Cookie, House, LogOut, Menu, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
+import { openConsentSettings } from "@/lib/consent"
 
 // Unified account menu (lib/accountMenu): same labels and icons in every app.
 const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
@@ -95,6 +96,12 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
                 </DropdownMenuItem>
               )
             })}
+            {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && (
+              // After the menu closes and hands focus back to its trigger, so the banner keeps focus.
+              <DropdownMenuItem className="gap-2" onSelect={() => { setTimeout(openConsentSettings, 0) }}>
+                <Cookie className="h-4 w-4" aria-hidden="true" />{t("consent.settings")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
               <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}
