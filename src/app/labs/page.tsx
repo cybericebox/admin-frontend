@@ -111,7 +111,7 @@ function CapacityPanel({ rows, agents, loadError }: { rows: Observation[]; agent
 
 function ObservationFacts({ payload }: { payload: unknown }) {
   const details = monitoringUpdateDetails(payload)
-  if (Object.values(details).every((items) => items.length === 0)) return <p className="mt-2 text-muted-foreground">{t("admin.labs.facts.empty")}</p>
+  if (Object.values(details).every((items) => items.length === 0)) return <EmptyState message={t("admin.labs.facts.empty")} compact className="mt-2 min-w-72" />
   const section = "space-y-1 border-t border-border py-2 first:border-t-0 first:pt-0"
   return <div className="mt-2 min-w-72 text-xs text-foreground">
     {details.groups.length > 0 && <section className={section}><h4 className="font-semibold">{t("admin.labs.facts.groups")}</h4>{details.groups.map((group, index) => <p key={index}>{group.name || t("admin.labs.facts.unnamed")}{group.phase && ` · ${phaseLabel(group.phase)}`}{group.vpnRegistered !== null && t(group.vpnRegistered ? "admin.labs.facts.vpnConnected" : "admin.labs.facts.vpnDisconnected")}</p>)}</section>}
@@ -188,7 +188,7 @@ export default function Page() {
         <Card><CardHeader><CardTitle className="text-base">{t("admin.labs.connection")}</CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Available && status.Healthy}>{t(status.Available ? status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention" : "admin.labs.state.disconnected")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.mode) })}</span></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}
-          {status.agents.length === 0 ? <p className="text-sm text-muted-foreground">{t("admin.labs.noAgents")}</p> : <ul className="divide-y divide-border">{status.agents.map((agent) => <li key={agent.id} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.name || agent.key}</span><StateBadge good={agent.healthy}>{t(agent.healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
+          {status.agents.length === 0 ? <EmptyState message={t("admin.labs.noAgents")} compact /> : <ul className="divide-y divide-border">{status.agents.map((agent) => <li key={agent.id} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.name || agent.key}</span><StateBadge good={agent.healthy}>{t(agent.healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
         </CardContent></Card>
         <Observations title={t("admin.labs.obs.title")} rows={labs} empty={t("admin.labs.obs.empty")} loadError={labsError} />
         <CapacityPanel rows={capacity} agents={status.agents} loadError={capacityError} />

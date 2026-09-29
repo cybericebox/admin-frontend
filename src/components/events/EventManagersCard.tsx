@@ -6,7 +6,8 @@ import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
 import type { CursorPage } from "@/api/pagination"
 import type { EventManager } from "@/api/events/catalog"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -106,6 +107,9 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   const inviteEmail = search.trim().toLowerCase()
   const canInvite = editable && can("users.invite") && EMAIL_RE.test(inviteEmail) && searchedQuery.toLowerCase() === inviteEmail && !searching && !selected && !foundExact
 
+  // One fixed-size results block: crest while searching, matches, or the empty state before the invite form.
+  const showResults = !selected && (searching || matches.length > 0 || canInvite)
+
   async function inviteAndAdd() {
     if (!canInvite || !assignablePlatformRoles.includes(platformRole)) return
     setBusyID("invite")
@@ -176,10 +180,11 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     {adding && editable && <div className="mt-4 space-y-3 rounded-md border border-border p-3">
       <div className="flex items-center gap-1.5"><label className="text-sm font-medium" htmlFor="event-manager-search">{t("admin.events.manager.user")}</label><FieldHelp text={t("admin.events.manager.userHelp")} /></div>
       <Input id="event-manager-search" value={search} onChange={(event) => { setSearch(event.target.value); setSelected(null); setMatches([]); setSearchedQuery(""); setFoundExact(false) }} placeholder={t("admin.events.manager.searchPlaceholder")} autoComplete="off" />
-      {searching && <Spinner size="sm" label={t("admin.events.manager.searching")} />}
-      {!selected && matches.length > 0 && <ul className="max-h-48 overflow-y-auto rounded-md border border-border">{matches.map((user) => <li key={user.ID}><button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setSelected(user); setSearch(`${nameOf(user, user.ID)} — ${user.Email}`); setMatches([]) }}>{nameOf(user, user.ID)} <span className="text-muted-foreground">{user.Email}</span></button></li>)}</ul>}
+      {showResults && <div className="flex h-48 flex-col overflow-y-auto rounded-md border border-border">
+        {searching ? <LoadingArea compact className="flex-1" label={t("admin.events.manager.searching")} /> : matches.length > 0 ? <ul>{matches.map((user) => <li key={user.ID}><button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setSelected(user); setSearch(`${nameOf(user, user.ID)} — ${user.Email}`); setMatches([]) }}>{nameOf(user, user.ID)} <span className="text-muted-foreground">{user.Email}</span></button></li>)}</ul> : <EmptyState message={t("admin.events.manager.notFoundInvite")} compact className="flex-1" />}
+      </div>}
       <div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.eventRole")}</span><FieldHelp text={t("admin.events.manager.eventRoleHelp")} /></div><SelectMenu value={newRole} onChange={setNewRole} options={managerRoles} ariaLabel={t("admin.events.manager.newRole")} className="w-40" /></div><Button type="button" busy={!!selected && busyID === selected.ID} disabled={!selected || !!busyID} onClick={() => { if (selected) void save(selected.ID, Number(newRole)) }}>{t("admin.events.manager.grant")}</Button></div>
-      {canInvite && <div className="space-y-2 border-t border-border pt-3"><p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p><div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: t(`admin.role.${role}`) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
+      {canInvite && <div className="space-y-2 border-t border-border pt-3">{matches.length > 0 && <p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p>}<div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: t(`admin.role.${role}`) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
     </div>}
 
     <Dialog open={!!removing} onOpenChange={(open) => { if (!open && !busyID) setRemoving(null) }}><DialogContent>
