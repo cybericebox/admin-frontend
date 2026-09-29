@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 import { roleLabel } from "@/lib/roles"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 type RoleCount = { Role: string; Count: number }
 type DayCount = { Day: string; Count: number }
@@ -64,8 +65,8 @@ function UserAnalytics() {
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
       <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="registration-chart-title">
         <h3 id="registration-chart-title" className="text-base font-semibold text-foreground">{t("admin.dashboard.regChart")}</h3>
-        <div className="mt-6 flex h-44 items-end gap-2" role="img" aria-label={days.map((day) => `${day}: ${countByDay.get(day) ?? 0}`).join(", ")}>
-          {days.map((day) => <div key={day} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center"><div className="flex min-h-0 flex-1 items-end"><div className="w-full rounded-t-sm bg-primary" style={{ height: `${Math.max(2, ((countByDay.get(day) ?? 0) / max) * 100)}%` }} title={`${day}: ${countByDay.get(day) ?? 0}`} /></div><span className="text-xs tabular-nums text-muted-foreground">{day.slice(5)}</span></div>)}
+        <div className="mt-6 flex h-44 items-end gap-2" role="img" aria-label={days.map((day) => t("admin.analytics.users.dayCount", { day, count: countByDay.get(day) ?? 0 })).join(", ")}>
+          {days.map((day) => <HoverTooltip key={day} text={t("admin.analytics.users.dayCount", { day, count: countByDay.get(day) ?? 0 })} className="h-full min-w-0 flex-1"><div className="flex h-full w-full min-w-0 flex-col justify-end gap-2 text-center"><div className="flex min-h-0 flex-1 items-end"><div className="w-full rounded-t-sm bg-primary" style={{ height: `${Math.max(2, ((countByDay.get(day) ?? 0) / max) * 100)}%` }} /></div><span className="text-xs tabular-nums text-muted-foreground">{day.slice(5)}</span></div></HoverTooltip>)}
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="role-breakdown-title">

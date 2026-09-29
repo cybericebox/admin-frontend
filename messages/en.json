@@ -896,6 +896,7 @@
   "admin.labs.unit.b": "{value} B",
   "admin.analytics.users.title": "Users",
   "admin.analytics.users.subtitle": "Platform user registrations and activity.",
+  "admin.analytics.users.dayCount": "{day}: {count}",
   "admin.analytics.users.byRole": "By role",
   "admin.analytics.users.empty": "No data yet.",
   "admin.analytics.users.avgDaily": "Average daily activity:",

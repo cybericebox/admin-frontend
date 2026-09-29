@@ -7,6 +7,7 @@ import { t } from "@/i18n/t"
 import { isValidEmail } from "@/lib/emailParse"
 import { roleLabel } from "@/lib/roles"
 import type { Role } from "@/lib/useRole"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 export type EmailChipStatus = "pending" | "invalid" | "invited" | "exists" | "failed"
 export type EmailChip = { email: string; status: EmailChipStatus; error?: string; firstName?: string; lastName?: string; role?: Role }
@@ -64,6 +65,18 @@ function chipTitle(chip: EmailChip): string | undefined {
   return parts.length ? parts.join(" · ") : undefined
 }
 
+// The hint (name, role or error) covers only the label, so the remove button keeps its own focus and name.
+function ChipLabel({ chip }: { chip: EmailChip }) {
+  const label = <span className="inline-flex items-center gap-1">
+    {chip.email}
+    {STATUS_OUTCOME_KEY[chip.status] && (
+      <span className="text-[10px] uppercase tracking-wide opacity-70">{t(STATUS_OUTCOME_KEY[chip.status]!)}</span>
+    )}
+  </span>
+  const hint = chipTitle(chip)
+  return hint ? <HoverTooltip text={hint}>{label}</HoverTooltip> : label
+}
+
 // Gmail-style address input: separators and paste turn text into chips,
 // Backspace in the empty input removes the last chip.
 export default function EmailTagInput({ chips, onChange, disabled, id, describedBy }: EmailTagInputProps) {
@@ -108,13 +121,9 @@ export default function EmailTagInput({ chips, onChange, disabled, id, described
       {chips.map((c) => (
         <span
           key={c.email}
-          title={chipTitle(c)}
           className={cn("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs", STATUS_CLASS[c.status])}
         >
-          {c.email}
-          {STATUS_OUTCOME_KEY[c.status] && (
-            <span className="text-[10px] uppercase tracking-wide opacity-70">{t(STATUS_OUTCOME_KEY[c.status]!)}</span>
-          )}
+          <ChipLabel chip={c} />
           <button
             type="button"
             aria-label={t("admin.users.invite.removeChip", { email: c.email })}

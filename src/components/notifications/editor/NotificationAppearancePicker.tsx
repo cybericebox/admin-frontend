@@ -7,6 +7,7 @@ import { NotificationIcon } from "@/components/notifications/NotificationIcon"
 import { ColorPicker } from "./ColorPicker"
 import { FieldHelp } from "@/components/ui/field-help"
 import { APPEARANCES, ICONS, toneColor } from "./inAppOptions"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 type Props = {
   icon: string
@@ -40,11 +41,11 @@ export function NotificationAppearancePicker({ icon, tone, accentColor, onChange
       <div>
         <p className="mb-2 text-xs font-medium text-foreground">{t("admin.notif.inapp.icon")}</p>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("admin.notif.inapp.icon")}>
-          {ICONS.map((option) => <button key={option.value} type="button" role="radio" aria-checked={icon === option.value}
-            onClick={() => onChange({ icon: option.value, tone, accentColor })} disabled={disabled} title={t(option.labelKey)} aria-label={t(option.labelKey)}
+          {ICONS.map((option) => <HoverTooltip key={option.value} text={t(option.labelKey)}><button type="button" role="radio" aria-checked={icon === option.value}
+            onClick={() => onChange({ icon: option.value, tone, accentColor })} disabled={disabled} aria-label={t(option.labelKey)}
             className={`rounded-md border p-1.5 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 ${icon === option.value ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
             <NotificationIcon icon={option.value} tone={tone} accentColor={accentColor} size="sm" />
-          </button>)}
+          </button></HoverTooltip>)}
         </div>
       </div>
       <div>

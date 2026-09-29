@@ -896,6 +896,7 @@
   "admin.labs.unit.b": "{value} Б",
   "admin.analytics.users.title": "Користувачі",
   "admin.analytics.users.subtitle": "Реєстрації та активність користувачів платформи.",
+  "admin.analytics.users.dayCount": "{day}: {count}",
   "admin.analytics.users.byRole": "За ролями",
   "admin.analytics.users.empty": "Даних поки немає.",
   "admin.analytics.users.avgDaily": "Середньодобова активність:",

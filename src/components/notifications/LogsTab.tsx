@@ -18,6 +18,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // W7 journal fields (ScopeEventID … Targets) are optional so an older backend
 // without them still renders the list.
@@ -79,8 +80,8 @@ function TargetLine({ target }: { target: Target }) {
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
-      {target.FallbackError && <span className="max-w-72 truncate text-xs text-muted-foreground" title={target.FallbackError}>{t("admin.notif.logs.fallback")}: {target.FallbackError}</span>}
-      {target.Error && <span className="max-w-72 truncate text-xs text-destructive" title={target.Error}>{target.Error}</span>}
+      {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
+      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-destructive">{target.Error}</span></HoverTooltip>}
     </div>
   )
 }
@@ -209,7 +210,8 @@ export function LogsTab() {
                           {d.RecipientUserID.slice(0, 8)}
                         </span>
                       )}
-                      <button
+                      <HoverTooltip text={t("admin.notif.logs.filterByUser")}><button
+                        type="button"
                         aria-label={t("admin.notif.logs.filterByUser")}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -220,10 +222,9 @@ export function LogsTab() {
                           resetPage()
                         }}
                         className="ml-0.5 text-muted-foreground hover:text-foreground"
-                        title={t("admin.notif.logs.filterByUser")}
                       >
                         ⊞
-                      </button>
+                      </button></HoverTooltip>
                     </div>
                     {d.RecipientEmail && <div className="text-xs text-muted-foreground">{d.RecipientEmail}</div>}
                   </td>

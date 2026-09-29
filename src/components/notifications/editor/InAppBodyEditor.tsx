@@ -7,6 +7,7 @@ import { t } from "@/i18n/t"
 import type { VariableDef } from "./variableUtils"
 import { VariablePickerMenu } from "./VariablePickerMenu"
 import { historyDirection, placeCaretAtEnd, TemplateFieldHistory } from "./templateFieldHistory"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // Preserve formatting in templates authored before the per-message font control was removed.
 const LEGACY_FONTS = ["Arial", "Georgia", "Verdana"] as const
@@ -151,12 +152,12 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
 
   return <div className="rounded-md border border-border bg-background">
     <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5">
-      <button type="button" title={t("admin.notif.editor.bold")} aria-label={t("admin.notif.editor.bold")} disabled={disabled}
+      <HoverTooltip text={t("admin.notif.editor.bold")}><button type="button" aria-label={t("admin.notif.editor.bold")} disabled={disabled}
         onMouseDown={(event) => event.preventDefault()} onClick={() => format("strong")}
-        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Bold className="h-4 w-4" /></button>
-      <button type="button" title={t("admin.notif.editor.italic")} aria-label={t("admin.notif.editor.italic")} disabled={disabled}
+        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Bold className="h-4 w-4" /></button></HoverTooltip>
+      <HoverTooltip text={t("admin.notif.editor.italic")}><button type="button" aria-label={t("admin.notif.editor.italic")} disabled={disabled}
         onMouseDown={(event) => event.preventDefault()} onClick={() => format("em")}
-        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Italic className="h-4 w-4" /></button>
+        className="rounded p-1.5 text-foreground hover:bg-accent disabled:opacity-40"><Italic className="h-4 w-4" /></button></HoverTooltip>
       {variables.length > 0 && <div className="relative ml-auto">
         <button type="button" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => setMenuOpen((open) => !open)}
           aria-label={t("admin.notif.editor.insertVariable")}

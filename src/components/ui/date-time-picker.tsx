@@ -4,6 +4,7 @@ import * as React from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { t } from "@/i18n/t"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // Same picker as event-frontend's EventDateTimePicker (copied, not imported):
 // a calendar popover with keyboard grid navigation and a time row that works
@@ -152,7 +153,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
   return <Popover.Root open={open} onOpenChange={openChange}>
     <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="dialog" data-invalid={invalid} disabled={disabled} onBlur={onBlur} className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
       <span className={`min-w-0 flex-1 truncate tabular-nums ${chosen ? "" : "text-placeholder"}`}>{chosen ? t("ui.dateTime.value", { date: dateLabel(chosen), time: `${pad(time.hour)}:${pad(time.minute)}` }) : t("ui.dateTime.placeholder")}</span>
-      {chosen && <span className="shrink-0 text-xs tabular-nums text-muted-foreground" title={zone}>{offset}</span>}
+      {chosen && <HoverTooltip text={zone} className="shrink-0"><span className="text-xs tabular-nums text-muted-foreground">{offset}</span></HoverTooltip>}
       <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Popover.Trigger>
     <Popover.Portal>
@@ -181,7 +182,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
                 onBlur={(event) => commitPart(part, event.currentTarget.value)} onKeyDown={(event) => partKey(event, part)}
                 className="h-8 w-10 rounded-md border border-border bg-card text-center tabular-nums focus-visible:outline-2 focus-visible:outline-primary" />
             </span>)}
-            <span className="ml-auto text-xs text-muted-foreground" title={zone}>{t("ui.dateTime.zone", { zone, offset })}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{t("ui.dateTime.zone", { zone, offset })}</span>
           </div>
           <div className="flex items-center justify-end gap-2">
             {allowClear && chosen && <button type="button" onClick={() => { onChange(""); setOpen(false) }} className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent">{t("ui.dateTime.clear")}</button>}
