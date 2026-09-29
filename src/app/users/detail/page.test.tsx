@@ -101,9 +101,9 @@ describe("admin user detail", () => {
     render(<Page />)
     await screen.findByText("Олена Коваль")
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.role.admin_viewer" }))
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" }))
     await waitFor(() => expect(mocks.patch).toHaveBeenCalledWith("/api/users/user-1/role", { Role: "admin_viewer" }))
-    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("admin.role.admin_viewer"))
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer"))
   })
 
   it("hides all account mutations for a super administrator from an ordinary administrator", async () => {

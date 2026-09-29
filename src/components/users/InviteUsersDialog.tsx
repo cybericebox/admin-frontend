@@ -12,6 +12,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { parseEmails } from "@/lib/emailParse"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
+import { roleLabel } from "@/lib/roles"
 import { t } from "@/i18n/t"
 
 interface InviteUsersDialogProps {
@@ -153,7 +154,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
             <SelectMenu
               value={effectiveRole}
               onChange={(v) => setRole(v as Role)}
-              options={roles.map((r) => ({ value: r, label: t(`admin.role.${r}`) }))}
+              options={roles.map((r) => ({ value: r, label: roleLabel(r) }))}
               disabled={busy}
               className="w-full"
             />

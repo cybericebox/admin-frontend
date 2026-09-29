@@ -17,6 +17,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
+import { PLATFORM_ROLES, roleLabel } from "@/lib/roles"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -33,7 +34,6 @@ export type UserRow = {
 }
 type ListResp = OffsetPage<UserRow>
 
-const ROLES = ["super_admin", "admin", "admin_viewer", "user"]
 const STATUSES = ["active", "blocked", "incomplete"]
 
 function fullName(u: UserRow): string {
@@ -122,20 +122,20 @@ export default function Page() {
               <span className="truncate">
                 {roles.length === 0
                   ? t("admin.users.filterRolesAll")
-                  : ROLES.filter((r) => roles.includes(r)).map((r) => t(`admin.role.${r}`)).join(", ")}
+                  : PLATFORM_ROLES.filter((r) => roles.includes(r)).map(roleLabel).join(", ")}
               </span>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-48">
-            {ROLES.map((r) => (
+            {PLATFORM_ROLES.map((r) => (
               <DropdownMenuCheckboxItem
                 key={r}
                 checked={roles.includes(r)}
                 onCheckedChange={() => toggleRole(r)}
                 onSelect={(e) => e.preventDefault()}
               >
-                {t(`admin.role.${r}`)}
+                {roleLabel(r)}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>

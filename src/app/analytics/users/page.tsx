@@ -6,6 +6,7 @@ import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
+import { roleLabel } from "@/lib/roles"
 
 type RoleCount = { Role: string; Count: number }
 type DayCount = { Day: string; Count: number }
@@ -67,7 +68,7 @@ function UserAnalytics() {
       </section>
       <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="role-breakdown-title">
         <h3 id="role-breakdown-title" className="text-base font-semibold text-foreground">{t("admin.analytics.users.byRole")}</h3>
-        {stats.ByRole.length === 0 ? <EmptyState message={t("admin.analytics.users.empty")} compact /> : <dl className="mt-4 divide-y divide-border">{stats.ByRole.map((entry) => <div key={entry.Role} className="flex items-center justify-between gap-3 py-2 text-sm"><dt className="text-muted-foreground">{t(`admin.role.${entry.Role}`)}</dt><dd className="font-medium tabular-nums text-foreground">{entry.Count}</dd></div>)}</dl>}
+        {stats.ByRole.length === 0 ? <EmptyState message={t("admin.analytics.users.empty")} compact /> : <dl className="mt-4 divide-y divide-border">{stats.ByRole.map((entry) => <div key={entry.Role} className="flex items-center justify-between gap-3 py-2 text-sm"><dt className="text-muted-foreground">{roleLabel(entry.Role)}</dt><dd className="font-medium tabular-nums text-foreground">{entry.Count}</dd></div>)}</dl>}
         <p className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">{t("admin.analytics.users.avgDaily")} <strong className="font-medium tabular-nums text-foreground">{stats.AvgDailyActive7d.toFixed(1)}</strong></p>
       </section>
     </div>

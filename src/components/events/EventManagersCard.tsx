@@ -16,16 +16,14 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
+import { eventRoleLabel, roleLabel } from "@/lib/roles"
 import { t } from "@/i18n/t"
 
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string }
 type InviteResult = { Email: string; Error?: string }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const managerRoles = [
-  { value: "1", label: t("admin.events.manager.role.moderator") },
-  { value: "2", label: t("admin.events.manager.role.observer") },
-]
+const managerRoles = [1, 2].map((code) => ({ value: String(code), label: eventRoleLabel(code) }))
 
 function nameOf(user: UserSummary | undefined, fallback: string): string {
   if (!user) return fallback
@@ -169,10 +167,10 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
             <Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(manager.UserID)}`}>{displayName}</Link>
             {user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
           </div>
-          {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{t("admin.events.manager.role.owner")}</span> : editable ? <>
+          {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{eventRoleLabel(0)}</span> : editable ? <>
             <SelectMenu value={String(manager.Role)} onChange={(value) => void save(manager.UserID, Number(value))} options={managerRoles} disabled={!!busyID} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
             <Button type="button" variant="outline" size="sm" disabled={!!busyID} onClick={() => setRemoving(manager)} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
-          </> : <span className="text-sm text-muted-foreground">{managerRoles.find((role) => role.value === String(manager.Role))?.label ?? "—"}</span>}
+          </> : <span className="text-sm text-muted-foreground">{eventRoleLabel(manager.Role)}</span>}
         </li>
       })}
     </ul>
@@ -184,7 +182,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         {searching ? <LoadingArea compact className="flex-1" label={t("admin.events.manager.searching")} /> : matches.length > 0 ? <ul>{matches.map((user) => <li key={user.ID}><button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setSelected(user); setSearch(`${nameOf(user, user.ID)} — ${user.Email}`); setMatches([]) }}>{nameOf(user, user.ID)} <span className="text-muted-foreground">{user.Email}</span></button></li>)}</ul> : <EmptyState message={t("admin.events.manager.notFoundInvite")} compact className="flex-1" />}
       </div>}
       <div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.eventRole")}</span><FieldHelp text={t("admin.events.manager.eventRoleHelp")} /></div><SelectMenu value={newRole} onChange={setNewRole} options={managerRoles} ariaLabel={t("admin.events.manager.newRole")} className="w-40" /></div><Button type="button" busy={!!selected && busyID === selected.ID} disabled={!selected || !!busyID} onClick={() => { if (selected) void save(selected.ID, Number(newRole)) }}>{t("admin.events.manager.grant")}</Button></div>
-      {canInvite && <div className="space-y-2 border-t border-border pt-3">{matches.length > 0 && <p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p>}<div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: t(`admin.role.${role}`) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
+      {canInvite && <div className="space-y-2 border-t border-border pt-3">{matches.length > 0 && <p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p>}<div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: roleLabel(role) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
     </div>}
 
     <Dialog open={!!removing} onOpenChange={(open) => { if (!open && !busyID) setRemoving(null) }}><DialogContent>

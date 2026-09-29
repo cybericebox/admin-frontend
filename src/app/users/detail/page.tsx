@@ -5,6 +5,7 @@ import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
+import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -182,7 +183,7 @@ function Detail() {
               <SelectMenu
                 value={user.Role}
                 onChange={changeRole}
-                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: t(`admin.role.${r}`) }))}
+                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: roleLabel(r) }))}
                 disabled={busy}
                 className="w-48"
               />
