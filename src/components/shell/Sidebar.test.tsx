@@ -16,7 +16,8 @@ describe("admin sidebar", () => {
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("href", "/events")
     expect(screen.getByRole("link", { name: "admin.nav.labs" })).toHaveAttribute("href", "/labs")
     const exercises = screen.getByRole("link", { name: "admin.nav.exercises" })
-    expect(exercises).toHaveAttribute("href", "https://exercises.cybericebox.local")
+    // The catalog opens with return_to, so it can offer the way back here.
+    expect(exercises).toHaveAttribute("href", `https://exercises.cybericebox.local?return_to=${encodeURIComponent(window.location.href)}`)
     expect(exercises).not.toHaveAttribute("aria-current")
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.analytics" }))
     expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("href", "/analytics/users")
@@ -28,11 +29,31 @@ describe("admin sidebar", () => {
   it("keeps icon-only navigation accessible and expands a grouped section", () => {
     const onToggleCollapse = vi.fn()
     render(<Sidebar collapsed onToggleCollapse={onToggleCollapse} />)
-    expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("title", "admin.nav.events")
-    expect(screen.getByRole("link", { name: "admin.nav.exercises" })).toHaveAttribute("title", "admin.nav.exercises")
+    expect(screen.getByRole("link", { name: "admin.nav.events" })).not.toHaveAttribute("title")
+    expect(screen.getByRole("link", { name: "admin.nav.exercises" })).not.toHaveAttribute("title")
     expect(screen.getByRole("button", { name: "admin.shell.expandPanel" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.notifications" }))
     expect(onToggleCollapse).toHaveBeenCalledOnce()
+  })
+
+  it("names collapsed items in a tooltip to the right, on hover and on keyboard focus", () => {
+    render(<Sidebar collapsed onToggleCollapse={() => {}} />)
+    const events = screen.getByRole("link", { name: "admin.nav.events" })
+    fireEvent.focus(events)
+    const tip = screen.getByRole("tooltip")
+    expect(tip).toHaveTextContent("admin.nav.events")
+    expect(tip.style.transform).toBe("translateY(-50%)")
+    fireEvent.blur(events)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "admin.nav.notifications" }))
+    expect(screen.getByRole("tooltip")).toHaveTextContent("admin.nav.notifications")
+  })
+
+  it("shows no tooltips when expanded", () => {
+    render(<Sidebar onToggleCollapse={() => {}} />)
+    fireEvent.focus(screen.getByRole("link", { name: "admin.nav.events" }))
+    fireEvent.pointerEnter(screen.getByRole("link", { name: "admin.nav.labs" }))
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 
   it("does not show the platform infrastructure section without its permission", () => {

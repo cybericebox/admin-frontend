@@ -6,8 +6,12 @@ import { cn } from "@/utils/cn"
 
 type Position = { left: number; top: number; below: boolean }
 
+const GAP = 7
+const MARGIN = 8
+
 // A tooltip is not a popover: clicks and focus must not toggle its visibility.
-export function HoverTooltip({ text, content, children, className }: { text: string; content?: ReactNode; children: ReactElement; className?: string }) {
+// side="right" puts it beside the trigger (e.g. icon-only rail items), kept inside the viewport.
+export function HoverTooltip({ text, content, children, className, side = "top" }: { text: string; content?: ReactNode; children: ReactElement; className?: string; side?: "top" | "right" }) {
   const [position, setPosition] = useState<Position | null>(null)
   const trigger = useRef<HTMLSpanElement>(null)
   const tooltip = useRef<HTMLDivElement>(null)
@@ -16,6 +20,10 @@ export function HoverTooltip({ text, content, children, className }: { text: str
   const open = () => {
     const rect = trigger.current?.getBoundingClientRect()
     if (!rect) return
+    if (side === "right") {
+      setPosition({ left: rect.right + GAP, top: rect.top + rect.height / 2, below: false })
+      return
+    }
     const halfWidth = Math.min(long ? 220 : 152, window.innerWidth / 2)
     setPosition({
       left: Math.max(halfWidth, Math.min(window.innerWidth - halfWidth, rect.left + rect.width / 2)),
@@ -29,13 +37,18 @@ export function HoverTooltip({ text, content, children, className }: { text: str
     const anchor = trigger.current?.getBoundingClientRect()
     const height = tooltip.current?.getBoundingClientRect().height ?? 0
     if (!anchor || !height) return
+    if (side === "right") {
+      const top = Math.max(MARGIN + height / 2, Math.min(window.innerHeight - MARGIN - height / 2, anchor.top + anchor.height / 2))
+      if (top !== position.top) setPosition({ ...position, top })
+      return
+    }
     const above = anchor.top - 8
     const below = window.innerHeight - anchor.bottom - 8
     const placeBelow = above < height && below > above
     if (placeBelow !== position.below) {
       setPosition({ ...position, top: placeBelow ? anchor.bottom + 7 : anchor.top - 7, below: placeBelow })
     }
-  }, [position])
+  }, [position, side])
 
   useEffect(() => {
     if (!position) return
@@ -80,7 +93,7 @@ export function HoverTooltip({ text, content, children, className }: { text: str
         role="tooltip"
         className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
-          transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
+          transform: side === "right" ? "translateY(-50%)" : `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{content ?? text}</div>,
       document.body,
     )}
