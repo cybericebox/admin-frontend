@@ -613,6 +613,20 @@
   "admin.events.err.datesInvalid": "Дата архівації має бути пізніше за дату початку",
   "admin.events.err.nameTooLong": "Назва задовга (макс. 255 символів)",
   "admin.events.err.nameRequired": "Вкажіть назву заходу",
-  "meta.brand": "Cyber ICE Box",
-  "meta.title": "Адміністрування"
+  "meta.title": "Адміністрування · Cyber ICE Box",
+  "inbox.title": "Вхідні",
+  "inbox.titleUnread": "Вхідні: {count} непрочитаних",
+  "inbox.panel": "Особисті вхідні",
+  "inbox.open": "Відкрити",
+  "inbox.loadError": "Не вдалося завантажити вхідні повідомлення.",
+  "inbox.markReadError": "Не вдалося позначити повідомлення прочитаним.",
+  "inbox.readAllError": "Не вдалося позначити повідомлення прочитаними.",
+  "inbox.readAll": "Позначити все прочитаним",
+  "inbox.markRead": "Позначити прочитаним",
+  "inbox.close": "Закрити вхідні",
+  "inbox.loadingMessages": "Завантаження повідомлень",
+  "inbox.empty": "Повідомлень поки немає.",
+  "inbox.unreadItem": "Непрочитане",
+  "inbox.new": "Нове повідомлення",
+  "inbox.dismiss": "Закрити сповіщення"
 }

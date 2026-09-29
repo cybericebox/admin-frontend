@@ -10,7 +10,7 @@ import { ToastProvider } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 
 // noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
-export const metadata = { title: `${t("meta.title")} · ${t("meta.brand")}`, robots: { index: false, follow: false } }
+export const metadata = { title: t("meta.title"), robots: { index: false, follow: false } }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

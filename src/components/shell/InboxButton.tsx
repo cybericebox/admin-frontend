@@ -14,6 +14,7 @@ import { onServiceRestored } from "@/lib/serviceStatus"
 import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
 import { NotificationPopIn } from "@/components/notifications/NotificationPopIn"
 import { popInDuration } from "@/components/notifications/popInDuration"
+import { t } from "@/i18n/t"
 
 type Message = {
   ID: string
@@ -53,7 +54,7 @@ function safeHref(value: string): string | null {
 
 function rowLink(item: Message): { href: string; label: string } | null {
   const href = safeHref(item.Link ?? "")
-  return href ? { href, label: "Відкрити" } : null
+  return href ? { href, label: t("inbox.open") } : null
 }
 
 export function InboxButton() {
@@ -95,7 +96,7 @@ export function InboxButton() {
         return [...previous, ...page.Items.filter((item) => !known.has(item.ID))]
       })
       setError("")
-    } catch { setError("Не вдалося завантажити вхідні повідомлення.") }
+    } catch { setError(t("inbox.loadError")) }
     finally { loadingOlderRef.current = false; setLoadingOlder(false) }
   }, [])
 
@@ -138,7 +139,7 @@ export function InboxButton() {
           setError("")
           return next
         })
-        .catch(() => { if (current) setError("Не вдалося завантажити вхідні повідомлення."); return null })
+        .catch(() => { if (current) setError(t("inbox.loadError")); return null })
         .finally(() => { if (current) setLoading(false) })
     }
     refreshListRef.current = refreshList
@@ -187,7 +188,7 @@ export function InboxButton() {
           setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
         }
       } catch {
-        if (current) { setError("Не вдалося завантажити вхідні повідомлення."); setLoading(false) }
+        if (current) { setError(t("inbox.loadError")); setLoading(false) }
       } finally {
         polling = false
         if (pending && current) {
@@ -219,7 +220,7 @@ export function InboxButton() {
 
   if (!allowed) return null
 
-  const title = unread ? `Вхідні: ${unread} непрочитаних` : "Вхідні"
+  const title = unread ? t("inbox.titleUnread", { count: unread }) : t("inbox.title")
 
   function announceRead() {
     try {
@@ -239,7 +240,7 @@ export function InboxButton() {
       announceRead()
       return true
     } catch {
-      setError("Не вдалося позначити повідомлення прочитаним.")
+      setError(t("inbox.markReadError"))
       return false
     }
   }
@@ -262,7 +263,7 @@ export function InboxButton() {
       setPopIns([])
       announceRead()
     } catch {
-      setError("Не вдалося позначити повідомлення прочитаними.")
+      setError(t("inbox.readAllError"))
     }
   }
 
@@ -275,17 +276,17 @@ export function InboxButton() {
       </button>
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content align="end" sideOffset={8} collisionPadding={12} aria-label="Особисті вхідні" className="z-50 flex max-h-[min(38rem,calc(100vh-5rem))] w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none">
+      <Popover.Content align="end" sideOffset={8} collisionPadding={12} aria-label={t("inbox.panel")} className="z-50 flex max-h-[min(38rem,calc(100vh-5rem))] w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg outline-none">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h2><span className="sr-only">Вхідні</span><Bell aria-hidden="true" className="h-[19px] w-[19px] text-muted-foreground" /></h2>
+          <h2><span className="sr-only">{t("inbox.title")}</span><Bell aria-hidden="true" className="h-[19px] w-[19px] text-muted-foreground" /></h2>
           <div className="flex shrink-0 items-center gap-2">
-            <button type="button" disabled={unread === 0} onClick={() => void readAll()} className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent">Позначити все прочитаним</button>
-            <Popover.Close aria-label="Закрити вхідні" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X className="h-4 w-4" /></Popover.Close>
+            <button type="button" disabled={unread === 0} onClick={() => void readAll()} className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent">{t("inbox.readAll")}</button>
+            <Popover.Close aria-label={t("inbox.close")} className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X className="h-4 w-4" /></Popover.Close>
           </div>
         </div>
         {error && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
         <div ref={scrollAreaRef} className="min-h-0 overflow-y-auto">
-          {loading ? <LoadingArea compact label="Завантаження повідомлень" /> : items.length === 0 ? <EmptyState message="Повідомлень поки немає." inbox /> : <ul className="divide-y divide-border">{items.map((item, index) => {
+          {loading ? <LoadingArea compact label={t("inbox.loadingMessages")} /> : items.length === 0 ? <EmptyState message={t("inbox.empty")} inbox /> : <ul className="divide-y divide-border">{items.map((item, index) => {
             const link = rowLink(item)
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className="px-4 py-3 hover:bg-accent/50">
               <NotificationMessageCard
@@ -293,11 +294,11 @@ export function InboxButton() {
                 body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined}
                 unread={!item.ReadAt} compact
                 timestamp={<span className="flex min-w-0 items-center gap-2"><time dateTime={item.CreatedAt}>{new Date(item.CreatedAt).toLocaleString("uk-UA")}</time><EventLabel name={item.EventName} /></span>}
-                actions={link ? <a href={link.href} onClick={(event) => { event.preventDefault(); void followLink(item, link.href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{link.label}</a> : !item.ReadAt ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">Позначити прочитаним</button> : undefined}
+                actions={link ? <a href={link.href} onClick={(event) => { event.preventDefault(); void followLink(item, link.href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{link.label}</a> : !item.ReadAt ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">{t("inbox.markRead")}</button> : undefined}
               />
             </li>
           })}</ul>}
-          {loadingOlder && <div className="flex justify-center px-4 py-3"><Spinner size="sm" label="Завантаження…" /></div>}
+          {loadingOlder && <div className="flex justify-center px-4 py-3"><Spinner size="sm" label={t("admin.loading")} /></div>}
         </div>
       </Popover.Content>
     </Popover.Portal>

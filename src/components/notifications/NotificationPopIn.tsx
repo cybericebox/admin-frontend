@@ -6,6 +6,7 @@ import { X } from "lucide-react"
 import { NotificationMessageCard } from "./NotificationMessageCard"
 import { accentOf } from "./editor/inAppOptions"
 import { popInDuration } from "./popInDuration"
+import { t } from "@/i18n/t"
 
 export type PopInMessage = {
   ID: string
@@ -50,8 +51,8 @@ export function NotificationPopIn({ message, onClose, onAction }: {
     }
   }, [duration, message.ID, paused])
 
-  return <div role="status" aria-label="Нове повідомлення" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }} className="relative w-[min(22.5rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-popover px-4 pb-5 pt-4 text-popover-foreground shadow-lg">
-    <button type="button" onClick={onClose} aria-label="Закрити сповіщення" className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+  return <div role="status" aria-label={t("inbox.new")} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }} className="relative w-[min(22.5rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-popover px-4 pb-5 pt-4 text-popover-foreground shadow-lg">
+    <button type="button" onClick={onClose} aria-label={t("inbox.dismiss")} className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
       <X className="h-4 w-4" />
     </button>
     <div className="pr-5">
