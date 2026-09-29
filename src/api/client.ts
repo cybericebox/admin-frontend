@@ -156,7 +156,7 @@ async function request<T>(
 // application/json, which breaks the multipart boundary. There is no CSRF
 // header convention in this client to preserve — auth here is the
 // __Host-session cookie sent via credentials:"include", same as every other
-// call. See api/exercises/files.ts for the XHR progress-reporting variant
+// call. See exercises-frontend api/exercises/files.ts for the XHR progress-reporting variant
 // used where upload progress must be surfaced to the caller.
 export async function apiPostMultipart<T>(
   path: string,
