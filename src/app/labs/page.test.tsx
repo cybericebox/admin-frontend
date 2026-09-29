@@ -118,7 +118,7 @@ describe("infrastructure page", () => {
     fireEvent.click(await screen.findByText("Переглянути показники"))
     expect(screen.getByText("web-lab")).toBeInTheDocument()
     expect(screen.getByText("web")).toBeInTheDocument()
-    expect(screen.getByText("0,25 vCPU")).toBeInTheDocument()
+    expect(screen.getByText("CPU: 0,25 vCPU")).toBeInTheDocument()
     expect(screen.getByText("Отримано: 1 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Передано: 2 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Заборонено")).toBeInTheDocument()

@@ -61,22 +61,22 @@ export default function Page() {
   }, [usersAllowed, eventsAllowed, notificationsAllowed, infrastructureAllowed, retry])
 
   const unavailable = "—"
-  const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? "Не підключена" : infrastructure.Healthy ? "Працює" : "Потребує уваги"
+  const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? t("admin.dashboard.infra.disconnected") : infrastructure.Healthy ? t("admin.dashboard.infra.running") : t("admin.dashboard.infra.attention")
   const notificationErrors = notifications?.ByStatus?.find((item) => item.Key === "error")?.Count ?? 0
 
   return <div className="flex min-h-full flex-col gap-7">
-    <div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">Поточний стан платформи. Деталі та дії — у відповідних розділах.</p></div>
+    <div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.dashboard.subtitle")}</p></div>
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : <>
-      {failedFeeds > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"><span>Частину даних не вдалося оновити. Перевірте зʼєднання та повторіть спробу.</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setRetry((current) => current + 1) }}>Повторити</Button></div>}
+      {failedFeeds > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"><span>{t("admin.dashboard.partialError")}</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setRetry((current) => current + 1) }}>{t("admin.dashboard.retry")}</Button></div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {usersAllowed && <Metric label="Користувачі" value={users?.Total ?? unavailable} href="/analytics/users" />}
-        {eventsAllowed && <Metric label="Заходи" value={eventTotal ?? unavailable} href="/events" />}
-        {notificationsAllowed && <Metric label="Помилки доставки · 7 днів" value={notifications ? notificationErrors : unavailable} href="/analytics/notifications" />}
-        {infrastructureAllowed && <Metric label="Інфраструктура" value={infrastructureLabel} href="/labs" />}
+        {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href="/analytics/users" />}
+        {eventsAllowed && <Metric label={t("admin.dashboard.events")} value={eventTotal ?? unavailable} href="/events" />}
+        {notificationsAllowed && <Metric label={t("admin.dashboard.deliveryErrors7d")} value={notifications ? notificationErrors : unavailable} href="/analytics/notifications" />}
+        {infrastructureAllowed && <Metric label={t("admin.dashboard.infrastructure")} value={infrastructureLabel} href="/labs" />}
       </div>
       {eventsAllowed && <section className="rounded-lg border border-border bg-card" aria-labelledby="recent-events-heading">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">Останні заходи</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">Усі заходи</Link></div>
-        {events === null ? <p className="px-5 py-7 text-sm text-muted-foreground">Не вдалося завантажити заходи.</p> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">{t("admin.dashboard.recentEvents")}</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">{t("admin.dashboard.allEvents")}</Link></div>
+        {events === null ? <p className="px-5 py-7 text-sm text-muted-foreground">{t("admin.dashboard.eventsError")}</p> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
       </section>}
     </>}
   </div>
