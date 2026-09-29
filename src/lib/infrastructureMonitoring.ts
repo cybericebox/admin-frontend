@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t"
+import { formatNumber } from "@/lib/locale"
 
 type RecordValue = Record<string, unknown>
 
@@ -45,7 +46,7 @@ export function capacityMetrics(payload: unknown): CapacityMetrics | null {
 }
 
 export function formatCpu(millicores: number | null): string {
-  return millicores === null ? "—" : t("admin.labs.unit.vcpu", { value: (millicores / 1000).toLocaleString("uk-UA", { maximumFractionDigits: 2 }) })
+  return millicores === null ? "—" : t("admin.labs.unit.vcpu", { value: formatNumber(millicores / 1000, { maximumFractionDigits: 2 }) })
 }
 
 export function formatBytes(bytes: number | null): string {
@@ -54,7 +55,7 @@ export function formatBytes(bytes: number | null): string {
     : bytes >= 1024 ** 2 ? ["admin.labs.unit.mib", 1024 ** 2] as const
     : bytes >= 1024 ? ["admin.labs.unit.kib", 1024] as const
     : ["admin.labs.unit.b", 1] as const
-  return t(unit, { value: (bytes / scale).toLocaleString("uk-UA", { maximumFractionDigits: 1 }) })
+  return t(unit, { value: formatNumber(bytes / scale, { maximumFractionDigits: 1 }) })
 }
 
 type ObservationDetails = {

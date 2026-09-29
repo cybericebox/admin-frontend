@@ -1,31 +1,67 @@
-import { describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import Page from "./page"
 
 const apiGet = vi.fn()
-vi.mock("@/api/client", () => ({ apiGet: (...args: unknown[]) => apiGet(...args) }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+const apiPost = vi.fn()
+let search = ""
+let permissions = ["infrastructure.read", "infrastructure.write"]
+vi.mock("@/api/client", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/client")>()), apiGet: (...args: unknown[]) => apiGet(...args), apiPost: (...args: unknown[]) => apiPost(...args) }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => permissions.includes(perm) }) }))
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search) }))
+
+const agent = { ID: "agent-1", Key: "primary", Name: "Primary", Configured: true, Healthy: true }
+const okStatus = { Available: true, Healthy: true, Mode: "available", Agents: [agent], Capabilities: { Laboratories: true } }
+const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2 }
+const currentLab = (over: object = {}) => ({ EventID: "event-1", EventName: "Осінній CTF", EventTeamID: "team-1", TeamName: "Червоні", LabGroupName: "e-1-t-1", AgentID: "agent-1", Sequence: 8, ObservedAt: "2026-09-24T12:00:00Z", UpdatedAt: "2026-09-24T12:00:00Z", Payload: {}, ...over })
+const capacityRow = (payload: unknown) => ({ ID: "capacity-1", AgentID: "agent-1", Sequence: 1, ObservedAt: "2026-09-24T12:00:00Z", ReceivedAt: "2026-09-24T12:00:00Z", SchemaVersion: 1, Snapshot: true, Payload: payload })
+
+type Routes = { status?: unknown; current?: unknown; capacity?: unknown; stands?: unknown; events?: unknown }
+function serve(routes: Routes = {}) {
+  const pick = (value: unknown, fallback: unknown) => value instanceof Error ? Promise.reject(value) : Promise.resolve(value ?? fallback)
+  apiGet.mockImplementation((path: string) => {
+    if (path.endsWith("/status")) return pick(routes.status, okStatus)
+    if (path.includes("/monitoring/capacity/current")) return pick(routes.capacity, [])
+    if (path.includes("/monitoring/current")) return pick(routes.current, [])
+    if (path.includes("/stands/events")) return pick(routes.events, [{ ID: "event-1", Name: "Осінній CTF", Tag: "autumn" }])
+    if (path.includes("/stands")) return pick(routes.stands, { Items: [], Total: 0, Page: 1, PageSize: 25 })
+    return Promise.reject(new Error(path))
+  })
+}
+
+beforeEach(() => {
+  apiGet.mockReset()
+  apiPost.mockReset()
+  search = ""
+  permissions = ["infrastructure.read", "infrastructure.write"]
+  serve()
+})
+afterEach(() => { vi.useRealTimers() })
 
 describe("infrastructure page", () => {
-  it("shows agent availability and current monitoring from the infrastructure API", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [{ id: "agent-1", key: "primary", name: "Primary", configured: true, healthy: true }], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([{ id: "capacity-1", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", payload: { cpu: 4 } }])
-      return Promise.resolve([{ id: "lab-1", eventId: "event-1", eventTeamId: "team-1", labGroupName: "Team A", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", payload: {} }])
-    })
+  it("shows agent availability and current state with names instead of ids", async () => {
+    serve({ current: [currentLab()], capacity: [capacityRow({ cpu: 4 })] })
     render(<Page />)
     expect((await screen.findAllByText("Primary")).length).toBeGreaterThan(0)
     expect(screen.getByText("Режим: доступно")).toBeInTheDocument()
-    expect(screen.getByText("Team A")).toBeInTheDocument()
+    expect(screen.getByText("Поточний стан лабораторій")).toBeInTheDocument()
+    expect(screen.getAllByText("Осінній CTF").length).toBeGreaterThan(0)
+    expect(screen.getByText("Червоні")).toBeInTheDocument()
+    expect(screen.queryByText("event-1")).not.toBeInTheDocument()
+    expect(screen.queryByText("Часткове оновлення")).not.toBeInTheDocument()
     expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/status")
     expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/current")
     expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/capacity/current")
   })
 
+  it("asks for recent events only when the toggle is on", async () => {
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("switch", { name: "Показати недавні заходи" }))
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/current?includeRecent=true"))
+  })
+
   it("explains a missing agent without exposing backend English messages", async () => {
-    apiGet.mockImplementation((path: string) => path.endsWith("/status")
-      ? Promise.resolve({ Available: false, Healthy: false, mode: "missing_config", agents: [], capabilities: { laboratories: false }, warning: { code: "infrastructure_unavailable", message: "No infrastructure agent is configured" } })
-      : Promise.resolve([]))
+    serve({ status: { Available: false, Healthy: false, Mode: "missing_config", Agents: [], Capabilities: { Laboratories: false }, Warning: { Code: "infrastructure_unavailable", Message: "No infrastructure agent is configured" } } })
     render(<Page />)
     expect(await screen.findByText("Режим: не налаштовано")).toBeInTheDocument()
     expect(screen.getByText("Агент лабораторій не налаштований.")).toBeInTheDocument()
@@ -33,15 +69,11 @@ describe("infrastructure page", () => {
   })
 
   it("shows requested versus allocatable CPU and memory from protojson capacity", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [{ id: "agent-1", key: "primary", name: "Primary", configured: true, healthy: true }], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([{ id: "capacity-1", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", payload: {
-        allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500",
-        allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472",
-        nodes: [{ name: "node-a", allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500", allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472" }],
-      } }])
-      return Promise.resolve([])
-    })
+    serve({ capacity: [capacityRow({
+      allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500",
+      allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472",
+      nodes: [{ name: "node-a", allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500", allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472" }],
+    })] })
     render(<Page />)
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
     expect(cpu).toHaveAttribute("aria-valuenow", "1500")
@@ -50,14 +82,11 @@ describe("infrastructure page", () => {
     expect(memory).toHaveAttribute("aria-valuenow", "3221225472")
     expect(memory).toHaveAttribute("aria-valuemax", "8589934592")
     expect(screen.getByText("node-a")).toBeInTheDocument()
+    expect(document.getElementById("capacity")).not.toBeNull()
   })
 
   it("keeps an overcommitted resource bar accessible without hiding its real usage", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [{ id: "agent-1", key: "primary", name: "Primary", configured: true, healthy: true }], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([{ id: "capacity-1", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", payload: { allocatableCpuMillicores: "4000", requestedCpuMillicores: "5000" } }])
-      return Promise.resolve([])
-    })
+    serve({ capacity: [capacityRow({ allocatableCpuMillicores: "4000", requestedCpuMillicores: "5000" })] })
     render(<Page />)
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
     expect(cpu).toHaveAttribute("aria-valuenow", "4000")
@@ -66,36 +95,16 @@ describe("infrastructure page", () => {
     expect(screen.getByText("Перевищено доступну ємність.")).toBeInTheDocument()
   })
 
-  it("labels a delta as the last update, not a complete current state", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([])
-      return Promise.resolve([{ id: "lab-1", eventId: "event-1", eventTeamId: "team-1", labGroupName: "Team A", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", snapshot: false, payload: { sequence: "8", snapshot: false, labs: [] } }])
-    })
-    render(<Page />)
-    expect(await screen.findByText("Team A")).toBeInTheDocument()
-    expect(screen.getByText("Останні оновлення лабораторій")).toBeInTheDocument()
-    expect(screen.getByText("Часткове оновлення")).toBeInTheDocument()
-  })
-
-  it("keeps agent status visible when laboratory observations fail to load", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [{ id: "agent-1", key: "primary", name: "Primary", configured: true, healthy: true }], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([])
-      return Promise.reject(new Error("monitoring unavailable"))
-    })
+  it("keeps agent status visible when the current state fails to load", async () => {
+    serve({ current: new Error("monitoring unavailable") })
     render(<Page />)
     expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити спостереження лабораторій.")).toBeInTheDocument()
-    expect(screen.queryByText("Немає спостережень лабораторій.")).not.toBeInTheDocument()
+    expect(screen.queryByText("Немає даних про поточний стан лабораторій.")).not.toBeInTheDocument()
   })
 
-  it("keeps agent status visible when capacity observations fail to load", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [{ id: "agent-1", key: "primary", name: "Primary", configured: true, healthy: true }], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.reject(new Error("capacity unavailable"))
-      return Promise.resolve([])
-    })
+  it("keeps agent status visible when capacity fails to load", async () => {
+    serve({ capacity: new Error("capacity unavailable") })
     render(<Page />)
     expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити ресурси кластера.")).toBeInTheDocument()
@@ -103,17 +112,13 @@ describe("infrastructure page", () => {
   })
 
   it("shows resource, VPN traffic, access-rule, and deletion facts without exposing secret fields", async () => {
-    apiGet.mockImplementation((path: string) => {
-      if (path.endsWith("/status")) return Promise.resolve({ Available: true, Healthy: true, mode: "available", agents: [], capabilities: { laboratories: true } })
-      if (path.endsWith("/capacity/current")) return Promise.resolve([])
-      return Promise.resolve([{ id: "lab-1", eventId: "event-1", eventTeamId: "team-1", labGroupName: "team-a", agentId: "agent-1", observedAt: "2026-09-24T12:00:00Z", snapshot: false, payload: {
-        groups: [{ name: "team-a", status: { phase: "Ready", vpnRegistered: true } }],
-        labs: [{ name: "web-lab", status: { phase: "Running", ready: true, devices: [{ name: "web", usageAvailable: true, cpuMillicores: "250", memoryBytes: "104857600", restartCount: 2 }] }, specJson: "hidden-spec" }],
-        clients: [{ name: "vpn-client", publicKey: "hidden-key", status: { assignedIp: "10.0.0.2", ready: true, config: "hidden-config", statistics: { rxBytes: "1048576", txBytes: "2097152" } } }],
-        policies: [{ status: { state: "Applied", rules: [{ clientName: "vpn-client", labName: "web-lab", action: "LAB_GROUP_ACCESS_ACTION_DENY", packets: "5", bytes: "4096" }] } }],
-        deletedKeys: [{ kind: "lab", labGroupName: "team-a", name: "old-lab" }],
-      } }])
-    })
+    serve({ current: [currentLab({ LabGroupName: "team-a", Payload: {
+      groups: [{ name: "team-a", status: { phase: "Ready", vpnRegistered: true } }],
+      labs: [{ name: "web-lab", status: { phase: "Running", ready: true, devices: [{ name: "web", usageAvailable: true, cpuMillicores: "250", memoryBytes: "104857600", restartCount: 2 }] }, specJson: "hidden-spec" }],
+      clients: [{ name: "vpn-client", publicKey: "hidden-key", status: { assignedIp: "10.0.0.2", ready: true, config: "hidden-config", statistics: { rxBytes: "1048576", txBytes: "2097152" } } }],
+      policies: [{ status: { state: "Applied", rules: [{ clientName: "vpn-client", labName: "web-lab", action: "LAB_GROUP_ACCESS_ACTION_DENY", packets: "5", bytes: "4096" }] } }],
+      deletedKeys: [{ kind: "lab", labGroupName: "team-a", name: "old-lab" }],
+    } })] })
     render(<Page />)
     fireEvent.click(await screen.findByText("Переглянути показники"))
     expect(screen.getByText("web-lab")).toBeInTheDocument()
@@ -125,5 +130,104 @@ describe("infrastructure page", () => {
     expect(screen.getByText("5 пакетів, 4 КіБ")).toBeInTheDocument()
     expect(screen.getByText("Видалено: old-lab")).toBeInTheDocument()
     expect(screen.queryByText(/hidden-spec|hidden-key|hidden-config/)).not.toBeInTheDocument()
+  })
+
+  describe("stands", () => {
+    it("renders the stands table with the event site link and applies URL filters", async () => {
+      search = "status=failed&eventId=event-1"
+      serve({ stands: { Items: [stand, { ...stand, TeamID: "team-2", TeamName: "", Moderators: true, Status: "creating", Reason: "" }], Total: 2, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const table = (await screen.findByText("Червоні")).closest("table") as HTMLElement
+      expect(within(table).getByText("ImagePullBackOff: web")).toBeInTheDocument()
+      expect(within(table).getByText("Команда модераторів")).toBeInTheDocument()
+      expect(within(table).getByText("Помилка")).toBeInTheDocument()
+      expect(within(table).getByText("Готується")).toBeInTheDocument()
+      expect(within(table).getAllByRole("link")[0].getAttribute("href") ?? "").toBe("https://autumn.localhost/manage/labs")
+      const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
+      const query = new URLSearchParams(call.split("?")[1])
+      expect(query.get("status")).toBe("failed")
+      expect(query.get("eventId")).toBe("event-1")
+      expect(query.get("page")).toBe("1")
+    })
+
+    it("sends the search text to the API after a pause", async () => {
+      render(<Page />)
+      fireEvent.change(await screen.findByLabelText("Пошук за заходом або командою"), { target: { value: "red" } })
+      await waitFor(() => expect(apiGet.mock.calls.some((c) => String(c[0]).includes("/stands?") && String(c[0]).includes("search=red"))).toBe(true))
+    })
+
+    it("shows a centered empty state when nothing matches", async () => {
+      render(<Page />)
+      expect(await screen.findByText("Стендів ще немає.")).toBeInTheDocument()
+    })
+
+    it("hides the recreate action without infrastructure.write", async () => {
+      permissions = ["infrastructure.read"]
+      serve({ stands: { Items: [stand], Total: 1, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      await screen.findByText("Червоні")
+      expect(screen.queryByRole("button", { name: /Перестворити стенд/ })).not.toBeInTheDocument()
+    })
+
+    it("recreates a stand after confirmation naming the event and team", async () => {
+      serve({ stands: { Items: [stand, { ...stand, TeamID: "team-9", TeamName: "Сірі", Status: "removed" }], Total: 2, Page: 1, PageSize: 25 } })
+      apiPost.mockResolvedValue({})
+      render(<Page />)
+      await screen.findByText("Червоні")
+      expect(screen.getAllByRole("button", { name: /Перестворити стенд/ })).toHaveLength(1)
+      fireEvent.click(screen.getByRole("button", { name: /Перестворити стенд/ }))
+      const dialog = await screen.findByRole("dialog")
+      expect(dialog).toHaveTextContent("«Червоні»")
+      expect(dialog).toHaveTextContent("«Осінній CTF»")
+      expect(dialog).toHaveTextContent("VPN-конфігурації залишаться чинними")
+      expect(apiPost).not.toHaveBeenCalled()
+      fireEvent.click(within(dialog).getByRole("button", { name: "Перестворити" }))
+      await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/stands/event-1/team-1/recreate", {}))
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    })
+
+    it("keeps the dialog open with a localized error when recreating fails", async () => {
+      serve({ stands: { Items: [stand], Total: 1, Page: 1, PageSize: 25 } })
+      apiPost.mockRejectedValue(new Error("boom"))
+      render(<Page />)
+      await screen.findByText("Червоні")
+      fireEvent.click(screen.getByRole("button", { name: /Перестворити стенд/ }))
+      fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Перестворити" }))
+      expect(await screen.findByRole("alert")).toBeInTheDocument()
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+  })
+
+  describe("auto-refresh", () => {
+    const listCalls = () => apiGet.mock.calls.filter((c) => String(c[0]).endsWith("/status")).length
+    const setHidden = (hidden: boolean) => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden })
+      document.dispatchEvent(new Event("visibilitychange"))
+    }
+    afterEach(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => false }) })
+
+    it("polls every 20 seconds, pauses while the tab is hidden and resumes when visible", async () => {
+      vi.useFakeTimers()
+      render(<Page />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(listCalls()).toBe(1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+      expect(listCalls()).toBe(2)
+      setHidden(true)
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(listCalls()).toBe(2)
+      setHidden(false)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(listCalls()).toBe(3)
+    })
+
+    it("shows how long ago the data was updated", async () => {
+      vi.useFakeTimers()
+      render(<Page />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(screen.getByText("Оновлено 0 с тому")).toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+      expect(screen.getByText("Оновлено 5 с тому")).toBeInTheDocument()
+    })
   })
 })
