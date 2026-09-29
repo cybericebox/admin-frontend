@@ -1195,7 +1195,7 @@
   "admin.platformAnalytics.users.role.empty": "No data yet",
   "admin.platformAnalytics.users.people.title": "Most active users",
   "admin.platformAnalytics.users.people.subtitle": "Up to {limit} accounts by events joined",
-  "admin.platformAnalytics.users.people.hint": "Personal data, visible to the super admin only. The ranking ignores the period: events the account has taken part in so far. Solves: unique tasks.",
+  "admin.platformAnalytics.users.people.hint": "Personal data, visible to super administrators only. The ranking ignores the period: events the account has taken part in so far. Solves: unique tasks.",
   "admin.platformAnalytics.users.people.name": "Name",
   "admin.platformAnalytics.users.people.email": "Email",
   "admin.platformAnalytics.users.people.role": "Role",
