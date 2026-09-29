@@ -25,6 +25,7 @@ import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
@@ -351,6 +352,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         </div>
       </div>
 
+      {/* ── Read-only notice: one orange warning under the header ── */}
+      {template && isReadOnly && (
+        <Alert variant="warning" data-testid="body-readonly" className="mb-5">
+          {t("admin.notif.tpl.readonlyHint")}
+        </Alert>
+      )}
+
       {template && <TemplateVersions channel="email" notificationType={template.NotificationType} currentId={template.ID}
         canWrite={canWrite} dirty={isDirty} busy={busy} refreshKey={versionRevision} onRestore={handleRollback} />}
 
@@ -422,17 +430,10 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
           {/* Body */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-foreground">
+            {!isReadOnly && <label className="mb-2 block text-sm font-medium text-foreground">
               {t("admin.notif.tpl.body")}
-            </label>
-            {isReadOnly ? (
-              <div
-                data-testid="body-readonly"
-                className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground"
-              >
-                {t("admin.notif.tpl.readonlyHint")}
-              </div>
-            ) : (
+            </label>}
+            {isReadOnly ? null : (
               <BlockEditor
                 key={`body-${loadNonce}`}
                 value={bodyContent}

@@ -450,6 +450,22 @@ describe('Email template editor page', () => {
     })
   })
 
+  it('puts the read-only notice at the top as a warning, outside the body section, and none on a draft', async () => {
+    vi.mocked(getEmailTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'published' }))
+    const { unmount } = render(<Page />)
+    const notice = await screen.findByTestId('body-readonly')
+    expect(notice.className).toContain('--ib-warn-bg')
+    expect(notice.className).not.toMatch(/border-l|shadow/)
+    expect(notice.compareDocumentPosition(screen.getByTestId('subject-wrapper')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByText('admin.notif.tpl.body')).not.toBeInTheDocument()
+    unmount()
+
+    vi.mocked(getEmailTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'draft' }))
+    render(<Page />)
+    await screen.findByText('admin.notif.tpl.body')
+    expect(screen.queryByTestId('body-readonly')).not.toBeInTheDocument()
+  })
+
   // ── Styling px unit fix ───────────────────────────────────────────────────
 
   it('stores cta_border_radius and cta_font_size with px suffix when edited', async () => {

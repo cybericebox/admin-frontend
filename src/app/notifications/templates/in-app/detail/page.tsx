@@ -24,6 +24,7 @@ import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
@@ -354,6 +355,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
         </div>
       </div>
+
+      {/* ── Read-only notice: one orange warning under the header ── */}
+      {template && isReadOnly && (
+        <Alert variant="warning" data-testid="body-readonly" className="mb-5">
+          {t("admin.notif.tpl.readonlyHint")}
+        </Alert>
+      )}
 
       {template && <TemplateVersions channel="in-app" notificationType={template.NotificationType} currentId={template.ID}
         canWrite={canWrite} dirty={isDirty} busy={busy} refreshKey={versionRevision} onRestore={handleRollback} />}

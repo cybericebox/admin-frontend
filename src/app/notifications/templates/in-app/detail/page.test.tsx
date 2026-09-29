@@ -347,6 +347,17 @@ describe('In-app template editor page', () => {
     })
   })
 
+  it('shows the orange read-only notice only for a published template', async () => {
+    vi.mocked(getInAppTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'published' }))
+    const { unmount } = render(<Page />)
+    expect(await screen.findByTestId('body-readonly')).toHaveTextContent('admin.notif.tpl.readonlyHint')
+    unmount()
+    vi.mocked(getInAppTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'draft' }))
+    render(<Page />)
+    await waitFor(() => expect(document.querySelector('[data-testid="fields-wrapper"]')).not.toBeNull())
+    expect(screen.queryByTestId('body-readonly')).not.toBeInTheDocument()
+  })
+
   // ── New template (no id) ──────────────────────────────────────────────────
 
   it('renders blank form (no getInAppTemplate call) when id is empty', async () => {
