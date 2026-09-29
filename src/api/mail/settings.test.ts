@@ -3,18 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/api/client")
 
 import * as client from "@/api/client"
-import { domainOf, getMailSettings, resetMailSettings, saveMailSettings, testMailSettings, type MailSettingsInput } from "./settings"
+import { getMailSettings, isValidEmail, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailSmtpInput } from "./settings"
 
-const input: MailSettingsInput = {
+const smtp: MailSmtpInput = {
   Host: "email-smtp.eu-central-1.amazonaws.com",
   Port: 587,
   TLSMode: "starttls",
   Username: "AKIA",
   Password: "",
   ClearPassword: false,
-  FromName: "CyberICEBox",
-  FromAddress: "notifications@mail.cybericebox.com",
-  ReplyTo: "support@cybericebox.com",
 }
 
 describe("mail settings API", () => {
@@ -26,25 +23,33 @@ describe("mail settings API", () => {
     expect(client.apiGet).toHaveBeenCalledWith("/api/mail/settings")
   })
 
-  it("saves the whole form body", async () => {
-    await saveMailSettings(input)
-    expect(client.apiPut).toHaveBeenCalledWith("/api/mail/settings", input)
+  it("saves sender and Reply-To separately from the SMTP", async () => {
+    const identity = { Sender: { Name: "CyberICEBox", Address: "n@mail.x.y" }, ReplyTo: { Name: "", Address: "help@x.y" } }
+    await saveMailIdentity(identity)
+    expect(client.apiPut).toHaveBeenCalledWith("/api/mail/settings/identity", identity)
+  })
+
+  it("saves the SMTP form body", async () => {
+    await saveMailSmtp(smtp)
+    expect(client.apiPut).toHaveBeenCalledWith("/api/mail/settings/smtp", smtp)
   })
 
   it("resets to the env fallback with DELETE", async () => {
-    await resetMailSettings()
-    expect(client.apiDelete).toHaveBeenCalledWith("/api/mail/settings")
+    await resetMailSmtp()
+    expect(client.apiDelete).toHaveBeenCalledWith("/api/mail/settings/smtp")
   })
 
-  it("tests the given settings, or the stored ones with an empty body", async () => {
-    await testMailSettings(input)
-    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/test", input)
-    await testMailSettings()
-    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/test", {})
+  it("tests the given SMTP, or the stored one with an empty body", async () => {
+    await testMailSmtp(smtp)
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/smtp/test", smtp)
+    await testMailSmtp()
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/smtp/test", {})
   })
 
-  it("derives the sending domain from an address", () => {
-    expect(domainOf("notifications@Mail.CyberICEBox.com")).toBe("mail.cybericebox.com")
-    expect(domainOf("no-at-sign")).toBe("")
+  it("accepts empty and well-formed addresses only", () => {
+    expect(isValidEmail("")).toBe(true)
+    expect(isValidEmail("a@mail.example.com")).toBe(true)
+    expect(isValidEmail("no-at-sign")).toBe(false)
+    expect(isValidEmail("a b@x.y")).toBe(false)
   })
 })
