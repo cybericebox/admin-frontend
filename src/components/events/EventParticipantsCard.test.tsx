@@ -24,7 +24,7 @@ describe("EventParticipantsCard", () => {
     expect(screen.getByText("Очікує рішення")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Підтвердити Марія Савчук" }))
     await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/events/event-1/participants/user-1/approve", {}))
-    expect(screen.getByText("Підтверджено")).toBeInTheDocument()
+    expect(await screen.findByText("Підтверджено")).toBeInTheDocument()
   })
 
   it("shows invitations as awaiting the invited person without decision buttons", async () => {

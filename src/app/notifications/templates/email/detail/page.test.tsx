@@ -316,7 +316,8 @@ describe('Email template editor page', () => {
       expect(createEmailTemplate).toHaveBeenCalledTimes(1)
     })
 
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    // The button is renamed while busy; wait for the create request to settle.
+    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.editor.ctaBorderRadius'), { target: { value: '6' } })
     fireEvent.click(save)

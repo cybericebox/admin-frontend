@@ -380,7 +380,8 @@ describe('In-app template editor page', () => {
       expect(createInAppTemplate).toHaveBeenCalledTimes(1)
     })
 
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    // The button is renamed while busy; wait for the create request to settle.
+    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.inapp.autoDismissMs'), { target: { value: '6.5' } })
     fireEvent.click(save)
