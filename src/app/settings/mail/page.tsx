@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 
@@ -202,7 +203,7 @@ export default function Page() {
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <Input id="mail-password" type="password" value={form.Password} onChange={(event) => change("Password", event.target.value)} disabled={disabled} autoComplete="new-password" placeholder={settings.PasswordSet ? t("admin.mail.passwordSet") : ""} />
+                      <PasswordInput id="mail-password" value={form.Password} onChange={(event) => change("Password", event.target.value)} disabled={disabled} autoComplete="new-password" placeholder={settings.PasswordSet ? t("admin.mail.passwordSet") : ""} />
                       {settings.PasswordSet && canWrite && <Button type="button" variant="outline" className="h-10 shrink-0" disabled={disabled} onClick={() => { change("ClearPassword", true); change("Password", "") }}>{t("admin.mail.clearPassword")}</Button>}
                     </div>
                   )}

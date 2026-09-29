@@ -99,6 +99,8 @@
   "admin.comingSoon": "Coming soon",
   "admin.accountMenu": "Account menu",
   "admin.loading": "Loading…",
+  "admin.password.show": "Show password",
+  "admin.password.hide": "Hide password",
   "admin.table.total": "Total",
   "admin.table.perPage": "Per page",
   "admin.table.page": "Page",
