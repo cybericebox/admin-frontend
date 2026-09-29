@@ -113,7 +113,7 @@ function InAppTemplateList() {
         </h1>
         {canWrite && <Link
           href="/notifications/templates/in-app/detail"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           + {t("admin.notif.inapp.list.new")}
         </Link>}

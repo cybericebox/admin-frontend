@@ -236,7 +236,7 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="w-6 h-6 rounded-md border border-border shadow-sm"
+          className="w-6 h-6 rounded-md border border-border"
           style={{ background: hex }}
           aria-label={t("admin.notif.editor.openColorPicker")}
         />
@@ -283,7 +283,7 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
         <div
           className={cn(
             "absolute top-full left-0 mt-2 z-50 w-[232px] p-3 rounded-xl",
-            "bg-popover border border-border shadow-lg"
+            "bg-popover border border-border"
           )}
         >
           <div
@@ -296,7 +296,7 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
             }}
           >
             <div
-              className="absolute w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow pointer-events-none"
+              className="absolute w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white outline outline-1 outline-black/40 pointer-events-none"
               style={{
                 left: `${hsv.s * 100}%`,
                 top: `${(1 - hsv.v) * 100}%`,
@@ -316,7 +316,7 @@ export function ColorPicker({ value, onChange, label, help }: Props) {
             }}
           >
             <div
-              className="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow pointer-events-none"
+              className="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white outline outline-1 outline-black/40 pointer-events-none"
               style={{ left: `${(hsv.h / 360) * 100}%`, background: hueColor }}
             />
           </div>

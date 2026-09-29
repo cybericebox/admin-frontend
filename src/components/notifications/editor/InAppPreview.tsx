@@ -97,7 +97,7 @@ export function InAppPreview({
   return (
     <div>
     <div
-      className="rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+      className="rounded-lg border border-border bg-card text-card-foreground"
       data-surface={_surface}
       data-accent={accent}
     >
