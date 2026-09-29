@@ -588,7 +588,7 @@
   "admin.events.err.nameRequired": "Enter an event name",
   "meta.title": "Administration · Cyber ICE Box",
   "inbox.title": "Inbox",
-  "inbox.titleUnread": "Inbox: {count} unread",
+  "inbox.titleUnread": "Inbox, unread: {count}",
   "inbox.panel": "Personal inbox",
   "inbox.open": "Open",
   "inbox.loadError": "Could not load notifications.",

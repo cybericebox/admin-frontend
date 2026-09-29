@@ -588,7 +588,7 @@
   "admin.events.err.nameRequired": "Вкажіть назву заходу",
   "meta.title": "Адміністрування · Cyber ICE Box",
   "inbox.title": "Вхідні",
-  "inbox.titleUnread": "Вхідні: {count} непрочитаних",
+  "inbox.titleUnread": "Вхідні, непрочитані: {count}",
   "inbox.panel": "Особисті вхідні",
   "inbox.open": "Відкрити",
   "inbox.loadError": "Не вдалося завантажити вхідні повідомлення.",
