@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 const post = vi.hoisted(() => vi.fn())
 vi.mock("@/api/client", () => ({ apiPost: post }))
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key === "admin.users.invite.summary" ? "{invited} / {skipped} / {failed}" : key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, v?: Record<string, number>) => key === "admin.users.invite.summary" && v ? `${v.invited} / ${v.skipped} / ${v.failed}` : key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
 import InviteUsersDialog from "./InviteUsersDialog"

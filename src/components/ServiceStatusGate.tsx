@@ -69,8 +69,8 @@ export function ServiceStatusGate() {
           <CloudOff size={32} className="text-muted-foreground" aria-hidden />
           <h1 id="service-down-title" className="text-lg font-semibold">{t("error.unavailableTitle")}</h1>
           <p className="text-sm text-muted-foreground">{t("error.unavailableBody")}</p>
-          <Button variant="outline" size="sm" onClick={() => { void retry() }} disabled={checking} className="mt-2">
-            {checking ? t("admin.loading") : t("error.retry")}
+          <Button variant="outline" size="sm" onClick={() => { void retry() }} busy={checking} className="mt-2">
+            {t("error.retry")}
           </Button>
         </div>
       </div>

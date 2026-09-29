@@ -2,17 +2,18 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/utils/cn"
+import { t } from "@/i18n/t"
 
 const TABS = [
-  { href: "/settings", label: "Загальні" },
-  { href: "/settings/mail", label: "Пошта" },
+  { href: "/settings", labelKey: "admin.settings.tab.general" },
+  { href: "/settings/mail", labelKey: "admin.settings.tab.mail" },
 ]
 
 /** Sub-pages of «Налаштування»: every tab needs only platform.settings.read. */
 export function SettingsTabs() {
   const pathname = (usePathname() ?? "").replace(/\/$/, "") || "/"
   return (
-    <nav aria-label="Розділи налаштувань" className="inline-flex h-9 w-fit items-center rounded-lg bg-muted p-1 text-muted-foreground">
+    <nav aria-label={t("admin.settings.tabsLabel")} className="inline-flex h-9 w-fit items-center rounded-lg bg-muted p-1 text-muted-foreground">
       {TABS.map((tab) => {
         const active = pathname === tab.href
         return (
@@ -25,7 +26,7 @@ export function SettingsTabs() {
               active ? "bg-background text-foreground" : "hover:text-foreground",
             )}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         )
       })}

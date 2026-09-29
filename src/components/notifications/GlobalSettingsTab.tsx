@@ -38,7 +38,7 @@ export function GlobalSettingsTab() {
     setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? next : r))) // optimistic
     try {
       await apiPut("/api/notifications/settings/global", next)
-      toast.success("Налаштування сповіщень збережено.")
+      toast.success(t("admin.notif.settings.saved"))
     } catch {
       toast.error(t("admin.notif.settings.saveError"))
       setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? s : r))) // revert

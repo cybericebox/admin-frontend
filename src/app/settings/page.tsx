@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingArea } from "@/components/ui/spinner"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
+import { t } from "@/i18n/t"
 
 type Setting = {
   ID: string
@@ -32,7 +33,7 @@ export default function Page() {
       setError("")
       setItems(await apiGet<Setting[]>("/api/settings"))
     } catch {
-      setError("Не вдалося завантажити налаштування платформи.")
+      setError(t("admin.settings.loadError"))
     } finally {
       setLoading(false)
     }
@@ -45,7 +46,7 @@ export default function Page() {
     try {
       value = JSON.parse(draft)
     } catch {
-      setError("Значення має бути коректним JSON.")
+      setError(t("admin.settings.invalidJson"))
       return
     }
     setSaving(true)
@@ -55,7 +56,7 @@ export default function Page() {
       setItems((previous) => previous.map((current) => current.Key === item.Key ? saved : current))
       setEditing(null)
     } catch {
-      setError("Не вдалося зберегти налаштування.")
+      setError(t("admin.settings.saveError"))
     } finally {
       setSaving(false)
     }
@@ -65,19 +66,19 @@ export default function Page() {
     <RequirePermission
       perm="platform.settings.read"
       fallback={
-        <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">Немає доступу до налаштувань платформи.</div>
+        <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">{t("admin.settings.noAccess")}</div>
       }
     >
       <div className="flex min-h-full flex-col gap-5">
         <SettingsTabs />
-        <div><h2 className="text-xl font-semibold text-foreground">Налаштування платформи</h2><p className="mt-1 text-sm text-muted-foreground">Загальні параметри, доступні адміністратору платформи.</p></div>
+        <div><h2 className="text-xl font-semibold text-foreground">{t("admin.settings.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.settings.description")}</p></div>
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-        {loading ? <LoadingArea className="flex-1" label="Завантаження…" /> : items.length === 0 ? <Card><CardContent className="pt-5"><EmptyState message="Налаштувань поки немає." compact /></CardContent></Card> : (
+        {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : items.length === 0 ? <Card><CardContent className="pt-5"><EmptyState message={t("admin.settings.empty")} compact /></CardContent></Card> : (
           <Card><CardContent className="divide-y divide-border pt-5">
             {items.map((item) => <div key={item.ID} className="py-4 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-4"><div className="min-w-0"><h3 className="font-medium text-foreground">{item.Key}</h3>{editing !== item.Key && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{typeof item.Value === "string" ? item.Value : JSON.stringify(item.Value, null, 2)}</pre>}</div>
-                {editing !== item.Key && <RequirePermission perm="platform.settings.write"><Button variant="outline" size="sm" aria-label={`Редагувати ${item.Key}`} onClick={() => { setEditing(item.Key); setDraft(JSON.stringify(item.Value, null, 2)); setError("") }}>Редагувати</Button></RequirePermission>}</div>
-              {editing === item.Key && <div className="mt-3 space-y-3"><label className="block text-sm font-medium" htmlFor="setting-value">Значення</label><textarea id="setting-value" value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} className="w-full rounded-md border border-border bg-card p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-primary" /><div className="flex gap-2"><Button onClick={() => void save(item)} disabled={saving}>Зберегти</Button><Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>Скасувати</Button></div></div>}
+                {editing !== item.Key && <RequirePermission perm="platform.settings.write"><Button variant="outline" size="sm" aria-label={t("admin.settings.editNamed", { key: item.Key })} onClick={() => { setEditing(item.Key); setDraft(JSON.stringify(item.Value, null, 2)); setError("") }}>{t("admin.settings.edit")}</Button></RequirePermission>}</div>
+              {editing === item.Key && <div className="mt-3 space-y-3"><label className="block text-sm font-medium" htmlFor="setting-value">{t("admin.settings.value")}</label><textarea id="setting-value" value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} className="w-full rounded-md border border-border bg-card p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-primary" /><div className="flex gap-2"><Button onClick={() => void save(item)} disabled={saving} busy={saving}>{t("admin.settings.save")}</Button><Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>{t("admin.settings.cancel")}</Button></div></div>}
             </div>)}
           </CardContent></Card>
         )}

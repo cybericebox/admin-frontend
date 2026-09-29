@@ -87,7 +87,7 @@ function Detail() {
     try {
       await apiPatch(`/api/users/${id}/role`, { Role: role })
       await load()
-      toast.success("Роль користувача змінено.")
+      toast.success(t("admin.userDetail.roleChanged"))
     } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function setStatus(status: string) {
@@ -95,14 +95,14 @@ function Detail() {
     try {
       await apiPatch(`/api/users/${id}/status`, { Status: status })
       await load()
-      toast.success("Статус користувача змінено.")
+      toast.success(t("admin.userDetail.statusChanged"))
     } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
   }
   async function remove() {
     setBusy(true)
     try {
       await apiDelete(`/api/users/${id}`)
-      toast.success("Користувача видалено.")
+      toast.success(t("admin.userDetail.deleted"))
       router.push("/users")
     } catch { toast.error(t("admin.userDetail.actionError")); setBusy(false) }
   }
@@ -211,7 +211,7 @@ function Detail() {
                   <DialogClose asChild>
                     <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
                   </DialogClose>
-                  <Button variant="destructive" disabled={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
+                  <Button variant="destructive" disabled={busy} busy={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

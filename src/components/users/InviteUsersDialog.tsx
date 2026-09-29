@@ -22,13 +22,6 @@ interface InviteUsersDialogProps {
 
 type InviteResult = { Email: string; Error?: string }
 
-function summary(text: string, n: { invited: number; skipped: number; failed: number }): string {
-  return text
-    .replace("{invited}", String(n.invited))
-    .replace("{skipped}", String(n.skipped))
-    .replace("{failed}", String(n.failed))
-}
-
 export default function InviteUsersDialog({ open, onOpenChange, onClosed }: InviteUsersDialogProps) {
   const { can } = useRole()
   const roles = useMemo(() => assignableRoles(can), [can])
@@ -74,7 +67,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         skipped: [...outcomes.values()].filter((chip) => chip.status === "exists").length,
         failed: [...outcomes.values()].filter((chip) => chip.status === "failed").length,
       }
-      const resultMessage = summary(t("admin.users.invite.summary"), counts)
+      const resultMessage = t("admin.users.invite.summary", counts)
       if (counts.failed > 0 && counts.invited === 0) toast.error(resultMessage)
       else if (counts.failed > 0 || counts.skipped > 0) toast.warning(resultMessage)
       else toast.success(resultMessage)
@@ -172,7 +165,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={busy}>
             {submitted ? t("admin.users.invite.close") : t("admin.users.invite.cancel")}
           </Button>
-          <Button onClick={onSubmit} disabled={!canSubmit}>
+          <Button onClick={onSubmit} disabled={!canSubmit} busy={busy}>
             {hasFailed ? t("admin.users.invite.retry") : t("admin.users.invite.submit")}
           </Button>
         </DialogFooter>
