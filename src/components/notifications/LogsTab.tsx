@@ -14,25 +14,84 @@ import { useNotificationTypes } from "./templateTypes"
 import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { listEvents } from "@/api/events/catalog"
+import { useRole } from "@/lib/useRole"
+import { mailTransportLabel } from "@/utils/notifType"
 
+// W7 journal fields (ScopeEventID … Targets) are optional so an older backend
+// without them still renders the list.
+type Target = {
+  Channel: string
+  Status: string
+  Error: string
+  Attempts: number
+  Transport?: string
+  Recipient?: string
+  FallbackError?: string
+  UpdatedAt: string
+}
 type Dispatch = {
   ID: string
   NotificationType: string
   RecipientUserID: string
   Status: string
+  ScopeEventID?: string | null
+  EventName?: string
+  RecipientEmail?: string
+  Targets?: Target[]
   CreatedAt: string
   UpdatedAt: string
 }
-type Target = { Channel: string; Status: string; Error: string; Attempts: number; UpdatedAt: string }
 type DispatchDetail = Dispatch & { Targets: Target[] }
 type ListResp = CursorPage<Dispatch>
 
 const PAGE_SIZES = [25, 50, 100]
 const STATUSES = ["pending", "started", "done"]
+const CHANNELS = ["email", "in_app"]
+const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }]
+const TRANSPORTS = ["event", "platform", "env"]
+const EVENT_OPTIONS_LIMIT = 100
+
+type EventOption = { value: string; label: string }
+
+// Loads the event picker options once; without events.read the filter is hidden.
+function useEventOptions(enabled: boolean): EventOption[] {
+  const [options, setOptions] = useState<EventOption[]>([])
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    listEvents({ pageSize: EVENT_OPTIONS_LIMIT })
+      .then((page) => { if (!cancelled) setOptions(page.Items.map((event) => ({ value: event.ID, label: event.Name }))) })
+      .catch(() => { /* The event filter is optional: keep it hidden on failure. */ })
+    return () => { cancelled = true }
+  }, [enabled])
+  return options
+}
+
+function TargetLine({ target }: { target: Target }) {
+  const transport = mailTransportLabel(target.Transport)
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-foreground">{notifChannelLabel(target.Channel)}</span>
+        <StatusPill status={target.Status} label={t(statusLabelKey(target.Status))} />
+        {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
+        {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
+      </div>
+      {target.FallbackError && <span className="max-w-72 truncate text-xs text-muted-foreground" title={target.FallbackError}>{t("admin.notif.logs.fallback")}: {target.FallbackError}</span>}
+      {target.Error && <span className="max-w-72 truncate text-xs text-destructive" title={target.Error}>{target.Error}</span>}
+    </div>
+  )
+}
 
 export function LogsTab() {
   const [type, setType] = useState("")
   const [status, setStatus] = useState("")
+  const [eventFilter, setEventFilter] = useState("")
+  const [channel, setChannel] = useState("")
+  const [result, setResult] = useState("")
+  const [transport, setTransport] = useState("")
+  const eventOptions = useEventOptions(useRole().can("events.read"))
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
   const [cursors, setCursors] = useState<(string | null)[]>([null])
@@ -49,6 +108,10 @@ export function LogsTab() {
   const params = new URLSearchParams()
   if (type) params.set("type", type)
   if (status) params.set("status", status)
+  if (eventFilter) params.set("event", eventFilter)
+  if (channel) params.set("channel", channel)
+  if (result) params.set("result", result)
+  if (transport) params.set("transport", transport)
   params.set("limit", String(pageSize))
   if (cursors[page - 1]) params.set("cursor", cursors[page - 1]!)
   if (userFilter) params.set("user", userFilter.id)
@@ -86,6 +149,10 @@ export function LogsTab() {
       <div className="mb-3 flex flex-wrap gap-3">
         <SelectMenu value={type} onChange={(next) => { resetPage(); setType(next) }} ariaLabel={t("admin.notif.logs.type")} options={[{ value: "", label: t("admin.notif.logs.allTypes") }, ...types.map((kind) => ({ value: kind.Type, label: notifTypeLabel(kind.Type) }))]} className="min-w-48" />
         <SelectMenu value={status} onChange={(next) => { resetPage(); setStatus(next) }} ariaLabel={t("admin.notif.logs.status")} options={[{ value: "", label: t("admin.notif.logs.allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: t(statusLabelKey(s)) }))]} className="min-w-40" />
+        {eventOptions.length > 0 && <SelectMenu value={eventFilter} onChange={(next) => { resetPage(); setEventFilter(next) }} ariaLabel={t("admin.notif.logs.event")} options={[{ value: "", label: t("admin.notif.logs.allEvents") }, ...eventOptions]} className="min-w-48 max-w-72" />}
+        <SelectMenu value={channel} onChange={(next) => { resetPage(); setChannel(next) }} ariaLabel={t("admin.notif.logs.channel")} options={[{ value: "", label: t("admin.notif.logs.allChannels") }, ...CHANNELS.map((c) => ({ value: c, label: notifChannelLabel(c) }))]} className="min-w-36" />
+        <SelectMenu value={result} onChange={(next) => { resetPage(); setResult(next) }} ariaLabel={t("admin.notif.logs.result")} options={[{ value: "", label: t("admin.notif.logs.allResults") }, ...RESULTS.map((r) => ({ value: r.value, label: t(r.label) }))]} className="min-w-40" />
+        <SelectMenu value={transport} onChange={(next) => { resetPage(); setTransport(next) }} ariaLabel={t("admin.notif.logs.transport")} options={[{ value: "", label: t("admin.notif.logs.allTransports") }, ...TRANSPORTS.map((tr) => ({ value: tr, label: mailTransportLabel(tr) }))]} className="min-w-40" />
       </div>
 
       {userFilter && (
@@ -107,14 +174,16 @@ export function LogsTab() {
       ) : loading ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <EmptyState message={t(type || status || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
+        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
       ) : (
-        <div className="min-w-[760px]">
+        <div className="min-w-[1080px]">
           <table className="w-full text-sm">
             <thead>
               <tr className="sticky top-0 z-10 border-b border-border bg-background text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.type")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.recipient")}</th>
+                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.event")}</th>
+                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.delivery")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.status")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.created")}</th>
               </tr>
@@ -154,6 +223,13 @@ export function LogsTab() {
                         ⊞
                       </button>
                     </div>
+                    {d.RecipientEmail && <div className="text-xs text-muted-foreground">{d.RecipientEmail}</div>}
+                  </td>
+                  <td className="px-3 py-2 text-foreground">{d.ScopeEventID ? (d.EventName || <span className="font-mono text-xs text-muted-foreground">{d.ScopeEventID.slice(0, 8)}</span>) : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-3 py-2">
+                    {d.Targets && d.Targets.length > 0
+                      ? <div className="flex flex-col gap-1.5">{d.Targets.map((target, i) => <TargetLine key={`${target.Channel}-${i}`} target={target} />)}</div>
+                      : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-3 py-2"><StatusPill status={d.Status} label={t(statusLabelKey(d.Status))} /></td>
                   <td className="px-3 py-2 text-muted-foreground">{new Date(d.CreatedAt).toLocaleString("uk-UA")}</td>
@@ -191,7 +267,12 @@ export function LogsTab() {
                     <span className="font-medium text-foreground">{notifChannelLabel(tg.Channel)}</span>
                     <StatusPill status={tg.Status} label={t(statusLabelKey(tg.Status))} />
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.attempts")}: {tg.Attempts}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t("admin.notif.logs.attempts")}: {tg.Attempts}
+                    {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
+                    {tg.Recipient && <> · {tg.Recipient}</>}
+                  </div>
+                  {tg.FallbackError && <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {tg.FallbackError}</div>}
                   {tg.Error && <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>}
                 </div>
               ))}

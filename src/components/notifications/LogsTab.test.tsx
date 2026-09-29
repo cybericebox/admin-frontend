@@ -38,6 +38,11 @@ vi.mock('@/lib/userNames', () => ({
   },
 }))
 
+// useRole — events.read unlocks the event filter (listEvents)
+vi.mock('@/lib/useRole', () => ({
+  useRole: () => ({ can: (perm: string) => perm === 'events.read' }),
+}))
+
 // next/link — render a plain <a> so href / onClick are testable in jsdom
 vi.mock('next/link', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,6 +76,32 @@ const DETAIL_RESPONSE = {
   ],
 }
 
+const EVENTS_RESPONSE = { Items: [{ ID: 'ev-1', Name: 'Kyiv CTF', Tag: 'kyiv' }], Total: 1 }
+
+const JOURNAL_ROWS = [
+  {
+    ...DISPATCH_ROW,
+    ID: 'j1',
+    ScopeEventID: 'ev-1',
+    EventName: 'Kyiv CTF',
+    RecipientEmail: 'ann@example.com',
+    Targets: [
+      { Channel: 'email', Status: 'done', Error: '', Attempts: 2, Transport: 'platform', Recipient: 'ann@example.com', FallbackError: 'dial tcp: timeout', UpdatedAt: '2026-06-01T00:00:00Z' },
+      { Channel: 'in_app', Status: 'done', Error: '', Attempts: 1, Transport: '', Recipient: '', FallbackError: '', UpdatedAt: '2026-06-01T00:00:00Z' },
+    ],
+  },
+  {
+    ...DISPATCH_ROW,
+    ID: 'j2',
+    ScopeEventID: null,
+    EventName: '',
+    RecipientEmail: 'bob@example.com',
+    Targets: [
+      { Channel: 'email', Status: 'error', Error: 'mail is not configured', Attempts: 3, Transport: 'env', Recipient: 'bob@example.com', FallbackError: '', UpdatedAt: '2026-06-01T00:00:00Z' },
+    ],
+  },
+]
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('LogsTab', () => {
@@ -82,6 +113,7 @@ describe('LogsTab', () => {
       if (url.startsWith('/api/notifications/dispatches/')) {
         return Promise.resolve(DETAIL_RESPONSE)
       }
+      if (url.startsWith('/api/events')) return Promise.resolve(EVENTS_RESPONSE)
       return Promise.resolve(LIST_RESPONSE)
     })
   })
@@ -216,5 +248,39 @@ describe('LogsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('cursor=next-id')))
     expect(screen.getByText('admin.table.page 2 admin.table.of 2')).toBeInTheDocument()
+  })
+
+  it('renders journal columns: email, event name, transport, fallback and error', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/events')) return Promise.resolve(EVENTS_RESPONSE)
+      return Promise.resolve({ Items: JOURNAL_ROWS, Total: 2 })
+    })
+    render(<LogsTab />)
+    expect(await screen.findByText('ann@example.com')).toBeInTheDocument()
+    expect(screen.getByText('bob@example.com')).toBeInTheDocument()
+    const rows = screen.getAllByRole('row')
+    expect(rows[1].textContent).toContain('Kyiv CTF')
+    expect(rows[1].textContent).toContain('platform')
+    expect(rows[1].textContent).toContain('admin.notif.logs.fallback: dial tcp: timeout')
+    expect(rows[2].querySelectorAll('td')[2].textContent).toBe('—')
+    expect(rows[2].textContent).toContain('env')
+    expect(rows[2].textContent).toContain('mail is not configured')
+  })
+
+  it('sends channel, result, transport and event filters to the API', async () => {
+    render(<LogsTab />)
+    await screen.findByRole('link', { name: 'Ann Lee' })
+    const pick = async (filter: string, option: string) => {
+      fireEvent.keyDown(screen.getByRole('button', { name: filter }), { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: option }))
+    }
+    await pick('admin.notif.logs.channel', 'email')
+    await pick('admin.notif.logs.result', 'admin.notif.logs.resultError')
+    await pick('admin.notif.logs.transport', 'event')
+    await pick('admin.notif.logs.event', 'Kyiv CTF')
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*event=ev-1)(?=.*channel=email)(?=.*result=error)(?=.*transport=event)/),
+    ))
+    expect(mockApiGet).toHaveBeenCalledWith('/api/events?pageSize=100')
   })
 })
