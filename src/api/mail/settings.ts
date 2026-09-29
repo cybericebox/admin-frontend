@@ -7,6 +7,8 @@
  *   PUT    /api/mail/settings/smtp         the one custom SMTP server
  *   DELETE /api/mail/settings/smtp         → back to the env SMTP_* fallback
  *   POST   /api/mail/settings/smtp/test    → synchronous test mail to the current user
+ *   PUT    /api/mail/settings/footer       the platform email footer template
+ *   POST   /api/mail/settings/footer/preview → the template rendered as it would be sent
  *
  * The password is write-only: responses carry PasswordSet only. A PUT with an
  * empty Password keeps the stored one; ClearPassword removes it.
@@ -39,11 +41,21 @@ export type MailSmtp = {
   UpdatedAt: string | null
 }
 
+/** The platform email footer template; empty Text = DefaultText is sent. */
+export type MailFooter = {
+  Text: string
+  DefaultText: string
+  Variables: string[]
+}
+
+export type MailFooterPreview = { HTML: string; Text: string }
+
 export type MailSettings = {
   /** Stored platform values (empty = default / env). */
   Identity: MailIdentity
   /** What is actually used, env and defaults included: the placeholders. */
   Effective: MailIdentity
+  Footer: MailFooter
   SendingDomain: string
   /** Source of the SMTP server. */
   Source: MailSource
@@ -76,6 +88,16 @@ export function getMailSettings(): Promise<MailSettings> {
 
 export function saveMailIdentity(input: MailIdentity): Promise<MailSettings> {
   return apiPut<MailSettings>(`${BASE}/identity`, input)
+}
+
+export const MAIL_FOOTER_MAX = 1000
+
+export function saveMailFooter(text: string): Promise<MailSettings> {
+  return apiPut<MailSettings>(`${BASE}/footer`, { Text: text })
+}
+
+export function previewMailFooter(text: string): Promise<MailFooterPreview> {
+  return apiPost<MailFooterPreview>(`${BASE}/footer/preview`, { Text: text })
 }
 
 export function saveMailSmtp(input: MailSmtpInput): Promise<MailSettings> {

@@ -996,5 +996,20 @@
   "admin.mail.identitySaved": "Відправника збережено.",
   "admin.mail.error.emailInvalid": "Вкажіть коректну адресу електронної пошти.",
   "admin.mail.error.nameTooLong": "Ім'я має бути не довшим за {max} символів.",
-  "admin.mail.smtpDescription": "Необов'язково: один сервер, через який платформа надсилає листи. Заходи без власного SMTP користуються ним."
+  "admin.mail.smtpDescription": "Необов'язково: один сервер, через який платформа надсилає листи. Заходи без власного SMTP користуються ним.",
+  "admin.mail.footer.title": "Підвал листів",
+  "admin.mail.footer.description": "Текст у кінці кожного листа платформи та заходів. Заходи не можуть його змінити.",
+  "admin.mail.footer.text": "Текст підвалу",
+  "admin.mail.footer.textHelp": "Кожен рядок — окремий абзац. Посилання: [текст](адреса). Рядок зі змінною без значення не показується. Порожній текст повертає типовий.",
+  "admin.mail.footer.variables": "Змінні",
+  "admin.mail.footer.insert": "Вставити {variable}",
+  "admin.mail.footer.var.platform_name": "Назва платформи",
+  "admin.mail.footer.var.site_url": "Адреса сайту",
+  "admin.mail.footer.var.privacy_url": "Адреса політики конфіденційності",
+  "admin.mail.footer.var.reply_to": "Адреса для відповідей",
+  "admin.mail.footer.preview": "Попередній перегляд",
+  "admin.mail.footer.previewEmpty": "Підвал порожній: жоден рядок не має значень.",
+  "admin.mail.footer.resetDefault": "Типовий текст",
+  "admin.mail.footer.saved": "Підвал листів збережено.",
+  "admin.mail.footer.tooLong": "Текст має бути не довшим за {max} символів."
 }

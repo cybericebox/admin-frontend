@@ -4,6 +4,7 @@ import { MAIL_NAME_MAX, getMailSettings, isValidEmail, resetMailSmtp, saveMailId
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { MailFooterCard } from "@/components/settings/MailFooterCard"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
@@ -223,6 +224,8 @@ export default function Page() {
                 </RequirePermission>
               </CardContent>
             </Card>
+
+            <MailFooterCard footer={settings.Footer} canWrite={canWrite} onSaved={(next) => setSettings((current) => current && { ...current, Footer: next.Footer })} />
 
             <Card>
               <CardHeader>

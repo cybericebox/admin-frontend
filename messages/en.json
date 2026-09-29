@@ -996,5 +996,20 @@
   "admin.mail.identitySaved": "Sender saved.",
   "admin.mail.error.emailInvalid": "Enter a valid email address.",
   "admin.mail.error.nameTooLong": "The name must be at most {max} characters.",
-  "admin.mail.smtpDescription": "Optional: one server the platform sends email through. Events without their own SMTP use it."
+  "admin.mail.smtpDescription": "Optional: one server the platform sends email through. Events without their own SMTP use it.",
+  "admin.mail.footer.title": "Email footer",
+  "admin.mail.footer.description": "The text at the end of every platform and event email. Events cannot change it.",
+  "admin.mail.footer.text": "Footer text",
+  "admin.mail.footer.textHelp": "Each line is a paragraph. Links: [text](address). A line whose variable has no value is left out. Empty text restores the default.",
+  "admin.mail.footer.variables": "Variables",
+  "admin.mail.footer.insert": "Insert {variable}",
+  "admin.mail.footer.var.platform_name": "Platform name",
+  "admin.mail.footer.var.site_url": "Site address",
+  "admin.mail.footer.var.privacy_url": "Privacy policy address",
+  "admin.mail.footer.var.reply_to": "Reply-To address",
+  "admin.mail.footer.preview": "Preview",
+  "admin.mail.footer.previewEmpty": "The footer is empty: no line has values.",
+  "admin.mail.footer.resetDefault": "Default text",
+  "admin.mail.footer.saved": "Email footer saved.",
+  "admin.mail.footer.tooLong": "The text must be at most {max} characters."
 }

@@ -9,6 +9,7 @@ const resetMailSmtp = vi.fn()
 const testMailSmtp = vi.fn()
 vi.mock("@/api/mail/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/mail/settings")>()),
+  previewMailFooter: () => Promise.resolve({ HTML: "<p>preview</p>", Text: "preview" }),
   getMailSettings: () => getMailSettings(),
   saveMailIdentity: (input: unknown) => saveMailIdentity(input),
   saveMailSmtp: (input: unknown) => saveMailSmtp(input),
@@ -24,6 +25,7 @@ import Page from "./page"
 const STORED: MailSettings = {
   Identity: { Sender: { Name: "CyberICEBox", Address: "notifications@mail.cybericebox.com" }, ReplyTo: { Name: "", Address: "support@cybericebox.com" } },
   Effective: { Sender: { Name: "CyberICEBox", Address: "notifications@mail.cybericebox.com" }, ReplyTo: { Name: "", Address: "support@cybericebox.com" } },
+  Footer: { Text: "", DefaultText: "Cyber ICE Box · {site_url}", Variables: ["platform_name", "site_url", "privacy_url", "reply_to"] },
   SendingDomain: "mail.cybericebox.com",
   Source: "database",
   Configured: true,
@@ -45,7 +47,7 @@ describe("mail settings page", () => {
     expect(screen.getByText("mail.cybericebox.com")).toBeInTheDocument()
     expect(screen.getByPlaceholderText("Пароль збережено")).toHaveValue("")
     fireEvent.change(screen.getByLabelText("Сервер"), { target: { value: "smtp2.example.com" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[1])
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
     await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith({
       Host: "smtp2.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", Password: "", ClearPassword: false,
     }))
@@ -58,7 +60,7 @@ describe("mail settings page", () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "Видалити пароль" }))
     expect(screen.getByText("Пароль буде видалено після збереження")).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[1])
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
     await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith(expect.objectContaining({ Password: "", ClearPassword: true })))
   })
 
@@ -76,7 +78,7 @@ describe("mail settings page", () => {
     getMailSettings.mockResolvedValue(STORED)
     render(<Page />)
     fireEvent.change(await screen.findByLabelText("Порт"), { target: { value: "70000" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[1])
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
     expect(await screen.findByText("Порт має бути цілим числом від 1 до 65535.")).toBeInTheDocument()
     expect(saveMailSmtp).not.toHaveBeenCalled()
   })
