@@ -6,10 +6,19 @@ import {
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { Menu } from "lucide-react"
+import { Flag, House, LogOut, Menu, Settings, UserRound, type LucideIcon } from "lucide-react"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { idOrigin } from "@/lib/origins"
+import { exercisesOrigin, idOrigin, mainOrigin } from "@/lib/origins"
+import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
+
+// Unified account menu (lib/accountMenu): same labels and icons in every app.
+const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
+  profile: { label: "admin.profile", icon: UserRound },
+  admin: { label: "admin.account.admin", icon: Settings },
+  exercises: { label: "admin.account.exercises", icon: Flag },
+  main: { label: "admin.account.home", icon: House },
+}
 
 // Sign out from the ADMIN origin so DeAuthenticate clears this subdomain's local
 // token (httpOnly, out of the id app's reach) and deletes the master session
@@ -30,6 +39,13 @@ async function signOutAndRedirect(): Promise<void> {
 export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
   const { me, role } = useRole()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
+  // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
+  const adminTier = role !== null && role !== "user"
+  const links = accountLinks(
+    "admin",
+    { adminTier, catalog: adminTier, returnTo },
+    { id: idOrigin, admin: "", exercises: exercisesOrigin, main: mainOrigin },
+  )
   const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
@@ -70,12 +86,17 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href={`${idOrigin}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
-            </DropdownMenuItem>
+            {links.map(({ key, href }) => {
+              const { label, icon: Icon } = ACCOUNT_ITEMS[key]
+              return (
+                <DropdownMenuItem key={key} asChild className="gap-2">
+                  <a href={href}><Icon className="h-4 w-4" aria-hidden="true" />{t(label)}</a>
+                </DropdownMenuItem>
+              )
+            })}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-              {t("admin.signOut")}
+            <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
