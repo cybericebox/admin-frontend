@@ -6,36 +6,77 @@ import { openConsentSettings, readConsent } from "@/lib/consent"
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 const clear = () => { document.cookie = "cib_consent=; path=/; max-age=0" }
+const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }))
 
 describe("ConsentBanner", () => {
   afterEach(clear)
 
-  it("asks when no choice exists and hides after a choice", () => {
+  it("banner: a general line, customize and accept all; accept all grants analytics", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="https://example.com/cookies" />)
-    expect(screen.getByRole("region", { name: "consent.title" })).toBeInTheDocument()
+    const region = screen.getByRole("region", { name: "consent.label" })
+    expect(region).toHaveTextContent("consent.text")
     expect(screen.getByRole("link", { name: "consent.policyLink" })).toHaveAttribute("href", "https://example.com/cookies")
-    fireEvent.click(screen.getByRole("button", { name: "consent.reject" }))
-    expect(readConsent()).toBe("denied")
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["consent.customize", "consent.acceptAll"])
+    click("consent.acceptAll")
+    expect(readConsent()).toEqual({ analytics: true })
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
   })
 
-  it("stays hidden when a choice exists, and reopens from «Налаштування cookie»", () => {
-    document.cookie = "cib_consent=granted; path=/"
+  it("customize → accept selected with analytics off (the default)", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
-    expect(screen.queryByRole("region")).not.toBeInTheDocument()
-    act(() => openConsentSettings())
-    const region = screen.getByRole("region")
-    expect(region).toHaveFocus()
-    fireEvent.keyDown(region, { key: "Escape" })
-    expect(screen.queryByRole("region")).not.toBeInTheDocument()
-    expect(readConsent()).toBe("granted")
+    click("consent.customize")
+    const panel = screen.getByRole("dialog")
+    expect(panel).toHaveFocus()
+    expect(screen.getByRole("switch", { name: "consent.necessary.title" })).toBeDisabled()
+    expect(screen.getByRole("switch", { name: "consent.necessary.title" })).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByRole("switch", { name: "consent.analytics.title" })).toHaveAttribute("aria-checked", "false")
+    click("consent.acceptSelected")
+    expect(readConsent()).toEqual({ analytics: false })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("Esc does not count as consent", () => {
+  it("customize → accept selected with analytics on", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("consent.customize")
+    fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
+    click("consent.acceptSelected")
+    expect(readConsent()).toEqual({ analytics: true })
+  })
+
+  it("reject all from the panel", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("consent.customize")
+    click("consent.rejectAll")
+    expect(readConsent()).toEqual({ analytics: false })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("Esc never consents: from the panel it steps back to the banner", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     fireEvent.keyDown(screen.getByRole("region"), { key: "Escape" })
     expect(screen.getByRole("region")).toBeInTheDocument()
+    click("consent.customize")
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+    expect(screen.getByRole("region")).toBeInTheDocument()
     expect(readConsent()).toBeNull()
+  })
+
+  it("stays hidden when a choice exists; «Налаштування cookie» opens the panel with the stored choice", () => {
+    document.cookie = "cib_consent=analytics:granted; path=/"
+    const trigger = document.createElement("button")
+    document.body.appendChild(trigger)
+    trigger.focus()
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    expect(screen.queryByRole("region")).not.toBeInTheDocument()
+    act(() => openConsentSettings())
+    const panel = screen.getByRole("dialog")
+    expect(panel).toHaveFocus()
+    expect(screen.getByRole("switch", { name: "consent.analytics.title" })).toHaveAttribute("aria-checked", "true")
+    fireEvent.keyDown(panel, { key: "Escape" })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(readConsent()).toEqual({ analytics: true })
+    trigger.remove()
   })
 
   it("stays hidden when GA is not configured", () => {
