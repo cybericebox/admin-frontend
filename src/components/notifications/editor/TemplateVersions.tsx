@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 
 type Version = {
   ID: string
@@ -37,6 +38,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
   const [open, setOpen] = useState(false)
   const [versions, setVersions] = useState<Version[] | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [restoreSource, setRestoreSource] = useState<Version | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState(false)
@@ -55,7 +57,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       setLoadError(false)
     }).catch(() => { if (active) setLoadError(true) })
     return () => { active = false }
-  }, [channel, notificationType, open, refreshKey])
+  }, [channel, notificationType, open, refreshKey, attempt])
 
   async function restore() {
     if (!restoreSource || restoring || busy) return
@@ -83,7 +85,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
         <ChevronDown aria-hidden="true" className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="border-t border-border px-4 py-2">
-        {loadError && <p className="py-2 text-sm text-destructive">{t("admin.notif.versions.loadError")}</p>}
+        {loadError && <LoadError message={t("admin.notif.versions.loadError")} compact onRetry={() => { setLoadError(false); setVersions(null); setAttempt((key) => key + 1) }} />}
         {!loadError && versions === null && <LoadingArea compact label={t("admin.loading")} />}
         {!loadError && versions?.length === 0 && <EmptyState message={t("admin.notif.versions.empty")} compact />}
         {!loadError && versions?.map((version) => <div key={version.ID} className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 last:border-b-0">

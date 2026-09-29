@@ -53,7 +53,7 @@ describe("admin user detail", () => {
     render(<Page />)
     expect(await screen.findByText("admin.userDetail.loadError")).toBeInTheDocument()
     expect(screen.queryByText("admin.userDetail.notFound")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
   })
 

@@ -13,6 +13,7 @@ import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { useNotificationTypes } from "./templateTypes"
 import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
@@ -104,6 +105,7 @@ export function LogsTab() {
   const [open, setOpen] = useState(false)
   const reqId = useRef(0)
   const [detailError, setDetailError] = useState(false)
+  const [detailID, setDetailID] = useState("")
 
   const params = new URLSearchParams()
   if (type) params.set("type", type)
@@ -130,7 +132,7 @@ export function LogsTab() {
 
   function openDetail(id: string) {
     const my = ++reqId.current
-    setDetail(null); setDetailError(false); setOpen(true)
+    setDetail(null); setDetailError(false); setDetailID(id); setOpen(true)
     apiGet<DispatchDetail>(`/api/notifications/dispatches/${id}`)
       .then((d) => { if (my === reqId.current) setDetail(d) })
       .catch(() => { if (my === reqId.current) setDetailError(true) })
@@ -170,7 +172,7 @@ export function LogsTab() {
 
       <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-sm text-destructive">{t("admin.notif.loadError")}</p><Button variant="outline" onClick={() => setReload((value) => value + 1)}>{t("admin.events.access.retry")}</Button></div>
+        <LoadError message={t("admin.notif.loadError")} onRetry={() => setReload((value) => value + 1)} className="h-full" />
       ) : loading ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
@@ -254,7 +256,7 @@ export function LogsTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("admin.notif.logs.targets")}</DialogTitle></DialogHeader>
           {detailError ? (
-            <p className="py-4 text-sm text-destructive">{t("admin.notif.loadError")}</p>
+            <LoadError message={t("admin.notif.loadError")} compact onRetry={() => openDetail(detailID)} />
           ) : !detail ? (
             <LoadingArea compact label={t("admin.loading")} />
           ) : detail.Targets.length === 0 ? (

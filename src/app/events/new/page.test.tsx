@@ -49,7 +49,7 @@ describe("new event page", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.events.access.loadError")
     expect(screen.getByRole("link", { name: "admin.events.create.finish" })).toHaveAttribute("href", "/events/detail?id=event-1")
-    fireEvent.click(screen.getByRole("button", { name: "admin.events.access.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Managers for event-1")).toBeInTheDocument()
     expect(vi.mocked(createEvent)).toHaveBeenCalledTimes(1)
   })

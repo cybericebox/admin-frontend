@@ -5,6 +5,7 @@ import Link from "next/link"
 import { createEvent, getInfrastructureAvailable, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { Button } from "@/components/ui/button"
+import { LoadError } from "@/components/ui/load-error"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -104,7 +105,7 @@ export default function NewEventPage() {
         <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" busy={busy} disabled={!draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>
     </CardContent></Card> : <>
-      {managersError ? <Card><CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5"><p role="alert" className="text-sm text-destructive">{t("admin.events.access.loadError")}</p><Button type="button" variant="outline" onClick={() => void refreshManagers(created.ID)}>{t("admin.events.access.retry")}</Button></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
+      {managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} onRetry={() => void refreshManagers(created.ID)} /></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
       <div className="flex justify-end"><Button asChild><Link href={`/events/detail?id=${encodeURIComponent(created.ID)}`}>{t("admin.events.create.finish")}</Link></Button></div>
     </>}
   </div>

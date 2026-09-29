@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import {
@@ -160,7 +161,7 @@ export default function Page() {
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error && users.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.users.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>
+        <LoadError message={t("admin.users.loadError")} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }} className="h-full" />
       ) : loading && users.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : users.length === 0 ? (

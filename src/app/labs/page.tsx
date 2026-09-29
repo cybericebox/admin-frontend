@@ -8,6 +8,7 @@ import { useRole } from "@/lib/useRole"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { capacityMetrics, formatBytes, formatCpu, monitoringUpdateDetails } from "@/lib/infrastructureMonitoring"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
@@ -85,12 +86,11 @@ function ResourceBar({ label, requested, allocatable, format }: { label: string;
   </div>
 }
 
-function CapacityPanel({ rows, agents, loadError }: { rows: Observation[]; agents: Agent[]; loadError: string }) {
+function CapacityPanel({ rows, agents, loadError, onRetry }: { rows: Observation[]; agents: Agent[]; loadError: string; onRetry: () => void }) {
   return <Card>
     <CardHeader><CardTitle className="text-base">{t("admin.labs.capacity.title")}</CardTitle></CardHeader>
     <CardContent className="space-y-5">
-      {loadError && <p role="alert" className="text-sm text-[var(--ib-danger)]">{loadError}</p>}
-      {rows.length === 0 ? !loadError && <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
+      {loadError ? <LoadError message={loadError} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
         const agent = agents.find((item) => item.id === row.agentId || item.key === row.agentId)
         const name = agent?.name || agent?.key || row.agentId
         const metrics = capacityMetrics(row.payload)
@@ -122,13 +122,12 @@ function ObservationFacts({ payload }: { payload: unknown }) {
   </div>
 }
 
-function Observations({ title, rows, empty, loadError }: { title: string; rows: Observation[]; empty: string; loadError: string }) {
+function Observations({ title, rows, empty, loadError, onRetry }: { title: string; rows: Observation[]; empty: string; loadError: string; onRetry: () => void }) {
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
       <CardContent>
-        {loadError && <p role="alert" className="mb-3 text-sm text-[var(--ib-danger)]">{loadError}</p>}
-        {rows.length === 0 ? !loadError && <EmptyState message={empty} compact /> : (
+        {loadError ? <LoadError message={loadError} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={empty} compact /> : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.source")}</th><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.observed")}</th><th className="py-2 font-medium">{t("admin.labs.obs.data")}</th></tr></thead>
@@ -183,15 +182,15 @@ export default function Page() {
   return <RequirePermission perm="infrastructure.read" fallback={<p className="text-sm text-muted-foreground">{t("admin.labs.noAccess")}</p>}>
     <div className="flex min-h-full flex-col gap-5">
       <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-foreground">{t("admin.labs.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.labs.subtitle")}</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button></div>
-      {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-      {loading && !status ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : status && <>
+      {error && status && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
+      {loading && !status ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} onRetry={() => void load()} className="flex-1" /> : <>
         <Card><CardHeader><CardTitle className="text-base">{t("admin.labs.connection")}</CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Available && status.Healthy}>{t(status.Available ? status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention" : "admin.labs.state.disconnected")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.mode) })}</span></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}
           {status.agents.length === 0 ? <EmptyState message={t("admin.labs.noAgents")} compact /> : <ul className="divide-y divide-border">{status.agents.map((agent) => <li key={agent.id} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.name || agent.key}</span><StateBadge good={agent.healthy}>{t(agent.healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
         </CardContent></Card>
-        <Observations title={t("admin.labs.obs.title")} rows={labs} empty={t("admin.labs.obs.empty")} loadError={labsError} />
-        <CapacityPanel rows={capacity} agents={status.agents} loadError={capacityError} />
+        <Observations title={t("admin.labs.obs.title")} rows={labs} empty={t("admin.labs.obs.empty")} loadError={labsError} onRetry={() => void load()} />
+        <CapacityPanel rows={capacity} agents={status.agents} loadError={capacityError} onRetry={() => void load()} />
       </>}
     </div>
   </RequirePermission>

@@ -88,7 +88,7 @@ describe("admin users page", () => {
     mocks.get.mockRejectedValueOnce(new Error("offline"))
     render(<Page />)
     expect(await screen.findByText("admin.users.loadError")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.users.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
   })
 

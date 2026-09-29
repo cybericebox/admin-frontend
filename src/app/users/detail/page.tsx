@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 
 type UserDetail = {
@@ -115,8 +116,7 @@ function Detail() {
     return (
       <div className="frost-panel frost-in rounded-lg p-8">
         <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <p role="alert" className="mt-4 text-sm text-destructive">{t("admin.userDetail.loadError")}</p>
-        <Button variant="outline" className="mt-3" onClick={() => { setLoading(true); setLoadError(false); setReloadKey((k) => k + 1) }}>{t("admin.userDetail.retry")}</Button>
+        <LoadError message={t("admin.userDetail.loadError")} onRetry={() => { setLoading(true); setLoadError(false); setReloadKey((k) => k + 1) }} />
       </div>
     )
   }

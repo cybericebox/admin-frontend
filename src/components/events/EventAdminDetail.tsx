@@ -11,6 +11,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, isoToLocal, localToIso } from "@/lib/eventSchemas"
@@ -127,7 +128,7 @@ export function EventAdminDetail({ id }: { id: string }) {
   }
 
   if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (!id || loadError || !event || !draft) return <div className="space-y-3"><p role="alert" className="text-sm text-destructive">{t("admin.events.loadError")}</p><Button variant="outline" onClick={retryEvent} disabled={!id}>{t("admin.events.access.retry")}</Button></div>
+  if (!id || loadError || !event || !draft) return <LoadError message={t("admin.events.loadError")} onRetry={id ? retryEvent : undefined} className="h-full" />
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -154,7 +155,7 @@ export function EventAdminDetail({ id }: { id: string }) {
       </form>
     </CardContent></Card>
 
-    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5"><p role="alert" className="text-sm text-destructive">{t("admin.events.access.loadError")}</p><Button variant="outline" onClick={retryManagers}>{t("admin.events.access.retry")}</Button></CardContent></Card> : <EventManagersCard
+    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
       eventID={event.ID}
       managers={managers}
       editable={can("events.write")}

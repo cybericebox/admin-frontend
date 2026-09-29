@@ -5,6 +5,7 @@ import { apiGet } from "@/api/client"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 import { roleLabel } from "@/lib/roles"
 
@@ -33,6 +34,7 @@ function UserAnalytics() {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -41,10 +43,10 @@ function UserAnalytics() {
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [attempt])
 
   if (loading) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (error || !stats) return <p role="alert" className="text-sm text-destructive">{t("admin.dashboard.loadError")}</p>
+  if (error || !stats) return <LoadError message={t("admin.dashboard.loadError")} onRetry={() => { setError(false); setLoading(true); setAttempt((key) => key + 1) }} className="h-full" />
 
   const days = last7Days()
   const countByDay = new Map(stats.RegistrationsByDay.map((entry) => [entry.Day.slice(0, 10), entry.Count]))

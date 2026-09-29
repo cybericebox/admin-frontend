@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 
@@ -112,8 +113,8 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
 
   return <Card><CardContent className="pt-5">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-foreground">{t("admin.events.participants.title")}</h3><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.participants.description")}</p></div><SelectMenu value={filter} onChange={(value) => { setLoading(true); setItems([]); setCursor(""); setFilter(value) }} options={filters} disabled={loadingMore} ariaLabel={t("admin.events.participants.filterLabel")} className="w-48" /></div>
-    {error && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>{error}</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.events.access.retry")}</Button></div>}
-    {loading ? <LoadingArea compact label={t("admin.events.participants.loading")} /> : items.length === 0 ? <EmptyState message={t(filter ? "admin.events.participants.notFound" : "admin.events.participants.empty")} compact /> : <ul className="divide-y divide-border">{items.map((item) => {
+    {error && items.length > 0 && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>{error}</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.events.access.retry")}</Button></div>}
+    {loading ? <LoadingArea compact label={t("admin.events.participants.loading")} /> : error && items.length === 0 ? <LoadError message={error} compact onRetry={() => { setLoading(true); setReloadKey((key) => key + 1) }} /> : items.length === 0 ? <EmptyState message={t(filter ? "admin.events.participants.notFound" : "admin.events.participants.empty")} compact /> : <ul className="divide-y divide-border">{items.map((item) => {
       const user = users[item.UserID]
       const name = nameOf(user, item.UserID)
       return <li key={item.UserID} className="flex flex-wrap items-center gap-3 py-3">

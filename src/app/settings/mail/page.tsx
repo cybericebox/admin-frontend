@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
 
 const DEFAULT_FROM_NAME = "CyberICEBox"
 const FROM_ADDRESS_EXAMPLE = "notifications@mail.cybericebox.com"
@@ -166,7 +167,7 @@ export default function Page() {
         </div>
 
         {loadError ? (
-          <Card><CardContent className="flex flex-col items-center gap-3 pt-5"><p role="alert" className="text-sm text-destructive">{t("admin.mail.loadError")}</p><Button variant="outline" onClick={() => void load()}>{t("error.retry")}</Button></CardContent></Card>
+          <LoadError message={t("admin.mail.loadError")} onRetry={() => void load()} className="flex-1" />
         ) : !settings || !form ? (
           <LoadingArea className="flex-1" label={t("admin.loading")} />
         ) : (

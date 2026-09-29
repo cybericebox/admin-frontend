@@ -7,6 +7,7 @@ import { StatusPill } from "./StatusPill"
 import { notifTypeLabel, notifChannelLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 
 type KeyCount = { Key: string; Count: number }
 type ChannelStatus = { Channel: string; Status: string; Count: number }
@@ -25,6 +26,7 @@ export function StatisticsTab() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loadedDays, setLoadedDays] = useState<number | null>(null)
   const [errorDays, setErrorDays] = useState<number | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const error = errorDays === days
   const loading = !error && loadedDays !== days
 
@@ -34,7 +36,7 @@ export function StatisticsTab() {
       .then((result) => { if (!cancelled) { setStats(result); setLoadedDays(days); setErrorDays(null) } })
       .catch(() => { if (!cancelled) setErrorDays(days) })
     return () => { cancelled = true }
-  }, [days])
+  }, [days, attempt])
 
   return (
     <div className="flex min-h-full flex-col gap-6 pt-4">
@@ -50,7 +52,7 @@ export function StatisticsTab() {
       </div>
 
       {error ? (
-        <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
+        <LoadError message={t("admin.notif.loadError")} onRetry={() => { setErrorDays(null); setAttempt((key) => key + 1) }} className="flex-1" />
       ) : loading || !stats ? (
         <LoadingArea className="flex-1" label={t("admin.loading")} />
       ) : (

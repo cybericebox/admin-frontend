@@ -19,6 +19,7 @@ import Link from "next/link"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import {
   latestInAppTemplates,
@@ -71,13 +72,14 @@ function InAppTemplateList() {
   const canWrite = useRole().can("notifications.templates.write")
   const [entries, setEntries] = useState<InAppLatestEntry[] | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [search, setSearch] = useState("")
 
   useEffect(() => {
     latestInAppTemplates()
       .then(setEntries)
       .catch(() => setLoadError(true))
-  }, [])
+  }, [attempt])
 
   // Collect all UpdatedByUserID values using fallback logic
   const userIds: (string | null | undefined)[] = (entries ?? []).map((entry) => {
@@ -96,9 +98,7 @@ function InAppTemplateList() {
   // ── Error state ───────────────────────────────────────────────────────────
   if (loadError) {
     return (
-      <div className="frost-in rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
-        {t("admin.notif.inapp.list.loadError")}
-      </div>
+      <LoadError message={t("admin.notif.inapp.list.loadError")} onRetry={() => { setLoadError(false); setAttempt((key) => key + 1) }} className="frost-panel frost-in h-full rounded-lg" />
     )
   }
 

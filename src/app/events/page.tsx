@@ -9,6 +9,7 @@ import {
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toast"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -166,7 +167,7 @@ export default function Page() {
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error && rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.events.loadError")}</p><Button variant="outline" onClick={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }}>{t("admin.events.access.retry")}</Button></div>
+        <LoadError message={t("admin.events.loadError")} onRetry={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (

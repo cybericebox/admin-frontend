@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { SignalDefaultsSection } from "@/components/notifications/SignalDefaultsSection"
 
@@ -23,6 +24,7 @@ export function GlobalSettingsTab() {
   const [rows, setRows] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -31,7 +33,7 @@ export function GlobalSettingsTab() {
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [attempt])
 
   async function toggle(s: Setting, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
     const next = { ...s, [field]: value }
@@ -47,7 +49,7 @@ export function GlobalSettingsTab() {
 
   let globalSettings: ReactNode
   if (error) {
-    globalSettings = <p className="py-8 text-center text-sm text-destructive">{t("admin.notif.loadError")}</p>
+    globalSettings = <LoadError message={t("admin.notif.loadError")} onRetry={() => { setError(false); setLoading(true); setAttempt((key) => key + 1) }} />
   } else if (loading) {
     globalSettings = <LoadingArea label={t("admin.loading")} />
   } else if (rows.length === 0) {

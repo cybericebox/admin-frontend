@@ -8,6 +8,7 @@ import { listEvents, type Event } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 
@@ -66,7 +67,7 @@ export default function Page() {
 
   return <div className="flex min-h-full flex-col gap-7">
     <div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.dashboard.subtitle")}</p></div>
-    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : <>
+    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : failedFeeds > 0 && failedFeeds === [usersAllowed, eventsAllowed, notificationsAllowed, infrastructureAllowed].filter(Boolean).length ? <LoadError onRetry={() => { setLoading(true); setRetry((current) => current + 1) }} className="flex-1" /> : <>
       {failedFeeds > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"><span>{t("admin.dashboard.partialError")}</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setRetry((current) => current + 1) }}>{t("admin.dashboard.retry")}</Button></div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href="/analytics/users" />}

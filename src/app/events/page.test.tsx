@@ -107,7 +107,7 @@ describe('events catalog page', () => {
     render(<Page />)
 
     expect(await screen.findByText('admin.events.loadError')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.events.access.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByRole('link', { name: 'Spring CTF' })).toBeInTheDocument()
   })
 

@@ -58,7 +58,7 @@ describe("EventAdminDetail", () => {
     expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeInTheDocument()
     expect(screen.getByRole("alert")).toHaveTextContent("admin.events.access.loadError")
 
-    fireEvent.click(screen.getByRole("button", { name: "admin.events.access.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     await waitFor(() => expect(screen.queryByText("admin.events.access.loadError")).not.toBeInTheDocument())
     expect(mock.managers).toHaveBeenCalledTimes(2)
   })
