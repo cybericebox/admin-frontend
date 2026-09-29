@@ -27,6 +27,10 @@ type Message = {
   Actions?: { label: string; href: string }[] | null
   ReadAt: string | null
   CreatedAt: string
+  // Set when the notification belongs to an Event; labelled with its name.
+  EventID?: string | null
+  EventName?: string | null
+  EventTag?: string | null
 }
 
 type InboxCursor = { ID: string; CreatedAt: string }
@@ -34,6 +38,11 @@ type InboxPoll = { Cursor: InboxCursor | null; NewInbox: Message[]; UnreadCount:
 type InboxPage = { Items: Message[]; NextCursor: InboxCursor | null }
 
 const READ_SYNC_KEY = "cybericebox:inbox-read"
+
+function EventLabel({ name }: { name?: string | null }) {
+  if (!name) return null
+  return <span className="max-w-[60%] truncate rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{name}</span>
+}
 
 function safeHref(value: string): string | null {
   const href = value.trim()
@@ -283,7 +292,7 @@ export function InboxButton() {
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
                 body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined}
                 unread={!item.ReadAt} compact
-                timestamp={<time dateTime={item.CreatedAt}>{new Date(item.CreatedAt).toLocaleString("uk-UA")}</time>}
+                timestamp={<span className="flex min-w-0 items-center gap-2"><time dateTime={item.CreatedAt}>{new Date(item.CreatedAt).toLocaleString("uk-UA")}</time><EventLabel name={item.EventName} /></span>}
                 actions={link ? <a href={link.href} onClick={(event) => { event.preventDefault(); void followLink(item, link.href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{link.label}</a> : !item.ReadAt ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">Позначити прочитаним</button> : undefined}
               />
             </li>

@@ -62,6 +62,18 @@ describe("top-bar inbox", () => {
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
   })
 
+  it("lists every notification and labels Event-bound ones with the Event name", async () => {
+    mockInbox([
+      { ID: "1", Title: "Старт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventID: "e1", EventName: "Зимовий CTF", EventTag: "winter" },
+      { ID: "2", Title: "Акаунт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", EventID: null, EventName: null, EventTag: null },
+    ])
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 2 непрочитаних" }))
+    expect((await screen.findByText("Старт")).closest("li")).toHaveTextContent("Зимовий CTF")
+    expect(screen.getByText("Акаунт").closest("li")).not.toHaveTextContent("Зимовий CTF")
+    for (const [path] of api.get.mock.calls) expect(new URL(path as string, "http://x").searchParams.has("event")).toBe(false)
+  })
+
   it("shows the saved notification icon in the inbox", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Icon: "calendar", Tone: "info", AccentColor: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
