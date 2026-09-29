@@ -131,11 +131,11 @@ export default function Page() {
       if (confirming.kind === "archive") {
         const updated = await archiveEvent(confirming.event.ID)
         setRows((prev) => prev.map((r) => (r.ID === updated.ID ? updated : r)))
-        toast.success("Захід архівовано.")
+        toast.success(t("admin.events.archived"))
       } else {
         await deleteEvent(confirming.event.ID)
         setRows((prev) => prev.filter((r) => r.ID !== confirming.event.ID))
-        toast.success("Захід видалено.")
+        toast.success(t("admin.events.deleted"))
       }
       setConfirming(null)
     } catch (e) {
@@ -251,7 +251,7 @@ export default function Page() {
             </DialogClose>
             <Button
               variant={confirming?.kind === "delete" ? "destructive" : "default"}
-              disabled={confirmBusy}
+              busy={confirmBusy}
               onClick={runConfirm}
             >
               {t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}

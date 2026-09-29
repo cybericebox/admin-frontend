@@ -4,7 +4,7 @@ import NewEventPage from "./page"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "" }))
 vi.mock("@/api/events/catalog", () => ({ createEvent: vi.fn(), listEventManagers: vi.fn(), getInfrastructureAvailable: vi.fn() }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ eventID }: { eventID: string }) => <div>Managers for {eventID}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
@@ -34,7 +34,7 @@ describe("new event page", () => {
 
     await waitFor(() => expect(createEvent).toHaveBeenCalledWith(expect.objectContaining({ Name: "Internal", Tag: "winter", ArchiveAt: null, InfrastructureAllowed: true })))
     expect(await screen.findByText("Managers for event-1")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Завершити" })).toHaveAttribute("href", "/events/detail?id=event-1")
+    expect(screen.getByRole("link", { name: "admin.events.create.finish" })).toHaveAttribute("href", "/events/detail?id=event-1")
   })
 
   it("preserves a created event and retries loading its managers after a partial failure", async () => {
@@ -48,7 +48,7 @@ describe("new event page", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
 
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.events.access.loadError")
-    expect(screen.getByRole("link", { name: "Завершити" })).toHaveAttribute("href", "/events/detail?id=event-1")
+    expect(screen.getByRole("link", { name: "admin.events.create.finish" })).toHaveAttribute("href", "/events/detail?id=event-1")
     fireEvent.click(screen.getByRole("button", { name: "admin.events.access.retry" }))
     expect(await screen.findByText("Managers for event-1")).toBeInTheDocument()
     expect(vi.mocked(createEvent)).toHaveBeenCalledTimes(1)

@@ -10,6 +10,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/toast"
+import { t } from "@/i18n/t"
 
 export type EventLifecycle = {
   Status: "not_published" | "published" | "started" | "finished" | "withdrawn" | "unknown"
@@ -28,8 +29,8 @@ export type EventLifecycle = {
 }
 
 const joinOptions = [
-  { value: "0", label: "Приєднання до старту" },
-  { value: "1", label: "Приєднання після старту дозволено" },
+  { value: "0", label: t("admin.events.schedule.join.beforeStart") },
+  { value: "1", label: t("admin.events.schedule.join.afterStart") },
 ]
 
 export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
@@ -59,7 +60,7 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
     const withdraw = scheduled ? new Date(withdrawAt).getTime() : null
     if (!Number.isFinite(publish) || !Number.isFinite(start) || start < publish ||
       (scheduled && (!Number.isFinite(finish) || !Number.isFinite(withdraw) || finish! <= start || withdraw! <= finish!))) {
-      setError("Перевірте порядок дат: публікація, старт, фініш і зняття з публікації.")
+      setError(t("admin.events.schedule.val.order"))
       return
     }
     setBusy(true)
@@ -72,7 +73,7 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
         WithdrawAt: scheduled ? localToIso(withdrawAt) : null,
       })
       onSaved(next)
-      toast.success("Розклад заходу збережено.")
+      toast.success(t("admin.events.schedule.saved"))
       onClose()
     } catch (failure) {
       toast.error(eventErrorMessage(failure))
@@ -83,21 +84,21 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
 
   return <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
     <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
-      <DialogHeader><DialogTitle>Життєвий цикл заходу</DialogTitle><DialogDescription>Стан визначається датами автоматично. Після старту доступ до завдань залежить також від готовності лабораторій.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{t("admin.events.schedule.title")}</DialogTitle><DialogDescription>{t("admin.events.schedule.description")}</DialogDescription></DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-4">
-        <div className="space-y-1.5"><label className="text-sm font-medium">Політика приєднання</label><SelectMenu value={joinPolicy.toString()} onChange={(value) => setJoinPolicy(Number(value))} options={joinOptions} ariaLabel="Політика приєднання" disabled={busy} className="w-full" /></div>
+        <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.joinPolicy")}</label><SelectMenu value={joinPolicy.toString()} onChange={(value) => setJoinPolicy(Number(value))} options={joinOptions} ariaLabel={t("admin.events.schedule.field.joinPolicy")} disabled={busy} className="w-full" /></div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><label className="text-sm font-medium">Публікація</label><DateTimePicker value={publishAt} onChange={setPublishAt} aria-label="Публікація" disabled={busy} /></div>
-          <div className="space-y-1.5"><label className="text-sm font-medium">Старт</label><DateTimePicker value={startAt} onChange={setStartAt} aria-label="Старт" disabled={busy} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.publishAt")}</label><DateTimePicker value={publishAt} onChange={setPublishAt} aria-label={t("admin.events.schedule.field.publishAt")} disabled={busy} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.startAt")}</label><DateTimePicker value={startAt} onChange={setStartAt} aria-label={t("admin.events.schedule.field.startAt")} disabled={busy} /></div>
         </div>
-        <Checkbox checked={!scheduled} onChange={(event) => { setScheduled(!event.target.checked); if (event.target.checked) { setFinishAt(""); setWithdrawAt("") } }} disabled={busy} label="Без запланованого завершення" />
+        <Checkbox checked={!scheduled} onChange={(event) => { setScheduled(!event.target.checked); if (event.target.checked) { setFinishAt(""); setWithdrawAt("") } }} disabled={busy} label={t("admin.events.schedule.noFinish")} />
         {scheduled && <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><label className="text-sm font-medium">Фініш</label><DateTimePicker value={finishAt} onChange={setFinishAt} aria-label="Фініш" disabled={busy} /></div>
-          <div className="space-y-1.5"><label className="text-sm font-medium">Зняття з публікації</label><DateTimePicker value={withdrawAt} onChange={setWithdrawAt} aria-label="Зняття з публікації" disabled={busy} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.finishAt")}</label><DateTimePicker value={finishAt} onChange={setFinishAt} aria-label={t("admin.events.schedule.field.finishAt")} disabled={busy} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.withdrawAt")}</label><DateTimePicker value={withdrawAt} onChange={setWithdrawAt} aria-label={t("admin.events.schedule.field.withdrawAt")} disabled={busy} /></div>
         </div>}
-        {!lifecycle.Infrastructure.CanStart && lifecycle.Infrastructure.HasDynamicLabs && <p className="text-sm text-muted-foreground">Поточна лабораторна інфраструктура не дозволяє запустити захід зараз. Майбутній розклад можна зберегти.</p>}
+        {!lifecycle.Infrastructure.CanStart && lifecycle.Infrastructure.HasDynamicLabs && <p className="text-sm text-muted-foreground">{t("admin.events.schedule.cannotStart")}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Скасувати</Button><Button type="submit" disabled={busy || !isDirty}>Зберегти розклад</Button></DialogFooter>
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.events.dialog.cancel")}</Button><Button type="submit" busy={busy} disabled={!isDirty}>{t("admin.events.schedule.submit")}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>

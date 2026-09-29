@@ -150,7 +150,7 @@ export function EventAdminDetail({ id }: { id: string }) {
         </div>
         <p className="text-sm text-muted-foreground" data-testid="event-infrastructure">{t("admin.events.field.infrastructure")}: <span className="font-medium text-foreground">{t(event.InfrastructureAllowed ? "admin.events.field.infrastructureYes" : "admin.events.field.infrastructureNo")}</span></p>
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
-        {writable && <div className="flex justify-end"><Button type="submit" disabled={saving || !isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
+        {writable && <div className="flex justify-end"><Button type="submit" busy={saving} disabled={!isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>
     </CardContent></Card>
 
