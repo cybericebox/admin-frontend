@@ -51,3 +51,12 @@ export function notifVariableDescription(name: string, fallback: string): string
   const label = t(key)
   return label === key ? fallback : label
 }
+
+// Localized label for the mail transport a delivery used (event/platform/env).
+// Empty for non-mail channels or unknown values; falls back to the raw value.
+export function mailTransportLabel(transport: string | undefined | null): string {
+  if (!transport) return ""
+  const key = `admin.mail.transport.${transport}`
+  const label = t(key)
+  return label === key ? transport : label
+}
