@@ -69,23 +69,7 @@ export type InfrastructureSummary = {
   Capacity: { Available: boolean; CPUPercent: number | null; MemoryPercent: number | null }
 }
 
-// Older backends answer in camelCase: read either casing so the page never breaks.
-type LooseStatus = Partial<InfrastructureStatus> & { available?: boolean; healthy?: boolean; mode?: string; agents?: InfrastructureAgent[]; capabilities?: { laboratories?: boolean }; warning?: { code: string; message: string } }
-
-export function normalizeInfrastructureStatus(raw: LooseStatus | null | undefined): InfrastructureStatus {
-  const r = raw ?? {}
-  const warning = r.Warning ?? (r.warning ? { Code: r.warning.code, Message: r.warning.message } : undefined)
-  return {
-    Available: r.Available ?? r.available ?? false,
-    Healthy: r.Healthy ?? r.healthy ?? false,
-    Mode: r.Mode ?? r.mode ?? "",
-    Agents: r.Agents ?? r.agents ?? [],
-    Capabilities: { Laboratories: r.Capabilities?.Laboratories ?? r.capabilities?.laboratories ?? false },
-    ...(warning ? { Warning: warning } : {}),
-  }
-}
-
-export const getInfrastructureStatus = () => apiGet<LooseStatus>(`${BASE}/status`).then(normalizeInfrastructureStatus)
+export const getInfrastructureStatus = () => apiGet<InfrastructureStatus>(`${BASE}/status`)
 export const getCurrentLabs = (includeRecent: boolean) =>
   apiGet<CurrentLab[]>(`${BASE}/monitoring/current${includeRecent ? "?includeRecent=true" : ""}`)
 export const getCurrentCapacity = () => apiGet<CapacityObservation[]>(`${BASE}/monitoring/capacity/current`)
