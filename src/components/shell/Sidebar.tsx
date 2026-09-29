@@ -2,7 +2,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Bell, Users, Puzzle, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink } from "lucide-react"
+import { LayoutDashboard, Bell, Users, Flag, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -24,7 +24,7 @@ const SECTIONS: Section[] = [
   { items: [{ href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard }] },
   { divider: true, label: "admin.nav.section.content", items: [
     { href: "/events", label: "admin.nav.events", icon: CalendarDays, perm: "events.read" },
-    { href: exercisesOrigin, label: "admin.nav.exercises", icon: Puzzle, perm: "exercises.read", external: true },
+    { href: exercisesOrigin, label: "admin.nav.exercises", icon: Flag, perm: "exercises.read", external: true },
   ] },
   { divider: true, items: [{ href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" }] },
   { divider: true, items: [{
