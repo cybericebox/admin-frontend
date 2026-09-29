@@ -16,7 +16,6 @@ const TITLES: Record<string, string> = {
   "/analytics": "admin.nav.analytics",
   "/users": "admin.nav.users",
   "/events": "admin.nav.events",
-  "/exercises": "admin.nav.exercises",
   "/labs": "admin.nav.labs",
   "/settings": "admin.nav.settings",
 }
