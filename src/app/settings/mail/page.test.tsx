@@ -94,7 +94,7 @@ describe("mail settings page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Видалити налаштування" }))
     await waitFor(() => expect(resetMailSmtp).toHaveBeenCalled())
     expect(await screen.findByText("Резервні налаштування з оточення (SMTP_*)")).toBeInTheDocument()
-    expect(screen.getByText(/smtp\.env:465/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /smtp\.env:465/ })).toBeInTheDocument()
     expect(screen.getByLabelText("Сервер")).toHaveValue("smtp.env")
   })
 
