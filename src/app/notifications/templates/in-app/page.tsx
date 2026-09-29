@@ -71,14 +71,14 @@ function pickUpdatedBy(entry: InAppLatestEntry): string | null {
 function InAppTemplateList() {
   const canWrite = useRole().can("notifications.templates.write")
   const [entries, setEntries] = useState<InAppLatestEntry[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [search, setSearch] = useState("")
 
   useEffect(() => {
     latestInAppTemplates()
       .then(setEntries)
-      .catch(() => setLoadError(true))
+      .catch((cause) => setLoadError({ cause }))
   }, [attempt])
 
   // Collect all UpdatedByUserID values using fallback logic
@@ -98,7 +98,7 @@ function InAppTemplateList() {
   // ── Error state ───────────────────────────────────────────────────────────
   if (loadError) {
     return (
-      <LoadError message={t("admin.notif.inapp.list.loadError")} onRetry={() => { setLoadError(false); setAttempt((key) => key + 1) }} className="frost-panel frost-in h-full rounded-lg" />
+      <LoadError message={t("admin.notif.inapp.list.loadError")} error={loadError.cause} onRetry={() => { setLoadError(null); setAttempt((key) => key + 1) }} className="frost-panel frost-in h-full rounded-lg" />
     )
   }
 

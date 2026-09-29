@@ -36,7 +36,7 @@ export function teamLabel(stand: Stand): string {
 
 export type StandsFilters = { eventId: string; status: string; search: string; page: number; pageSize: number }
 
-export function StandsTable({ filters, searchInput, onSearchInput, onFilters, events, items, total, loading, error, canWrite, onRetry, onRecreate }: {
+export function StandsTable({ filters, searchInput, onSearchInput, onFilters, events, items, total, loading, error, errorCause, canWrite, onRetry, onRecreate }: {
   filters: StandsFilters
   searchInput: string
   onSearchInput: (value: string) => void
@@ -46,6 +46,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
   total: number
   loading: boolean
   error: string
+  errorCause?: unknown
   canWrite: boolean
   onRetry: () => void
   onRecreate: (stand: Stand) => void
@@ -66,7 +67,8 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
         <FieldHelp text={t("admin.labs.stands.statusHelp")} />
       </div>
       <div className="relative" aria-busy={loading}>
-        {items === null ? (error ? <LoadError message={error} onRetry={onRetry} className={block} /> : <LoadingArea className={block} label={t("admin.loading")} />)
+        {error ? <LoadError message={error} error={errorCause} onRetry={onRetry} className={block} />
+          : items === null ? <LoadingArea className={block} label={t("admin.loading")} />
           : items.length === 0 ? <EmptyState message={t(filters.eventId || filters.status || filters.search ? "admin.labs.stands.emptyFiltered" : "admin.labs.stands.empty")} className={block} />
           : <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

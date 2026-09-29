@@ -51,15 +51,15 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
   const [busyID, setBusyID] = useState("")
   const [rejecting, setRejecting] = useState<Participant | null>(null)
   const [rejectError, setRejectError] = useState("")
-  const [error, setError] = useState("")
+  const [error, setError] = useState<{ message: string; cause: unknown } | null>(null)
 
   useEffect(() => {
     let active = true
     const query = new URLSearchParams({ pageSize: "20" })
     if (filter) query.set("status", filter)
     apiGet<CursorPage<Participant>>(`/api/events/${encodeURIComponent(eventID)}/participants?${query}`)
-      .then((page) => { if (active) { setItems(page.Items ?? []); setCursor(page.NextCursor ?? ""); setError("") } })
-      .catch(() => { if (active) setError(t("admin.events.participants.loadError")) })
+      .then((page) => { if (active) { setItems(page.Items ?? []); setCursor(page.NextCursor ?? ""); setError(null) } })
+      .catch((cause) => { if (active) setError({ message: t("admin.events.participants.loadError"), cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [eventID, filter, reloadKey])
@@ -81,15 +81,15 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
   async function loadMore() {
     if (!cursor || loadingMore) return
     setLoadingMore(true)
-    setError("")
+    setError(null)
     const query = new URLSearchParams({ pageSize: "20", cursor })
     if (filter) query.set("status", filter)
     try {
       const page = await apiGet<CursorPage<Participant>>(`/api/events/${encodeURIComponent(eventID)}/participants?${query}`)
       setItems((current) => [...current, ...(page.Items ?? [])])
       setCursor(page.NextCursor ?? "")
-    } catch {
-      setError(t("admin.events.participants.loadMoreError"))
+    } catch (cause) {
+      setError({ message: t("admin.events.participants.loadMoreError"), cause })
     } finally {
       setLoadingMore(false)
     }
@@ -97,7 +97,6 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
 
   async function decide(item: Participant, decision: "approve" | "reject") {
     setBusyID(item.UserID)
-    setError("")
     try {
       await apiPost(`/api/events/${encodeURIComponent(eventID)}/participants/${encodeURIComponent(item.UserID)}/${decision}`, {})
       setItems((current) => filter === "1"
@@ -115,8 +114,7 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
 
   return <Card><CardContent className="pt-5">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-foreground">{t("admin.events.participants.title")}</h3><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.participants.description")}</p></div><SelectMenu value={filter} onChange={(value) => { setLoading(true); setItems([]); setCursor(""); setFilter(value) }} options={filters} disabled={loadingMore} ariaLabel={t("admin.events.participants.filterLabel")} className="w-48" /></div>
-    {error && items.length > 0 && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>{error}</span><Button type="button" size="sm" variant="outline" onClick={() => { setLoading(true); setReloadKey((key) => key + 1) }}>{t("admin.events.access.retry")}</Button></div>}
-    {loading ? <LoadingArea compact label={t("admin.events.participants.loading")} /> : error && items.length === 0 ? <LoadError message={error} compact onRetry={() => { setLoading(true); setReloadKey((key) => key + 1) }} /> : items.length === 0 ? <EmptyState message={t(filter ? "admin.events.participants.notFound" : "admin.events.participants.empty")} compact /> : <ul className="divide-y divide-border">{items.map((item) => {
+    {loading ? <LoadingArea compact label={t("admin.events.participants.loading")} /> : error && items.length === 0 ? <LoadError message={error.message} error={error.cause} compact onRetry={() => { setLoading(true); setReloadKey((key) => key + 1) }} /> : items.length === 0 ? <EmptyState message={t(filter ? "admin.events.participants.notFound" : "admin.events.participants.empty")} compact /> : <ul className="divide-y divide-border">{items.map((item) => {
       const user = users[item.UserID]
       const name = nameOf(user, item.UserID)
       return <li key={item.UserID} className="flex flex-wrap items-center gap-3 py-3">
@@ -125,7 +123,8 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
         {editable && item.Status === 1 && !isInvitation(item) && <div className="flex gap-2"><Button type="button" size="sm" busy={busyID === item.UserID && !rejecting} disabled={!!busyID} onClick={() => void decide(item, "approve")} aria-label={t("admin.events.participants.approveName", { name })}>{t("admin.events.participants.approve")}</Button><Button type="button" size="sm" variant="outline" disabled={!!busyID} onClick={() => { setRejectError(""); setRejecting(item) }} aria-label={t("admin.events.participants.rejectName", { name })}>{t("admin.events.participants.reject")}</Button></div>}
       </li>
     })}</ul>}
-    {cursor && !loading && <Button type="button" variant="outline" size="sm" className="mt-4" busy={loadingMore} onClick={() => void loadMore()}>{t("admin.events.participants.showMore")}</Button>}
+    {error && items.length > 0 && !loading && <LoadError message={error.message} error={error.cause} compact onRetry={() => void loadMore()} />}
+    {cursor && !loading && !error && <Button type="button" variant="outline" size="sm" className="mt-4" busy={loadingMore} onClick={() => void loadMore()}>{t("admin.events.participants.showMore")}</Button>}
     <ConfirmDialog open={!!rejecting} onCancel={() => { if (!busyID) setRejecting(null) }} tone="danger"
       busy={!!rejecting && busyID === rejecting.UserID} disabled={!!busyID} error={rejectError}
       title={t("admin.events.participants.rejectTitle")}

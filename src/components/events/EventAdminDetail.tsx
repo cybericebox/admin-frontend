@@ -36,9 +36,9 @@ export function EventAdminDetail({ id }: { id: string }) {
   const [managers, setManagers] = useState<EventManager[]>([])
   const [draft, setDraft] = useState<ReturnType<typeof formOf> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [managersLoading, setManagersLoading] = useState(true)
-  const [managersError, setManagersError] = useState(false)
+  const [managersError, setManagersError] = useState<{ cause: unknown } | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
   const [infraTarget, setInfraTarget] = useState<boolean | null>(null)
@@ -50,9 +50,9 @@ export function EventAdminDetail({ id }: { id: string }) {
       const record = await getEvent(id)
       setEvent(record)
       setDraft(formOf(record))
-      setLoadError(false)
-    } catch {
-      setLoadError(true)
+      setLoadError(null)
+    } catch (cause) {
+      setLoadError({ cause })
     } finally {
       setLoading(false)
     }
@@ -61,9 +61,9 @@ export function EventAdminDetail({ id }: { id: string }) {
   const loadManagers = useCallback(async () => {
     try {
       setManagers(await listEventManagers(id))
-      setManagersError(false)
-    } catch {
-      setManagersError(true)
+      setManagersError(null)
+    } catch (cause) {
+      setManagersError({ cause })
     } finally {
       setManagersLoading(false)
     }
@@ -77,24 +77,24 @@ export function EventAdminDetail({ id }: { id: string }) {
         if (!active) return
         setEvent(record)
         setDraft(formOf(record))
-        setLoadError(false)
+        setLoadError(null)
       })
-      .catch(() => { if (active) setLoadError(true) })
+      .catch((cause) => { if (active) setLoadError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     listEventManagers(id)
       .then((memberships) => {
         if (!active) return
         setManagers(memberships)
-        setManagersError(false)
+        setManagersError(null)
       })
-      .catch(() => { if (active) setManagersError(true) })
+      .catch((cause) => { if (active) setManagersError({ cause }) })
       .finally(() => { if (active) setManagersLoading(false) })
     return () => { active = false }
   }, [id])
 
   function retryEvent() {
     setLoading(true)
-    setLoadError(false)
+    setLoadError(null)
     void load()
   }
 
@@ -154,7 +154,7 @@ export function EventAdminDetail({ id }: { id: string }) {
   }
 
   if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (!id || loadError || !event || !draft) return <LoadError message={t("admin.events.loadError")} onRetry={id ? retryEvent : undefined} className="h-full" />
+  if (!id || loadError || !event || !draft) return <LoadError message={t("admin.events.loadError")} error={loadError?.cause} onRetry={id ? retryEvent : undefined} className="h-full" />
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -198,7 +198,7 @@ export function EventAdminDetail({ id }: { id: string }) {
       onConfirm={() => void confirmInfrastructure()}
     />
 
-    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
+    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} error={managersError.cause} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
       eventID={event.ID}
       managers={managers}
       editable={can("events.write")}

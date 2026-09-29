@@ -54,7 +54,7 @@ export default function Page() {
   const [sortBy, setSortBy] = useState("created")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
 
   const { can } = useRole()
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -84,10 +84,10 @@ export default function Page() {
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
     apiGet<ListResp>(`/api/users?${query}`)
       .then((d) => { if (active) { setUsers(d.Items ?? []); setTotal(d.Total ?? 0) } })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [query, reloadKey])
@@ -156,12 +156,12 @@ export default function Page() {
       <InviteUsersDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        onClosed={() => { goToPage(1); setError(false); setReloadKey((k) => k + 1) }}
+        onClosed={() => { goToPage(1); setError(null); setReloadKey((k) => k + 1) }}
       />
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && users.length === 0 ? (
-        <LoadError message={t("admin.users.loadError")} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }} className="h-full" />
+      {error ? (
+        <LoadError message={t("admin.users.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1) }} className="h-full" />
       ) : loading && users.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : users.length === 0 ? (
@@ -195,7 +195,6 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && users.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.users.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1) }}>{t("admin.users.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />

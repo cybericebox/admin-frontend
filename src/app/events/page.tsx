@@ -74,7 +74,7 @@ export default function Page() {
   const [sortBy, setSortBy] = useState("updated")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const [confirming, setConfirming] = useState<Confirming | null>(null)
@@ -95,13 +95,13 @@ export default function Page() {
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
     listEventsPage(filter)
       .then((d) => {
         if (!active) return
         setRows(d.Items); setTotal(d.Total ?? 0)
       })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   // The primitive filter fields, rather than a new object identity, own this request.
@@ -166,8 +166,8 @@ export default function Page() {
       </div>
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && rows.length === 0 ? (
-        <LoadError message={t("admin.events.loadError")} onRetry={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }} className="h-full" />
+      {error ? (
+        <LoadError message={t("admin.events.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((value) => value + 1) }} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
@@ -225,7 +225,6 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && rows.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.events.loadError")}</span><Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setReloadKey((value) => value + 1) }}>{t("admin.events.access.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />

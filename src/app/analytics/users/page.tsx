@@ -33,7 +33,7 @@ function last7Days(): string[] {
 
 function UserAnalytics() {
   const [stats, setStats] = useState<UserStats | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [loading, setLoading] = useState(true)
   const [attempt, setAttempt] = useState(0)
 
@@ -41,13 +41,13 @@ function UserAnalytics() {
     let cancelled = false
     apiGet<UserStats>("/api/users/stats")
       .then((data) => { if (!cancelled) setStats(data) })
-      .catch(() => { if (!cancelled) setError(true) })
+      .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [attempt])
 
   if (loading) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (error || !stats) return <LoadError message={t("admin.dashboard.loadError")} onRetry={() => { setError(false); setLoading(true); setAttempt((key) => key + 1) }} className="h-full" />
+  if (error || !stats) return <LoadError message={t("admin.dashboard.loadError")} error={error?.cause} onRetry={() => { setError(null); setLoading(true); setAttempt((key) => key + 1) }} className="h-full" />
 
   const days = last7Days()
   const countByDay = new Map(stats.RegistrationsByDay.map((entry) => [entry.Day.slice(0, 10), entry.Count]))

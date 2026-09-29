@@ -101,11 +101,11 @@ export function LogsTab() {
   const types = useNotificationTypes()
   const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null)
   const [data, setData] = useState<{ query: string; page: ListResp } | null>(null)
-  const [errorQuery, setErrorQuery] = useState<string | null>(null)
+  const [errorQuery, setErrorQuery] = useState<{ query: string; cause: unknown } | null>(null)
   const [detail, setDetail] = useState<DispatchDetail | null>(null)
   const [open, setOpen] = useState(false)
   const reqId = useRef(0)
-  const [detailError, setDetailError] = useState(false)
+  const [detailError, setDetailError] = useState<{ cause: unknown } | null>(null)
   const [detailID, setDetailID] = useState("")
 
   const params = new URLSearchParams()
@@ -120,23 +120,24 @@ export function LogsTab() {
   if (userFilter) params.set("user", userFilter.id)
   const requestQuery = params.toString()
   const query = `${requestQuery}&reload=${reload}`
-  const error = errorQuery === query
+  const failure = errorQuery?.query === query ? errorQuery : null
+  const error = failure !== null
   const loading = !error && data?.query !== query
 
   useEffect(() => {
     let cancelled = false
     apiGet<ListResp>(`/api/notifications/dispatches?${requestQuery}`)
       .then((page) => { if (!cancelled) { setData({ query, page }); setErrorQuery(null) } })
-      .catch(() => { if (!cancelled) setErrorQuery(query) })
+      .catch((cause) => { if (!cancelled) setErrorQuery({ query, cause }) })
     return () => { cancelled = true }
   }, [query, requestQuery])
 
   function openDetail(id: string) {
     const my = ++reqId.current
-    setDetail(null); setDetailError(false); setDetailID(id); setOpen(true)
+    setDetail(null); setDetailError(null); setDetailID(id); setOpen(true)
     apiGet<DispatchDetail>(`/api/notifications/dispatches/${id}`)
       .then((d) => { if (my === reqId.current) setDetail(d) })
-      .catch(() => { if (my === reqId.current) setDetailError(true) })
+      .catch((cause) => { if (my === reqId.current) setDetailError({ cause }) })
   }
 
   function resetPage() { setPage(1); setCursors([null]); setData(null) }
@@ -173,7 +174,7 @@ export function LogsTab() {
 
       <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error ? (
-        <LoadError message={t("admin.notif.loadError")} onRetry={() => setReload((value) => value + 1)} className="h-full" />
+        <LoadError message={t("admin.notif.loadError")} error={failure?.cause} onRetry={() => setReload((value) => value + 1)} className="h-full" />
       ) : loading ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
@@ -257,7 +258,7 @@ export function LogsTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("admin.notif.logs.targets")}</DialogTitle></DialogHeader>
           {detailError ? (
-            <LoadError message={t("admin.notif.loadError")} compact onRetry={() => openDetail(detailID)} />
+            <LoadError message={t("admin.notif.loadError")} error={detailError.cause} compact onRetry={() => openDetail(detailID)} />
           ) : !detail ? (
             <LoadingArea compact label={t("admin.loading")} />
           ) : detail.Targets.length === 0 ? (

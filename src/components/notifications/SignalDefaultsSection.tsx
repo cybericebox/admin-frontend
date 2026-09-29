@@ -52,14 +52,14 @@ export function SignalDefaultsSection() {
   const canWrite = useRole().can("notifications.settings.write")
   const [items, setItems] = useState<SignalDefault[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     listSignalDefaults()
       .then((d) => { if (!cancelled) setItems(d ?? []) })
-      .catch(() => { if (!cancelled) setError(true) })
+      .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [attempt])
@@ -77,7 +77,7 @@ export function SignalDefaultsSection() {
     }
   }
 
-  if (error) return <LoadError message={t("admin.notif.loadError")} onRetry={() => { setError(false); setLoading(true); setAttempt((key) => key + 1) }} />
+  if (error) return <LoadError message={t("admin.notif.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setAttempt((key) => key + 1) }} />
   if (loading) return <LoadingArea label={t("admin.loading")} />
 
   const rows = groupBySignalType(items)

@@ -79,7 +79,7 @@ describe("operational overview", () => {
       return Promise.reject(new Error(path))
     })
     render(<Page />)
-    fireEvent.click(await screen.findByRole("button", { name: "admin.dashboard.retry" }))
+    fireEvent.click(await screen.findByRole("button", { name: "error.load.retry" }))
     await waitFor(() => expect(screen.getByText("12")).toBeInTheDocument())
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })

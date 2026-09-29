@@ -23,14 +23,14 @@ const rowKey = (s: Setting) => `${s.NotificationType}::${s.Channel}`
 export function GlobalSettingsTab() {
   const [rows, setRows] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     apiGet<Setting[]>("/api/notifications/settings/global")
       .then((d) => { if (!cancelled) setRows(d ?? []) })
-      .catch(() => { if (!cancelled) setError(true) })
+      .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [attempt])
@@ -49,7 +49,7 @@ export function GlobalSettingsTab() {
 
   let globalSettings: ReactNode
   if (error) {
-    globalSettings = <LoadError message={t("admin.notif.loadError")} onRetry={() => { setError(false); setLoading(true); setAttempt((key) => key + 1) }} />
+    globalSettings = <LoadError message={t("admin.notif.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setAttempt((key) => key + 1) }} />
   } else if (loading) {
     globalSettings = <LoadingArea label={t("admin.loading")} />
   } else if (rows.length === 0) {

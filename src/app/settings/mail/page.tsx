@@ -238,15 +238,11 @@ export default function Page() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1 text-sm">
-                  <p className={settings.Source === "none" ? "font-medium text-destructive" : "font-medium text-foreground"} data-testid="mail-source">{settings.Source in SOURCE_LABEL_KEY ? t(SOURCE_LABEL_KEY[settings.Source]) : settings.Source}</p>
+                  <p className={`flex items-center gap-1.5 ${settings.Source === "none" ? "font-medium text-destructive" : "font-medium text-foreground"}`} data-testid="mail-source">
+                    {settings.Source in SOURCE_LABEL_KEY ? t(SOURCE_LABEL_KEY[settings.Source]) : settings.Source}
+                    {sourceHelp(settings) && <FieldHelp text={sourceHelp(settings)} />}
+                  </p>
                   {settings.Source === "database" && settings.SMTP?.UpdatedAt && <p className="text-muted-foreground">{t("admin.mail.updatedAt", { date: new Date(settings.SMTP.UpdatedAt).toLocaleString("uk-UA") })}</p>}
-                  {settings.Source === "env" && settings.Env && (
-                    <p className="text-muted-foreground">
-                      {t(settings.Env.ReplyTo ? "admin.mail.envSummaryReplyTo" : "admin.mail.envSummary", { host: settings.Env.Host, port: settings.Env.Port, name: settings.Env.FromName, address: settings.Env.FromAddress, replyTo: settings.Env.ReplyTo })}
-                    </p>
-                  )}
-                  {settings.Source === "env" && <p className="text-muted-foreground">{t("admin.mail.envHint")}</p>}
-                  {settings.Source === "none" && <p className="text-muted-foreground">{t("admin.mail.noneHint")}</p>}
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field id="mail-host" label={t("admin.mail.host")} required><Input id="mail-host" value={smtp.Host} onChange={(event) => changeSmtp("Host", event.target.value)} disabled={disabled} placeholder="email-smtp.eu-central-1.amazonaws.com" autoComplete="off" /></Field>
@@ -303,6 +299,15 @@ export default function Page() {
         cancelLabel={t("admin.mail.cancel")} confirmLabel={t("admin.mail.resetConfirm")} onConfirm={reset} />
     </RequirePermission>
   )
+}
+
+// The details of the SMTP source (server config values, what to do) sit behind the (?).
+function sourceHelp(settings: MailSettings): string {
+  if (settings.Source === "none") return t("admin.mail.noneHint")
+  if (settings.Source !== "env" || !settings.Env) return ""
+  const env = settings.Env
+  const summary = t(env.ReplyTo ? "admin.mail.envSummaryReplyTo" : "admin.mail.envSummary", { host: env.Host, port: env.Port, name: env.FromName, address: env.FromAddress, replyTo: env.ReplyTo })
+  return `${summary}. ${t("admin.mail.envHint")}`
 }
 
 // A field tooltip: what the field is, then where its current value comes from.

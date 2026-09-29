@@ -37,7 +37,7 @@ type Props = {
 export function TemplateVersions({ channel, notificationType, currentId, canWrite, dirty, busy, refreshKey, onRestore }: Props) {
   const [open, setOpen] = useState(false)
   const [versions, setVersions] = useState<Version[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [restoreSource, setRestoreSource] = useState<Version | null>(null)
   const [restoring, setRestoring] = useState(false)
@@ -54,8 +54,8 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       setVersions(result.Templates
         .filter((version) => version.NotificationType === notificationType)
         .sort((a, b) => Date.parse(b.PublishedAt ?? b.UpdatedAt) - Date.parse(a.PublishedAt ?? a.UpdatedAt)))
-      setLoadError(false)
-    }).catch(() => { if (active) setLoadError(true) })
+      setLoadError(null)
+    }).catch((cause) => { if (active) setLoadError({ cause }) })
     return () => { active = false }
   }, [channel, notificationType, open, refreshKey, attempt])
 
@@ -78,14 +78,14 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
   return <>
     <section className="mb-6 rounded-lg border border-border bg-card">
       <button type="button" aria-expanded={open} onClick={() => {
-        if (!open) { setVersions(null); setLoadError(false) }
+        if (!open) { setVersions(null); setLoadError(null) }
         setOpen(!open)
       }} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-foreground hover:bg-accent/50">
         {t("admin.notif.versions.title")}
         <ChevronDown aria-hidden="true" className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="border-t border-border px-4 py-2">
-        {loadError && <LoadError message={t("admin.notif.versions.loadError")} compact onRetry={() => { setLoadError(false); setVersions(null); setAttempt((key) => key + 1) }} />}
+        {loadError && <LoadError message={t("admin.notif.versions.loadError")} error={loadError.cause} compact onRetry={() => { setLoadError(null); setVersions(null); setAttempt((key) => key + 1) }} />}
         {!loadError && versions === null && <LoadingArea compact label={t("admin.loading")} />}
         {!loadError && versions?.length === 0 && <EmptyState message={t("admin.notif.versions.empty")} compact />}
         {!loadError && versions?.map((version) => <div key={version.ID} className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 last:border-b-0">

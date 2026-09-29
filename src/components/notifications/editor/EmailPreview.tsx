@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { ApiError } from "@/api/client"
+import { LoadError } from "@/components/ui/load-error"
 import { previewEmailTemplate, type PreviewEmailTemplateResult } from "@/api/notifications/emailTemplates"
 import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
 import { t } from "@/i18n/t"
@@ -59,7 +60,9 @@ export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string
  */
 export function EmailPreview({ notificationType, subject = "", preheader = "", body, styling }: EmailPreviewProps) {
   const [result, setResult] = useState<PreviewEmailTemplateResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // A 400 is the backend's reason the draft cannot be rendered (`reason`); anything else is a failed load (`cause`).
+  const [error, setError] = useState<{ reason?: string; cause?: unknown } | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   // Nothing is rendered without a type: drop the previous render and error
   // when the type is cleared (adjusted during render, not in the effect).
   const [renderedType, setRenderedType] = useState(notificationType)
@@ -89,7 +92,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
         },
         (err: unknown) => {
           if (controller.signal.aborted) return
-          setError(err instanceof ApiError && err.status === 400 ? err.message : t("admin.notif.editor.previewError"))
+          setError(err instanceof ApiError && err.status === 400 ? { reason: err.message } : { cause: err })
         },
       )
     }, PREVIEW_DEBOUNCE_MS)
@@ -97,7 +100,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
       clearTimeout(timer)
       controller.abort()
     }
-  }, [notificationType, subject, preheader, body, styling])
+  }, [notificationType, subject, preheader, body, styling, reloadKey])
 
   return (
     <div className="overflow-hidden rounded-md border border-border bg-background">
@@ -105,8 +108,11 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
         <div><span className="text-muted-foreground">{t("admin.notif.tpl.subject")}: </span><span className="font-medium text-foreground">{result?.Subject || "—"}</span></div>
         <div className="text-xs"><span className="text-muted-foreground">{t("admin.notif.tpl.preheader")}: </span><span className="text-foreground">{result?.Preheader || "—"}</span></div>
       </div>
-      {error && (
-        <p role="alert" className="border-b border-border px-4 py-2 text-xs text-destructive">{error}</p>
+      {error?.reason && (
+        <p role="alert" className="border-b border-border px-4 py-2 text-xs text-destructive">{error.reason}</p>
+      )}
+      {error && !error.reason && (
+        <div className="border-b border-border"><LoadError message={t("admin.notif.editor.previewError")} error={error.cause} compact onRetry={() => setReloadKey((key) => key + 1)} /></div>
       )}
       <EmailHtmlFrame html={result?.HTML ?? ""} />
     </div>

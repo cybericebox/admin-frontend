@@ -18,11 +18,11 @@ function ResourceBar({ label, requested, allocatable, format }: { label: string;
   </div>
 }
 
-export function CapacityPanel({ rows, agents, loadError, onRetry }: { rows: CapacityObservation[]; agents: InfrastructureAgent[]; loadError: string; onRetry: () => void }) {
+export function CapacityPanel({ rows, agents, loadError, errorCause, onRetry }: { rows: CapacityObservation[]; agents: InfrastructureAgent[]; loadError: string; errorCause?: unknown; onRetry: () => void }) {
   return <Card id="capacity" className="scroll-mt-4">
     <CardHeader><CardTitle className="text-base">{t("admin.labs.capacity.title")}</CardTitle></CardHeader>
     <CardContent className="space-y-5">
-      {loadError ? <LoadError message={loadError} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
+      {loadError ? <LoadError message={loadError} error={errorCause} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
         const agent = agents.find((item) => item.ID === row.AgentID || item.Key === row.AgentID)
         const name = agent?.Name || agent?.Key || row.AgentID
         const metrics = capacityMetrics(row.Payload)

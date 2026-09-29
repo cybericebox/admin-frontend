@@ -25,16 +25,17 @@ export function StatisticsTab() {
   const [days, setDays] = useState(30)
   const [stats, setStats] = useState<Stats | null>(null)
   const [loadedDays, setLoadedDays] = useState<number | null>(null)
-  const [errorDays, setErrorDays] = useState<number | null>(null)
+  const [errorDays, setErrorDays] = useState<{ days: number; cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const error = errorDays === days
+  const failure = errorDays?.days === days ? errorDays : null
+  const error = failure !== null
   const loading = !error && loadedDays !== days
 
   useEffect(() => {
     let cancelled = false
     apiGet<Stats>(`/api/notifications/stats?days=${days}`)
       .then((result) => { if (!cancelled) { setStats(result); setLoadedDays(days); setErrorDays(null) } })
-      .catch(() => { if (!cancelled) setErrorDays(days) })
+      .catch((cause) => { if (!cancelled) setErrorDays({ days, cause }) })
     return () => { cancelled = true }
   }, [days, attempt])
 
@@ -52,7 +53,7 @@ export function StatisticsTab() {
       </div>
 
       {error ? (
-        <LoadError message={t("admin.notif.loadError")} onRetry={() => { setErrorDays(null); setAttempt((key) => key + 1) }} className="flex-1" />
+        <LoadError message={t("admin.notif.loadError")} error={failure?.cause} onRetry={() => { setErrorDays(null); setAttempt((key) => key + 1) }} className="flex-1" />
       ) : loading || !stats ? (
         <LoadingArea className="flex-1" label={t("admin.loading")} />
       ) : (

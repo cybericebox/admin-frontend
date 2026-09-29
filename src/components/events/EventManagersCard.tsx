@@ -8,6 +8,7 @@ import type { EventManager } from "@/api/events/catalog"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -52,7 +53,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   const [busyID, setBusyID] = useState("")
   const [removing, setRemoving] = useState<EventManager | null>(null)
   const [removeError, setRemoveError] = useState("")
-  const [error, setError] = useState("")
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
+  const [searchKey, setSearchKey] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -74,17 +76,18 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     const timer = window.setTimeout(() => {
       const query = new URLSearchParams({ search: search.trim(), pageSize: "10" })
       setSearching(true)
+      setError(null)
       apiGet<CursorPage<UserSummary>>(`/api/users?${query}`)
         .then((page) => { if (active) { setMatches((page.Items ?? []).filter((user) => !managers.some((manager) => manager.UserID === user.ID))); setFoundExact((page.Items ?? []).some((user) => user.Email.toLowerCase() === search.trim().toLowerCase())); setSearchedQuery(search.trim()) } })
-        .catch(() => { if (active) setError(t("admin.events.manager.searchError")) })
+        .catch((cause) => { if (active) setError({ cause }) })
         .finally(() => { if (active) setSearching(false) })
     }, 250)
     return () => { active = false; window.clearTimeout(timer) }
-  }, [adding, managers, search])
+  }, [adding, managers, search, searchKey])
 
   async function save(userID: string, role: number) {
     setBusyID(userID)
-    setError("")
+    setError(null)
     try {
       const result = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(userID)}`, { Role: role })
       onChanged(result)
@@ -112,7 +115,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   async function inviteAndAdd() {
     if (!canInvite || !assignablePlatformRoles.includes(platformRole)) return
     setBusyID("invite")
-    setError("")
+    setError(null)
     let invited = false
     try {
       const results = await apiPost<InviteResult[]>("/api/users/invite", { Emails: [inviteEmail], Role: platformRole })
@@ -139,7 +142,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   async function remove() {
     if (!removing) return
     setBusyID(removing.UserID)
-    setError("")
+    setError(null)
     try {
       await apiDelete(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(removing.UserID)}`)
       onRemoved?.(removing.UserID)
@@ -155,10 +158,10 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   return <Card><CardContent className="pt-5">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-base font-semibold text-foreground">{t("admin.events.manager.title")}</h3><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.manager.description")}</p></div>
-      {editable && <Button type="button" variant="outline" size="sm" onClick={() => { setAdding((value) => !value); setError("") }}>{adding ? t("admin.events.dialog.cancel") : t("admin.events.manager.add")}</Button>}
+      {editable && <Button type="button" variant="outline" size="sm" onClick={() => { setAdding((value) => !value); setError(null) }}>{adding ? t("admin.events.dialog.cancel") : t("admin.events.manager.add")}</Button>}
     </div>
 
-    {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
+    {error && <LoadError message={t("admin.events.manager.searchError")} error={error.cause} compact onRetry={() => setSearchKey((key) => key + 1)} />}
     <ul className="divide-y divide-border">
       {managers.map((manager) => {
         const user = users[manager.UserID]

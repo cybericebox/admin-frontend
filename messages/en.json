@@ -764,7 +764,7 @@
   "admin.mail.sourceTitle": "Settings source",
   "admin.mail.updatedAt": "Updated {date}",
   "admin.mail.envSummary": "{host}:{port} · {name} <{address}>",
-  "admin.mail.envSummaryReplyTo": "{host}:{port} · {name} <{address}> · Reply-To {replyTo}",
+  "admin.mail.envSummaryReplyTo": "{host}:{port} · {name} <{address}> · replies to {replyTo}",
   "admin.mail.envHint": "Save the form to move the settings into the platform. The environment password is not shown, so enter it again.",
   "admin.mail.noneHint": "No email is sent until an SMTP server is saved.",
   "admin.mail.smtpTitle": "SMTP server",

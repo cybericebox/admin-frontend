@@ -79,7 +79,9 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   // null = the backend has no categories yet: the dropdown shows only «Усі».
   const [counts, setCounts] = useState<InboxCounts | null>(null)
   const [otherEvents, setOtherEvents] = useState(0)
-  const [error, setError] = useState("")
+  // Load failures (LoadError) and action failures (inline line) are separate: only the first offers a reload.
+  const [loadError, setLoadError] = useState<{ cause: unknown; older: boolean } | null>(null)
+  const [actionError, setActionError] = useState("")
   const [resolving, setResolving] = useState<string | null>(null)
   const cursorRef = useRef<InboxCursor | null>(null)
   const unreadCountRef = useRef(0)
@@ -116,8 +118,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         const known = new Set(previous.map((item) => item.ID))
         return orderForTab([...previous, ...(page.Items ?? []).filter((item) => !known.has(item.ID))], current)
       })
-      setError("")
-    } catch { setError(t("inbox.loadError")) }
+      setLoadError(null)
+    } catch (cause) { setLoadError({ cause, older: true }) }
     finally { loadingOlderRef.current = false; setLoadingOlder(false) }
   }, [eventId])
 
@@ -148,10 +150,10 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         })), current))
         const readById = new Map(list.map((item) => [item.ID, !isUnread(item)]))
         setPopIns((previous) => previous.filter((item) => !readById.get(item.ID)))
-        setError("")
+        setLoadError(null)
         return list
       })
-      .catch(() => { setError(t("inbox.loadError")); return null })
+      .catch((cause) => { setLoadError({ cause, older: false }); return null })
       .finally(() => { if (revision === listRevisionRef.current) setLoading(false) })
   }, [eventId])
 
@@ -198,7 +200,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           const latest = await refresh()
           poppable = latest ? poppable.filter((item) => latest.some((entry) => entry.ID === item.ID && isUnread(entry))) : []
         } else {
-          setError("")
+          setLoadError(null)
+          setActionError("")
         }
         unreadCountRef.current = result.UnreadCount
         setUnread(result.UnreadCount)
@@ -207,8 +210,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         if (nextCounts) applyCounts(nextCounts)
         if (result.OtherEventsCount !== undefined) setOtherEvents(parseOtherEvents(result.OtherEventsCount))
         if (active && poppable.length) setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
-      } catch {
-        if (active) { setError(t("inbox.loadError")); setLoading(false) }
+      } catch (err) {
+        if (active) { setLoadError({ cause: err, older: false }); setLoading(false) }
       } finally {
         polling = false
         if (pending && active) { pending = false; queueMicrotask(() => { void poll() }) }
@@ -293,7 +296,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       announceRead()
       return true
     } catch {
-      setError(t("inbox.markReadError"))
+      setActionError(t("inbox.markReadError"))
       return false
     }
   }
@@ -307,7 +310,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   // «Вирішено» closes a «Лабораторія впала» request for every recipient (§8.2).
   async function resolve(item: Message) {
-    setError("")
+    setActionError("")
     setResolving(item.ID)
     let failure = ""
     try {
@@ -324,13 +327,13 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     }
     setResolving(null)
     await refresh()
-    if (failure) setError(failure)
+    if (failure) setActionError(failure)
     else pollNowRef.current()
   }
 
   // «Позначити прочитаним» acts on the current tab only.
   async function readAll() {
-    setError("")
+    setActionError("")
     const current = tab
     try {
       await apiPatch(`/api/notifications/inbox/read-all${inboxQuery(current, eventId)}`, {})
@@ -346,7 +349,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       // Category totals come from the server; the poll corrects the bell right away.
       if (current !== "all") pollNowRef.current()
     } catch {
-      setError(t("inbox.readAllError"))
+      setActionError(t("inbox.readAllError"))
     }
   }
 
@@ -385,10 +388,10 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           </div>
         </div>}
         {tabs.length === 0 && <div className="shrink-0 border-b border-border" />}
-        {error && items.length > 0 && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
+        {actionError && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{actionError}</p>}
         <div ref={scrollAreaRef} id="inbox-tabpanel" role={tabs.length ? "tabpanel" : undefined} aria-labelledby={tabs.length ? `inbox-tab-${tab}` : undefined} className="flex min-h-0 flex-col overflow-y-auto">
           {/* loading and empty share one centered box of the same height, so nothing jumps */}
-          {loading || items.length === 0 ? <div className="flex min-h-48 flex-1 items-center justify-center">{loading ? <Spinner size="lg" label={t("inbox.loadingMessages")} /> : error ? <LoadError message={error} compact onRetry={() => { void refresh() }} /> : <EmptyState message={emptyMessage} />}</div> : <ul className="divide-y divide-border">{items.map((item, index) => {
+          {loading || items.length === 0 ? <div className="flex min-h-48 flex-1 items-center justify-center">{loading ? <Spinner size="lg" label={t("inbox.loadingMessages")} /> : loadError ? <LoadError message={t("inbox.loadError")} error={loadError.cause} compact onRetry={() => { void refresh() }} /> : <EmptyState message={emptyMessage} />}</div> : <ul className="divide-y divide-border">{items.map((item, index) => {
             const href = safeHref(item.Link ?? "")
             const resolved = !!item.ResolvedAt
             const unreadItem = isUnread(item)
@@ -412,6 +415,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
               />
             </li>
           })}</ul>}
+          {loadError && items.length > 0 && !loading && <LoadError message={t("inbox.loadError")} error={loadError.cause} compact onRetry={() => { void (loadError.older ? loadOlder() : refresh()) }} />}
           {loadingOlder && <div className="flex justify-center px-4 py-3"><Spinner size="sm" label={t("admin.loading")} /></div>}
         </div>
         {event && otherEvents > 0 && <a href={event.otherEventsHref} className="flex shrink-0 items-center justify-center gap-1 border-t border-border px-4 py-2.5 text-sm font-medium text-primary hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">

@@ -11,11 +11,12 @@ import { formatDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 
 // The full merged current state of every lab group of the shown events.
-export function CurrentState({ rows, includeRecent, onIncludeRecent, loadError, onRetry }: {
+export function CurrentState({ rows, includeRecent, onIncludeRecent, loadError, errorCause, onRetry }: {
   rows: CurrentLab[]
   includeRecent: boolean
   onIncludeRecent: (value: boolean) => void
   loadError: string
+  errorCause?: unknown
   onRetry: () => void
 }) {
   return <Card>
@@ -28,7 +29,7 @@ export function CurrentState({ rows, includeRecent, onIncludeRecent, loadError, 
       </span>
     </CardHeader>
     <CardContent>
-      {loadError ? <LoadError message={loadError} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.obs.empty")} compact /> : (
+      {loadError ? <LoadError message={loadError} error={errorCause} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.obs.empty")} compact /> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.event")}</th><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.team")}</th><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.observed")}</th><th className="py-2 font-medium">{t("admin.labs.obs.data")}</th></tr></thead>

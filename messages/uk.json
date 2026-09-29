@@ -764,7 +764,7 @@
   "admin.mail.sourceTitle": "Джерело налаштувань",
   "admin.mail.updatedAt": "Оновлено {date}",
   "admin.mail.envSummary": "{host}:{port} · {name} <{address}>",
-  "admin.mail.envSummaryReplyTo": "{host}:{port} · {name} <{address}> · Reply-To {replyTo}",
+  "admin.mail.envSummaryReplyTo": "{host}:{port} · {name} <{address}> · відповіді на {replyTo}",
   "admin.mail.envHint": "Збережіть форму, щоб перенести налаштування в платформу. Пароль з оточення не показується — введіть його ще раз.",
   "admin.mail.noneHint": "Листи не надсилаються, доки не буде збережено SMTP-сервер.",
   "admin.mail.smtpTitle": "SMTP-сервер",

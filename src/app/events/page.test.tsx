@@ -121,7 +121,7 @@ describe('events catalog page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     expect(await screen.findByText('admin.events.loadError')).toBeInTheDocument()
     expect(mockList).toHaveBeenCalledTimes(2)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.events.access.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByRole('link', { name: 'Autumn CTF' })).toBeInTheDocument()
   })
 

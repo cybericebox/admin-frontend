@@ -25,17 +25,17 @@ export default function Page() {
   const [items, setItems] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadFailed, setLoadFailed] = useState<{ cause: unknown } | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      setLoadFailed(false)
+      setLoadFailed(null)
       setItems(await apiGet<Setting[]>("/api/settings"))
-    } catch {
-      setLoadFailed(true)
+    } catch (cause) {
+      setLoadFailed({ cause })
     } finally {
       setLoading(false)
     }
@@ -75,7 +75,7 @@ export default function Page() {
         <SettingsTabs />
         <div><h2 className="text-xl font-semibold text-foreground">{t("admin.settings.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.settings.description")}</p></div>
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-        {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : loadFailed ? <LoadError message={t("admin.settings.loadError")} onRetry={() => { setLoading(true); void load() }} className="flex-1" /> : items.length === 0 ? <EmptyState message={t("admin.settings.empty")} className="flex-1" /> : (
+        {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : loadFailed ? <LoadError message={t("admin.settings.loadError")} error={loadFailed.cause} onRetry={() => { setLoading(true); void load() }} className="flex-1" /> : items.length === 0 ? <EmptyState message={t("admin.settings.empty")} className="flex-1" /> : (
           <Card><CardContent className="divide-y divide-border pt-5">
             {items.map((item) => <div key={item.ID} className="py-4 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-4"><div className="min-w-0"><h3 className="font-medium text-foreground">{item.Key}</h3>{editing !== item.Key && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{typeof item.Value === "string" ? item.Value : JSON.stringify(item.Value, null, 2)}</pre>}</div>

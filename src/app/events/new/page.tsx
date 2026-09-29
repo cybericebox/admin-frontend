@@ -28,7 +28,7 @@ export default function NewEventPage() {
   const [draft, setDraft] = useState<EventFormValues>({ Name: "", Tag: "", AvailableFrom: "", ArchiveAt: "" })
   const [created, setCreated] = useState<Event | null>(null)
   const [managers, setManagers] = useState<EventManager[]>([])
-  const [managersError, setManagersError] = useState(false)
+  const [managersError, setManagersError] = useState<{ cause: unknown } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [infrastructure, setInfrastructure] = useState(true)
@@ -51,9 +51,9 @@ export default function NewEventPage() {
   async function refreshManagers(eventID: string) {
     try {
       setManagers(await listEventManagers(eventID))
-      setManagersError(false)
-    } catch {
-      setManagersError(true)
+      setManagersError(null)
+    } catch (cause) {
+      setManagersError({ cause })
     }
   }
 
@@ -105,7 +105,7 @@ export default function NewEventPage() {
         <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" busy={busy} disabled={!draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>
     </CardContent></Card> : <>
-      {managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} onRetry={() => void refreshManagers(created.ID)} /></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
+      {managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} error={managersError.cause} onRetry={() => void refreshManagers(created.ID)} /></CardContent></Card> : <EventManagersCard eventID={created.ID} managers={managers} editable onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])} onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))} />}
       <div className="flex justify-end"><Button asChild><Link href={`/events/detail?id=${encodeURIComponent(created.ID)}`}>{t("admin.events.create.finish")}</Link></Button></div>
     </>}
   </div>

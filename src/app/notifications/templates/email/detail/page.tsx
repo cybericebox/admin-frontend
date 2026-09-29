@@ -24,6 +24,8 @@ import Link from "next/link"
 import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { ApiError } from "@/api/client"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -70,6 +72,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [template, setTemplate] = useState<EmailTemplate | null>(null)
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
   const busy = busyAction !== ""
   const [versionRevision, setVersionRevision] = useState(0)
@@ -125,7 +128,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setStyling(tpl.Styling)
         setLoadNonce((n) => n + 1)
       })
-      .catch(() => setNotFound(true))
+      .catch((cause) => { if (cause instanceof ApiError && cause.status === 404) setNotFound(true); else setLoadError({ cause }) })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -277,6 +280,15 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (loading) {
     return (
       <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
+        <Link href="/notifications/templates/email" className="text-sm text-primary hover:underline">← {t("admin.notif.tpl.email")}</Link>
+        <LoadError error={loadError.cause} className="flex-1" onRetry={() => { setLoadError(null); setLoading(true); load() }} />
+      </div>
     )
   }
 

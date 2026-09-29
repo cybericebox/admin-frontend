@@ -64,6 +64,8 @@ function LabsPage() {
   const [labsError, setLabsError] = useState("")
   const [capacityError, setCapacityError] = useState("")
   const [standsError, setStandsError] = useState("")
+  // Rejection reasons of the last load, so LoadError can show the error code.
+  const [causes, setCauses] = useState<{ status?: unknown; labs?: unknown; capacity?: unknown; stands?: unknown }>({})
 
   const filtersRef = useRef(filters)
   const recentRef = useRef(includeRecent)
@@ -78,6 +80,8 @@ function LabsPage() {
     if (nextLabs.status === "fulfilled") { setCurrent(nextLabs.value ?? []); setLabsError("") } else setLabsError(t("admin.labs.error.labs"))
     if (nextCapacity.status === "fulfilled") { setCapacity(nextCapacity.value ?? []); setCapacityError("") } else setCapacityError(t("admin.labs.error.capacity"))
     if (nextStands.status === "fulfilled") { setStands(nextStands.value.Items ?? []); setStandsTotal(nextStands.value.Total ?? 0); setStandsError("") } else setStandsError(t("admin.labs.error.stands"))
+    const reason = (result: PromiseSettledResult<unknown>) => result.status === "rejected" ? result.reason : undefined
+    setCauses({ status: reason(nextStatus), labs: reason(nextLabs), capacity: reason(nextCapacity), stands: reason(nextStands) })
     if (nextEvents.status === "fulfilled") setStandEvents(nextEvents.value ?? [])
     setStandsLoading(false)
   }, [])
@@ -130,18 +134,18 @@ function LabsPage() {
           <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
         </div>
       </div>
-      {error && status && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-      {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} onRetry={retry} className="flex-1" /> : <>
+      {error && status && <LoadError message={error} error={causes.status} compact onRetry={retry} />}
+      {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} error={causes.status} onRetry={retry} className="flex-1" /> : <>
         <Card><CardHeader><CardTitle className="text-base">{t("admin.labs.connection")}</CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Available && status.Healthy}>{t(status.Available ? status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention" : "admin.labs.state.disconnected")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.Mode) })}</span></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}
           {status.Agents.length === 0 ? <EmptyState message={t("admin.labs.noAgents")} compact /> : <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.Name || agent.Key}</span><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
         </CardContent></Card>
         <StandsTable filters={filters} searchInput={searchInput} onSearchInput={setSearchInput} onFilters={(patch) => setFilters((value) => ({ ...value, ...patch }))}
-          events={standEvents} items={stands} total={standsTotal} loading={standsLoading} error={standsError} canWrite={canWrite} onRetry={retry}
+          events={standEvents} items={stands} total={standsTotal} loading={standsLoading} error={standsError} errorCause={causes.stands} canWrite={canWrite} onRetry={retry}
           onRecreate={(stand) => { setRecreateError(null); setTarget(stand) }} />
-        <CurrentState rows={current} includeRecent={includeRecent} onIncludeRecent={setIncludeRecent} loadError={labsError} onRetry={retry} />
-        <CapacityPanel rows={capacity} agents={status.Agents} loadError={capacityError} onRetry={retry} />
+        <CurrentState rows={current} includeRecent={includeRecent} onIncludeRecent={setIncludeRecent} loadError={labsError} errorCause={causes.labs} onRetry={retry} />
+        <CapacityPanel rows={capacity} agents={status.Agents} loadError={capacityError} errorCause={causes.capacity} onRetry={retry} />
       </>}
       <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} error={recreateError}
         title={t("admin.labs.stands.recreate.title")}
