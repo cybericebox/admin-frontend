@@ -207,18 +207,18 @@ export default function Page() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field id="mail-sender-name" label={t("admin.mail.senderName")} help={withSource(t("admin.mail.senderNameHelp"), settings.Sources.SenderName, "SMTP_SENDER_NAME")}><Input id="mail-sender-name" value={identity.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("SenderName", event.target.value)} disabled={disabled} placeholder={effective.Sender.Name} autoComplete="off" /></Field>
-                  <Field id="mail-sender-address" label={t("admin.mail.senderAddress")} help={withSource(t("admin.mail.senderAddressHelp"), settings.Sources.SenderAddress, "SMTP_SENDER_EMAIL")}><Input id="mail-sender-address" type="email" value={identity.SenderAddress} onChange={(event) => changeIdentity("SenderAddress", event.target.value)} disabled={disabled} placeholder={effective.Sender.Address} autoComplete="off" /></Field>
+                  <Field id="mail-sender-name" label={t("admin.mail.senderName")} help={withSource(t("admin.mail.senderNameHelp"), settings.Sources?.SenderName, "SMTP_SENDER_NAME")}><Input id="mail-sender-name" value={identity.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("SenderName", event.target.value)} disabled={disabled} placeholder={effective.Sender.Name} autoComplete="off" /></Field>
+                  <Field id="mail-sender-address" label={t("admin.mail.senderAddress")} help={withSource(t("admin.mail.senderAddressHelp"), settings.Sources?.SenderAddress, "SMTP_SENDER_EMAIL")}><Input id="mail-sender-address" type="email" value={identity.SenderAddress} onChange={(event) => changeIdentity("SenderAddress", event.target.value)} disabled={disabled} placeholder={effective.Sender.Address} autoComplete="off" /></Field>
                 </div>
                 <div className="space-y-2">
                   <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{t("admin.mail.replyToTitle")}<FieldHelp text={t("admin.mail.replyToHelp")} /></h3>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field id="mail-reply-to-name" label={t("admin.mail.replyToName")} help={withSource(t("admin.mail.replyToNameHelp"), settings.Sources.ReplyToName, "SMTP_REPLY_TO_NAME")}><Input id="mail-reply-to-name" value={identity.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("ReplyToName", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Name} autoComplete="off" /></Field>
-                    <Field id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
+                    <Field id="mail-reply-to-name" label={t("admin.mail.replyToName")} help={withSource(t("admin.mail.replyToNameHelp"), settings.Sources?.ReplyToName, "SMTP_REPLY_TO_NAME")}><Input id="mail-reply-to-name" value={identity.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("ReplyToName", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Name} autoComplete="off" /></Field>
+                    <Field id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources?.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Field id="mail-sending-domain" label={t("admin.mail.sendingDomain")} help={withSource(t("admin.mail.sendingDomainHelp"), settings.Sources.SendingDomain, "SMTP_SENDER_EMAIL")}><Input id="mail-sending-domain" value={identity.SendingDomain} onChange={(event) => changeIdentity("SendingDomain", event.target.value)} disabled={disabled} placeholder={settings.EnvSendingDomain || t("admin.mail.domainPlaceholder")} autoComplete="off" spellCheck={false} /></Field>
+                  <Field id="mail-sending-domain" label={t("admin.mail.sendingDomain")} help={withSource(t("admin.mail.sendingDomainHelp"), settings.Sources?.SendingDomain, "SMTP_SENDER_EMAIL")}><Input id="mail-sending-domain" value={identity.SendingDomain} onChange={(event) => changeIdentity("SendingDomain", event.target.value)} disabled={disabled} placeholder={settings.EnvSendingDomain || t("admin.mail.domainPlaceholder")} autoComplete="off" spellCheck={false} /></Field>
                   <p className="text-sm text-muted-foreground">{t("admin.mail.eventSenderHint", { domain: sendingDomain || t("admin.mail.domainPlaceholder") })}</p>
                 </div>
                 <RequirePermission perm="platform.settings.write">
@@ -304,7 +304,8 @@ export default function Page() {
 }
 
 // A field tooltip: what the field is, then where its current value comes from.
-function withSource(help: string, source: MailFieldSource, envName: string): string {
+function withSource(help: string, source: MailFieldSource | undefined, envName: string): string {
+  if (!source) return help
   return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
 }
 
