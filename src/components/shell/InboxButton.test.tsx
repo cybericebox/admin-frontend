@@ -58,17 +58,8 @@ describe("top-bar inbox", () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
     fireEvent.click(await screen.findByRole("button", { name: "Позначити все прочитаним" }))
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?event=none", {}))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
-  })
-
-  it("asks only for notifications without an Event", async () => {
-    render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
-    await screen.findByText("Запрошення")
-    const paths = api.get.mock.calls.map(([path]) => new URL(path as string, "http://x"))
-    expect(paths.map((url) => url.pathname)).toEqual(expect.arrayContaining(["/api/notifications/inbox", "/api/notifications/inbox/poll"]))
-    for (const url of paths) expect(url.searchParams.get("event")).toBe("none")
   })
 
   it("shows the saved notification icon in the inbox", async () => {
@@ -82,7 +73,7 @@ describe("top-bar inbox", () => {
     autoIntersect = true
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
       ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 25 }
       : path.includes("before_id=")
         ? { Items: [older], NextCursor: null }
@@ -99,7 +90,7 @@ describe("top-bar inbox", () => {
   it("loads the next page when the last row becomes visible", async () => {
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
       ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2 }
       : path.includes("before_id=")
         ? { Items: [older], NextCursor: null }
@@ -131,9 +122,9 @@ describe("top-bar inbox", () => {
   it("pops only fresh unread messages with a configured duration", async () => {
     const old = { ID: "old", Title: "Старе", Body: "Вже було", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
     const fresh = { ID: "new", Title: "Нове", Body: "Щойно прийшло", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("since_id=")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
       ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 2 }
-      : path.includes("/poll")
+      : path.endsWith("/poll")
         ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 1 }
         : { Items: [old], NextCursor: null }))
     render(<InboxButton />)
@@ -148,9 +139,9 @@ describe("top-bar inbox", () => {
 
   it("pops a fresh message for five seconds when the template duration is empty", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: null, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("since_id=")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
       ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.includes("/poll")
+      : path.endsWith("/poll")
         ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
         : { Items: [], NextCursor: null }))
     render(<InboxButton />)
@@ -163,13 +154,13 @@ describe("top-bar inbox", () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     let delta = 0
     api.get.mockImplementation((path: string) => {
-      if (path.includes("since_id=")) {
+      if (path.includes("/poll?")) {
         delta += 1
         return Promise.resolve(delta === 1
           ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
           : { Cursor: NEW_CURSOR, NewInbox: [], UnreadCount: 0 })
       }
-      if (path.includes("/poll")) return Promise.resolve({ Cursor: null, NewInbox: [], UnreadCount: 0 })
+      if (path.endsWith("/poll")) return Promise.resolve({ Cursor: null, NewInbox: [], UnreadCount: 0 })
       return Promise.resolve({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: null })
     })
     render(<InboxButton />)
@@ -187,9 +178,9 @@ describe("top-bar inbox", () => {
 
   it("does not flash a fresh message already read in another tab", async () => {
     const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("since_id=")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
       ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 0 }
-      : path.includes("/poll")
+      : path.endsWith("/poll")
         ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
         : { Items: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }], NextCursor: null }))
     render(<InboxButton />)
@@ -201,9 +192,9 @@ describe("top-bar inbox", () => {
 
   it("marks a pop-in action read before navigating", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("since_id=")
+    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
       ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.includes("/poll")
+      : path.endsWith("/poll")
         ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
         : { Items: [], NextCursor: null }))
     render(<InboxButton />)

@@ -35,12 +35,6 @@ type InboxPage = { Items: Message[]; NextCursor: InboxCursor | null }
 
 const READ_SYNC_KEY = "cybericebox:inbox-read"
 
-// Outside an Event site the inbox shows only notifications without an Event;
-// Event-bound ones appear only on their Event's site.
-function inboxURL(path = "", params: Record<string, string> = {}): string {
-  return `/api/notifications/inbox${path}?${new URLSearchParams({ ...params, event: "none" })}`
-}
-
 function safeHref(value: string): string | null {
   const href = value.trim()
   if (href.startsWith("/") && !href.startsWith("//")) return href
@@ -82,7 +76,8 @@ export function InboxButton() {
     loadingOlderRef.current = true
     setLoadingOlder(true)
     try {
-      const page = await apiGet<InboxPage>(inboxURL("", { before_id: before.ID, before_at: before.CreatedAt }))
+      const query = new URLSearchParams({ before_id: before.ID, before_at: before.CreatedAt })
+      const page = await apiGet<InboxPage>(`/api/notifications/inbox?${query}`)
       if (revision !== listRevision.current) return
       olderCursorRef.current = page.NextCursor
       setOlderCursor(page.NextCursor)
@@ -118,7 +113,7 @@ export function InboxButton() {
     let pending = false
     const refreshList = (): Promise<Message[] | null> => {
       const revision = ++listRevision.current
-      return apiGet<InboxPage>(inboxURL())
+      return apiGet<InboxPage>("/api/notifications/inbox")
         .then((page) => {
           if (!current || revision !== listRevision.current) return null
           const next = page.Items ?? []
@@ -146,7 +141,7 @@ export function InboxButton() {
         if (!initialized) {
           // The baseline contains no new messages, so existing unread entries
           // do not pop up when a tab first opens.
-          const baseline = await apiGet<InboxPoll>(inboxURL("/poll"))
+          const baseline = await apiGet<InboxPoll>("/api/notifications/inbox/poll")
           if (!current) return
           cursor.current = baseline.Cursor ?? { ID: "00000000-0000-0000-0000-000000000000", CreatedAt: "1970-01-01T00:00:00Z" }
           unreadCount.current = baseline.UnreadCount
@@ -156,7 +151,8 @@ export function InboxButton() {
           return
         }
         const since = cursor.current!
-        const result = await apiGet<InboxPoll>(inboxURL("/poll", { since_id: since.ID, since_at: since.CreatedAt }))
+        const query = new URLSearchParams({ since_id: since.ID, since_at: since.CreatedAt })
+        const result = await apiGet<InboxPoll>(`/api/notifications/inbox/poll?${query}`)
         if (!current) return
         cursor.current = result.Cursor ?? since
         const fresh = (result.NewInbox ?? []).filter((item) => !item.ReadAt)
@@ -249,7 +245,7 @@ export function InboxButton() {
   async function readAll() {
     setError("")
     try {
-      await apiPatch(inboxURL("/read-all"), {})
+      await apiPatch("/api/notifications/inbox/read-all", {})
       const now = new Date().toISOString()
       unreadCount.current = 0
       setUnread(0)
