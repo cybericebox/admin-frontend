@@ -105,6 +105,8 @@ test("queries carry the category and the event scope", () => {
 test("resolved line keys exist in both catalogs", () => {
   assert.equal(inbox.resolutionKey("approved", true), "inbox.resolved.approved")
   assert.equal(inbox.resolutionKey("fixed", false), "inbox.resolved.fixed.system")
+  assert.equal(inbox.resolutionKey("expired", true), "inbox.resolved.expired.system")
+  assert.equal(inbox.resolutionKey("withdrawn", false), "inbox.resolved.withdrawn.system")
   assert.equal(inbox.resolutionKey("something-new", true), "inbox.resolved.other")
   assert.equal(inbox.resolutionKey(null, false), "inbox.resolved.other.system")
   for (const lang of ["uk", "en"]) {
@@ -114,7 +116,7 @@ test("resolved line keys exist in both catalogs", () => {
         const key = inbox.resolutionKey(resolution, named)
         assert.ok(catalog[key], `${lang}: ${key}`)
         assert.ok(catalog[key].includes("{time}"), `${lang}: ${key} has {time}`)
-        if (named) assert.ok(catalog[key].includes("{name}"), `${lang}: ${key} has {name}`)
+        if (named && !key.endsWith(".system")) assert.ok(catalog[key].includes("{name}"), `${lang}: ${key} has {name}`)
       }
     }
     for (const tab of inbox.INBOX_TABS) assert.ok(catalog[`inbox.tab.${tab}`], `${lang}: inbox.tab.${tab}`)
