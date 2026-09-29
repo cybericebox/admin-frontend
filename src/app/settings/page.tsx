@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingArea } from "@/components/ui/spinner"
+import { SettingsTabs } from "@/components/settings/SettingsTabs"
 
 type Setting = {
   ID: string
@@ -68,6 +69,7 @@ export default function Page() {
       }
     >
       <div className="flex min-h-full flex-col gap-5">
+        <SettingsTabs />
         <div><h2 className="text-xl font-semibold text-foreground">Налаштування платформи</h2><p className="mt-1 text-sm text-muted-foreground">Загальні параметри, доступні адміністратору платформи.</p></div>
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
         {loading ? <LoadingArea className="flex-1" label="Завантаження…" /> : items.length === 0 ? <Card><CardContent className="pt-5"><EmptyState message="Налаштувань поки немає." compact /></CardContent></Card> : (

@@ -12,7 +12,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { toast } from "@/components/ui/toast"
 
-type Participant = { UserID: string; Status: number; CreatedAt: string; DecidedAt: string | null }
+type Participant = { UserID: string; Status: number; CreatedAt: string; DecidedAt: string | null; Invited?: boolean; InvitedTeamName?: string | null }
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string }
 
 const filters = [
@@ -22,6 +22,16 @@ const filters = [
   { value: "3", label: "Відхилені" },
 ]
 const statusLabel: Record<number, string> = { 1: "Очікує рішення", 2: "Підтверджено", 3: "Відхилено" }
+
+// Invitations are pending rows too, but only the invited person can accept them.
+function isInvitation(item: Participant): boolean {
+  return item.Invited === true && item.Status === 1
+}
+
+function statusOf(item: Participant): string {
+  if (isInvitation(item)) return item.InvitedTeamName ? `Запрошено до «${item.InvitedTeamName}» · очікує відповіді` : "Запрошено · очікує відповіді"
+  return statusLabel[item.Status] ?? "Невідомий статус"
+}
 
 function nameOf(user: UserSummary | undefined, fallback: string): string {
   if (!user) return fallback
@@ -107,8 +117,8 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
       const name = nameOf(user, item.UserID)
       return <li key={item.UserID} className="flex flex-wrap items-center gap-3 py-3">
         <div className="min-w-0 flex-1"><Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(item.UserID)}`}>{name}</Link>{user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}</div>
-        <span className="text-sm text-muted-foreground">{statusLabel[item.Status] ?? "Невідомий статус"}</span>
-        {editable && item.Status === 1 && <div className="flex gap-2"><Button type="button" size="sm" disabled={!!busyID} onClick={() => void decide(item, "approve")} aria-label={`Підтвердити ${name}`}>Підтвердити</Button><Button type="button" size="sm" variant="outline" disabled={!!busyID} onClick={() => setRejecting(item)} aria-label={`Відхилити ${name}`}>Відхилити</Button></div>}
+        <span className="text-sm text-muted-foreground">{statusOf(item)}</span>
+        {editable && item.Status === 1 && !isInvitation(item) && <div className="flex gap-2"><Button type="button" size="sm" disabled={!!busyID} onClick={() => void decide(item, "approve")} aria-label={`Підтвердити ${name}`}>Підтвердити</Button><Button type="button" size="sm" variant="outline" disabled={!!busyID} onClick={() => setRejecting(item)} aria-label={`Відхилити ${name}`}>Відхилити</Button></div>}
       </li>
     })}</ul>}
     {cursor && !loading && <Button type="button" variant="outline" size="sm" className="mt-4" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Завантаження…" : "Показати ще"}</Button>}

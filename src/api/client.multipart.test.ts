@@ -4,7 +4,7 @@
  * NOT via apiPost: request() in client.ts always sets Content-Type:
  * application/json, which breaks the multipart boundary. apiPostMultipart
  * shares request()'s 401-redirect / envelope-unwrap / error conventions
- * without forcing that header (see api/exercises/files.ts for the XHR
+ * without forcing that header (see exercises-frontend api/exercises/files.ts for the XHR
  * progress-reporting variant used where upload progress is needed).
  */
 import { afterEach, describe, expect, it, vi } from "vitest"

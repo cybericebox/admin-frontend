@@ -28,6 +28,8 @@ export type Event = {
   ArchiveAt: string | null
   Status: EventStatus
   LifecycleStatus?: EventLifecycleStatus
+  /** Admin-set at creation, immutable afterwards (older API builds omit it). */
+  InfrastructureAllowed?: boolean
   CreatedAt: string
   UpdatedAt: string
 }
@@ -37,6 +39,12 @@ export type EventInput = {
   Name: string
   AvailableFrom: string
   ArchiveAt: string | null
+}
+
+/** Creation-only fields: the infrastructure flag cannot change after creation. */
+export type EventCreateInput = EventInput & {
+  /** Omitted: the backend enables it when infrastructure is available. */
+  InfrastructureAllowed?: boolean
 }
 
 export type EventsFilter = {
@@ -87,8 +95,17 @@ export async function getEvent(id: string): Promise<Event> {
 }
 
 /** POST /api/events */
-export async function createEvent(input: EventInput): Promise<Event> {
+export async function createEvent(input: EventCreateInput): Promise<Event> {
   return normalizeEvent(await apiPost<Event>(BASE, input))
+}
+
+/**
+ * GET /api/infrastructure/status → whether infrastructure tasks can be allowed.
+ * Requires infrastructure.read; callers without it should not ask.
+ */
+export async function getInfrastructureAvailable(): Promise<boolean> {
+  const status = await apiGet<{ Available: boolean; Healthy?: boolean }>("/api/infrastructure/status")
+  return status.Available && status.Healthy !== false
 }
 
 /** PUT /api/events/:id */

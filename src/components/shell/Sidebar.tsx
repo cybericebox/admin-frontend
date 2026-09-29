@@ -2,10 +2,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Bell, Users, Puzzle, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined } from "lucide-react"
+import { LayoutDashboard, Bell, Users, Puzzle, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
+import { exercisesOrigin } from "@/lib/origins"
 
 type Child = { href: string; label: string; perm?: string }
 type Item = {
@@ -13,6 +14,8 @@ type Item = {
   label: string
   icon: React.ComponentType<{ className?: string }>
   perm?: string
+  // Opens another platform app (full navigation, not a Next.js route).
+  external?: boolean
   children?: Child[]
 }
 type Section = { divider?: boolean; label?: string; items: Item[] }
@@ -21,7 +24,7 @@ const SECTIONS: Section[] = [
   { items: [{ href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard }] },
   { divider: true, label: "admin.nav.section.content", items: [
     { href: "/events", label: "admin.nav.events", icon: CalendarDays, perm: "events.read" },
-    { href: "/exercises", label: "admin.nav.exercises", icon: Puzzle, perm: "exercises.read" },
+    { href: exercisesOrigin, label: "admin.nav.exercises", icon: Puzzle, perm: "exercises.read", external: true },
   ] },
   { divider: true, items: [{ href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" }] },
   { divider: true, items: [{
@@ -85,7 +88,9 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
             {section.items.map((it) =>
               it.children && it.children.length > 0
                 ? <NavGroup key={it.href} item={it} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} onExpand={onToggleCollapse} />
-                : <NavLink key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={pathname === it.href || pathname.startsWith(it.href + "/")} onNavigate={onNavigate} collapsed={collapsed} />,
+                : it.external
+                  ? <ExternalNavLink key={it.href} href={it.href} label={t(it.label)} icon={it.icon} collapsed={collapsed} />
+                  : <NavLink key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={pathname === it.href || pathname.startsWith(it.href + "/")} onNavigate={onNavigate} collapsed={collapsed} />,
             )}
           </div>
         ))}
@@ -101,6 +106,15 @@ function NavLink({ href, label, icon: Icon, active, onNavigate, collapsed }: { h
       <Icon className="h-4 w-4" />
       {!collapsed && label}
     </Link>
+  )
+}
+
+function ExternalNavLink({ href, label, icon: Icon, collapsed }: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; collapsed?: boolean }) {
+  return (
+    <a href={href} aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined} className={`${itemBase} ${collapsed ? "justify-center px-2" : ""} ${idleCls}`}>
+      <Icon className="h-4 w-4" />
+      {!collapsed && <><span className="flex-1">{label}</span><ExternalLink aria-hidden="true" className="h-3.5 w-3.5 text-[var(--ib-on-brand-3)]" /></>}
+    </a>
   )
 }
 

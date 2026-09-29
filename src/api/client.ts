@@ -1,5 +1,5 @@
 // Minimal fetch-based API client.
-// The API origin is derived from NEXT_PUBLIC_DOMAIN as api.<domain>: every
+// The API origin is api.<NEXT_PUBLIC_DOMAIN> or NEXT_PUBLIC_API_DOMAIN: every
 // frontend calls the single api host cross-origin with credentials included,
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
@@ -156,7 +156,7 @@ async function request<T>(
 // application/json, which breaks the multipart boundary. There is no CSRF
 // header convention in this client to preserve — auth here is the
 // __Host-session cookie sent via credentials:"include", same as every other
-// call. See api/exercises/files.ts for the XHR progress-reporting variant
+// call. See exercises-frontend api/exercises/files.ts for the XHR progress-reporting variant
 // used where upload progress must be surfaced to the caller.
 export async function apiPostMultipart<T>(
   path: string,
