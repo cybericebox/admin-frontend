@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -51,6 +51,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   const [platformRole, setPlatformRole] = useState<Role>("user")
   const [busyID, setBusyID] = useState("")
   const [removing, setRemoving] = useState<EventManager | null>(null)
+  const [removeError, setRemoveError] = useState("")
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -145,7 +146,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       toast.success(t("admin.events.manager.removed"))
       setRemoving(null)
     } catch {
-      toast.error(t("admin.events.manager.removeError"))
+      setRemoveError(t("admin.events.manager.removeError"))
     } finally {
       setBusyID("")
     }
@@ -169,7 +170,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
           </div>
           {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{eventRoleLabel(0)}</span> : editable ? <>
             <SelectMenu value={String(manager.Role)} onChange={(value) => void save(manager.UserID, Number(value))} options={managerRoles} disabled={!!busyID} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
-            <Button type="button" variant="outline" size="sm" disabled={!!busyID} onClick={() => setRemoving(manager)} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
+            <Button type="button" variant="outline" size="sm" disabled={!!busyID} onClick={() => { setRemoveError(""); setRemoving(manager) }} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
           </> : <span className="text-sm text-muted-foreground">{eventRoleLabel(manager.Role)}</span>}
         </li>
       })}
@@ -185,9 +186,11 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       {canInvite && <div className="space-y-2 border-t border-border pt-3">{matches.length > 0 && <p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p>}<div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: roleLabel(role) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
     </div>}
 
-    <Dialog open={!!removing} onOpenChange={(open) => { if (!open && !busyID) setRemoving(null) }}><DialogContent>
-      <DialogHeader><DialogTitle>{t("admin.events.manager.removeTitle")}</DialogTitle><DialogDescription>{removing ? t("admin.events.manager.removeBody", { name: nameOf(users[removing.UserID], removing.UserID) }) : ""}</DialogDescription></DialogHeader>
-      <DialogFooter><Button type="button" variant="outline" disabled={!!busyID} onClick={() => setRemoving(null)}>{t("admin.events.dialog.cancel")}</Button><Button type="button" variant="destructive" busy={!!removing && busyID === removing.UserID} disabled={!!busyID} onClick={() => void remove()}>{t("admin.events.manager.removeConfirm")}</Button></DialogFooter>
-    </DialogContent></Dialog>
+    <ConfirmDialog open={!!removing} onCancel={() => { if (!busyID) setRemoving(null) }} tone="danger"
+      busy={!!removing && busyID === removing.UserID} disabled={!!busyID} error={removeError}
+      title={t("admin.events.manager.removeTitle")}
+      description={removing ? t("admin.events.manager.removeBody", { name: nameOf(users[removing.UserID], removing.UserID) }) : ""}
+      cancelLabel={t("admin.events.dialog.cancel")} confirmLabel={t("admin.events.manager.removeConfirm")}
+      onConfirm={() => void remove()} />
   </CardContent></Card>
 }

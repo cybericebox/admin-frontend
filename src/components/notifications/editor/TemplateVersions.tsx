@@ -8,7 +8,7 @@ import { listInAppTemplates } from "@/api/notifications/inAppTemplates"
 import { t } from "@/i18n/t"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -107,21 +107,15 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
       </div>}
     </section>
 
-    <Dialog open={restoreSource !== null} onOpenChange={(next) => { if (!next && !restoring) setRestoreSource(null) }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.notif.versions.restoreTitle")}</DialogTitle>
-          <DialogDescription>{t(versions?.some((version) => version.Status === "draft")
-            ? "admin.notif.versions.restoreDescription"
-            : "admin.notif.versions.restoreDescriptionNoDraft")}</DialogDescription>
-        </DialogHeader>
-        {dirty && <p className="text-sm text-destructive">{t("admin.notif.versions.unsavedWarning")}</p>}
-        {restoreError && <p className="text-sm text-destructive">{t("admin.notif.versions.restoreError")}</p>}
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={restoring} onClick={() => setRestoreSource(null)}>{t("admin.notif.tpl.cancel")}</Button>
-          <Button type="button" disabled={restoring || busy} onClick={() => void restore()}>{t("admin.notif.tpl.rollback")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={restoreSource !== null} onCancel={() => { if (!restoring) setRestoreSource(null) }}
+      busy={restoring} disabled={busy} error={restoreError ? t("admin.notif.versions.restoreError") : null}
+      title={t("admin.notif.versions.restoreTitle")}
+      description={t(versions?.some((version) => version.Status === "draft")
+        ? "admin.notif.versions.restoreDescription"
+        : "admin.notif.versions.restoreDescriptionNoDraft")}
+      cancelLabel={t("admin.notif.tpl.cancel")} confirmLabel={t("admin.notif.tpl.rollback")}
+      onConfirm={() => void restore()}>
+      {dirty && <p className="text-sm text-destructive">{t("admin.notif.versions.unsavedWarning")}</p>}
+    </ConfirmDialog>
   </>
 }

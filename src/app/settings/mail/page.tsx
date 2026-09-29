@@ -10,7 +10,7 @@ import { mailTransportLabel } from "@/utils/notifType"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -255,18 +255,9 @@ export default function Page() {
         )}
       </div>
 
-      <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("admin.mail.resetConfirmTitle")}</DialogTitle>
-            <DialogDescription>{t("admin.mail.resetConfirmBody")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmReset(false)}>{t("admin.mail.cancel")}</Button>
-            <Button variant="destructive" onClick={reset}>{t("admin.mail.resetConfirm")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={confirmReset} onCancel={() => setConfirmReset(false)} tone="danger"
+        title={t("admin.mail.resetConfirmTitle")} description={t("admin.mail.resetConfirmBody")}
+        cancelLabel={t("admin.mail.cancel")} confirmLabel={t("admin.mail.resetConfirm")} onConfirm={reset} />
     </RequirePermission>
   )
 }

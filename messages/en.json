@@ -1,4 +1,5 @@
 {
+  "confirm.cancel": "Cancel",
   "error.generic": "Something went wrong",
   "error.page.title": "The page couldn’t load",
   "error.page.body": "Something unexpected went wrong. Reload the page or go back.",

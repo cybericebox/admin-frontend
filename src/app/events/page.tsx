@@ -22,9 +22,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { isUnsetEventDate } from "@/lib/eventDates"
 import { Archive, Trash2, TriangleAlert } from "lucide-react"
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 type DisplayStatus = EventLifecycleStatus | "not_available" | "archived"
 const STATUS_FILTERS: DisplayStatus[] = ["not_available", "not_published", "published", "started", "finished", "withdrawn", "archived"]
@@ -81,6 +79,7 @@ export default function Page() {
 
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
@@ -124,13 +123,14 @@ export default function Page() {
   }
 
 
-  function closeConfirm(next: boolean) {
-    if (!next && !confirmBusy) setConfirming(null)
+  function closeConfirm() {
+    if (!confirmBusy) { setConfirming(null); setConfirmError(null) }
   }
 
   async function runConfirm() {
     if (!confirming) return
     setConfirmBusy(true)
+    setConfirmError(null)
     try {
       if (confirming.kind === "archive") {
         const updated = await archiveEvent(confirming.event.ID)
@@ -143,7 +143,7 @@ export default function Page() {
       }
       setConfirming(null)
     } catch (e) {
-      toast.error(eventErrorMessage(e))
+      setConfirmError(eventErrorMessage(e))
     } finally {
       setConfirmBusy(false)
     }
@@ -230,39 +230,22 @@ export default function Page() {
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
 
-      <Dialog open={confirming !== null} onOpenChange={closeConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
-            </DialogTitle>
-            <DialogDescription>
-              {t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
-            </DialogDescription>
-          </DialogHeader>
-          {earlyArchiveWarning && (
-            <Alert variant={earlyArchiveWarning === "public" ? "destructive" : "warning"}>
-              <TriangleAlert aria-hidden="true" className="h-4 w-4" />
-              <div>
-                <AlertTitle>{t(`admin.events.archive.${earlyArchiveWarning}Title`)}</AlertTitle>
-                <AlertDescription>{t(`admin.events.archive.${earlyArchiveWarning}Body`)}</AlertDescription>
-              </div>
-            </Alert>
-          )}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" disabled={confirmBusy}>{t("admin.events.dialog.cancel")}</Button>
-            </DialogClose>
-            <Button
-              variant={confirming?.kind === "delete" ? "destructive" : "default"}
-              busy={confirmBusy}
-              onClick={runConfirm}
-            >
-              {t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} error={confirmError}
+        title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
+        description={t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
+        cancelLabel={t("admin.events.dialog.cancel")}
+        confirmLabel={t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}
+        onConfirm={() => void runConfirm()}>
+        {earlyArchiveWarning && (
+          <Alert variant={earlyArchiveWarning === "public" ? "destructive" : "warning"}>
+            <TriangleAlert aria-hidden="true" className="h-4 w-4" />
+            <div>
+              <AlertTitle>{t(`admin.events.archive.${earlyArchiveWarning}Title`)}</AlertTitle>
+              <AlertDescription>{t(`admin.events.archive.${earlyArchiveWarning}Body`)}</AlertDescription>
+            </div>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

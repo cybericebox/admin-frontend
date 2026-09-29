@@ -13,7 +13,7 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-[var(--ib-action-hover)]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:opacity-90",
+          "bg-destructive text-destructive-foreground hover:bg-[color-mix(in_srgb,var(--ib-danger)_88%,var(--ib-ink))] active:bg-[color-mix(in_srgb,var(--ib-danger)_80%,var(--ib-ink))]",
         outline:
           "border border-border bg-card hover:bg-accent hover:text-accent-foreground",
         secondary:

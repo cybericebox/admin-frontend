@@ -9,9 +9,7 @@ import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
-import {
-  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -59,6 +57,8 @@ function Detail() {
   const [loadError, setLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(false)
 
   async function load() {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -102,11 +102,12 @@ function Detail() {
   }
   async function remove() {
     setBusy(true)
+    setDeleteError(false)
     try {
       await apiDelete(`/api/users/${id}`)
       toast.success(t("admin.userDetail.deleted"))
       router.push("/users")
-    } catch { toast.error(t("admin.userDetail.actionError")); setBusy(false) }
+    } catch { setDeleteError(true); setBusy(false) }
   }
 
   if (loading && id) {
@@ -199,23 +200,13 @@ function Detail() {
           )}
 
           {can("users.delete") && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" disabled={busy}>{t("admin.userDetail.delete")}</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t("admin.userDetail.deleteConfirmTitle")}</DialogTitle>
-                  <DialogDescription>{t("admin.userDetail.deleteConfirmBody")}</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">{t("admin.userDetail.cancel")}</Button>
-                  </DialogClose>
-                  <Button variant="destructive" disabled={busy} busy={busy} onClick={remove}>{t("admin.userDetail.delete")}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <>
+              <Button variant="destructive" disabled={busy} onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
+              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={busy}
+                title={t("admin.userDetail.deleteConfirmTitle")} description={t("admin.userDetail.deleteConfirmBody")}
+                cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.delete")}
+                error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />
+            </>
           )}
 
         </div>
