@@ -612,5 +612,7 @@
   "admin.events.err.tagInvalid": "Invalid tag: 3–64 chars, lowercase latin letters and digits only",
   "admin.events.err.datesInvalid": "Archive date must be after the availability start",
   "admin.events.err.nameTooLong": "Name is too long (max 255 characters)",
-  "admin.events.err.nameRequired": "Enter an event name"
+  "admin.events.err.nameRequired": "Enter an event name",
+  "meta.brand": "Cyber ICE Box",
+  "meta.title": "Administration"
 }

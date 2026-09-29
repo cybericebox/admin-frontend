@@ -612,5 +612,7 @@
   "admin.events.err.tagInvalid": "Некоректний тег: 3–64 символів, лише малі латинські літери та цифри",
   "admin.events.err.datesInvalid": "Дата архівації має бути пізніше за дату початку",
   "admin.events.err.nameTooLong": "Назва задовга (макс. 255 символів)",
-  "admin.events.err.nameRequired": "Вкажіть назву заходу"
+  "admin.events.err.nameRequired": "Вкажіть назву заходу",
+  "meta.brand": "Cyber ICE Box",
+  "meta.title": "Адміністрування"
 }
