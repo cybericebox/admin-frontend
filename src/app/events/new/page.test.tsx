@@ -60,10 +60,10 @@ describe("new event page", () => {
     vi.mocked(listEventManagers).mockResolvedValue([])
     render(<NewEventPage />)
 
-    const checkbox = screen.getByRole("checkbox", { name: "admin.events.field.infrastructure" })
-    expect(checkbox).toBeChecked()
-    await waitFor(() => expect(checkbox).toBeDisabled())
-    expect(checkbox).not.toBeChecked()
+    const toggle = screen.getByRole("switch", { name: "admin.events.field.infrastructure" })
+    expect(toggle).toBeChecked()
+    await waitFor(() => expect(toggle).toBeDisabled())
+    expect(toggle).not.toBeChecked()
     expect(screen.getByText("admin.events.field.infrastructureUnavailable")).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Internal" } })

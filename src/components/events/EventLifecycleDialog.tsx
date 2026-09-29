@@ -5,7 +5,7 @@ import { apiPut } from "@/api/client"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { isoToLocal, localToIso } from "@/lib/eventSchemas"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -91,7 +91,7 @@ export function EventLifecycleDialog({ eventID, lifecycle, onClose, onSaved }: {
           <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.publishAt")}</label><DateTimePicker value={publishAt} onChange={setPublishAt} aria-label={t("admin.events.schedule.field.publishAt")} disabled={busy} /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.startAt")}</label><DateTimePicker value={startAt} onChange={setStartAt} aria-label={t("admin.events.schedule.field.startAt")} disabled={busy} /></div>
         </div>
-        <Checkbox checked={!scheduled} onChange={(event) => { setScheduled(!event.target.checked); if (event.target.checked) { setFinishAt(""); setWithdrawAt("") } }} disabled={busy} label={t("admin.events.schedule.noFinish")} />
+        <div className="flex items-center gap-2"><Switch id="event-lifecycle-no-finish" checked={!scheduled} onCheckedChange={(noFinish) => { setScheduled(!noFinish); if (noFinish) { setFinishAt(""); setWithdrawAt("") } }} disabled={busy} /><label htmlFor="event-lifecycle-no-finish" className="text-sm leading-snug cursor-pointer select-none">{t("admin.events.schedule.noFinish")}</label></div>
         {scheduled && <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.finishAt")}</label><DateTimePicker value={finishAt} onChange={setFinishAt} aria-label={t("admin.events.schedule.field.finishAt")} disabled={busy} /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">{t("admin.events.schedule.field.withdrawAt")}</label><DateTimePicker value={withdrawAt} onChange={setWithdrawAt} aria-label={t("admin.events.schedule.field.withdrawAt")} disabled={busy} /></div>

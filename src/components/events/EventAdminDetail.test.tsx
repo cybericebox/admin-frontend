@@ -47,7 +47,7 @@ describe("EventAdminDetail", () => {
     mock.get.mockResolvedValue({ ...event, InfrastructureAllowed: true })
     render(<EventAdminDetail id="event-1" />)
     expect(await screen.findByTestId("event-infrastructure")).toHaveTextContent("admin.events.field.infrastructure: admin.events.field.infrastructureYes")
-    expect(screen.queryByRole("checkbox", { name: "admin.events.field.infrastructure" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("switch", { name: "admin.events.field.infrastructure" })).not.toBeInTheDocument()
   })
 
   it("keeps the event editable when loading managers fails and lets the user retry access", async () => {

@@ -35,6 +35,7 @@ import type { VariableDef } from "@/components/notifications/editor/variableUtil
 import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
 import { ApiError, mediaUrl } from "@/api/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -310,9 +311,7 @@ export function BlockEditor({
             {/* Block header row */}
             <div className="flex items-center gap-2 mb-3">
               {/* Selection checkbox */}
-              {showPresetSave && <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              {showPresetSave && <Checkbox
                   checked={selectedIdxs.has(i)}
                   onChange={(e) => {
                     const next = new Set(selectedIdxs);
@@ -320,9 +319,7 @@ export function BlockEditor({
                     else next.delete(i);
                     setSelectedIdxs(next);
                   }}
-                  className="rounded"
-                />
-              </label>}
+                />}
 
               {/* Type pill */}
               <div className="flex-1">
