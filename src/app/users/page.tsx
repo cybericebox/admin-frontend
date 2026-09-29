@@ -62,9 +62,12 @@ export default function Page() {
 
   // Debounce the search box.
   useEffect(() => {
-    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
+    const next = search.trim()
+    // An unchanged query must not reset the page the user already moved to.
+    if (next === debounced) return
+    const id = setTimeout(() => { setDebounced(next); setPage(1) }, 300)
     return () => clearTimeout(id)
-  }, [search])
+  }, [search, debounced])
 
   const query = (() => {
     const p = new URLSearchParams()

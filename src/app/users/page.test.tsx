@@ -114,6 +114,16 @@ describe("admin users page", () => {
     expect(screen.queryByText("Старий Коваль")).not.toBeInTheDocument()
   })
 
+  it("keeps the requested page when the idle search debounce settles", async () => {
+    const first = { ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", CreatedAt: "2026-09-01T00:00:00Z" }
+    mocks.get.mockResolvedValue({ Items: [first], Total: 51 })
+    render(<Page />)
+    await screen.findByText("Олена Коваль")
+    fireEvent.click(screen.getByRole("button", { name: "admin.table.next" }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)))
+    expect(mocks.get.mock.calls.at(-1)?.[0]).toContain("page=2")
+  })
+
   it("lets the operator retry a failed next page", async () => {
     const first = { ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", CreatedAt: "2026-09-01T00:00:00Z" }
     mocks.get.mockResolvedValueOnce({ Items: [first], Total: 51 })

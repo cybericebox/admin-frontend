@@ -125,6 +125,15 @@ describe('events catalog page', () => {
     expect(await screen.findByRole('link', { name: 'Autumn CTF' })).toBeInTheDocument()
   })
 
+  it('keeps the requested page when the idle search debounce settles', async () => {
+    mockList.mockResolvedValue({ Items: [activeEvent], Total: 51, Page: 1, PageSize: 50 })
+    render(<Page />)
+    await screen.findByRole('link', { name: 'Spring CTF' })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)))
+    expect(mockList.mock.calls.at(-1)?.[0]).toMatchObject({ page: 2 })
+  })
+
   it('does not append an old page after the search filter changes', async () => {
     let resolveOldPage: ((page: { Items: typeof activeEvent[]; Total: number; Page: number; PageSize: number }) => void) | undefined
     const autumnEvent = { ...activeEvent, ID: 'autumn-event', Name: 'Autumn CTF' }
