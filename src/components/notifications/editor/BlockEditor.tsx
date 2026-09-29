@@ -273,11 +273,12 @@ export function BlockEditor({
               <Button
                 type="button"
                 size="sm"
-                disabled={savingPreset || !presetName.trim()}
+                busy={savingPreset}
+                disabled={!presetName.trim()}
                 onClick={() => void handleSavePreset()}
                 aria-label={t("admin.notif.editor.save")}
               >
-                {savingPreset ? t("admin.notif.editor.saving") : t("admin.notif.editor.save")}
+                {t("admin.notif.editor.save")}
               </Button>
               <Button
                 type="button"
@@ -439,13 +440,11 @@ export function BlockEditor({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={uploadState[stableKey]?.uploading}
+                    busy={uploadState[stableKey]?.uploading}
                     onClick={() => fileInputRefs.current[stableKey]?.click()}
                   >
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    {uploadState[stableKey]?.uploading
-                      ? t("admin.notif.editor.uploading")
-                      : t("admin.notif.editor.uploadImage")}
+                    {!uploadState[stableKey]?.uploading && <Upload className="h-3.5 w-3.5 mr-1.5" />}
+                    {t("admin.notif.editor.uploadImage")}
                   </Button>
                   {(block as ImageBlock).file_id && (
                     <img

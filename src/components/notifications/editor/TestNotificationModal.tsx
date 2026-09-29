@@ -108,7 +108,7 @@ function TestNotificationSession({
       if (selectedChannels.includes("in_app")) {
         window.dispatchEvent(new Event("cybericebox:inbox-updated"))
       }
-      toast.success("Тестове сповіщення надіслано.")
+      toast.success(t("admin.notif.test.sent"))
     } catch {
       toast.error(t("admin.notif.test.error"))
     } finally {
@@ -170,8 +170,8 @@ function TestNotificationSession({
               {t("admin.notif.test.close")}
             </Button>
           </DialogClose>
-          <Button onClick={handleSend} disabled={sending || selectedChannels.length === 0}>
-            {sending ? t("admin.notif.test.sending") : t("admin.notif.test.send")}
+          <Button onClick={handleSend} busy={sending} disabled={selectedChannels.length === 0}>
+            {t("admin.notif.test.send")}
           </Button>
         </DialogFooter>
     </>

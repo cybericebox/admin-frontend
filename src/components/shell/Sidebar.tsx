@@ -78,9 +78,9 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
           <span className="block truncate text-sm font-semibold">Cyber <span className="text-[var(--ib-ice-on-brand)]">ICE</span> Box</span>
           <span className="block text-xs text-[var(--ib-on-brand-3)]">{t("admin.shell.title")}</span>
         </div>
-        {onClose && <button type="button" onClick={onClose} aria-label="Закрити меню" className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" aria-label="Розділи адміністрування">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" aria-label={t("admin.shell.navLabel")}>
         {sections.map((section) => (
           <div key={section.items[0].href} className="flex flex-col gap-1">
             {section.divider && <div className="my-2 h-px bg-[var(--ib-brand-line)]" />}
@@ -95,7 +95,7 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
           </div>
         ))}
       </nav>
-      {onToggleCollapse && <div className="border-t border-[var(--ib-brand-line)] p-2"><button type="button" onClick={onToggleCollapse} aria-label={collapsed ? "Розгорнути панель" : "Згорнути панель"} title={collapsed ? "Розгорнути панель" : "Згорнути панель"} className={`${itemBase} ${idleCls} ${collapsed ? "justify-center px-2" : ""}`}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" /><span>Згорнути панель</span></>}</button></div>}
+      {onToggleCollapse && <div className="border-t border-[var(--ib-brand-line)] p-2"><button type="button" onClick={onToggleCollapse} aria-label={t(collapsed ? "admin.shell.expandPanel" : "admin.shell.collapsePanel")} title={t(collapsed ? "admin.shell.expandPanel" : "admin.shell.collapsePanel")} className={`${itemBase} ${idleCls} ${collapsed ? "justify-center px-2" : ""}`}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" /><span>{t("admin.shell.collapsePanel")}</span></>}</button></div>}
     </aside>
   )
 }

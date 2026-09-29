@@ -79,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="hidden md:block"><Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapsed} /></div>
       {menuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <button type="button" className="absolute inset-0 bg-[color-mix(in_srgb,var(--ib-ink)_45%,transparent)]" aria-label="Закрити навігацію" onClick={() => setMenuOpen(false)} />
+          <button type="button" className="absolute inset-0 bg-[color-mix(in_srgb,var(--ib-ink)_45%,transparent)]" aria-label={t("admin.shell.closeNav")} onClick={() => setMenuOpen(false)} />
           <div className="relative h-full w-fit"><Sidebar onClose={() => setMenuOpen(false)} onNavigate={() => setMenuOpen(false)} /></div>
         </div>
       )}

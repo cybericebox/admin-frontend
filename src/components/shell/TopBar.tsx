@@ -51,7 +51,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
   return (
     <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <button type="button" aria-label="Відкрити меню" onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
       </div>
       <div className="flex items-center gap-3">

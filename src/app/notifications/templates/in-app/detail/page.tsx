@@ -62,7 +62,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [template, setTemplate] = useState<InAppTemplate | null>(null)
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
+  const busy = busyAction !== ""
   const [formError, setFormError] = useState(false)
   const [versionRevision, setVersionRevision] = useState(0)
 
@@ -142,7 +143,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       return
     }
     setFormError(false)
-    setBusy(true)
+    setBusyAction("save")
     try {
       const payload = {
         Title:         title,
@@ -165,39 +166,39 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setTemplate(created)
         setVersionRevision((value) => value + 1)
         router.replace(`/notifications/templates/in-app/detail?id=${created.ID}`)
-        toast.success("Шаблон створено.")
+        toast.success(t("admin.notif.tpl.created"))
       } else {
         // Update existing draft
         const updated = await updateInAppTemplate(template.ID, payload)
         setTemplate(updated)
         setVersionRevision((value) => value + 1)
-        toast.success("Шаблон збережено.")
+        toast.success(t("admin.notif.tpl.saved"))
       }
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handlePublish() {
     if (!template || template.Status !== "draft" || isDirty || busy) return
-    setBusy(true)
+    setBusyAction("publish")
     try {
       const updated = await publishInAppTemplate(template.ID)
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
-      toast.success("Шаблон опубліковано.")
+      toast.success(t("admin.notif.tpl.published"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handleRollback(sourceId: string): Promise<boolean> {
     if (!template) return false
-    setBusy(true)
+    setBusyAction("rollback")
     try {
       const updated = await rollbackInAppTemplate(sourceId)
       setTemplate(updated)
@@ -215,13 +216,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setActions(updated.Actions)
       setLoadNonce((n) => n + 1)
       router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
-      toast.success("Версію шаблону відновлено.")
+      toast.success(t("admin.notif.tpl.restored"))
       return true
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
       return false
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -230,7 +231,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   // version stays live until the draft is published (unlike Rollback).
   async function handleEdit() {
     if (!template) return
-    setBusy(true)
+    setBusyAction("edit")
     try {
       const existing = await listInAppTemplates({ type: template.NotificationType, status: "draft" })
       const draft = existing.Templates[0] ?? await createInAppTemplate({
@@ -247,11 +248,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         Actions:       actions,
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
-      toast.success("Чернетку відкрито для редагування.")
+      toast.success(t("admin.notif.tpl.draftOpened"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -334,19 +335,19 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} disabled={busy || !isDirty || !notificationType}>
+            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !isDirty || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (
-            <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
+            <Button variant="outline" onClick={() => void handlePublish()} busy={busyAction === "publish"} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
           {canWrite && isReadOnly && (
-            <Button onClick={() => void handleEdit()} disabled={busy}>
+            <Button onClick={() => void handleEdit()} busy={busyAction === "edit"} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}

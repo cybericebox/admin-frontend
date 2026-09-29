@@ -69,7 +69,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [template, setTemplate] = useState<EmailTemplate | null>(null)
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
+  const busy = busyAction !== ""
   const [versionRevision, setVersionRevision] = useState(0)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
@@ -159,7 +160,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
   async function handleSave() {
     if (busy || !isDirty || !notificationType) return
-    setBusy(true)
+    setBusyAction("save")
     try {
       if (!template?.ID) {
         // Create new
@@ -173,7 +174,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setTemplate(created)
         setVersionRevision((value) => value + 1)
         router.replace(`/notifications/templates/email/detail?id=${created.ID}`)
-        toast.success("Шаблон створено.")
+        toast.success(t("admin.notif.tpl.created"))
       } else {
         // Update existing draft
         const updated = await updateEmailTemplate(template.ID, {
@@ -184,33 +185,33 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         })
         setTemplate(updated)
         setVersionRevision((value) => value + 1)
-        toast.success("Шаблон збережено.")
+        toast.success(t("admin.notif.tpl.saved"))
       }
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handlePublish() {
     if (!template || template.Status !== "draft" || isDirty || busy) return
-    setBusy(true)
+    setBusyAction("publish")
     try {
       const updated = await publishEmailTemplate(template.ID)
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
-      toast.success("Шаблон опубліковано.")
+      toast.success(t("admin.notif.tpl.published"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
   async function handleRollback(sourceId: string): Promise<boolean> {
     if (!template) return false
-    setBusy(true)
+    setBusyAction("rollback")
     try {
       const updated = await rollbackEmailTemplate(sourceId)
       setTemplate(updated)
@@ -222,13 +223,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setStyling(updated.Styling)
       setLoadNonce((n) => n + 1)
       router.replace(`/notifications/templates/email/detail?id=${updated.ID}`)
-      toast.success("Версію шаблону відновлено.")
+      toast.success(t("admin.notif.tpl.restored"))
       return true
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
       return false
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -238,7 +239,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   // published — unlike Rollback, which takes it offline.
   async function handleEdit() {
     if (!template) return
-    setBusy(true)
+    setBusyAction("edit")
     try {
       const existing = await listEmailTemplates({ type: template.NotificationType, status: "draft" })
       const draft = existing.Templates[0] ?? await createEmailTemplate({
@@ -249,11 +250,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         Styling: styling,
       })
       router.replace(`/notifications/templates/email/detail?id=${draft.ID}`)
-      toast.success("Чернетку відкрито для редагування.")
+      toast.success(t("admin.notif.tpl.draftOpened"))
     } catch {
       toast.error(t("admin.notif.tpl.saveError"))
     } finally {
-      setBusy(false)
+      setBusyAction("")
     }
   }
 
@@ -261,11 +262,11 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     await createBlockPreset({ Name: name, Description: "", Blocks: blocks })
     const fresh = await listBlockPresets()
     setPresets(fresh)
-    toast.success("Спільний блок збережено.")
+    toast.success(t("admin.notif.editor.presetSaved"))
   }
 
   async function handleCreateFooter(name: string, blocks: EmailBodyBlock[]) {
-    const created = await createBlockPreset({ Name: name, Description: "Email footer", Blocks: blocks })
+    const created = await createBlockPreset({ Name: name, Description: t("admin.notif.editor.footer"), Blocks: blocks })
     setPresets((current) => [...current, created])
     setBody([...bodyContent, { type: "preset", preset_id: created.ID, name: created.Name, placement: "footer" }])
   }
@@ -331,19 +332,19 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} disabled={busy || !isDirty || !notificationType}>
+            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !isDirty || !notificationType}>
               {t("admin.notif.tpl.save")}
             </Button>
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (
-            <Button variant="outline" onClick={() => void handlePublish()} disabled={busy}>
+            <Button variant="outline" onClick={() => void handlePublish()} busy={busyAction === "publish"} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
           {canWrite && isReadOnly && (
-            <Button onClick={() => void handleEdit()} disabled={busy}>
+            <Button onClick={() => void handleEdit()} busy={busyAction === "edit"} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
@@ -518,7 +519,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                     {t("admin.notif.editor.fontFamily")}
                     <select value={String(styling.font_family ?? "sans-serif")} onChange={(e) => setStylingKey("font_family", e.target.value)}
                       className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground">
-                      <option value="sans-serif">Sans-serif</option>
+                      <option value="sans-serif">{t("admin.notif.editor.fontSansSerif")}</option>
                       <option value="Arial, sans-serif">Arial</option>
                       <option value="Georgia, serif">Georgia</option>
                       <option value="Verdana, sans-serif">Verdana</option>

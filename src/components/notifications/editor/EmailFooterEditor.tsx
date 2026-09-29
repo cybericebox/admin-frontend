@@ -31,7 +31,7 @@ export function EmailFooterEditor({ presetId, presets, variables, readOnly, onSe
     setSaving(true)
     try {
       await onCreate(name.trim(), blocks)
-      toast.success("Нижній блок створено.")
+      toast.success(t("admin.notif.editor.footerCreated"))
       setCreating(false)
       setName("")
       setBlocks([])
@@ -61,7 +61,7 @@ export function EmailFooterEditor({ presetId, presets, variables, readOnly, onSe
       </label>
       <BlockEditor value={blocks} onChange={setBlocks} variables={variables} presets={[]} onSavePreset={async () => {}} showPresetSave={false} />
       <div className="flex gap-2">
-        <Button type="button" onClick={() => void save()} disabled={saving || !name.trim() || blocks.length === 0}>{t("admin.notif.editor.footerSave")}</Button>
+        <Button type="button" onClick={() => void save()} busy={saving} disabled={!name.trim() || blocks.length === 0}>{t("admin.notif.editor.footerSave")}</Button>
         <Button type="button" variant="outline" onClick={() => setCreating(false)}>{t("admin.notif.editor.cancel")}</Button>
       </div>
     </div>}

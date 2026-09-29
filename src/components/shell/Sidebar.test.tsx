@@ -30,7 +30,7 @@ describe("admin sidebar", () => {
     render(<Sidebar collapsed onToggleCollapse={onToggleCollapse} />)
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("title", "admin.nav.events")
     expect(screen.getByRole("link", { name: "admin.nav.exercises" })).toHaveAttribute("title", "admin.nav.exercises")
-    expect(screen.getByRole("button", { name: "Розгорнути панель" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.shell.expandPanel" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.notifications" }))
     expect(onToggleCollapse).toHaveBeenCalledOnce()
   })

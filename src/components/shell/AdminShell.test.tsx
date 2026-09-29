@@ -14,9 +14,9 @@ describe("admin shell", () => {
     render(<AdminShell><span>content</span></AdminShell>)
     expect(screen.getByText("content")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "menu" }))
-    expect(screen.getByRole("button", { name: "Закрити меню" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Закрити меню" }))
-    expect(screen.queryByRole("button", { name: "Закрити меню" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.shell.closeMenu" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.shell.closeMenu" }))
+    expect(screen.queryByRole("button", { name: "admin.shell.closeMenu" })).not.toBeInTheDocument()
   })
 
   it("persists the compact sidebar preference", async () => {
@@ -26,8 +26,8 @@ describe("admin shell", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
     } })
     render(<AdminShell><span>content</span></AdminShell>)
-    fireEvent.click(screen.getByRole("button", { name: "Згорнути панель" }))
-    expect(screen.getByRole("button", { name: "Розгорнути панель" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.shell.collapsePanel" }))
+    expect(screen.getByRole("button", { name: "admin.shell.expandPanel" })).toBeInTheDocument()
     expect(storage.get("cybericebox.admin.sidebar.collapsed")).toBe("true")
   })
 
@@ -37,6 +37,6 @@ describe("admin shell", () => {
       setItem: vi.fn(),
     } })
     render(<AdminShell><span>content</span></AdminShell>)
-    expect(await screen.findByRole("button", { name: "Розгорнути панель" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "admin.shell.expandPanel" })).toBeInTheDocument()
   })
 })
