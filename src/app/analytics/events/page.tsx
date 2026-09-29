@@ -2,16 +2,15 @@
 
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { SectionPage } from "@/components/analytics"
-import { EmptyState } from "@/components/ui/empty-state"
+import { EventsAnalytics } from "@/components/analytics/events/EventsAnalytics"
 import { t } from "@/i18n/t"
 
-// Shell: the section agent replaces the body inside SectionPage.
-function EventsAnalytics() {
+function EventsAnalyticsPage() {
   return <SectionPage title={t("admin.platformAnalytics.events.title")} subtitle={t("admin.platformAnalytics.events.subtitle")}>
-    <div className="flex min-h-64 items-center justify-center rounded-lg border border-border bg-card"><EmptyState message={t("admin.platformAnalytics.placeholder")} /></div>
+    <EventsAnalytics />
   </SectionPage>
 }
 
 export default function Page() {
-  return <RequirePermission perm="analytics.read"><EventsAnalytics /></RequirePermission>
+  return <RequirePermission perm="analytics.read"><EventsAnalyticsPage /></RequirePermission>
 }
