@@ -283,4 +283,27 @@ describe('LogsTab', () => {
     ))
     expect(mockApiGet).toHaveBeenCalledWith('/api/events?pageSize=100')
   })
+
+  it('marks SMTP test rows with a badge and filters them by type', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/events')) return Promise.resolve(EVENTS_RESPONSE)
+      if (url.startsWith('/api/notifications/dispatches')) {
+        return Promise.resolve({
+          ...LIST_RESPONSE,
+          Items: [
+            { ...DISPATCH_ROW, ID: 't1', NotificationType: 'smtp_test', RecipientEmail: 'ann@example.com', Targets: [] },
+            { ...DISPATCH_ROW, ID: 't2', NotificationType: 'password_reset', Targets: [] },
+          ],
+        })
+      }
+      return Promise.resolve([])
+    })
+    render(<LogsTab />)
+    await waitFor(() => expect(screen.getAllByText('admin.notif.logs.testBadge')).toHaveLength(1))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.notif.logs.type' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Smtp Test' }))
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*type=smtp_test)/),
+    ))
+  })
 })
