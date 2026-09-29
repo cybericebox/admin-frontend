@@ -1022,5 +1022,6 @@
   "admin.notif.audience.selected_users": "Вибрані користувачі",
   "admin.notif.audience.selected_teams": "Вибрані команди",
   "admin.notif.audience.participants_without_team": "Учасники без команди",
-  "admin.notif.audience.teams_below_size": "Команди з малою кількістю учасників"
+  "admin.notif.audience.teams_below_size": "Команди з малою кількістю учасників",
+  "admin.notif.editor.unknownVariable": "Невідома змінна «{name}»: такої немає в цьому типі сповіщення. Видаліть її або виберіть змінну зі списку."
 }

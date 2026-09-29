@@ -107,4 +107,28 @@ describe('InAppBodyEditor', () => {
     fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining('{{.Name}}'))
   })
+
+  it('decorates every spelling of a known variable and flags an unknown one', () => {
+    render(<InAppBodyEditor value="{{.Name}} {{ Name }} {{.ghost}}" onChange={vi.fn()} variables={[{ name: 'Name' }]} />)
+    const editor = screen.getByRole('textbox', { name: t('admin.notif.tpl.body') })
+    const valid = editor.querySelectorAll('[data-var="Name"]')
+    expect(valid).toHaveLength(2)
+    valid.forEach((pill) => expect(pill).not.toHaveAttribute('data-invalid'))
+    const invalid = editor.querySelector('[data-var="ghost"]')
+    expect(invalid).toHaveAttribute('data-invalid', 'true')
+    expect(invalid).toHaveClass('text-destructive')
+    expect(invalid).toHaveAttribute('title', t('admin.notif.editor.unknownVariable', { name: 'ghost' }))
+  })
+
+  it('leaves tokens as text while the variable list is empty, then decorates them when it loads', () => {
+    const { rerender } = render(<InAppBodyEditor value="Hi {{.Name}}" onChange={vi.fn()} variables={[]} />)
+    const editor = screen.getByRole('textbox', { name: t('admin.notif.tpl.body') })
+    expect(editor.querySelector('[data-var]')).toBeNull()
+    rerender(<InAppBodyEditor value="Hi {{.Name}}" onChange={vi.fn()} variables={[{ name: 'Name' }]} />)
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+  })
+
+  it('stores a flagged variable back as its token', () => {
+    expect(normalizeInAppBody('Hi <span data-var="ghost" data-invalid="true">ghost</span>')).toBe('Hi {{.ghost}}')
+  })
 })

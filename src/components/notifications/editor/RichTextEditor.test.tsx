@@ -119,6 +119,47 @@ describe('RichTextEditor', () => {
     expect(screen.queryByText(/ph_source/)).not.toBeInTheDocument()
   })
 
+  it('turns a {{token}} stored as plain text into a variable, and flags an unknown one', async () => {
+    const editor = createEditor({ nodes: [VariableNode] })
+    editor.update(() => {
+      const paragraph = $createParagraphNode()
+      paragraph.append($createTextNode('Привіт, {{event_name}}! Також {{ .ghost }} і {{ user_name }}.'))
+      $getRoot().append(paragraph)
+    }, { discrete: true })
+    const onChange = vi.fn()
+    render(<RichTextEditor value={editor.getEditorState().toJSON() as unknown as Record<string, unknown>}
+      onChange={onChange} showVariableNames
+      variables={[{ name: 'event_name', description: 'Event' }, { name: 'user_name', description: 'User' }]} />)
+    await waitFor(() => expect(document.querySelector('[data-notif-variable="event_name"]')).toBeInTheDocument())
+    expect(document.querySelector('[data-notif-variable="user_name"]')).toBeInTheDocument()
+    const invalid = document.querySelector('[data-notif-variable-invalid="ghost"]')
+    expect(invalid).toBeInTheDocument()
+    expect(invalid).toHaveClass('text-destructive')
+    expect(document.querySelector('[data-notif-variable="event_name"]')).not.toHaveAttribute('data-notif-variable-invalid')
+    expect(document.body.textContent).not.toContain('{{')
+    const state = JSON.stringify(onChange.mock.calls.at(-1)?.[0])
+    expect(state).toContain('"varName":"event_name"')
+    expect(state).toContain('"varName":"ghost"')
+    expect(state).not.toContain('{{')
+  })
+
+  it('does not convert plain tokens while the variable list is empty or the editor is read-only', async () => {
+    const editor = createEditor({ nodes: [VariableNode] })
+    editor.update(() => {
+      const paragraph = $createParagraphNode()
+      paragraph.append($createTextNode('Hi {{event_name}}'))
+      $getRoot().append(paragraph)
+    }, { discrete: true })
+    const value = editor.getEditorState().toJSON() as unknown as Record<string, unknown>
+    const onChange = vi.fn()
+    const { unmount } = render(<RichTextEditor value={value} onChange={onChange} variables={[]} />)
+    await waitFor(() => expect(document.body.textContent).toContain('Hi {{event_name}}'))
+    unmount()
+    render(<RichTextEditor value={value} onChange={onChange} disabled variables={[{ name: 'event_name' }]} />)
+    await waitFor(() => expect(document.body.textContent).toContain('Hi {{event_name}}'))
+    expect(document.querySelector('[data-notif-variable]')).toBeNull()
+  })
+
   it('opens the searchable variable picker and closes it with Escape', () => {
     render(<RichTextEditor value={null} onChange={vi.fn()} variables={[
       { name: 'event_name', description: 'Event name', example: 'CyberICEBox CTF' },
@@ -330,7 +371,7 @@ describe('VariableNode', () => {
     await waitFor(() => expect(document.querySelector('[contenteditable]')).toHaveAttribute('contenteditable', 'true'))
   })
 
-  it('turns pasted Markdown into formatted blocks and known variables into nodes', async () => {
+  it('turns pasted Markdown into formatted blocks and variables into nodes', async () => {
     // jsdom has no layout; Lexical measures the caret to scroll it into view.
     const rect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
     const rangeProto = Range.prototype as Partial<Range>
@@ -355,7 +396,9 @@ describe('VariableNode', () => {
     expect(state).toContain('"tag":"h6"')
     expect(state).toContain('"listType":"bullet"')
     expect(state).toContain('"varName":"event_name"')
-    expect(state).toContain('{{unknown}}')
+    // an unknown name is kept as a variable node (flagged in the editor), never sent as literal {{text}}
+    expect(state).toContain('"varName":"unknown"')
+    expect(state).not.toContain('{{unknown}}')
     expect(state).toContain('"format":1')
     expect(state).toContain('"type":"code"')
   })

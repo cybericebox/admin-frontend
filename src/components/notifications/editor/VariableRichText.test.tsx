@@ -59,7 +59,7 @@ describe('VariableRichText', () => {
     expect(pill?.textContent).toBe('Name')
   })
 
-  it('dotted=true does NOT render pill for bare {{Name}} token', () => {
+  it('dotted=true also renders a pill for a bare {{Name}} token (it is the variable, just misspelled)', () => {
     const onChange = vi.fn()
     render(
       <VariableRichText
@@ -69,8 +69,46 @@ describe('VariableRichText', () => {
         dotted={true}
       />
     )
-    // bare {{Name}} is not matched in dotted mode, so no pill
-    expect(document.querySelector('[data-var="Name"]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-var="Name"]')).toBeInTheDocument()
+  })
+
+  it('flags an unknown variable as an invalid pill', () => {
+    render(<VariableRichText value="Hi {{.ghost}}" onChange={vi.fn()} variables={[{ name: 'Name' }]} dotted />)
+    const pill = document.querySelector('[data-var="ghost"]')
+    expect(pill).toHaveAttribute('data-invalid', 'true')
+    expect(pill).toHaveClass('var-pill-invalid')
+  })
+
+  it('turns the tokens into pills once the variable list loads after the first render', () => {
+    const { rerender } = render(<VariableRichText value="{{.Name}} {{.ghost}}" onChange={vi.fn()} variables={[]} dotted />)
+    expect(document.querySelector('[data-var]')).toBeNull()
+    rerender(<VariableRichText value="{{.Name}} {{.ghost}}" onChange={vi.fn()} variables={[{ name: 'Name' }]} dotted />)
+    expect(document.querySelector('[data-var="Name"]')).not.toHaveAttribute('data-invalid')
+    expect(document.querySelector('[data-var="ghost"]')).toHaveAttribute('data-invalid', 'true')
+  })
+
+  it('converts a token typed out by hand into a pill and keeps the stored form', () => {
+    const onChange = vi.fn()
+    render(<VariableRichText value="" onChange={onChange} variables={[{ name: 'Name' }]} dotted />)
+    const box = screen.getByRole('textbox')
+    box.textContent = 'Hi {{Name}}'
+    const range = document.createRange()
+    range.setStart(box.firstChild as Text, 'Hi {{Name}}'.length)
+    range.collapse(true)
+    window.getSelection()?.removeAllRanges()
+    window.getSelection()?.addRange(range)
+    fireEvent.input(box)
+    expect(box.querySelector('[data-var="Name"]')).toBeInTheDocument()
+    expect(onChange).toHaveBeenLastCalledWith('Hi {{.Name}}')
+  })
+
+  it('normalizes pasted tokens into pills on blur', () => {
+    render(<VariableRichText value="" onChange={vi.fn()} variables={[{ name: 'Name' }]} dotted />)
+    const box = screen.getByRole('textbox')
+    box.textContent = '{{ .Name }} {{ghost}}'
+    fireEvent.blur(box)
+    expect(box.querySelector('[data-var="Name"]')).not.toHaveAttribute('data-invalid')
+    expect(box.querySelector('[data-var="ghost"]')).toHaveAttribute('data-invalid', 'true')
   })
 
   it('renders placeholder via data-placeholder attribute', () => {

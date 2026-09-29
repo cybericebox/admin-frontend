@@ -1022,5 +1022,6 @@
   "admin.notif.audience.selected_users": "Selected users",
   "admin.notif.audience.selected_teams": "Selected teams",
   "admin.notif.audience.participants_without_team": "Participants without a team",
-  "admin.notif.audience.teams_below_size": "Teams below the minimum size"
+  "admin.notif.audience.teams_below_size": "Teams below the minimum size",
+  "admin.notif.editor.unknownVariable": "Unknown variable “{name}”: this notification type does not have it. Remove it or pick a variable from the list."
 }

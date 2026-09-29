@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
 import {
+  convertTypedToken,
   rawToHtml,
   htmlToRaw,
   htmlToRawSingleLine,
@@ -56,11 +57,87 @@ describe('rawToHtml – dotted mode', () => {
     expect(result).not.toMatch(/\{\{\.Name\}\}/)
   })
 
-  it('dotted mode does NOT match bare {{Name}} tokens', () => {
+  it('dotted mode also reads a bare {{Name}} token as the variable', () => {
     const result = rawToHtml('Hi {{Name}}', ['Name'], { dotted: true })
-    // bare token not matched — treated as literal (unescaped since no special chars)
-    expect(result).not.toContain('var-pill')
-    expect(result).toContain('{{Name}}')
+    expect(result).toContain('data-var="Name"')
+    expect(htmlToRaw(result, { dotted: true })).toBe('Hi {{.Name}}')
+  })
+})
+
+describe('rawToHtml – every spelling of a token is a pill', () => {
+  it.each(['{{Name}}', '{{.Name}}', '{{ Name }}', '{{ .Name }}', '{{. Name}}'])('%s', (token) => {
+    for (const dotted of [false, true]) {
+      const result = rawToHtml(`Hi ${token}!`, ['Name'], { dotted })
+      expect(result).toContain('data-var="Name"')
+      expect(result).not.toContain('data-invalid')
+      expect(result).not.toContain('{{')
+    }
+  })
+})
+
+describe('rawToHtml – unknown variables are flagged', () => {
+  it('turns an unknown name into an invalid pill once the list is loaded', () => {
+    const result = rawToHtml('Hi {{ghost}} and {{Name}}', ['Name'])
+    expect(result).toContain('class="var-pill var-pill-invalid" data-var="ghost" data-invalid="true"')
+    expect(result).toContain('title="Невідома змінна «ghost»')
+    expect(result).toContain('<span class="var-pill" data-var="Name">Name</span>')
+    expect(htmlToRaw(result)).toBe('Hi {{ghost}} and {{Name}}')
+  })
+
+  it('leaves tokens as plain text while the variable list is empty (not loaded)', () => {
+    const result = rawToHtml('Hi {{Name}} {{ghost}}', [])
+    expect(result).toBe('Hi {{Name}} {{ghost}}')
+  })
+
+  it('re-renders the same field with pills once the list arrives', () => {
+    const before = rawToHtml('{{.Name}}', [], { dotted: true })
+    expect(before).toBe('{{.Name}}')
+    expect(rawToHtml(htmlToRaw(before, { dotted: true }), ['Name'], { dotted: true })).toContain('data-var="Name"')
+  })
+})
+
+describe('convertTypedToken', () => {
+  function caretAtEndOf(text: string): void {
+    const host = document.createElement('div')
+    host.contentEditable = 'true'
+    host.textContent = text
+    document.body.appendChild(host)
+    const node = host.firstChild as Text
+    const range = document.createRange()
+    range.setStart(node, text.length)
+    range.collapse(true)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+
+  afterEach(() => { document.body.innerHTML = '' })
+
+  it('turns a completed known token before the caret into a pill', () => {
+    caretAtEndOf('Hi {{ Name }}')
+    expect(convertTypedToken(['Name'])).toBe(true)
+    const pill = document.querySelector('[data-var="Name"]')
+    expect(pill?.getAttribute('data-invalid')).toBeNull()
+    expect(document.body.textContent).toContain('Hi ')
+    expect(document.body.textContent).not.toContain('{{')
+  })
+
+  it('flags an unknown name', () => {
+    caretAtEndOf('{{.ghost}}')
+    expect(convertTypedToken(['Name'])).toBe(true)
+    const pill = document.querySelector('[data-var="ghost"]')
+    expect(pill?.getAttribute('data-invalid')).toBe('true')
+    expect(pill?.className).toContain('var-pill-invalid')
+    expect(pill?.getAttribute('title')).toContain('ghost')
+  })
+
+  it('does nothing for an unfinished token or while the list is empty', () => {
+    caretAtEndOf('{{Nam')
+    expect(convertTypedToken(['Name'])).toBe(false)
+    document.body.innerHTML = ''
+    caretAtEndOf('{{Name}}')
+    expect(convertTypedToken([])).toBe(false)
+    expect(document.body.textContent).toContain('{{Name}}')
   })
 })
 

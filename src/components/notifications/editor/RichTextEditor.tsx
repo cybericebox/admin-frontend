@@ -120,7 +120,7 @@ import {
 import { cn } from "@/utils/cn";
 import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { t } from "@/i18n/t";
-import { type VariableDef } from "./variableUtils";
+import { VARIABLE_TOKEN, type VariableDef } from "./variableUtils";
 import { VariablePickerMenu } from "./VariablePickerMenu";
 import {
   DropdownMenu,
@@ -256,14 +256,17 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
   const { definitions, unavailableLabels, onEdit, highlight, showNames } = useContext(VariablePreviewContext);
   const definition = definitions.get(name);
   const missing = name.startsWith("ph_") && !definition;
+  // A name the type does not declare is flagged (once the list is loaded), never shown as a normal pill.
+  const unknown = !missing && !definition && definitions.size > 0;
   const content = missing ? unavailableLabels[name] ?? t("admin.exPh.missing") : showNames ? name : definition?.example ?? `{{${name}}}`;
-  const marked = highlight || missing;
+  const marked = highlight || missing || unknown;
   const style = cn(marked ? "inline-flex items-baseline rounded border px-1 align-baseline leading-[inherit]" : "inline align-baseline leading-[inherit]",
-    missing ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
+    missing || unknown ? "bg-destructive/10 text-destructive border-destructive/30" : highlight ? "bg-primary/10 text-primary border-primary/20" : "bg-transparent text-inherit",
+    unknown && "underline decoration-wavy",
     formats.includes("bold") && "font-bold", formats.includes("italic") && "italic", formats.includes("underline") && "underline",
     formats.includes("strikethrough") && "line-through", formats.includes("code") && "font-mono");
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
-  const hint = definition?.description ?? (missing ? content : name);
+  const hint = definition?.description ?? (missing ? content : unknown ? t("admin.notif.editor.unknownVariable", { name }) : name);
   if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
     style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
     onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
@@ -271,6 +274,7 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
     <HoverTooltip text={hint} className="inline">
       <span
         data-notif-variable={showNames ? name : undefined}
+        data-notif-variable-invalid={unknown ? name : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}
@@ -907,6 +911,67 @@ function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | nu
 }
 
 // ---------------------------------------------------------------------------
+// VariableTokenPlugin — a {{token}} left as plain text becomes a variable node
+// ---------------------------------------------------------------------------
+
+// The email renderer substitutes variable NODES only; a `{{name}}` typed, pasted
+// or stored as plain text would be sent literally. Every such token turns into a
+// node: a known name is a normal pill, an unknown one is flagged by VariablePreview.
+// Runs after each update of an editable editor, so it also covers stored content
+// and the moment the variable list finishes loading. Code-formatted text is left alone.
+function isConvertibleText(node: TextNode): boolean {
+  return node.isSimpleText() && !node.hasFormat("code") && VARIABLE_TOKEN.test(node.getTextContent());
+}
+
+export function $convertVariableTokens(): boolean {
+  let changed = false;
+  for (const node of $getRoot().getAllTextNodes()) {
+    let current: TextNode | null = node;
+    while (current && current.isAttached() && isConvertibleText(current)) {
+      const source: TextNode = current;
+      const text: string = source.getTextContent();
+      const match = VARIABLE_TOKEN.exec(text);
+      if (!match) break;
+      const start = match.index;
+      const end = start + match[0].length;
+      const formats = VARIABLE_TEXT_FORMATS.filter((format) => source.hasFormat(format));
+      const offsets: number[] = [start, end].filter((offset) => offset > 0 && offset < text.length);
+      const parts: TextNode[] = offsets.length ? source.splitText(...offsets) : [source];
+      const token: TextNode = parts[start > 0 ? 1 : 0];
+      const rest: TextNode | null = parts[start > 0 ? 2 : 1] ?? null;
+      token.replace($createVariableNode(match[1], formats));
+      changed = true;
+      current = rest;
+    }
+  }
+  return changed;
+}
+
+function VariableTokenPlugin({ enabled }: { enabled: boolean }): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    // With no variable list (still loading) nothing can be judged yet.
+    if (!enabled) return;
+    let scheduled = false;
+    const sweepIfNeeded = () => {
+      if (scheduled || !editor.isEditable()) return;
+      const pending = editor.getEditorState().read(() => $getRoot().getAllTextNodes().some(isConvertibleText));
+      if (!pending) return;
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        editor.update(() => { $convertVariableTokens(); }, { tag: "history-merge" });
+      });
+    };
+    sweepIfNeeded();
+    return editor.registerUpdateListener(sweepIfNeeded);
+  }, [editor, enabled]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // EditableSync — Lexical reads `editable` only on mount
 // ---------------------------------------------------------------------------
 
@@ -1079,11 +1144,12 @@ export function RichTextEditor({
           />
         </div>
 
-        <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
+        <OnChangePlugin onChange={handleChange} ignoreSelectionChange ignoreHistoryMergeTagChange={false} />
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
         <VariablePlugin variables={variables} />
+        <VariableTokenPlugin enabled={variables.length > 0 && !disabled} />
         <MarkdownPastePlugin variables={variables} />
         <EditableSync editable={!disabled} />
         <ExternalStateSync value={value} lastEmittedRef={lastEmitted} />
