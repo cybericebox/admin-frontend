@@ -11,6 +11,7 @@ import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
+import { initials } from "@/lib/initials"
 
 // Unified account menu (lib/accountMenu): same labels and icons in every app.
 const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
@@ -46,7 +47,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
     { adminTier, catalog: adminTier, returnTo },
     { id: idOrigin, admin: "", exercises: exercisesOrigin, main: mainOrigin },
   )
-  const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
+  const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
     <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
@@ -77,7 +78,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
                 className="h-full w-full object-cover"
               />
             ) : (
-              initials || "?"
+              avatarInitials
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
