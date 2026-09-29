@@ -8,6 +8,7 @@ import {
   ACCEPT_ALL,
   CONSENT_CHANGE_EVENT,
   CONSENT_OPEN_EVENT,
+  POLICY_LINK_ATTRS,
   REJECT_ALL,
   readConsent,
   saveConsent,
@@ -81,7 +82,12 @@ export function ConsentBanner({ gaId, policyHref }: { gaId: string; policyHref: 
   const shown = layer ?? (asking ? "banner" : null)
   if (!shown) return null
 
-  const policyLink = <a href={policyHref} className={LINK}>{t("consent.policyLink")}</a>
+  // New tab; the click must not reach any outer handler, so the banner/panel and its toggles stay.
+  const policyLink = (
+    <a href={policyHref} className={LINK} {...POLICY_LINK_ATTRS} aria-label={t("consent.policyLinkNewTab")} onClick={(e) => e.stopPropagation()}>
+      {t("consent.policyLink")}
+    </a>
+  )
 
   if (shown === "banner") {
     return (

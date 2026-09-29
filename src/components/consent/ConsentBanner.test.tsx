@@ -15,7 +15,7 @@ describe("ConsentBanner", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="https://example.com/cookies" />)
     const region = screen.getByRole("region", { name: "consent.label" })
     expect(region).toHaveTextContent("consent.text")
-    expect(screen.getByRole("link", { name: "consent.policyLink" })).toHaveAttribute("href", "https://example.com/cookies")
+    expect(screen.getByRole("link", { name: "consent.policyLinkNewTab" })).toHaveAttribute("href", "https://example.com/cookies")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["consent.customize", "consent.acceptAll"])
     click("consent.acceptAll")
     expect(readConsent()).toEqual({ analytics: true })
@@ -41,6 +41,19 @@ describe("ConsentBanner", () => {
     fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
     click("consent.acceptSelected")
     expect(readConsent()).toEqual({ analytics: true })
+  })
+
+  it("the policy link opens a new tab and keeps the panel and its unsaved toggles", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("consent.customize")
+    fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
+    const link = screen.getByRole("link", { name: "consent.policyLinkNewTab" })
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"))
+    fireEvent.click(link)
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "consent.analytics.title" })).toHaveAttribute("aria-checked", "true")
+    expect(readConsent()).toBeNull()
   })
 
   it("reject all from the panel", () => {
