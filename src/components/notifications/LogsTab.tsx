@@ -174,7 +174,7 @@ export function LogsTab() {
       ) : loading ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} />
+        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} className="h-full" />
       ) : (
         <div className="min-w-[1080px]">
           <table className="w-full text-sm">

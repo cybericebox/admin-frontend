@@ -124,7 +124,7 @@ function InAppTemplateList() {
 
       {/* Empty state */}
       {list.length === 0 ? (
-        <EmptyState message={t("admin.notif.inapp.list.empty")} />
+        <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.inapp.list.empty")} /></div>
       ) : (
         /* Grouped version table */
         <div className="overflow-hidden rounded-lg border border-border bg-background">

@@ -124,7 +124,7 @@ function EmailTemplateList() {
 
       {/* Empty state */}
       {list.length === 0 ? (
-        <EmptyState message={t("admin.notif.list.empty")} />
+        <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.list.empty")} /></div>
       ) : (
         /* Grouped version table */
         <div className="overflow-hidden rounded-lg border border-border bg-background">
