@@ -26,6 +26,22 @@ function previewDocument(html: string): string {
 }
 
 /**
+ * EmailHtmlFrame — backend-rendered email HTML in a fully isolated iframe
+ * (sandbox="": no scripts, forms, popups or same-origin access). Shared by the
+ * template preview and the platform footer preview, so both look alike.
+ */
+export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string; className?: string }) {
+  return (
+    <iframe
+      title={t("admin.notif.editor.previewTitle")}
+      sandbox=""
+      srcDoc={previewDocument(html)}
+      className={`w-full bg-white ${className}`}
+    />
+  )
+}
+
+/**
  * EmailPreview — shows the draft exactly as the backend would send it.
  *
  * The current fields are sent to previewEmailTemplate 300 ms after the last
@@ -92,12 +108,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
       {error && (
         <p role="alert" className="border-b border-border px-4 py-2 text-xs text-destructive">{error}</p>
       )}
-      <iframe
-        title={t("admin.notif.editor.previewTitle")}
-        sandbox=""
-        srcDoc={previewDocument(result?.HTML ?? "")}
-        className="h-[480px] w-full bg-white"
-      />
+      <EmailHtmlFrame html={result?.HTML ?? ""} />
     </div>
   )
 }

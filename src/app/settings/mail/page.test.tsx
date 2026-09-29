@@ -25,8 +25,11 @@ import Page from "./page"
 const STORED: MailSettings = {
   Identity: { Sender: { Name: "CyberICEBox", Address: "notifications@mail.cybericebox.com" }, ReplyTo: { Name: "", Address: "support@cybericebox.com" } },
   Effective: { Sender: { Name: "CyberICEBox", Address: "notifications@mail.cybericebox.com" }, ReplyTo: { Name: "", Address: "support@cybericebox.com" } },
-  Footer: { Text: "", DefaultText: "Cyber ICE Box · {site_url}", Variables: ["platform_name", "site_url", "privacy_url", "reply_to"] },
+  Footer: { Content: null, DefaultContent: { root: { type: "root", children: [] } }, Variables: ["platform_name", "site_url", "privacy_url", "reply_to"] },
   SendingDomain: "mail.cybericebox.com",
+  SavedSendingDomain: "mail.cybericebox.com",
+  EnvSendingDomain: "cybericebox.com",
+  Sources: { SenderName: "saved", SenderAddress: "saved", ReplyToName: "none", ReplyToAddress: "saved", SendingDomain: "saved" },
   Source: "database",
   Configured: true,
   SMTP: { Host: "smtp.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", PasswordSet: true, UpdatedAt: "2026-09-29T10:00:00Z" },
@@ -44,7 +47,7 @@ describe("mail settings page", () => {
     saveMailSmtp.mockResolvedValue({ ...STORED, Host: "smtp2.example.com" })
     render(<Page />)
     expect(await screen.findByText("Налаштування платформи")).toBeInTheDocument()
-    expect(screen.getByText("mail.cybericebox.com")).toBeInTheDocument()
+    expect(screen.getByLabelText("Домен відправлення")).toHaveValue("mail.cybericebox.com")
     expect(screen.getByPlaceholderText("Пароль збережено")).toHaveValue("")
     fireEvent.change(screen.getByLabelText("Сервер"), { target: { value: "smtp2.example.com" } })
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
@@ -114,7 +117,7 @@ describe("mail settings page", () => {
     fireEvent.change(screen.getByPlaceholderText("support@cybericebox.com"), { target: { value: " help@cybericebox.com " } })
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
     await waitFor(() => expect(saveMailIdentity).toHaveBeenCalledWith({
-      Sender: { Name: "", Address: "" }, ReplyTo: { Name: "", Address: "help@cybericebox.com" },
+      Sender: { Name: "", Address: "" }, ReplyTo: { Name: "", Address: "help@cybericebox.com" }, SendingDomain: "mail.cybericebox.com",
     }))
     expect(saveMailSmtp).not.toHaveBeenCalled()
     expect(await screen.findByText("Відправника збережено.")).toBeInTheDocument()
@@ -131,5 +134,40 @@ describe("mail settings page", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
     expect(await screen.findByText("Ім'я має бути не довшим за 64 символів.")).toBeInTheDocument()
     expect(saveMailIdentity).not.toHaveBeenCalled()
+  })
+
+  it("edits the sending domain: the server config domain is the placeholder, a saved one overrides it", async () => {
+    getMailSettings.mockResolvedValue({ ...STORED, SavedSendingDomain: "", SendingDomain: "cybericebox.com", Sources: { ...STORED.Sources, SendingDomain: "env" } })
+    saveMailIdentity.mockResolvedValue(STORED)
+    render(<Page />)
+    const field = await screen.findByLabelText("Домен відправлення")
+    expect(field).toHaveValue("")
+    expect(field).toHaveAttribute("placeholder", "cybericebox.com")
+    expect(screen.getByText(/тег@cybericebox\.com/)).toBeInTheDocument()
+    fireEvent.change(field, { target: { value: " Mail.CyberICEBox.com " } })
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
+    await waitFor(() => expect(saveMailIdentity).toHaveBeenCalledWith(expect.objectContaining({ SendingDomain: "mail.cybericebox.com" })))
+  })
+
+  it("rejects a malformed sending domain before calling the API", async () => {
+    getMailSettings.mockResolvedValue(STORED)
+    render(<Page />)
+    for (const bad of ["localhost", "a@b.com", "https://mail.example.com", "mail example.com"]) {
+      fireEvent.change(await screen.findByLabelText("Домен відправлення"), { target: { value: bad } })
+      fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
+      expect(await screen.findByText("Вкажіть коректний домен, наприклад mail.example.com.")).toBeInTheDocument()
+    }
+    expect(saveMailIdentity).not.toHaveBeenCalled()
+  })
+
+  it("tells in each tooltip where the value in effect comes from", async () => {
+    getMailSettings.mockResolvedValue({ ...STORED, Sources: { SenderName: "default", SenderAddress: "env", ReplyToName: "none", ReplyToAddress: "derived", SendingDomain: "saved" } })
+    render(<Page />)
+    await screen.findByLabelText("Домен відправлення")
+    expect(screen.getByRole("button", { name: /Зараз: береться з конфігурації сервера \(SMTP_SENDER_EMAIL\)\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Зараз: значення за замовчуванням платформи\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Зараз: збережено в системі\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Зараз: складено зі збереженого домену відправлення\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Зараз: не задано\./ })).toBeInTheDocument()
   })
 })

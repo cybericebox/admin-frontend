@@ -3,12 +3,12 @@
  *
  * Routes (platform, backend spec 2026-09-29-mail-w7-design §6):
  *   GET    /api/mail/settings              (platform.settings.read)
- *   PUT    /api/mail/settings/identity     sender + Reply-To
+ *   PUT    /api/mail/settings/identity     sender + Reply-To + sending domain
  *   PUT    /api/mail/settings/smtp         the one custom SMTP server
  *   DELETE /api/mail/settings/smtp         → back to the env SMTP_* fallback
  *   POST   /api/mail/settings/smtp/test    → synchronous test mail to the current user
- *   PUT    /api/mail/settings/footer       the platform email footer template
- *   POST   /api/mail/settings/footer/preview → the template rendered as it would be sent
+ *   PUT    /api/mail/settings/footer       the platform email footer (a Lexical document)
+ *   POST   /api/mail/settings/footer/preview → the document rendered as it would be sent
  *
  * The password is write-only: responses carry PasswordSet only. A PUT with an
  * empty Password keeps the stored one; ClearPassword removes it.
@@ -41,11 +41,25 @@ export type MailSmtp = {
   UpdatedAt: string | null
 }
 
-/** The platform email footer template; empty Text = DefaultText is sent. */
+/** A Lexical editor state: the format of the email body rich_text blocks. */
+export type LexicalState = Record<string, unknown>
+
+/** The platform email footer; null Content = DefaultContent is sent. */
 export type MailFooter = {
-  Text: string
-  DefaultText: string
+  Content: LexicalState | null
+  DefaultContent: LexicalState
   Variables: string[]
+}
+
+/** Where a sender value in effect comes from. */
+export type MailFieldSource = "saved" | "env" | "derived" | "default" | "none"
+
+export type MailFieldSources = {
+  SenderName: MailFieldSource
+  SenderAddress: MailFieldSource
+  ReplyToName: MailFieldSource
+  ReplyToAddress: MailFieldSource
+  SendingDomain: MailFieldSource
 }
 
 export type MailFooterPreview = { HTML: string; Text: string }
@@ -56,7 +70,13 @@ export type MailSettings = {
   /** What is actually used, env and defaults included: the placeholders. */
   Effective: MailIdentity
   Footer: MailFooter
+  /** The sending domain in effect: Events send from <tag>@SendingDomain. */
   SendingDomain: string
+  /** What was saved (empty: the server config sender's domain applies). */
+  SavedSendingDomain: string
+  /** The server config (SMTP_SENDER_EMAIL) domain: the placeholder. */
+  EnvSendingDomain: string
+  Sources: MailFieldSources
   /** Source of the SMTP server. */
   Source: MailSource
   Configured: boolean
@@ -86,18 +106,22 @@ export function getMailSettings(): Promise<MailSettings> {
   return apiGet<MailSettings>(BASE)
 }
 
-export function saveMailIdentity(input: MailIdentity): Promise<MailSettings> {
+export type MailIdentityInput = MailIdentity & { SendingDomain: string }
+
+export function saveMailIdentity(input: MailIdentityInput): Promise<MailSettings> {
   return apiPut<MailSettings>(`${BASE}/identity`, input)
 }
 
-export const MAIL_FOOTER_MAX = 1000
+/** The stored footer document is bounded in bytes (backend MaxFooterBytes). */
+export const MAIL_FOOTER_MAX_BYTES = 20000
 
-export function saveMailFooter(text: string): Promise<MailSettings> {
-  return apiPut<MailSettings>(`${BASE}/footer`, { Text: text })
+/** null (or an empty/default document) restores the built-in footer. */
+export function saveMailFooter(content: LexicalState | null): Promise<MailSettings> {
+  return apiPut<MailSettings>(`${BASE}/footer`, { Content: content })
 }
 
-export function previewMailFooter(text: string): Promise<MailFooterPreview> {
-  return apiPost<MailFooterPreview>(`${BASE}/footer/preview`, { Text: text })
+export function previewMailFooter(content: LexicalState | null): Promise<MailFooterPreview> {
+  return apiPost<MailFooterPreview>(`${BASE}/footer/preview`, { Content: content })
 }
 
 export function saveMailSmtp(input: MailSmtpInput): Promise<MailSettings> {
@@ -119,4 +143,15 @@ const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 /** An empty address is valid here: empty means "inherit". */
 export function isValidEmail(address: string): boolean {
   return address === "" || EMAIL_RE.test(address)
+}
+
+const DOMAIN_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i
+
+/** A hostname of at least two labels, not an IP address. Empty is valid: the fallback applies. */
+export function isValidSendingDomain(domain: string): boolean {
+  if (domain === "") return true
+  if (domain.length > 253) return false
+  const labels = domain.split(".")
+  if (labels.length < 2 || !labels.every((label) => DOMAIN_LABEL.test(label))) return false
+  return !/^\d+$/.test(labels[labels.length - 1])
 }

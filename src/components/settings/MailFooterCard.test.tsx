@@ -1,27 +1,53 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import type { MailFooter, MailSettings } from "@/api/mail/settings"
+import type { LexicalState, MailFooter, MailSettings } from "@/api/mail/settings"
+import type { RichTextEditorProps } from "@/components/notifications/editor/RichTextEditor"
 
 const previewMailFooter = vi.fn()
 const saveMailFooter = vi.fn()
 vi.mock("@/api/mail/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/mail/settings")>()),
-  previewMailFooter: (text: string) => previewMailFooter(text),
-  saveMailFooter: (text: string) => saveMailFooter(text),
+  previewMailFooter: (doc: unknown) => previewMailFooter(doc),
+  saveMailFooter: (doc: unknown) => saveMailFooter(doc),
 }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
-import { MailFooterCard, footerDraft, footerPayload } from "./MailFooterCard"
+// Lexical needs a real browser for typing; the wiring is what is tested here.
+// The real editor is mounted in the smoke test below.
+let editorProps: RichTextEditorProps | null = null
+vi.mock("@/components/notifications/editor/RichTextEditor", () => ({
+  RichTextEditor: (props: RichTextEditorProps) => {
+    editorProps = props
+    return <div data-testid="editor" data-disabled={props.disabled ? "yes" : "no"} data-value={JSON.stringify(props.value)} />
+  },
+}))
 
-const DEFAULT = "{platform_name} · {site_url}\nПитання? Пишіть на {reply_to}."
-const FOOTER: MailFooter = { Text: "", DefaultText: DEFAULT, Variables: ["platform_name", "site_url", "privacy_url", "reply_to"] }
+import { MailFooterCard, documentSignature, footerDraft, footerVariables } from "./MailFooterCard"
 
-describe("footer draft helpers", () => {
-  it("shows the default while nothing is saved and stores the default as empty", () => {
+const doc = (...children: unknown[]): LexicalState => ({ root: { type: "root", children: [{ type: "paragraph", children }] } })
+const text = (value: string) => ({ type: "text", text: value })
+const variable = (varName: string) => ({ type: "variable", varName })
+
+const DEFAULT = doc(variable("platform_name"), text(" · "), variable("site_url"))
+const FOOTER: MailFooter = { Content: null, DefaultContent: DEFAULT, Variables: ["platform_name", "site_url", "privacy_url", "reply_to"] }
+
+describe("footer helpers", () => {
+  it("shows the default while nothing is saved", () => {
     expect(footerDraft(FOOTER)).toBe(DEFAULT)
-    expect(footerDraft({ ...FOOTER, Text: "custom" })).toBe("custom")
-    expect(footerPayload(`  ${DEFAULT}\n`, FOOTER)).toBe("")
-    expect(footerPayload("custom {site_url} ", FOOTER)).toBe("custom {site_url}")
+    const custom = doc(text("custom"))
+    expect(footerDraft({ ...FOOTER, Content: custom })).toBe(custom)
+  })
+
+  it("offers every footer variable with its help and an example", () => {
+    const defs = footerVariables(FOOTER.Variables)
+    expect(defs.map((d) => d.name)).toEqual(["platform_name", "site_url", "privacy_url", "reply_to"])
+    expect(defs[3]).toEqual({ name: "reply_to", description: "Адреса для відповідей", example: "support@example.com" })
+  })
+
+  it("compares documents by content, not by editor bookkeeping", () => {
+    const withIds = { root: { type: "root", version: 1, children: [{ type: "paragraph", version: 1, direction: "ltr", children: [{ ...variable("platform_name"), version: 1 }, { ...text(" · "), format: 0, detail: 0 }, variable("site_url")] }] } }
+    expect(documentSignature((withIds as LexicalState).root)).toBe(documentSignature((DEFAULT as LexicalState).root))
+    expect(documentSignature((doc(text("other")) as LexicalState).root)).not.toBe(documentSignature((DEFAULT as LexicalState).root))
   })
 })
 
@@ -29,24 +55,29 @@ describe("MailFooterCard", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    editorProps = null
     previewMailFooter.mockResolvedValue({ HTML: "<p>Cyber ICE Box · https://x.y</p>", Text: "" })
   })
 
-  it("renders the backend preview of the (debounced) draft", async () => {
+  it("gives the editor the draft, the footer variables and the amber pills of the email body editor", () => {
     render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
-    expect(await screen.findByText("Cyber ICE Box · https://x.y")).toBeInTheDocument()
-    expect(previewMailFooter).toHaveBeenLastCalledWith("")
-
-    fireEvent.change(screen.getByLabelText("Текст підвалу"), { target: { value: "Привіт {site_url}" } })
-    await waitFor(() => expect(previewMailFooter).toHaveBeenLastCalledWith("Привіт {site_url}"))
+    expect(editorProps?.value).toBe(DEFAULT)
+    expect(editorProps?.variables?.map((v) => v.name)).toEqual(FOOTER.Variables)
+    expect(editorProps?.showVariableNames).toBe(true)
+    expect(editorProps?.className).toContain("data-notif-variable")
   })
 
-  it("inserts a variable at the caret", async () => {
-    render(<MailFooterCard footer={{ ...FOOTER, Text: "ab" }} canWrite onSaved={() => {}} />)
-    const field = screen.getByLabelText("Текст підвалу") as HTMLTextAreaElement
-    field.setSelectionRange(1, 1)
-    fireEvent.click(screen.getByRole("button", { name: "Вставити {reply_to}" }))
-    expect(field.value).toBe("a{reply_to}b")
+  it("renders the backend preview of the (debounced) draft in the email preview frame", async () => {
+    render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
+    await waitFor(() => expect(screen.getByTestId("mail-footer-preview").querySelector("iframe")).not.toBeNull())
+    const frame = screen.getByTestId("mail-footer-preview").querySelector("iframe") as HTMLIFrameElement
+    expect(frame.getAttribute("sandbox")).toBe("")
+    expect(frame.getAttribute("srcdoc")).toContain("Cyber ICE Box · https://x.y")
+    expect(previewMailFooter).toHaveBeenLastCalledWith(DEFAULT)
+
+    const edited = doc(text("Привіт"), variable("site_url"))
+    act(() => editorProps?.onChange(edited))
+    await waitFor(() => expect(previewMailFooter).toHaveBeenLastCalledWith(edited))
   })
 
   it("shows the rendering error instead of the preview, and an empty state for an empty footer", async () => {
@@ -59,26 +90,39 @@ describe("MailFooterCard", () => {
     expect(await screen.findByText("Підвал порожній: жоден рядок не має значень.")).toBeInTheDocument()
   })
 
-  it("saves the default as empty text, then reports and hands the settings up", async () => {
-    const saved = { Footer: { ...FOOTER, Text: "custom" } } as MailSettings
+  it("saves the document, then reports and hands the settings up", async () => {
+    const custom = doc(text("custom"))
+    const saved = { Footer: { ...FOOTER, Content: custom } } as MailSettings
     saveMailFooter.mockResolvedValue(saved)
     const onSaved = vi.fn()
     render(<MailFooterCard footer={FOOTER} canWrite onSaved={onSaved} />)
+    act(() => editorProps?.onChange(custom))
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Зберегти" })) })
-    expect(saveMailFooter).toHaveBeenCalledWith("")
+    expect(saveMailFooter).toHaveBeenCalledWith(custom)
     expect(onSaved).toHaveBeenCalledWith(saved)
     expect(await screen.findByText("Підвал листів збережено.")).toBeInTheDocument()
-    expect((screen.getByLabelText("Текст підвалу") as HTMLTextAreaElement).value).toBe("custom")
+    expect(editorProps?.value).toBe(custom)
   })
 
-  it("restores the default text on demand", () => {
-    render(<MailFooterCard footer={{ ...FOOTER, Text: "custom" }} canWrite onSaved={() => {}} />)
-    fireEvent.click(screen.getByRole("button", { name: "Типовий текст" }))
-    expect((screen.getByLabelText("Текст підвалу") as HTMLTextAreaElement).value).toBe(DEFAULT)
+  it("refuses a document over the size limit without calling the API", async () => {
+    render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
+    act(() => editorProps?.onChange(doc(text("я".repeat(11000)))))
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Зберегти" })) })
+    expect(await screen.findByText("Підвал завеликий. Скоротіть текст.")).toBeInTheDocument()
+    expect(saveMailFooter).not.toHaveBeenCalled()
+  })
+
+  it("restores the default footer on demand", () => {
+    const custom = doc(text("custom"))
+    render(<MailFooterCard footer={{ ...FOOTER, Content: custom }} canWrite onSaved={() => {}} />)
+    expect(screen.getByRole("button", { name: "Типовий підвал" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "Типовий підвал" }))
+    expect(editorProps?.value).toBe(DEFAULT)
+    expect(screen.getByRole("button", { name: "Типовий підвал" })).toBeDisabled()
   })
 
   it("is read-only without write access", () => {
     render(<MailFooterCard footer={FOOTER} canWrite={false} onSaved={() => {}} />)
-    expect(screen.getByLabelText("Текст підвалу")).toBeDisabled()
+    expect(screen.getByTestId("editor")).toHaveAttribute("data-disabled", "yes")
   })
 })
