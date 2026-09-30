@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
@@ -9,7 +9,6 @@ import { PageLoader } from "@/components/ui/spinner"
 import { SiteBannerBar } from "./SiteBanner"
 import { NoAccessScreen } from "./NoAccessScreen"
 import { SignInRedirect } from "./SignInRedirect"
-const SIDEBAR_STORAGE_KEY = "cybericebox.admin.sidebar.collapsed"
 
 const TITLES: Record<string, string> = {
   "/dashboard": "admin.nav.dashboard",
@@ -25,25 +24,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { role, isLoading } = useRole()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(SIDEBAR_STORAGE_KEY)
-      queueMicrotask(() => setCollapsed(stored === "true"))
-    } catch { /* Storage may be disabled; the sidebar remains usable. */ }
-    const sync = (event: StorageEvent) => {
-      if (event.key === SIDEBAR_STORAGE_KEY) setCollapsed(event.newValue === "true")
-    }
-    window.addEventListener("storage", sync)
-    return () => window.removeEventListener("storage", sync)
-  }, [])
-
-  function toggleCollapsed() {
-    const next = !collapsed
-    setCollapsed(next)
-    try { window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next)) } catch { /* Keep the current-tab setting. */ }
-  }
 
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
@@ -62,7 +42,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const titleKey = Object.keys(TITLES).find((p) => pathname.startsWith(p)) ?? "/dashboard"
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
-      <div className="hidden md:block"><Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapsed} /></div>
+      <div className="hidden md:block"><Sidebar /></div>
       {menuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <button type="button" className="absolute inset-0 bg-[color-mix(in_srgb,var(--ib-ink)_45%,transparent)]" aria-label={t("admin.shell.closeNav")} onClick={() => setMenuOpen(false)} />

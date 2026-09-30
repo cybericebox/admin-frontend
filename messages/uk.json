@@ -80,6 +80,8 @@
   "error.notFoundDescription": "Сторінка, яку ви шукаєте, не існує або її перенесли.",
   "error.goHome": "На головну",
   "admin.shell.title": "Адміністрування",
+  "admin.nav.returnToEvent": "Повернутися до «{name}»",
+  "admin.nav.returnToEventNoName": "Повернутися до заходу",
   "admin.nav.dashboard": "Огляд",
   "admin.nav.analytics": "Аналітика",
   "admin.nav.analyticsUsers": "Користувачі",

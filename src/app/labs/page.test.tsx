@@ -142,7 +142,10 @@ describe("infrastructure page", () => {
       expect(within(table).getByText("Команда модераторів")).toBeInTheDocument()
       expect(within(table).getByText("Помилка")).toBeInTheDocument()
       expect(within(table).getByText("Готується")).toBeInTheDocument()
-      expect(within(table).getAllByRole("link")[0].getAttribute("href") ?? "").toBe("https://autumn.localhost/manage/labs")
+      // The link into /manage carries this admin page, so the event can offer the way back.
+      const eventLink = new URL(within(table).getAllByRole("link")[0].getAttribute("href") ?? "")
+      expect(eventLink.origin + eventLink.pathname).toBe("https://autumn.localhost/manage/labs")
+      expect(eventLink.searchParams.get("from")).toBe(window.location.href)
       const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
       const query = new URLSearchParams(call.split("?")[1])
       expect(query.get("status")).toBe("failed")

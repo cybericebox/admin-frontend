@@ -80,6 +80,8 @@
   "error.notFoundDescription": "The page you are looking for does not exist or has moved.",
   "error.goHome": "Go home",
   "admin.shell.title": "Administration",
+  "admin.nav.returnToEvent": "Back to “{name}”",
+  "admin.nav.returnToEventNoName": "Back to the event",
   "admin.nav.dashboard": "Dashboard",
   "admin.nav.analytics": "Analytics",
   "admin.nav.analyticsUsers": "Users",

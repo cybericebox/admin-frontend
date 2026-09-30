@@ -65,7 +65,7 @@ describe("platform analytics: events", () => {
     expect(within(table).getByText("80%")).toBeInTheDocument()
     expect(within(table).getByText("4 год")).toBeInTheDocument()
     const link = within(table).getByRole("link", { name: /spring\.cybericebox\.test/ })
-    expect(link).toHaveAttribute("href", "https://spring.cybericebox.test/manage/analytics")
+    expect(link.getAttribute("href")).toMatch(/^https:\/\/spring\.cybericebox\.test\/manage\/analytics\?from=/)
     expect(screen.getByText("Показано 2 із 250 найновіших заходів (ліміт 200).")).toBeInTheDocument()
     const upcoming = screen.getByRole("table", { name: "Найближчі заходи" })
     expect(within(upcoming).getByText("Autumn cup")).toBeInTheDocument()
