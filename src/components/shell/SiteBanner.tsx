@@ -7,6 +7,7 @@ import { onServiceRestored } from "@/lib/serviceStatus"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { keepBrand } from "@/i18n/brand"
 
 /*
  * Site banner look (shared markup, copy it into the other frontends):
@@ -46,8 +47,8 @@ export function SiteBanner({ banner, onDismiss, className }: { banner: SiteBanne
   return (
     <div role="status" aria-live="polite" data-level={banner.Level} className={cn("flex items-start gap-3 border-b px-4 py-2.5 md:px-6", TONE[banner.Level] ?? TONE.info, className)}>
       <p className="min-w-0 flex-1 text-sm leading-6">
-        <span>{banner.Text}</span>
-        {href && <>{" "}<a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="font-medium underline underline-offset-2">{banner.LinkLabel || t("admin.shell.banner.more")}</a></>}
+        <span>{keepBrand(banner.Text)}</span>
+        {href && <>{" "}<a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="font-medium underline underline-offset-2">{keepBrand(banner.LinkLabel || t("admin.shell.banner.more"))}</a></>}
       </p>
       {banner.Dismissible && (
         <HoverTooltip text={t("admin.shell.banner.close")}>
