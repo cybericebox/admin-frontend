@@ -29,8 +29,6 @@ type Target = {
   Error: string
   Attempts: number
   Transport?: string
-  Recipient?: string
-  RecipientName?: string
   ErrorKind?: string
   ErrorCode?: string
   FallbackError?: string
@@ -101,14 +99,22 @@ function DetailError({ label, view, tone }: { label: string; view: ReturnType<ty
   )
 }
 
-// The recipient user: name, then the email muted; only the email without a name.
-export function RecipientUser({ name, email }: { name?: string; email?: string }) {
-  if (!name && !email) return null
+const NIL_UUID = "00000000-0000-0000-0000-000000000000"
+
+// The dispatch recipient: «Name (email)», the email alone without a name, «—» with neither.
+// A link to the user page only for a real user id.
+export function RecipientRow({ userID, name, email }: { userID?: string; name?: string; email?: string }) {
+  const text = name && email ? `${name} (${email})` : name || email || "—"
+  const linkable = !!userID && userID !== NIL_UUID && text !== "—"
   return (
-    <span className="inline-flex flex-col align-top">
-      {name && <span className="text-foreground">{name}</span>}
-      {email && <span className={name ? "text-muted-foreground" : "text-foreground"}>{email}</span>}
-    </span>
+    <div className="mb-2 flex flex-wrap gap-1 text-sm">
+      <span className="text-muted-foreground">{t("admin.notif.logs.recipientUser")}:</span>
+      {linkable ? (
+        <Link href={`/users/detail?id=${userID}`} className="text-foreground hover:underline">{text}</Link>
+      ) : (
+        <span className="text-foreground">{text}</span>
+      )}
+    </div>
   )
 }
 
@@ -307,6 +313,7 @@ export function LogsTab() {
             <EmptyState message={t("admin.notif.logs.noTargets")} compact />
           ) : (
             <div className="space-y-2">
+              <RecipientRow userID={detail.RecipientUserID} name={detail.RecipientName} email={detail.RecipientEmail} />
               {detail.Targets.map((tg, i) => (
                 <div key={`${tg.Channel}-${i}`} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex items-center justify-between">
@@ -317,12 +324,6 @@ export function LogsTab() {
                     {t("admin.notif.logs.attempts")}: {tg.Attempts}
                     {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
                   </div>
-                  {(tg.Recipient || tg.RecipientName) && (
-                    <div className="mt-1 flex gap-1 text-xs">
-                      <span className="text-muted-foreground">{t("admin.notif.logs.recipientUser")}:</span>
-                      <RecipientUser name={tg.RecipientName} email={tg.Recipient} />
-                    </div>
-                  )}
                   <DetailError label={t("admin.notif.logs.fallback")} view={smtpErrorView(tg.FallbackErrorKind, tg.FallbackErrorCode, tg.FallbackError)} tone="text-muted-foreground" />
                   <DetailError label={t(tg.Status === "deferred" ? "admin.notif.logs.reason" : "admin.notif.logs.error")} view={smtpErrorView(tg.ErrorKind, tg.ErrorCode, tg.Error)} tone={tg.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />
                 </div>

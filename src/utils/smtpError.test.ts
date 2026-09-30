@@ -25,4 +25,9 @@ describe("smtpErrorView", () => {
   it("returns null without any error", () => {
     expect(smtpErrorView("", "", "")).toBeNull()
   })
+
+  it("handles the raw gomail 530 error sent as smtp_auth / 530", () => {
+    const raw = "email: failed to send: gomail: could not send email 1: 530 Authentication required"
+    expect(smtpErrorView("smtp_auth", "530", raw)).toEqual({ text: "SMTP-сервер відхилив вхід: перевірте логін і пароль SMTP", technical: raw })
+  })
 })
