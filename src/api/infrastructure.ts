@@ -46,6 +46,16 @@ export type CapacityObservation = {
 export type StandStatus = "creating" | "ready" | "failed" | "removed"
 export type StandStatusFilter = StandStatus | "active"
 
+/** What a lab uses now, summed over its devices. Usage is live (UsageAvailable); Requested is the fallback. */
+export type LabResources = {
+  Known: boolean
+  UsageAvailable: boolean
+  CPUMillicores: number
+  MemoryBytes: number
+  RequestedCPUMillicores: number
+  RequestedMemoryBytes: number
+}
+
 export type Stand = {
   EventID: string
   EventName: string
@@ -58,6 +68,7 @@ export type Stand = {
   UpdatedAt: string | null
   StatusChangedAt: string | null
   Generation: number
+  Resources?: LabResources
 }
 
 export type StandEventOption = { ID: string; Name: string; Tag: string }
@@ -84,6 +95,7 @@ export type TestLab = {
   /** The lease is over but the lab is not cleaned up yet. */
   Expired: boolean
   Status: TestLabStatus
+  Resources?: LabResources
 }
 
 export type TestLabsFilter = { search?: string; page: number; pageSize: number }

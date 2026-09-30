@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(s
 
 const agent = { ID: "agent-1", Key: "primary", Name: "Primary", Configured: true, Healthy: true }
 const okStatus = { Available: true, Healthy: true, Mode: "available", Agents: [agent], Capabilities: { Laboratories: true } }
-const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2 }
+const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 1500, MemoryBytes: 2 * 1024 ** 3, RequestedCPUMillicores: 2000, RequestedMemoryBytes: 4 * 1024 ** 3 } }
 const currentLab = (over: object = {}) => ({ EventID: "event-1", EventName: "Осінній CTF", EventTeamID: "team-1", TeamName: "Червоні", LabGroupName: "e-1-t-1", AgentID: "agent-1", Sequence: 8, ObservedAt: "2026-09-24T12:00:00Z", UpdatedAt: "2026-09-24T12:00:00Z", Payload: {}, ...over })
 const testLab = { ID: "lab-1", GroupName: "t-1", ExerciseID: "ex-1", ExerciseName: "Вебуразливість", VariantNumber: 2, AuthorID: "user-1", AuthorName: "Анна Лі", AuthorEmail: "ann@example.test", CreatedAt: "2026-09-24T10:00:00Z", ExpiresAt: "2026-09-24T12:00:00Z", Expired: false, Status: "ready" }
 const capacityRow = (payload: unknown) => ({ ID: "capacity-1", AgentID: "agent-1", Sequence: 1, ObservedAt: "2026-09-24T12:00:00Z", ReceivedAt: "2026-09-24T12:00:00Z", SchemaVersion: 1, Snapshot: true, Payload: payload })
@@ -207,6 +207,30 @@ describe("infrastructure page", () => {
       fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Перестворити" }))
       expect(await screen.findByRole("alert")).toBeInTheDocument()
       expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+  })
+
+  describe("resources", () => {
+    it("shows live CPU and memory per stand, requested ones marked when usage is unavailable, a dash when unknown", async () => {
+      const requestedOnly = { ...stand, TeamID: "team-2", TeamName: "Сині", Resources: { Known: true, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 500, RequestedMemoryBytes: 512 * 1024 ** 2 } }
+      const unknown = { ...stand, TeamID: "team-3", TeamName: "Сірі", Resources: { Known: false, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }
+      serve({ stands: { Items: [stand, requestedOnly, unknown], Total: 3, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const rows = (await screen.findByText("Червоні")).closest("table")!.querySelectorAll("tbody tr")
+      expect(rows[0]).toHaveTextContent("1,5 vCPU")
+      expect(rows[0]).toHaveTextContent("2 ГіБ")
+      expect(rows[0]).not.toHaveTextContent("запрошено")
+      expect(rows[1]).toHaveTextContent(/0,5 vCPU\s*запрошено/)
+      expect(rows[1]).toHaveTextContent(/512 МіБ\s*запрошено/)
+      expect(rows[2].textContent).not.toMatch(/vCPU/)
+    })
+
+    it("shows the resources of a test lab", async () => {
+      serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 250, MemoryBytes: 1024 ** 3, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const row = (await screen.findByText("Вебуразливість")).closest("tr")!
+      expect(row).toHaveTextContent("0,25 vCPU")
+      expect(row).toHaveTextContent("1 ГіБ")
     })
   })
 

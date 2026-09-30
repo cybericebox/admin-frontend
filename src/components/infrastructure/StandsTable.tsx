@@ -11,6 +11,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
+import { ResourceCell } from "@/components/infrastructure/ResourceCell"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import type { Stand, StandEventOption } from "@/api/infrastructure"
 import { formatDateTime } from "@/lib/locale"
@@ -84,6 +85,8 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.team")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.status")}</th>
                   <th scope="col" className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5">{t("admin.labs.stands.col.reason")}<FieldHelp text={t("admin.labs.stands.col.reasonHelp")} /></span></th>
+                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.resources.cpu")}</th>
+                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.resources.memory")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.time")}</th>
                   <th scope="col" className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5">{t("admin.labs.stands.col.generation")}<FieldHelp text={t("admin.labs.stands.col.generationHelp")} /></span></th>
                   {canWrite && <th scope="col" className="w-12 px-3 py-2"><span className="sr-only">{t("admin.labs.stands.col.actions")}</span></th>}
@@ -95,6 +98,8 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                   <td className="px-3 py-2">{teamLabel(stand)}</td>
                   <td className="px-3 py-2"><StandStatusBadge status={stand.Status} /></td>
                   <td className="max-w-xs break-words px-3 py-2 text-muted-foreground">{stand.Reason || "—"}</td>
+                  <td className="px-3 py-2"><ResourceCell resources={stand.Resources} kind="cpu" /></td>
+                  <td className="px-3 py-2"><ResourceCell resources={stand.Resources} kind="memory" /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(stand.UpdatedAt)}</td>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{stand.Generation}</td>
                   {canWrite && <td className="px-3 py-2">

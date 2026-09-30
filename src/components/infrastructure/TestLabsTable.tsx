@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { ExternalLink, Power } from "lucide-react"
+import { ResourceCell } from "@/components/infrastructure/ResourceCell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -67,6 +68,8 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.author")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.exercise")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.variant")}</th>
+                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.resources.cpu")}</th>
+                  <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.resources.memory")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.created")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.until")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.status")}</th>
@@ -86,6 +89,8 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                     </HoverTooltip>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{lab.VariantNumber > 0 ? t("admin.labs.testLabs.variant", { number: lab.VariantNumber }) : t("admin.labs.testLabs.noVariant")}</td>
+                  <td className="px-3 py-2"><ResourceCell resources={lab.Resources} kind="cpu" /></td>
+                  <td className="px-3 py-2"><ResourceCell resources={lab.Resources} kind="memory" /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(lab.CreatedAt)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(lab.ExpiresAt)}</td>
                   <td className="px-3 py-2"><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Expired && <span className="inline-flex rounded-md bg-secondary/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{t("admin.labs.testLabs.expired")}</span>}</span></td>
