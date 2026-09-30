@@ -40,6 +40,7 @@ type Dispatch = {
   ScopeEventID?: string | null
   EventName?: string
   RecipientEmail?: string
+  BroadcastID?: string | null
   Targets?: Target[]
   CreatedAt: string
   UpdatedAt: string
@@ -195,7 +196,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
+                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{d.BroadcastID && <Link href={`/notifications/broadcasts/detail?id=${encodeURIComponent(d.BroadcastID)}`} onClick={(event) => event.stopPropagation()} className="ml-2 text-xs font-normal text-primary hover:underline">{t("admin.notif.logs.openBroadcast")}</Link>}{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       {names[d.RecipientUserID] ? (

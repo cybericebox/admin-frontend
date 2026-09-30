@@ -47,6 +47,8 @@ export type BlockEditorProps = {
   presets: BlockPreset[];
   onSavePreset: (blocks: EmailBodyBlock[], name: string) => Promise<void>;
   showPresetSave?: boolean;
+  /** Block types that cannot be added (e.g. image for broadcasts, which have no image upload yet). */
+  hiddenBlockTypes?: Array<EmailBodyBlock["type"]>;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -108,6 +110,7 @@ export function BlockEditor({
   presets,
   onSavePreset,
   showPresetSave = true,
+  hiddenBlockTypes = [],
 }: BlockEditorProps) {
   // Keys follow internal add/remove/reorder operations. For a parent-initiated
   // length change, adjust them before rendering children so mounted editors keep
@@ -585,7 +588,7 @@ export function BlockEditor({
           {t("admin.notif.editor.addBlock")}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
-          {ADD_BLOCK_TYPES.map((type) => (
+          {ADD_BLOCK_TYPES.filter((type) => !hiddenBlockTypes.includes(type)).map((type) => (
             <button
               key={type}
               type="button"
