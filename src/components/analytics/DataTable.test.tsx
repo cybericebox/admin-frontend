@@ -7,7 +7,7 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: str
 type Row = { id: string; name: string; n: number }
 const columns: Column<Row>[] = [
   { key: "name", header: "Name", cell: (r) => r.name, sortValue: (r) => r.name },
-  { key: "n", header: "Count", cell: (r) => r.n, sortValue: (r) => r.n, align: "right" },
+  { key: "n", header: "Count", cell: (r) => r.n, sortValue: (r) => r.n, numeric: true },
 ]
 const rows: Row[] = [{ id: "a", name: "b", n: 2 }, { id: "b", name: "a", n: 10 }, { id: "c", name: "c", n: 1 }]
 const names = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => r.textContent)

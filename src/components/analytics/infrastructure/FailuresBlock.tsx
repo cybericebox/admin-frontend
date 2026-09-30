@@ -12,9 +12,9 @@ export function FailuresBlock({ res }: { res: InfrastructureResource }) {
   const rows = res.data?.Failures
   const columns: Column<FailureReason>[] = [
     { key: "reason", header: t(P + "failures.reason"), sortValue: (row) => failureLabel(row.Code), cell: (row) => <span className="font-medium text-foreground">{failureLabel(row.Code)}</span> },
-    { key: "labs", header: t(P + "failures.labs"), align: "right", sortValue: (row) => row.Labs, cell: (row) => formatNumber(row.Labs) },
-    { key: "stands", header: t(P + "failures.stands"), align: "right", sortValue: (row) => row.Stands, cell: (row) => formatNumber(row.Stands) },
-    { key: "events", header: t(P + "failures.events"), align: "right", sortValue: (row) => row.Events, cell: (row) => formatNumber(row.Events) },
+    { key: "labs", header: t(P + "failures.labs"), numeric: true, sortValue: (row) => row.Labs, cell: (row) => formatNumber(row.Labs) },
+    { key: "stands", header: t(P + "failures.stands"), numeric: true, sortValue: (row) => row.Stands, cell: (row) => formatNumber(row.Stands) },
+    { key: "events", header: t(P + "failures.events"), numeric: true, sortValue: (row) => row.Events, cell: (row) => formatNumber(row.Events) },
     { key: "last", header: t(P + "failures.last"), sortValue: (row) => row.LastAt, cell: (row) => formatDateTime(row.LastAt) },
   ]
   return <AnalyticsBlock title={t(P + "failures.title")} hint={t(P + "failures.hint")}

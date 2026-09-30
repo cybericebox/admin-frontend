@@ -14,7 +14,8 @@ export type Column<Row> = {
   cell: (row: Row) => ReactNode
   /** Makes the header sortable; returns the comparable value of a row. */
   sortValue?: (row: Row) => string | number | null | undefined
-  align?: "left" | "right"
+  // Numbers keep aligned digits; every cell stays left-aligned like its header.
+  numeric?: boolean
   className?: string
 }
 
@@ -72,13 +73,13 @@ export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false
         <thead className="border-b border-border text-muted-foreground">
           <tr>{columns.map((column) => column.sortValue
             ? <SortableHeader key={column.key} label={column.header} field={column.key} activeField={active.field} direction={active.direction} onSort={toggle} />
-            : <th key={column.key} scope="col" className={`px-3 py-2 font-medium ${column.align === "right" ? "text-right" : "text-left"}`}>{column.header}</th>)}</tr>
+            : <th key={column.key} scope="col" className="px-3 py-2 text-left font-medium">{column.header}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-border">
           {sorted.map((row) => {
             const href = rowHref?.(row)
             return <tr key={rowKey(row)} className={`${href ? "relative hover:bg-accent" : ""}`}>
-              {columns.map((column, index) => <td key={column.key} className={`px-3 py-2 ${column.align === "right" ? "text-right tabular-nums" : "text-left"} ${column.className ?? ""}`}>
+              {columns.map((column, index) => <td key={column.key} className={`px-3 py-2 text-left ${column.numeric ? "tabular-nums" : ""} ${column.className ?? ""}`}>
                 {href && index === 0
                   ? <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary">{column.cell(row)}</Link>
                   : column.cell(row)}

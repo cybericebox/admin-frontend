@@ -20,20 +20,20 @@ function identityColumns(): Column<TaskUsageRow>[] {
     { key: "task", header: t("admin.platformAnalytics.tasks.col.task"), sortValue: (row) => row.Task, cell: (row) => row.Task || "–" },
     { key: "level", header: t("admin.platformAnalytics.tasks.col.level"), sortValue: (row) => row.Level, cell: (row) => levelLabel(row.Level) },
     { key: "categories", header: t("admin.platformAnalytics.tasks.col.categories"), cell: (row) => row.Categories.length ? row.Categories.join(", ") : "–" },
-    { key: "events", header: t("admin.platformAnalytics.tasks.col.events"), align: "right", sortValue: (row) => row.EventsUsed, cell: (row) => formatCount(row.EventsUsed) },
-    { key: "attempts", header: t("admin.platformAnalytics.tasks.col.attempts"), align: "right", sortValue: (row) => row.Attempts, cell: (row) => formatCount(row.Attempts) },
+    { key: "events", header: t("admin.platformAnalytics.tasks.col.events"), numeric: true, sortValue: (row) => row.EventsUsed, cell: (row) => formatCount(row.EventsUsed) },
+    { key: "attempts", header: t("admin.platformAnalytics.tasks.col.attempts"), numeric: true, sortValue: (row) => row.Attempts, cell: (row) => formatCount(row.Attempts) },
   ]
 }
 
 function usageColumns(): Column<TaskUsageRow>[] {
   return [
     ...identityColumns(),
-    { key: "solves", header: t("admin.platformAnalytics.tasks.col.solves"), align: "right", sortValue: (row) => row.Solves, cell: (row) => formatCount(row.Solves) },
-    { key: "solveRate", header: t("admin.platformAnalytics.tasks.col.solveRate"), align: "right", sortValue: (row) => (row.TeamsTried > 0 ? row.SolveRate : null),
+    { key: "solves", header: t("admin.platformAnalytics.tasks.col.solves"), numeric: true, sortValue: (row) => row.Solves, cell: (row) => formatCount(row.Solves) },
+    { key: "solveRate", header: t("admin.platformAnalytics.tasks.col.solveRate"), numeric: true, sortValue: (row) => (row.TeamsTried > 0 ? row.SolveRate : null),
       cell: (row) => row.TeamsTried > 0 ? formatPercent(row.SolveRate) : "–" },
-    { key: "median", header: t("admin.platformAnalytics.tasks.col.median"), align: "right", sortValue: (row) => row.MedianSolveSeconds,
+    { key: "median", header: t("admin.platformAnalytics.tasks.col.median"), numeric: true, sortValue: (row) => row.MedianSolveSeconds,
       cell: (row) => <span className="whitespace-nowrap">{formatDuration(row.MedianSolveSeconds)}</span> },
-    { key: "hintRate", header: t("admin.platformAnalytics.tasks.col.hintRate"), align: "right", sortValue: (row) => (row.TeamsEngaged > 0 ? row.HintRate : null),
+    { key: "hintRate", header: t("admin.platformAnalytics.tasks.col.hintRate"), numeric: true, sortValue: (row) => (row.TeamsEngaged > 0 ? row.HintRate : null),
       cell: (row) => row.TeamsEngaged > 0 ? formatPercent(row.HintRate) : "–" },
     { key: "calibration", header: t("admin.platformAnalytics.tasks.col.calibration"), sortValue: (row) => row.Calibration,
       cell: (row) => t(`admin.platformAnalytics.tasks.calibration.${row.Calibration}`) },
@@ -43,7 +43,7 @@ function usageColumns(): Column<TaskUsageRow>[] {
 function unsolvedColumns(): Column<TaskUsageRow>[] {
   return [
     ...identityColumns(),
-    { key: "tried", header: t("admin.platformAnalytics.tasks.col.tried"), align: "right", sortValue: (row) => row.TeamsTried, cell: (row) => formatCount(row.TeamsTried) },
+    { key: "tried", header: t("admin.platformAnalytics.tasks.col.tried"), numeric: true, sortValue: (row) => row.TeamsTried, cell: (row) => formatCount(row.TeamsTried) },
   ]
 }
 

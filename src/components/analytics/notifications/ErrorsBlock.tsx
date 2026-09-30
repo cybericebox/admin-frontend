@@ -13,7 +13,7 @@ export function ErrorsBlock({ res, params }: { res: MailResource; params: Analyt
   const columns: Column<MailErrorRow>[] = [
     { key: "code", header: t(P + "errors.code"), className: "whitespace-nowrap tabular-nums", sortValue: (row) => row.Code, cell: (row) => row.Code || "–" },
     { key: "message", header: t(P + "errors.message"), className: "max-w-xl break-words", sortValue: (row) => row.Message, cell: (row) => row.Message || <span className="text-muted-foreground">{t(P + "errors.noMessage")}</span> },
-    { key: "total", header: t(P + "errors.total"), align: "right", sortValue: (row) => row.Total, cell: (row) => formatNumber(row.Total) },
+    { key: "total", header: t(P + "errors.total"), numeric: true, sortValue: (row) => row.Total, cell: (row) => formatNumber(row.Total) },
     { key: "last", header: t(P + "errors.last"), sortValue: (row) => row.LastAt, cell: (row) => formatDateTime(row.LastAt) },
   ]
   return <AnalyticsBlock title={t(P + "errors.title")} hint={t(P + "errors.hint")}

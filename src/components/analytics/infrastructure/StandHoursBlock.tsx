@@ -12,8 +12,8 @@ export function StandHoursBlock({ res }: { res: InfrastructureResource }) {
   const rows = res.data?.StandHours.Events
   const columns: Column<StandHoursEvent>[] = [
     { key: "event", header: t(P + "standHours.event"), sortValue: (row) => row.EventName, cell: (row) => <Link href={`/events/detail?id=${encodeURIComponent(row.EventID)}`} className="font-medium text-primary hover:underline">{row.EventName || row.EventID}</Link> },
-    { key: "hours", header: t(P + "standHours.hours"), align: "right", sortValue: (row) => row.Hours, cell: (row) => t(P + "unit.hours", { value: formatNumber(row.Hours, { maximumFractionDigits: 1 }) }) },
-    { key: "stands", header: t(P + "standHours.stands"), align: "right", sortValue: (row) => row.Stands, cell: (row) => formatNumber(row.Stands) },
+    { key: "hours", header: t(P + "standHours.hours"), numeric: true, sortValue: (row) => row.Hours, cell: (row) => t(P + "unit.hours", { value: formatNumber(row.Hours, { maximumFractionDigits: 1 }) }) },
+    { key: "stands", header: t(P + "standHours.stands"), numeric: true, sortValue: (row) => row.Stands, cell: (row) => formatNumber(row.Stands) },
   ]
   return <AnalyticsBlock title={t(P + "standHours.title")} hint={t(P + "standHours.hint")}
     actions={<CsvExportButton section="infrastructure" table="stand_hours" disabled={!rows || rows.length === 0} />}>

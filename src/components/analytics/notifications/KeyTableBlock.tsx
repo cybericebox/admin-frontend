@@ -24,10 +24,10 @@ export function KeyTableBlock({ res, params, title, hint, table, keyHeader, labe
 }) {
   const columns: Column<MailKeyRow>[] = [
     { key: "key", header: keyHeader, sortValue: (row) => label(row.Key), cell: (row) => <span className="font-medium text-foreground">{label(row.Key)}</span> },
-    { key: "sent", header: t(P + "col.sent"), align: "right", sortValue: (row) => row.Sent, cell: (row) => formatNumber(row.Sent) },
-    { key: "failed", header: t(P + "col.failed"), align: "right", sortValue: (row) => row.Failed, cell: (row) => formatNumber(row.Failed) },
-    { key: "rate", header: t(P + "col.rate"), align: "right", sortValue: (row) => row.FailureRate, cell: (row) => percent(row.FailureRate, formatNumber) },
-    { key: "fallbacks", header: t(P + "col.fallbacks"), align: "right", sortValue: (row) => row.Fallbacks, cell: (row) => formatNumber(row.Fallbacks) },
+    { key: "sent", header: t(P + "col.sent"), numeric: true, sortValue: (row) => row.Sent, cell: (row) => formatNumber(row.Sent) },
+    { key: "failed", header: t(P + "col.failed"), numeric: true, sortValue: (row) => row.Failed, cell: (row) => formatNumber(row.Failed) },
+    { key: "rate", header: t(P + "col.rate"), numeric: true, sortValue: (row) => row.FailureRate, cell: (row) => percent(row.FailureRate, formatNumber) },
+    { key: "fallbacks", header: t(P + "col.fallbacks"), numeric: true, sortValue: (row) => row.Fallbacks, cell: (row) => formatNumber(row.Fallbacks) },
   ]
   return <AnalyticsBlock title={title} hint={hint}
     actions={<>{actions}<CsvExportButton section="mail" table={table} params={params} disabled={!rows || rows.length === 0} /></>}>

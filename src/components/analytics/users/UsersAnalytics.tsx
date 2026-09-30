@@ -38,7 +38,7 @@ export function UsersAnalytics() {
 
   const roleColumns: Column<RoleRow>[] = [
     { key: "role", header: t("admin.platformAnalytics.users.role.role"), cell: (row) => roleLabel(row.Role), sortValue: (row) => roleLabel(row.Role) },
-    { key: "count", header: t("admin.platformAnalytics.users.role.count"), cell: (row) => formatCount(row.Count), sortValue: (row) => row.Count, align: "right" },
+    { key: "count", header: t("admin.platformAnalytics.users.role.count"), cell: (row) => formatCount(row.Count), sortValue: (row) => row.Count, numeric: true },
   ]
 
   return <div className="space-y-6">

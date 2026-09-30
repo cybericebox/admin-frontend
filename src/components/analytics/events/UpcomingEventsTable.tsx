@@ -22,7 +22,7 @@ export function UpcomingEventsTable({ rows, loading, error, onRetry }: {
       cell: (row) => <span className="whitespace-nowrap">{formatDateTime(row.StartAt)}</span> },
     { key: "published", header: t("admin.platformAnalytics.events.col.status"), sortValue: (row) => (row.Published ? 1 : 0),
       cell: (row) => t(row.Published ? "admin.events.lifecycle.published" : "admin.events.lifecycle.not_published") },
-    { key: "registrations", header: t("admin.platformAnalytics.events.col.registrations"), align: "right", sortValue: (row) => row.Registrations, cell: (row) => formatCount(row.Registrations) },
+    { key: "registrations", header: t("admin.platformAnalytics.events.col.registrations"), numeric: true, sortValue: (row) => row.Registrations, cell: (row) => formatCount(row.Registrations) },
     { key: "analytics", header: t("admin.platformAnalytics.events.col.analytics"), cell: (row) => <EventAnalyticsLink tag={row.Tag} /> },
   ]
   return <AnalyticsBlock title={t("admin.platformAnalytics.events.upcoming.title")} subtitle={t("admin.platformAnalytics.events.upcoming.subtitle")}
