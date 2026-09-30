@@ -39,6 +39,26 @@ export type MailSmtp = {
   Username: string
   PasswordSet: boolean
   UpdatedAt: string | null
+  /** Saved send limits; null = not set here. */
+  MaxPerSecond: number | null
+  DailyQuota: number | null
+}
+
+/** Where a send limit in effect comes from. */
+export type MailLimitSource = "saved" | "env" | "none"
+
+/** The send limits in effect (saved, else env, else none) with their sources. */
+export type MailLimits = {
+  /** 0 = no limit. */
+  PerSecond: number
+  DailyQuota: number
+  PerSecondSource: MailLimitSource
+  DailyQuotaSource: MailLimitSource
+  /** The server config (SMTP_MAX_PER_SECOND / SMTP_DAILY_QUOTA) values: the placeholders. */
+  EnvPerSecond: number
+  EnvDailyQuota: number
+  /** Messages delivered through this server in the last 24 hours. */
+  Used24h: number
 }
 
 /** A Lexical editor state: the format of the email body rich_text blocks. */
@@ -82,6 +102,7 @@ export type MailSettings = {
   Configured: boolean
   SMTP: MailSmtp | null
   Env: MailEnvSummary | null
+  Limits: MailLimits
 }
 
 export type MailSmtpInput = {
@@ -91,6 +112,9 @@ export type MailSmtpInput = {
   Username: string
   Password: string
   ClearPassword: boolean
+  /** null = no limit set here (the env value, then none). */
+  MaxPerSecond: number | null
+  DailyQuota: number | null
 }
 
 export type MailTestResult = {

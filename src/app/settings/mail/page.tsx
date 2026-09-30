@@ -1,6 +1,6 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
+import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailLimitSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
+import { NumberInput, parseNumberInput } from "@/components/ui/number-input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -30,7 +31,7 @@ const SOURCE_LABEL_KEY = {
   none: "admin.mail.source.none",
 } as const
 
-type SmtpForm = Omit<MailSmtpInput, "Port"> & { Port: string }
+type SmtpForm = Omit<MailSmtpInput, "Port" | "MaxPerSecond" | "DailyQuota"> & { Port: string; MaxPerSecond: string; DailyQuota: string }
 type IdentityForm = { SenderName: string; SenderAddress: string; ReplyToName: string; ReplyToAddress: string; SendingDomain: string }
 type Busy = "" | "identity" | "save" | "test" | "reset"
 
@@ -54,6 +55,8 @@ function smtpFrom(settings: MailSettings): SmtpForm {
     Username: env ? "" : stored?.Username ?? "",
     Password: "",
     ClearPassword: false,
+    MaxPerSecond: stored?.MaxPerSecond != null ? String(stored.MaxPerSecond) : "",
+    DailyQuota: stored?.DailyQuota != null ? String(stored.DailyQuota) : "",
   }
 }
 
@@ -68,6 +71,8 @@ function validateSmtp(form: SmtpForm): string {
   if (!form.Host.trim()) return t("admin.mail.error.hostRequired")
   const port = Number(form.Port)
   if (!Number.isInteger(port) || port < 1 || port > 65535) return t("admin.mail.error.portInvalid")
+  if (Number.isNaN(parseNumberInput(form.MaxPerSecond))) return t("admin.mail.error.perSecondInvalid")
+  if (Number.isNaN(parseNumberInput(form.DailyQuota, true))) return t("admin.mail.error.dailyQuotaInvalid")
   return ""
 }
 
@@ -79,6 +84,8 @@ function smtpInput(form: SmtpForm): MailSmtpInput {
     Username: form.Username.trim(),
     Password: form.ClearPassword ? "" : form.Password,
     ClearPassword: form.ClearPassword,
+    MaxPerSecond: parseNumberInput(form.MaxPerSecond),
+    DailyQuota: parseNumberInput(form.DailyQuota, true),
   }
 }
 
@@ -265,6 +272,13 @@ export default function Page() {
                     )}
                     {settings.SMTP?.PasswordSet && !smtp.ClearPassword && <p className="text-xs text-muted-foreground">{t("admin.mail.passwordKeepHint")}</p>}
                   </Field>
+                  <Field id="mail-max-per-second" label={t("admin.mail.maxPerSecond")} help={withLimitSource(t("admin.mail.maxPerSecondHelp"), settings.Limits.PerSecondSource, "SMTP_MAX_PER_SECOND")}>
+                    <NumberInput id="mail-max-per-second" decimal value={smtp.MaxPerSecond} onChange={(value) => changeSmtp("MaxPerSecond", value)} disabled={disabled} placeholder={settings.Limits.EnvPerSecond > 0 ? String(settings.Limits.EnvPerSecond) : t("admin.mail.limitPlaceholder")} />
+                  </Field>
+                  <Field id="mail-daily-quota" label={t("admin.mail.dailyQuota")} help={withLimitSource(t("admin.mail.dailyQuotaHelp"), settings.Limits.DailyQuotaSource, "SMTP_DAILY_QUOTA")}>
+                    <NumberInput id="mail-daily-quota" value={smtp.DailyQuota} onChange={(value) => changeSmtp("DailyQuota", value)} disabled={disabled} placeholder={settings.Limits.EnvDailyQuota > 0 ? String(settings.Limits.EnvDailyQuota) : t("admin.mail.limitPlaceholder")} />
+                    {settings.Limits.DailyQuota > 0 && <p className="text-xs text-muted-foreground" data-testid="mail-quota-used">{t("admin.mail.quotaUsed", { used: settings.Limits.Used24h, limit: settings.Limits.DailyQuota })}</p>}
+                  </Field>
                 </div>
 
                 {testResult && (
@@ -312,6 +326,11 @@ function sourceHelp(settings: MailSettings): string {
 
 // A field tooltip: what the field is, then where its current value comes from.
 function withSource(help: string, source: MailFieldSource, envName: string): string {
+  return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
+}
+
+// The same for a send limit: saved, from the server config, or not set.
+function withLimitSource(help: string, source: MailLimitSource, envName: string): string {
   return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
 }
 

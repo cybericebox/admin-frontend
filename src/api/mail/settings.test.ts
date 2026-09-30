@@ -12,6 +12,8 @@ const smtp: MailSmtpInput = {
   Username: "AKIA",
   Password: "",
   ClearPassword: false,
+  MaxPerSecond: 14,
+  DailyQuota: 50000,
 }
 
 describe("mail settings API", () => {

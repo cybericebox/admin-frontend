@@ -51,7 +51,7 @@ type ListResp = CursorPage<Dispatch>
 const PAGE_SIZES = [25, 50, 100]
 const STATUSES = ["pending", "started", "done"]
 const CHANNELS = ["email", "in_app"]
-const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }]
+const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }, { value: "deferred", label: "admin.notif.logs.resultDeferred" }]
 const TRANSPORTS = ["event", "platform", "env"]
 const EVENT_OPTIONS_LIMIT = 100
 
@@ -82,7 +82,7 @@ function TargetLine({ target }: { target: Target }) {
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
       {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
-      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-destructive">{target.Error}</span></HoverTooltip>}
+      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"}`}>{target.Error}</span></HoverTooltip>}
     </div>
   )
 }
@@ -278,7 +278,9 @@ export function LogsTab() {
                     {tg.Recipient && <> · {tg.Recipient}</>}
                   </div>
                   {tg.FallbackError && <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {tg.FallbackError}</div>}
-                  {tg.Error && <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>}
+                  {tg.Error && (tg.Status === "deferred"
+                    ? <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.reason")}: {tg.Error}</div>
+                    : <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>)}
                 </div>
               ))}
             </div>

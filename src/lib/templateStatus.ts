@@ -48,7 +48,7 @@ export function hasDraftPending(entry: {
  * - "published" → "admin.notif.status.published"
  * - "unpublished" → "admin.notif.status.unpublished"
  * - "active" (legacy) → "admin.notif.status.published"
- * - dispatch statuses: "pending", "started", "done", "error" → "admin.notif.status.<value>"
+ * - dispatch statuses: "pending", "started", "done", "error", "deferred" → "admin.notif.status.<value>"
  *
  * For unknown statuses, returns the status unchanged (passthrough).
  *
@@ -65,6 +65,7 @@ export function statusLabelKey(status: string): string {
     started: 'admin.notif.status.started',
     done: 'admin.notif.status.done',
     error: 'admin.notif.status.error',
+    deferred: 'admin.notif.status.deferred',
   };
 
   return keyMap[status] ?? status;

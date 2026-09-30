@@ -32,8 +32,9 @@ const STORED: MailSettings = {
   Sources: { SenderName: "saved", SenderAddress: "saved", ReplyToName: "none", ReplyToAddress: "saved", SendingDomain: "saved" },
   Source: "database",
   Configured: true,
-  SMTP: { Host: "smtp.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", PasswordSet: true, UpdatedAt: "2026-09-29T10:00:00Z" },
+  SMTP: { Host: "smtp.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", PasswordSet: true, UpdatedAt: "2026-09-29T10:00:00Z", MaxPerSecond: null, DailyQuota: null },
   Env: null,
+  Limits: { PerSecond: 14, DailyQuota: 50000, PerSecondSource: "env", DailyQuotaSource: "env", EnvPerSecond: 14, EnvDailyQuota: 50000, Used24h: 1200 },
 }
 
 describe("mail settings page", () => {
@@ -52,7 +53,7 @@ describe("mail settings page", () => {
     fireEvent.change(screen.getByLabelText("Сервер"), { target: { value: "smtp2.example.com" } })
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
     await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith({
-      Host: "smtp2.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", Password: "", ClearPassword: false,
+      Host: "smtp2.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", Password: "", ClearPassword: false, MaxPerSecond: null, DailyQuota: null,
     }))
     expect(await screen.findByText("Налаштування пошти збережено.")).toBeInTheDocument()
   })
@@ -83,6 +84,41 @@ describe("mail settings page", () => {
     fireEvent.change(await screen.findByLabelText("Порт"), { target: { value: "70000" } })
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
     expect(await screen.findByText("Порт має бути цілим числом від 1 до 65535.")).toBeInTheDocument()
+    expect(saveMailSmtp).not.toHaveBeenCalled()
+  })
+
+  it("shows the env limits as placeholders and the daily usage", async () => {
+    getMailSettings.mockResolvedValue(STORED)
+    render(<Page />)
+    const perSecond = await screen.findByLabelText("Максимум листів за секунду")
+    expect(perSecond).toHaveValue("")
+    expect(perSecond).toHaveAttribute("placeholder", "14")
+    expect(perSecond).toHaveAttribute("type", "text")
+    expect(screen.getByLabelText("Ліміт листів на добу")).toHaveAttribute("placeholder", "50000")
+    expect(screen.getByTestId("mail-quota-used")).toHaveTextContent("За останні 24 години надіслано: 1200 з 50000.")
+  })
+
+  it("saves the typed limits, a fractional rate included, and sends null for empty ones", async () => {
+    getMailSettings.mockResolvedValue(STORED)
+    saveMailSmtp.mockResolvedValue(STORED)
+    render(<Page />)
+    fireEvent.change(await screen.findByLabelText("Максимум листів за секунду"), { target: { value: "0,5" } })
+    fireEvent.change(screen.getByLabelText("Ліміт листів на добу"), { target: { value: "50000" } })
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
+    await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith(expect.objectContaining({ MaxPerSecond: 0.5, DailyQuota: 50000 })))
+  })
+
+  it("prefills the saved limits and validates them before calling the API", async () => {
+    getMailSettings.mockResolvedValue({ ...STORED, SMTP: { ...STORED.SMTP!, MaxPerSecond: 14, DailyQuota: 50000 } })
+    render(<Page />)
+    expect(await screen.findByLabelText("Максимум листів за секунду")).toHaveValue("14")
+    fireEvent.change(screen.getByLabelText("Максимум листів за секунду"), { target: { value: "0" } })
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
+    expect(await screen.findByText("Максимум листів за секунду має бути числом більше нуля.")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Максимум листів за секунду"), { target: { value: "" } })
+    fireEvent.change(screen.getByLabelText("Ліміт листів на добу"), { target: { value: "0" } })
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
+    expect(await screen.findByText("Ліміт листів на добу має бути цілим числом більше нуля.")).toBeInTheDocument()
     expect(saveMailSmtp).not.toHaveBeenCalled()
   })
 
