@@ -7,6 +7,7 @@ import { NotificationMessageCard } from "./NotificationMessageCard"
 import { accentOf } from "./editor/inAppOptions"
 import { popInDuration } from "./popInDuration"
 import { t } from "@/i18n/t"
+import { keepBrand } from "@/i18n/brand"
 
 export type PopInMessage = {
   ID: string
@@ -61,7 +62,7 @@ export function NotificationPopIn({ message, onClose, onAction }: {
         tone={message.Tone}
         accentColor={message.AccentColor}
         title={message.Title}
-        body={message.Body && <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.Body) }} />}
+        body={message.Body && <div dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(message.Body)) }} />}
         actions={action && <button type="button" onClick={() => onAction(action.href)} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{action.label}</button>}
       />
     </div>

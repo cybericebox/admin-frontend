@@ -3,6 +3,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Bell, Users, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink, Puzzle } from "lucide-react"
+import { BRAND_HEAD, BRAND_TAIL } from "@/i18n/brand"
 import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -91,7 +92,7 @@ export function Sidebar({ onNavigate, onClose, collapsed = false, onToggleCollap
       <div className={`flex min-h-[64px] items-center gap-3 border-b border-[var(--ib-brand-line)] ${collapsed ? "justify-center px-1" : "px-4"}`}>
         <Logo size={32} />
         <div className={`min-w-0 leading-tight ${collapsed ? "sr-only" : ""}`}>
-          <span className="block truncate text-sm font-semibold">Cyber <span className="text-[var(--ib-ice-on-brand)]">ICE</span> Box</span>
+          <span className="block truncate text-sm font-semibold">{BRAND_HEAD}<span className="text-[var(--ib-ice-on-brand)]">ICE</span>{BRAND_TAIL}</span>
           <span className="block text-xs text-[var(--ib-on-brand-3)]">{t("admin.shell.title")}</span>
         </div>
         {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
