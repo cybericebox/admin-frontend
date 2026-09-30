@@ -41,10 +41,6 @@ export type Broadcast = {
   RecipientCount: number
   SentCount: number
   FailedCount: number
-  /** Emails sent with tracking, and how many of them were opened / clicked (older backends omit these). */
-  TrackedCount?: number
-  OpenedCount?: number
-  ClickedCount?: number
   Status: BroadcastStatus
   CreatedAt: string
   FinishedAt: string | null

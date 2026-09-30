@@ -5,7 +5,7 @@ import { AnalyticsBlock, CsvExportButton, DataTable, type Column } from "@/compo
 import type { AnalyticsParams } from "@/api/platformAnalytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
-import { engagementRate, percent } from "./labels"
+import { percent } from "./labels"
 import type { MailKeyRow, MailResource } from "./types"
 
 const P = "admin.platformAnalytics.mail."
@@ -28,10 +28,8 @@ export function KeyTableBlock({ res, params, title, hint, table, keyHeader, labe
     { key: "failed", header: t(P + "col.failed"), align: "right", sortValue: (row) => row.Failed, cell: (row) => formatNumber(row.Failed) },
     { key: "rate", header: t(P + "col.rate"), align: "right", sortValue: (row) => row.FailureRate, cell: (row) => percent(row.FailureRate, formatNumber) },
     { key: "fallbacks", header: t(P + "col.fallbacks"), align: "right", sortValue: (row) => row.Fallbacks, cell: (row) => formatNumber(row.Fallbacks) },
-    { key: "opened", header: t(P + "col.opened"), align: "right", sortValue: (row) => (row.Tracked ? row.OpenRate ?? 0 : -1), cell: (row) => engagementRate(row.Tracked, row.OpenRate, formatNumber) },
-    { key: "clicked", header: t(P + "col.clicked"), align: "right", sortValue: (row) => (row.Tracked ? row.ClickRate ?? 0 : -1), cell: (row) => engagementRate(row.Tracked, row.ClickRate, formatNumber) },
   ]
-  return <AnalyticsBlock title={title} hint={`${hint} ${t(P + "engagementNote")}`}
+  return <AnalyticsBlock title={title} hint={hint}
     actions={<>{actions}<CsvExportButton section="mail" table={table} params={params} disabled={!rows || rows.length === 0} /></>}>
     <DataTable ariaLabel={title} columns={columns} rows={rows} rowKey={(row) => row.Key} loading={res.loading} error={res.error} onRetry={res.reload}
       errorMessage={t(P + "table.error")} emptyMessage={t(P + "table.empty")} defaultSort={{ field: "sent", direction: "desc" }} minHeight={240} />

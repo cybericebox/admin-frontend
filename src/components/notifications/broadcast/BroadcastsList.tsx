@@ -13,7 +13,6 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { StatusPill } from "@/components/notifications/StatusPill"
 import { useRole } from "@/lib/useRole"
-import { BroadcastEngagement } from "./BroadcastEngagement"
 import { audienceLabel } from "./AudiencePicker"
 import { broadcastChannelLabel, broadcastHeading, broadcastPillStatus, broadcastStatusLabel } from "./broadcastLabels"
 
@@ -88,7 +87,7 @@ export function BroadcastsList() {
                     <td className="px-3 py-2 text-foreground">{row.Channels.map(broadcastChannelLabel).join(", ")}</td>
                     <td className="px-3 py-2 text-foreground">{audienceLabel(row.Audience)}</td>
                     <td className="px-3 py-2 text-foreground">{row.RecipientCount}</td>
-                    <td className="px-3 py-2 text-foreground">{row.SentCount} / <span className={row.FailedCount > 0 ? "text-destructive" : undefined}>{row.FailedCount}</span><BroadcastEngagement broadcast={row} /></td>
+                    <td className="px-3 py-2 text-foreground">{row.SentCount} / <span className={row.FailedCount > 0 ? "text-destructive" : undefined}>{row.FailedCount}</span></td>
                     <td className="px-3 py-2"><StatusPill status={broadcastPillStatus(row.Status)} label={broadcastStatusLabel(row.Status)} /></td>
                     <td className="px-3 py-2 text-foreground">{row.CreatedByName || "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{new Date(row.CreatedAt).toLocaleString("uk-UA")}</td>

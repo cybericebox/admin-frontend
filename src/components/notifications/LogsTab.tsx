@@ -19,11 +19,10 @@ import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { EngagementLine, LinksList, type DispatchLink, type TargetEngagement } from "./EngagementLine"
 
 // W7 journal fields (ScopeEventID … Targets) are optional so an older backend
 // without them still renders the list.
-type Target = TargetEngagement & {
+type Target = {
   Channel: string
   Status: string
   Error: string
@@ -42,9 +41,6 @@ type Dispatch = {
   EventName?: string
   RecipientEmail?: string
   BroadcastID?: string | null
-  /** A test send: excluded from the engagement statistics. */
-  IsTest?: boolean
-  Links?: DispatchLink[]
   Targets?: Target[]
   CreatedAt: string
   UpdatedAt: string
@@ -85,7 +81,6 @@ function TargetLine({ target }: { target: Target }) {
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
-      <EngagementLine target={target} />
       {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
       {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"}`}>{target.Error}</span></HoverTooltip>}
     </div>
@@ -201,7 +196,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{d.BroadcastID && <Link href={`/notifications/broadcasts/detail?id=${encodeURIComponent(d.BroadcastID)}`} onClick={(event) => event.stopPropagation()} className="ml-2 text-xs font-normal text-primary hover:underline">{t("admin.notif.logs.openBroadcast")}</Link>}{(d.IsTest || isSmtpTest(d.NotificationType)) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
+                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{d.BroadcastID && <Link href={`/notifications/broadcasts/detail?id=${encodeURIComponent(d.BroadcastID)}`} onClick={(event) => event.stopPropagation()} className="ml-2 text-xs font-normal text-primary hover:underline">{t("admin.notif.logs.openBroadcast")}</Link>}{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       {names[d.RecipientUserID] ? (
@@ -282,14 +277,12 @@ export function LogsTab() {
                     {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
                     {tg.Recipient && <> · {tg.Recipient}</>}
                   </div>
-                  <div className="mt-1"><EngagementLine target={tg} /></div>
                   {tg.FallbackError && <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {tg.FallbackError}</div>}
                   {tg.Error && (tg.Status === "deferred"
                     ? <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.reason")}: {tg.Error}</div>
                     : <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>)}
                 </div>
               ))}
-              <LinksList links={detail.Links} />
             </div>
           )}
           <DialogFooter>

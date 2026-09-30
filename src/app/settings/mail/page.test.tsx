@@ -5,7 +5,6 @@ import type { MailSettings } from "@/api/mail/settings"
 const getMailSettings = vi.fn()
 const saveMailIdentity = vi.fn()
 const saveMailSmtp = vi.fn()
-const saveMailTracking = vi.fn()
 const resetMailSmtp = vi.fn()
 const testMailSmtp = vi.fn()
 vi.mock("@/api/mail/settings", async (importOriginal) => ({
@@ -14,7 +13,6 @@ vi.mock("@/api/mail/settings", async (importOriginal) => ({
   getMailSettings: () => getMailSettings(),
   saveMailIdentity: (input: unknown) => saveMailIdentity(input),
   saveMailSmtp: (input: unknown) => saveMailSmtp(input),
-  saveMailTracking: (enabled: boolean) => saveMailTracking(enabled),
   resetMailSmtp: () => resetMailSmtp(),
   testMailSmtp: (input: unknown) => testMailSmtp(input),
 }))
@@ -207,25 +205,5 @@ describe("mail settings page", () => {
     expect(screen.getByRole("button", { name: /Зараз: збережено в системі\./ })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Зараз: складено зі збереженого домену відправлення\./ })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Зараз: не задано\./ })).toBeInTheDocument()
-  })
-
-  it("sends the tracking switch to PUT /mail/settings/tracking as {Enabled}", async () => {
-    getMailSettings.mockResolvedValue({ ...STORED, TrackEngagement: true })
-    saveMailTracking.mockResolvedValue({ ...STORED, TrackEngagement: false })
-    render(<Page />)
-    const toggle = await screen.findByRole("switch", { name: "Відстежувати відкриття й переходи в листах" })
-    expect(toggle).toHaveAttribute("aria-checked", "true")
-    fireEvent.click(toggle)
-    await waitFor(() => expect(saveMailTracking).toHaveBeenCalledWith(false))
-    await waitFor(() => expect(screen.getByRole("switch", { name: "Відстежувати відкриття й переходи в листах" })).toHaveAttribute("aria-checked", "false"))
-  })
-
-  it("treats a missing TrackEngagement as on and locks the switch without write access", async () => {
-    perms = ["platform.settings.read"]
-    getMailSettings.mockResolvedValue(STORED)
-    render(<Page />)
-    const toggle = await screen.findByRole("switch", { name: "Відстежувати відкриття й переходи в листах" })
-    expect(toggle).toHaveAttribute("aria-checked", "true")
-    expect(toggle).toBeDisabled()
   })
 })
