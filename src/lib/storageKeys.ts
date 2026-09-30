@@ -8,3 +8,4 @@ const SITE_BANNER_DISMISSED = "cib_site_banner_dismissed"
 export function siteBannerDismissedKey(id: string | number, version: string | number = ""): string {
   return `${SITE_BANNER_DISMISSED}_${id}_${version}`
 }
+export const COOKIE_RETURN_TO = "cib_return_to"
