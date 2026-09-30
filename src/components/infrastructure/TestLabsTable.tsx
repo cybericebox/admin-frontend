@@ -91,7 +91,7 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                   <td className="px-3 py-2"><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Expired && <span className="inline-flex rounded-md bg-secondary/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{t("admin.labs.testLabs.expired")}</span>}</span></td>
                   {canWrite && <td className="px-3 py-2">
                     <HoverTooltip text={t("admin.labs.testLabs.terminate")}>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`${t("admin.labs.testLabs.terminate")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onTerminate(lab)}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.testLabs.terminate")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onTerminate(lab)}>
                         <Power aria-hidden="true" className="h-4 w-4" />
                       </Button>
                     </HoverTooltip>

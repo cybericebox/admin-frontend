@@ -99,7 +99,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{stand.Generation}</td>
                   {canWrite && <td className="px-3 py-2">
                     {stand.Status !== "removed" && <HoverTooltip text={t("admin.labs.stands.recreate")}>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`${t("admin.labs.stands.recreate")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onRecreate(stand)}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.stands.recreate")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onRecreate(stand)}>
                         <RotateCw aria-hidden="true" className="h-4 w-4" />
                       </Button>
                     </HoverTooltip>}
