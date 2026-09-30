@@ -25,12 +25,14 @@ type Item = {
   perm?: string
   // Opens another platform app (full navigation, not a Next.js route) with return_to back here.
   external?: boolean
+  // A thin line after the item (Огляд stands apart, like «Підготовка заходу» in the event sidebar).
+  dividerAfter?: boolean
 }
 type Group = { id: string; label: string; icon: LucideIcon; href: string; children: Child[] }
 
 // Same shape as the event /manage sidebar: rows of one style, then collapsible groups.
 const ITEMS: Item[] = [
-  { href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "admin.nav.dashboard", icon: LayoutDashboard, dividerAfter: true },
   { href: "/events", label: "admin.nav.events", icon: CalendarDays, perm: "events.read" },
   { href: exercisesOrigin, label: "admin.nav.exercises", icon: Puzzle, perm: "exercises.read", external: true },
   { href: "/users", label: "admin.nav.users", icon: Users, perm: "users.read" },
@@ -105,11 +107,14 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
         {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
       <nav className="ib-admin-side__nav" aria-label={t("admin.shell.navLabel")}>
-        {items.map((item) => item.external
-          ? <ExternalNavLink key={item.href} item={item} />
-          : <Link key={item.href} className="ib-admin-side__item" href={item.href} aria-current={isActive(pathname, item.href) ? "page" : undefined} onClick={onNavigate}>
-            <item.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(item.label)}</span>
-          </Link>)}
+        {items.map((item) => <Fragment key={item.href}>
+          {item.external
+            ? <ExternalNavLink item={item} />
+            : <Link className="ib-admin-side__item" href={item.href} aria-current={isActive(pathname, item.href) ? "page" : undefined} onClick={onNavigate}>
+              <item.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(item.label)}</span>
+            </Link>}
+          {item.dividerAfter && <hr className="event-manage-sidebar__divider" />}
+        </Fragment>)}
         {groups.map((group) => {
           const isOpen = openGroupID === group.id
           return (
