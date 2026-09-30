@@ -8,6 +8,7 @@ import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { keepBrand } from "@/i18n/brand"
+import { siteBannerDismissedKey } from "@/lib/storageKeys"
 
 /*
  * Site banner look (shared markup, copy it into the other frontends):
@@ -20,7 +21,7 @@ import { keepBrand } from "@/i18n/brand"
  *   warning  bg var(--ib-warn-bg)   text var(--ib-warn)  border var(--ib-warn) at 25%
  *   critical bg var(--ib-danger-bg) text var(--ib-danger) border var(--ib-danger) at 25%
  * Data: GET /api/banners every ~60 s and on tab focus; critical first; the first non-dismissed one is shown.
- * Dismissal: localStorage key `ib:banner:${ID}:${Version}` = "1" (Version changes when the text is edited).
+ * Dismissal: localStorage key `cib_site_banner_dismissed_${ID}_${Version}` = "1" (Version changes when the text is edited).
  */
 
 const TONE: Record<BannerLevel, string> = {
@@ -62,7 +63,7 @@ export function SiteBanner({ banner, onDismiss, className }: { banner: SiteBanne
 }
 
 function storageKey(banner: SiteBannerDTO): string {
-  return `ib:banner:${banner.ID}:${banner.Version}`
+  return siteBannerDismissedKey(banner.ID, banner.Version)
 }
 
 function isDismissed(banner: SiteBannerDTO): boolean {

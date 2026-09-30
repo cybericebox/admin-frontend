@@ -27,20 +27,20 @@ describe("site banner bar", () => {
     render(<SiteBannerBar />)
     await screen.findByText("Планові роботи")
     fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
-    expect(window.localStorage.getItem("ib:banner:b1:v1")).toBe("1")
+    expect(window.localStorage.getItem("cib_site_banner_dismissed_b1_v1")).toBe("1")
     expect(await screen.findByText("Нова функція")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Закрити банер" })).not.toBeInTheDocument()
   })
 
   it("keeps a dismissed banner hidden after a reload", async () => {
-    window.localStorage.setItem("ib:banner:b1:v1", "1")
+    window.localStorage.setItem("cib_site_banner_dismissed_b1_v1", "1")
     render(<SiteBannerBar />)
     expect(await screen.findByText("Нова функція")).toBeInTheDocument()
     expect(screen.queryByText("Планові роботи")).not.toBeInTheDocument()
   })
 
   it("shows the banner again when its version changes", async () => {
-    window.localStorage.setItem("ib:banner:b1:v1", "1")
+    window.localStorage.setItem("cib_site_banner_dismissed_b1_v1", "1")
     api.fetch.mockResolvedValue([{ ...critical, Version: "v2" }])
     render(<SiteBannerBar />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
