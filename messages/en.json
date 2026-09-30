@@ -928,6 +928,7 @@
   "admin.userDetail.statusChanged": "User status changed.",
   "admin.userDetail.deleted": "User deleted.",
   "admin.labs.unit.vcpu": "{value} vCPU",
+  "admin.labs.unit.mcpu": "{value} mCPU",
   "admin.labs.unit.gib": "{value} GiB",
   "admin.labs.unit.mib": "{value} MiB",
   "admin.labs.unit.kib": "{value} KiB",

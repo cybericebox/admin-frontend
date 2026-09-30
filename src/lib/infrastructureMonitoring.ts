@@ -46,7 +46,10 @@ export function capacityMetrics(payload: unknown): CapacityMetrics | null {
 }
 
 export function formatCpu(millicores: number | null): string {
-  return millicores === null ? "—" : t("admin.labs.unit.vcpu", { value: formatNumber(millicores / 1000, { maximumFractionDigits: 2 }) })
+  if (millicores === null) return "—"
+  // Never round a real, small value to «0»: below one vCPU it reads in millicores.
+  if (millicores > 0 && millicores < 1000) return t("admin.labs.unit.mcpu", { value: formatNumber(millicores, { maximumFractionDigits: 0 }) })
+  return t("admin.labs.unit.vcpu", { value: formatNumber(millicores / 1000, { maximumFractionDigits: 2 }) })
 }
 
 export function formatBytes(bytes: number | null): string {

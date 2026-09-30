@@ -928,6 +928,7 @@
   "admin.userDetail.statusChanged": "Статус користувача змінено.",
   "admin.userDetail.deleted": "Користувача видалено.",
   "admin.labs.unit.vcpu": "{value} vCPU",
+  "admin.labs.unit.mcpu": "{value} mCPU",
   "admin.labs.unit.gib": "{value} ГіБ",
   "admin.labs.unit.mib": "{value} МіБ",
   "admin.labs.unit.kib": "{value} КіБ",
