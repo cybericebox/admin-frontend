@@ -6,6 +6,7 @@ import { ApiError } from "@/api/client"
 import { BROADCAST_VARIABLES, getBroadcast, listBroadcastDeliveries, type Broadcast, type BroadcastDelivery } from "@/api/notifications/broadcasts"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -110,9 +111,8 @@ export function BroadcastDetail({ id }: { id: string }) {
     const missing = error.cause instanceof ApiError && error.cause.status === 404
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        {back}
-        {missing ? <EmptyState message={t("admin.notif.broadcast.notFound")} className="flex-1" />
-          : <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} className="flex-1" onRetry={() => { setError(null); setReload((n) => n + 1) }} />}
+        {missing ? <NotFoundScreen block title={t("admin.notif.broadcast.notFound")} />
+          : <>{back}<LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} className="flex-1" onRetry={() => { setError(null); setReload((n) => n + 1) }} /></>}
       </div>
     )
   }

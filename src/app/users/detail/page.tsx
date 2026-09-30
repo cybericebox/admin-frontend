@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
-import { EmptyState } from "@/components/ui/empty-state"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 
@@ -124,8 +124,7 @@ function Detail() {
   if (notFound || !user) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <EmptyState className="flex-1" message={t("admin.userDetail.notFound")} />
+        <NotFoundScreen block title={t("admin.userDetail.notFound")} />
       </div>
     )
   }
