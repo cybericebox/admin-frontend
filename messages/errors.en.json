@@ -86,5 +86,6 @@
   "20222": "The selected audience has no recipients",
   "20224": "The banner is invalid",
   "30220": "Broadcast not found",
-  "30223": "Banner not found"
+  "30223": "Banner not found",
+  "31404": "The test laboratory is already gone"
 }

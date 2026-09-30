@@ -62,10 +62,41 @@ export type Stand = {
 
 export type StandEventOption = { ID: string; Name: string; Tag: string }
 
-export type StandsFilter = { eventId?: string; status?: string; search?: string; page: number; pageSize: number }
+export type StandKind = "event" | "moderators"
+export type StandsFilter = { eventId?: string; status?: string; kind?: string; search?: string; page: number; pageSize: number }
+
+/** Live state of a catalog test lab; "unknown" when the agent did not answer. */
+export type TestLabStatus = "creating" | "ready" | "failed" | "unknown"
+
+/** A catalog test lab: an exercise test deploy running on the infrastructure. */
+export type TestLab = {
+  ID: string
+  GroupName: string
+  ExerciseID: string
+  ExerciseName: string
+  /** 1-based position of the variant in its version; 0 when it is gone. */
+  VariantNumber: number
+  AuthorID: string
+  AuthorName: string
+  AuthorEmail: string
+  CreatedAt: string
+  ExpiresAt: string
+  /** The lease is over but the lab is not cleaned up yet. */
+  Expired: boolean
+  Status: TestLabStatus
+}
+
+export type TestLabsFilter = { search?: string; page: number; pageSize: number }
+
+type StandCounts = { Total: number; Creating: number; Ready: number; Failed: number; Removed: number; Active: number }
 
 export type InfrastructureSummary = {
-  Stands: { Total: number; Creating: number; Ready: number; Failed: number; Removed: number; Active: number }
+  /** Every team stand, the moderators team included. */
+  Stands: StandCounts
+  /** The moderators-team part of Stands. */
+  Moderators?: StandCounts
+  /** Catalog test labs, not team stands. */
+  TestLabs?: { Total: number; Active: number; Expired: number }
   Capacity: { Available: boolean; CPUPercent: number | null; MemoryPercent: number | null }
 }
 
@@ -80,9 +111,18 @@ export function listStands(filter: StandsFilter): Promise<OffsetPage<Stand>> {
   const params = new URLSearchParams({ page: String(filter.page), pageSize: String(filter.pageSize) })
   if (filter.eventId) params.set("eventId", filter.eventId)
   if (filter.status) params.set("status", filter.status)
+  if (filter.kind) params.set("kind", filter.kind)
   if (filter.search) params.set("search", filter.search)
   return apiGet<OffsetPage<Stand>>(`${BASE}/stands?${params}`)
 }
 
 export const recreateStand = (eventId: string, teamId: string) =>
   apiPost<unknown>(`${BASE}/stands/${encodeURIComponent(eventId)}/${encodeURIComponent(teamId)}/recreate`, {})
+
+export function listTestLabs(filter: TestLabsFilter): Promise<OffsetPage<TestLab>> {
+  const params = new URLSearchParams({ page: String(filter.page), pageSize: String(filter.pageSize) })
+  if (filter.search) params.set("search", filter.search)
+  return apiGet<OffsetPage<TestLab>>(`${BASE}/test-labs?${params}`)
+}
+
+export const terminateTestLab = (id: string) => apiPost<unknown>(`${BASE}/test-labs/${encodeURIComponent(id)}/terminate`, {})

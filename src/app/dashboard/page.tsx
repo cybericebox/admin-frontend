@@ -18,10 +18,10 @@ import { EmptyState } from "@/components/ui/empty-state"
 type UserStats = { Total: number }
 type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[]; ByChannel?: { Channel: string; Status: string; Count: number }[] }
 
-function Metric({ label, value, href }: { label: string; value: React.ReactNode; href: string }) {
+function Metric({ label, value, href, hint }: { label: string; value: React.ReactNode; href: string; hint?: string }) {
   return <Link href={href} className="group flex min-h-28 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
     <span className="flex items-start justify-between gap-3 text-sm text-muted-foreground">{label}<ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 opacity-50 group-hover:opacity-100" /></span>
-    <strong className="text-2xl font-semibold tabular-nums text-foreground">{value}</strong>
+    <span className="flex flex-col gap-0.5"><strong className="text-2xl font-semibold tabular-nums text-foreground">{value}</strong>{hint && <span className="text-xs text-muted-foreground">{hint}</span>}</span>
   </Link>
 }
 
@@ -76,6 +76,9 @@ export default function Page() {
   const unavailable = "—"
   const percent = (value: number | null | undefined) => value === null || value === undefined ? unavailable : `${formatNumber(value, { maximumFractionDigits: 1 })}%`
   const stands = summary?.Stands
+  // Every lab on the infrastructure counts as active: team stands (moderators team included) and catalog test labs.
+  const testLabsActive = summary?.TestLabs?.Active ?? 0
+  const labsActive = stands ? stands.Active + testLabsActive : unavailable
   const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? t("admin.dashboard.infra.disconnected") : infrastructure.Healthy ? t("admin.dashboard.infra.running") : t("admin.dashboard.infra.attention")
   // Failed deliveries are counted per channel: a dispatch whose in-app copy arrived is "done" even when its email failed.
   const notificationErrors = (notifications?.ByChannel ?? []).reduce((sum, item) => item.Status === "error" ? sum + item.Count : sum, 0)
@@ -90,7 +93,7 @@ export default function Page() {
         {notificationsAllowed && <Metric label={t("admin.dashboard.deliveryErrors7d")} value={notifications ? notificationErrors : unavailable} href="/analytics/notifications" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.infrastructure")} value={infrastructureLabel} href="/labs" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.standsFailed")} value={stands?.Failed ?? unavailable} href="/labs?status=failed" />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.standsActive")} value={stands?.Active ?? unavailable} href="/labs?status=active" />}
+        {infrastructureAllowed && <Metric label={t("admin.dashboard.standsActive")} value={labsActive} hint={stands && testLabsActive > 0 ? t("admin.dashboard.testLabsActive", { count: testLabsActive }) : undefined} href="/labs?status=active" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.clusterCpu")} value={percent(summary?.Capacity?.CPUPercent)} href="/labs#capacity" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.clusterMemory")} value={percent(summary?.Capacity?.MemoryPercent)} href="/labs#capacity" />}
       </div>

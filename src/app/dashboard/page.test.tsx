@@ -15,7 +15,7 @@ describe("operational overview", () => {
     api.get.mockImplementation((path: string) => {
       if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
       if (path === "/api/infrastructure/status") return Promise.resolve({ Available: false, Healthy: false, agents: [] })
-      if (path === "/api/infrastructure/summary") return Promise.resolve({ Stands: { Total: 9, Creating: 1, Ready: 6, Failed: 2, Removed: 0, Active: 7 }, Capacity: { Available: true, CPUPercent: 42.5, MemoryPercent: null } })
+      if (path === "/api/infrastructure/summary") return Promise.resolve({ Stands: { Total: 9, Creating: 1, Ready: 6, Failed: 2, Removed: 0, Active: 7 }, TestLabs: { Total: 4, Active: 3, Expired: 1 }, Capacity: { Available: true, CPUPercent: 42.5, MemoryPercent: null } })
       if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 20, ByStatus: [] })
       return Promise.reject(new Error(path))
     })
@@ -51,7 +51,9 @@ describe("operational overview", () => {
     expect(failed).toHaveTextContent("2")
     const active = screen.getByText("admin.dashboard.standsActive").closest("a")!
     expect(active).toHaveAttribute("href", "/labs?status=active")
-    expect(active).toHaveTextContent("7")
+    // Team stands (7) and catalog test labs (3) are all labs on the infrastructure.
+    expect(active).toHaveTextContent("10")
+    expect(active).toHaveTextContent("admin.dashboard.testLabsActive")
     const cpu = screen.getByText("admin.dashboard.clusterCpu").closest("a")!
     expect(cpu).toHaveAttribute("href", "/labs#capacity")
     expect(cpu).toHaveTextContent("42,5%")

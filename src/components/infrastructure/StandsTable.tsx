@@ -34,7 +34,9 @@ export function teamLabel(stand: Stand): string {
   return stand.Moderators || !stand.TeamName ? t("admin.labs.moderatorsTeam") : stand.TeamName
 }
 
-export type StandsFilters = { eventId: string; status: string; search: string; page: number; pageSize: number }
+export const STAND_KIND_FILTERS = ["event", "moderators"] as const
+
+export type StandsFilters = { eventId: string; status: string; kind: string; search: string; page: number; pageSize: number }
 
 export function StandsTable({ filters, searchInput, onSearchInput, onFilters, events, items, total, loading, error, errorCause, canWrite, onRetry, onRecreate }: {
   filters: StandsFilters
@@ -61,6 +63,10 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
         <SelectMenu value={filters.eventId || "all"} onChange={(value) => onFilters({ eventId: value === "all" ? "" : value, page: 1 })}
           options={[{ value: "all", label: t("admin.labs.stands.allEvents") }, ...events.map((event) => ({ value: event.ID, label: event.Name || event.Tag }))]}
           ariaLabel={t("admin.labs.stands.filterEvent")} className="h-10 min-w-44 text-sm" />
+        <SelectMenu value={filters.kind || "all"} onChange={(value) => onFilters({ kind: value === "all" ? "" : value, page: 1 })}
+          options={[{ value: "all", label: t("admin.labs.stands.allKinds") }, ...STAND_KIND_FILTERS.map((value) => ({ value, label: t(`admin.labs.stands.kind.${value}`) }))]}
+          ariaLabel={t("admin.labs.stands.filterKind")} className="h-10 min-w-44 text-sm" />
+        <FieldHelp text={t("admin.labs.stands.kindHelp")} />
         <SelectMenu value={filters.status || "all"} onChange={(value) => onFilters({ status: value === "all" ? "" : value, page: 1 })}
           options={[{ value: "all", label: t("admin.labs.stands.allStatuses") }, ...STAND_STATUS_FILTERS.map((value) => ({ value, label: t(`admin.labs.stands.status.${value}`) }))]}
           ariaLabel={t("admin.labs.stands.filterStatus")} className="h-10 min-w-44 text-sm" />
@@ -69,7 +75,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
       <div className="relative" aria-busy={loading}>
         {error ? <LoadError message={error} error={errorCause} onRetry={onRetry} className={block} />
           : items === null ? <LoadingArea className={block} label={t("admin.loading")} />
-          : items.length === 0 ? <EmptyState message={t(filters.eventId || filters.status || filters.search ? "admin.labs.stands.emptyFiltered" : "admin.labs.stands.empty")} className={block} />
+          : items.length === 0 ? <EmptyState message={t(filters.eventId || filters.status || filters.kind || filters.search ? "admin.labs.stands.emptyFiltered" : "admin.labs.stands.empty")} className={block} />
           : <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
