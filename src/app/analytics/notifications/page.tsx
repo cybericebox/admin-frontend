@@ -1,8 +1,8 @@
 "use client"
 
 import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { StatisticsTab } from "@/components/notifications/StatisticsTab"
+import { NotificationsAnalytics } from "@/components/analytics/mail/NotificationsAnalytics"
 
 export default function Page() {
-  return <RequirePermission perm="notifications.templates.read"><StatisticsTab /></RequirePermission>
+  return <RequirePermission perm="analytics.read"><NotificationsAnalytics /></RequirePermission>
 }

@@ -66,7 +66,7 @@ describe("analytics overview page", () => {
     expect(within(screen.getByRole("link", { name: "Схвалені учасники" }).parentElement as HTMLElement).getByText("0%")).toBeInTheDocument()
     expect(screen.getByText("чернетки 1 · опубліковані 2 · тривають 3 · завершені 4")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Спроби" })).toHaveAttribute("href", "/analytics/tasks")
-    expect(screen.getByRole("link", { name: "Листи надіслано" })).toHaveAttribute("href", "/analytics/mail")
+    expect(screen.getByRole("link", { name: "Листи надіслано" })).toHaveAttribute("href", "/analytics/notifications")
     expect(screen.getByRole("link", { name: "Стенди працюють" })).toHaveAttribute("href", "/analytics/infrastructure")
     expect(await screen.findAllByTestId("echart")).toHaveLength(3)
     expect(mocks.apiGet.mock.calls[0][0]).toMatch(/^\/api\/analytics\/overview\?from=.+&to=.+$/)

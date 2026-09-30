@@ -22,7 +22,7 @@ describe("admin sidebar", () => {
     expect(exercises).toHaveAttribute("href", `https://exercises.cybericebox.local?return_to=${encodeURIComponent(window.location.href)}`)
     expect(exercises).not.toHaveAttribute("aria-current")
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.analytics" }))
-    const analytics = ["Overview:/analytics", "Users:/analytics/users", "Events:/analytics/events", "Tasks:/analytics/tasks", "Infrastructure:/analytics/infrastructure", "Mail:/analytics/mail", "Notifications:/analytics/notifications"]
+    const analytics = ["Overview:/analytics", "Users:/analytics/users", "Events:/analytics/events", "Tasks:/analytics/tasks", "Infrastructure:/analytics/infrastructure", "Notifications:/analytics/notifications"]
     for (const entry of analytics) {
       const [name, href] = entry.split(":")
       expect(screen.getByRole("link", { name: `admin.nav.analytics${name}` })).toHaveAttribute("href", href)
@@ -127,7 +127,7 @@ describe("admin sidebar", () => {
     render(<Sidebar />)
     expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("aria-current", "page")
     expect(screen.queryByRole("link", { name: "admin.nav.analyticsOverview" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("link", { name: "admin.nav.analyticsMail" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "admin.nav.analyticsNotifications" })).not.toBeInTheDocument()
   })
 
   it("marks Overview current only on /analytics itself", () => {

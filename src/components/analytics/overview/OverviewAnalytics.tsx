@@ -47,8 +47,8 @@ export function OverviewAnalytics() {
         {tile("approved", "/analytics/events", data?.Participants.Approved.Value, data?.Participants.Approved)}
         {tile("attempts", "/analytics/tasks", data?.Activity.Attempts.Value, data?.Activity.Attempts)}
         {tile("solves", "/analytics/tasks", data?.Activity.Solves.Value, data?.Activity.Solves)}
-        {tile("emailSent", "/analytics/mail", data?.Mail.Sent.Value, data?.Mail.Sent)}
-        {tile("emailFailed", "/analytics/mail", data?.Mail.Failed.Value, data?.Mail.Failed, { inverse: true })}
+        {tile("emailSent", "/analytics/notifications", data?.Mail.Sent.Value, data?.Mail.Sent)}
+        {tile("emailFailed", "/analytics/notifications", data?.Mail.Failed.Value, data?.Mail.Failed, { inverse: true })}
         {tile("stands", "/analytics/infrastructure", stands?.Ready, undefined, { sub: standsLine })}
         {tile("standFailures", "/analytics/infrastructure", stands?.Failures.Value, stands?.Failures, { inverse: true })}
       </div>

@@ -1,8 +1,10 @@
 "use client"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
-import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { MailAnalytics } from "@/components/analytics/mail/MailAnalytics"
-
+// The page moved: «Пошта» and the old notification statistics are one page now.
 export default function Page() {
-  return <RequirePermission perm="analytics.read"><MailAnalytics /></RequirePermission>
+  const router = useRouter()
+  useEffect(() => { router.replace("/analytics/notifications") }, [router])
+  return null
 }

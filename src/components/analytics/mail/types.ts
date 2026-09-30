@@ -1,6 +1,8 @@
-// GET /api/analytics/mail (PascalCase JSON). Aggregates only, no recipient addresses.
+// GET /api/analytics/mail (PascalCase JSON): delivery of the email and in-app channels. Aggregates only, no recipient addresses.
+export type MailChannel = "email" | "in_app"
 export type MailDay = { Day: string; Sent: number; Failed: number; Fallbacks: number }
-export type MailKeyRow = { Key: string; Sent: number; Failed: number; Fallbacks: number; Total: number; FailureRate: number }
+/** Deferred deliveries were held back by the SMTP send limit; they are not part of Total. Absent on an older backend. */
+export type MailKeyRow = { Key: string; Sent: number; Failed: number; Deferred?: number; Fallbacks: number; Total: number; FailureRate: number }
 export type MailErrorRow = { Code: string; Message: string; Total: number; LastAt: string }
 export type MailOptions = { Transports: string[]; Types: string[] }
 
@@ -13,6 +15,8 @@ export type MailFunnels = {
 
 export type MailData = {
   Period: { From: string; To: string; All: boolean }
+  /** "" = all channels. */
+  Channel: string
   Transport: string
   Type: string
   IncludeTests: boolean
@@ -24,6 +28,8 @@ export type MailData = {
   Fallbacks: number
   Daily: MailDay[]
   ByTransport: MailKeyRow[]
+  /** Absent on an older backend. */
+  ByChannel?: MailKeyRow[]
   ByType: MailKeyRow[]
   Errors: MailErrorRow[]
   Options: MailOptions
@@ -31,7 +37,7 @@ export type MailData = {
   Funnels?: MailFunnels
 }
 
-export type MailFilters = { transport: string; type: string; includeTests: boolean }
+export type MailFilters = { channel: "" | MailChannel; transport: string; type: string; includeTests: boolean }
 
 /** What every block of the page receives from the single resource. */
 export type MailResource = {

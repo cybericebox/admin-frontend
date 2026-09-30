@@ -47,8 +47,7 @@ const GROUPS: Group[] = [
       { href: "/analytics/events", label: "admin.nav.analyticsEvents", icon: CalendarCheck, perm: "analytics.read" },
       { href: "/analytics/tasks", label: "admin.nav.analyticsTasks", icon: ClipboardList, perm: "analytics.read" },
       { href: "/analytics/infrastructure", label: "admin.nav.analyticsInfrastructure", icon: Activity, perm: "analytics.read" },
-      { href: "/analytics/mail", label: "admin.nav.analyticsMail", icon: Mail, perm: "analytics.read" },
-      { href: "/analytics/notifications", label: "admin.nav.analyticsNotifications", icon: MessageSquare, perm: "notifications.templates.read" },
+      { href: "/analytics/notifications", label: "admin.nav.analyticsNotifications", icon: MessageSquare, perm: "analytics.read" },
     ],
   },
   {
