@@ -60,11 +60,12 @@ describe("infrastructure page", () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/current?includeRecent=true"))
   })
 
-  it("explains a missing agent without exposing backend English messages", async () => {
+  it("shows only a not-connected state, without refresh or tables, when no agent is configured", async () => {
     serve({ status: { Available: false, Healthy: false, Mode: "missing_config", Agents: [], Capabilities: { Laboratories: false }, Warning: { Code: "infrastructure_unavailable", Message: "No infrastructure agent is configured" } } })
     render(<Page />)
-    expect(await screen.findByText("Режим: не налаштовано")).toBeInTheDocument()
-    expect(screen.getByText("Агент лабораторій не налаштований.")).toBeInTheDocument()
+    expect(await screen.findByText(/Лабораторії не підключено/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Оновити/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.queryByText("No infrastructure agent is configured")).not.toBeInTheDocument()
   })
 

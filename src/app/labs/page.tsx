@@ -36,7 +36,6 @@ function modeLabel(mode: string): string {
 
 function warningLabel(status: InfrastructureStatus): string | null {
   if (!status.Warning) return null
-  if (!status.Available) return t("admin.labs.warning.notConfigured")
   if (!status.Healthy) return t("admin.labs.warning.unhealthy")
   return t("admin.labs.warning.attention")
 }
@@ -124,23 +123,25 @@ function LabsPage() {
   }
 
   const loading = updatedAt === null && !status && !error
+  const connected = status?.Available === true
   const retry = () => void refresh(true)
 
   return <RequirePermission perm="infrastructure.read" fallback={<p className="text-sm text-muted-foreground">{t("admin.labs.noAccess")}</p>}>
     <div className="flex min-h-full flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-xl font-semibold text-foreground">{t("admin.labs.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.labs.subtitle")}</p></div>
-        <div className="flex items-center gap-3">
+        {/* Nothing to refresh while the laboratory is not connected: the page keeps polling quietly and switches on its own. */}
+        {connected && <div className="flex items-center gap-3">
           <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
           <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
-        </div>
+        </div>}
       </div>
       {error && status && <LoadError message={error} error={causes.status} compact onRetry={retry} />}
-      {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} error={causes.status} onRetry={retry} className="flex-1" /> : <>
+      {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} error={causes.status} onRetry={retry} className="flex-1" /> : !connected ? <EmptyState className="flex-1" message={t("admin.labs.notConnected")} /> : <>
         <Card><CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.connection")}<FieldHelp text={t("admin.labs.connectionHelp")} /></CardTitle></CardHeader><CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Available && status.Healthy}>{t(status.Available ? status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention" : "admin.labs.state.disconnected")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.Mode) })}</span></div>
+          <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Healthy}>{t(status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.Mode) })}</span></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}
-          {status.Agents.length === 0 ? <EmptyState message={t("admin.labs.noAgents")} compact /> : <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.Name || agent.Key}</span><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
+          {status.Agents.length > 0 && <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agent.Name || agent.Key}</span><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
         </CardContent></Card>
         <StandsTable filters={filters} searchInput={searchInput} onSearchInput={setSearchInput} onFilters={(patch) => setFilters((value) => ({ ...value, ...patch }))}
           events={standEvents} items={stands} total={standsTotal} loading={standsLoading} error={standsError} errorCause={causes.stands} canWrite={canWrite} onRetry={retry}
