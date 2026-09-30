@@ -102,9 +102,6 @@
   "role.event.moderator": "Модератор",
   "role.event.observer": "Спостерігач",
   "admin.role.viewOnlyBadge": "Лише перегляд",
-  "admin.noAccess.title": "Немає доступу",
-  "admin.noAccess.body": "У вас немає дозволу на перегляд адміністративної панелі.",
-  "admin.noAccess.backToMain": "Повернутися на сайт",
   "admin.comingSoon": "Незабаром",
   "admin.accountMenu": "Меню облікового запису",
   "admin.loading": "Завантаження…",
@@ -1518,5 +1515,11 @@
   "admin.notif.banners.stateInactive": "Вимкнений",
   "admin.notif.banners.actions": "Дії",
   "admin.notif.banners.activate": "Увімкнути",
-  "admin.notif.banners.deactivate": "Вимкнути"
+  "admin.notif.banners.deactivate": "Вимкнути",
+  "auth.redirecting": "Переходимо до входу…",
+  "auth.noAccess.title": "Немає доступу",
+  "auth.noAccess.body": "Ваш обліковий запис {email} не має доступу до цієї сторінки.",
+  "auth.noAccess.switch": "Увійти іншим обліковим записом",
+  "auth.noAccess.home": "На головну",
+  "auth.noAccess.failed": "Не вдалося вийти з облікового запису. Спробуйте ще раз."
 }

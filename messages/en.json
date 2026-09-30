@@ -102,9 +102,6 @@
   "role.event.moderator": "Moderator",
   "role.event.observer": "Observer",
   "admin.role.viewOnlyBadge": "View-only",
-  "admin.noAccess.title": "No access",
-  "admin.noAccess.body": "You don't have permission to view the admin area.",
-  "admin.noAccess.backToMain": "Back to site",
   "admin.comingSoon": "Coming soon",
   "admin.accountMenu": "Account menu",
   "admin.loading": "Loading…",
@@ -1518,5 +1515,11 @@
   "admin.notif.banners.stateInactive": "Disabled",
   "admin.notif.banners.actions": "Actions",
   "admin.notif.banners.activate": "Enable",
-  "admin.notif.banners.deactivate": "Disable"
+  "admin.notif.banners.deactivate": "Disable",
+  "auth.redirecting": "Taking you to sign in…",
+  "auth.noAccess.title": "No access",
+  "auth.noAccess.body": "Your account {email} does not have access to this page.",
+  "auth.noAccess.switch": "Sign in with another account",
+  "auth.noAccess.home": "Home",
+  "auth.noAccess.failed": "Could not sign out. Try again."
 }

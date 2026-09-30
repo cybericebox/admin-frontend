@@ -7,7 +7,8 @@ import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
 import { SiteBannerBar } from "./SiteBanner"
-import { idOrigin, mainOrigin } from "@/lib/origins"
+import { NoAccessScreen } from "./NoAccessScreen"
+import { SignInRedirect } from "./SignInRedirect"
 const SIDEBAR_STORAGE_KEY = "cybericebox.admin.sidebar.collapsed"
 
 const TITLES: Record<string, string> = {
@@ -44,33 +45,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     try { window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next)) } catch { /* Keep the current-tab setting. */ }
   }
 
-  useEffect(() => {
-    if (!isLoading && role === null) {
-      window.location.assign(`${idOrigin}/sign-in?return_to=${encodeURIComponent(window.location.href)}`)
-    }
-  }, [isLoading, role])
-
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
   }
 
-  // Not authenticated → bounce to id sign-in with return_to.
+  // Not authenticated (401) → straight to the id sign-in with return_to, behind the loader.
   if (role === null) {
-    return null
+    return <SignInRedirect />
   }
 
-  // Authenticated but unprivileged → no-access panel (do NOT loop to sign-in).
+  // Authenticated but unprivileged (403) → the no-access screen (do NOT loop to sign-in).
   if (role === "user") {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="frost-panel frost-in max-w-md rounded-lg p-8 text-center">
-          <h1 className="text-xl font-semibold text-foreground">{t("admin.noAccess.title")}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{t("admin.noAccess.body")}</p>
-          <a className="mt-4 inline-block text-sm text-primary hover:underline"
-             href={mainOrigin}>{t("admin.noAccess.backToMain")}</a>
-        </div>
-      </div>
-    )
+    return <NoAccessScreen />
   }
 
   const titleKey = Object.keys(TITLES).find((p) => pathname.startsWith(p)) ?? "/dashboard"
