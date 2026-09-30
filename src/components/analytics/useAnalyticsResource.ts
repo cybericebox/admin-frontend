@@ -8,7 +8,10 @@ import { SectionContext } from "./sectionContext"
 
 export type AnalyticsResource<T> = {
   data: T | undefined
+  /** The first load only: a period or filter change keeps the previous data in place. */
   loading: boolean
+  /** Any fetch in flight, including one that keeps the previous data on screen. */
+  refreshing: boolean
   error: unknown
   /** The API answered 403; SectionPage then shows the error screen. */
   forbidden: boolean
@@ -20,7 +23,8 @@ export type AnalyticsResource<T> = {
 /**
  * GET /api/analytics/<section> with cancellation. Inside SectionPage the chosen
  * period (from / to) is added to the query, and, when auto-refresh is on, the data
- * is refetched silently on an interval. `params` (extra filters) override the period
+ * is refetched silently on an interval. A period change keeps the previous data
+ * until the new answer arrives (only the very first load reports `loading`). `params` (extra filters) override the period
  * keys. Pass `{ period: false }` for a section that ignores the period.
  */
 export function useAnalyticsResource<T>(section: string, params: AnalyticsParams = {}, options: { period?: boolean } = {}): AnalyticsResource<T> {
@@ -42,7 +46,7 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
     const ctl = new AbortController()
     controller.current = ctl
     started.current = cur.key
-    if (!silent) setState((prev) => ({ key: cur.key, data: prev.key === cur.key ? prev.data : undefined, done: false, at: prev.at }))
+    if (!silent) setState((prev) => ({ key: cur.key, data: prev.data, done: false, at: prev.at }))
     cur.ctx?.reportBusy(1)
     try {
       const query = { ...(cur.withPeriod && cur.ctx ? cur.ctx.period.resolve() : {}), ...cur.params }
@@ -76,8 +80,9 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
   const current = state.key === key
   const error = current ? state.error : undefined
   return {
-    data: current ? state.data : undefined,
-    loading: !current || !state.done,
+    data: state.data,
+    loading: state.data === undefined && (!current || !state.done),
+    refreshing: !current || !state.done,
     error,
     forbidden: error instanceof ApiError && error.status === 403,
     updatedAt: state.at,

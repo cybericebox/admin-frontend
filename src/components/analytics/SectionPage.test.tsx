@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { SectionPage } from "./SectionPage"
+import { useState } from "react"
 import { useAnalyticsResource } from "./useAnalyticsResource"
 
 const mocks = vi.hoisted(() => ({ apiGet: vi.fn() }))
@@ -50,5 +51,22 @@ describe("SectionPage + useAnalyticsResource", () => {
     unmount()
     render(<SectionPage title="A" autoRefresh="off"><p>x</p></SectionPage>)
     expect(screen.getByRole("switch", { name: /Автооновлення/ })).toHaveAttribute("aria-checked", "false")
+  })
+  it("keeps the previous data on screen while a changed filter loads", async () => {
+    function Filtered() {
+      const [kind, setKind] = useState("a")
+      const r = useAnalyticsResource<{ Total: number }>("events", { kind })
+      return <div><button onClick={() => setKind("b")}>change</button>{r.loading ? <p>loading</p> : <p>total {r.data?.Total}</p>}</div>
+    }
+    let resolveSecond: (value: { Total: number }) => void = () => {}
+    mocks.apiGet.mockResolvedValueOnce({ Total: 5 }).mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve }))
+    render(<SectionPage title="Events"><Filtered /></SectionPage>)
+    await screen.findByText("total 5")
+    fireEvent.click(screen.getByRole("button", { name: "change" }))
+    await waitFor(() => expect(mocks.apiGet).toHaveBeenCalledTimes(2))
+    expect(screen.getByText("total 5")).toBeInTheDocument()
+    expect(screen.queryByText("loading")).toBeNull()
+    resolveSecond({ Total: 9 })
+    await screen.findByText("total 9")
   })
 })
