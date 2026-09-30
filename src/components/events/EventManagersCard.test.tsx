@@ -32,6 +32,11 @@ describe("EventManagersCard", () => {
     expect(screen.queryByRole("button", { name: "Вилучити Олена Коваль" })).not.toBeInTheDocument()
   })
 
+  it("says at the bottom that platform administrators implicitly have the view role", async () => {
+    render(<EventManagersCard eventID="event-1" managers={managers} editable={false} onChanged={vi.fn()} />)
+    expect(await screen.findByText(/Усі адміністратори платформи мають у цьому заході роль перегляду/)).toBeInTheDocument()
+  })
+
   it("changes a non-owner role through the event API", async () => {
     const onChanged = vi.fn()
     render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={onChanged} />)

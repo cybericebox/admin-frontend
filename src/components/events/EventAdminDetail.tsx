@@ -32,9 +32,18 @@ function formOf(event: Event) {
   }
 }
 
-export function EventAdminDetail({ id }: { id: string }) {
+export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: string | null }) {
   const { can, me } = useRole()
-  const [tab, setTab] = useState("overview")
+  const [tab, setTab] = useState(initialTab === "analytics" ? "analytics" : "overview")
+
+  // The tab lives in the address (?tab=analytics), so the way back from the event site lands on it.
+  function changeTab(next: string) {
+    setTab(next)
+    const url = new URL(window.location.href)
+    if (next === "overview") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", next)
+    window.history.replaceState(window.history.state, "", url)
+  }
   const [event, setEvent] = useState<Event | null>(null)
   const [managers, setManagers] = useState<EventManager[]>([])
   const [draft, setDraft] = useState<ReturnType<typeof formOf> | null>(null)
@@ -171,7 +180,7 @@ export function EventAdminDetail({ id }: { id: string }) {
       <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{t(`admin.events.lifecycle.${event.Status === "archived" ? "archived" : event.Status === "pending" ? "not_available" : event.LifecycleStatus ?? "not_published"}`)}</span>
     </div>
 
-    <Tabs value={tab} onValueChange={setTab}>
+    <Tabs value={tab} onValueChange={changeTab}>
     <TabsList aria-label={t("admin.events.tabs.label")}>
       <TabsTrigger value="overview">{t("admin.events.tabs.overview")}</TabsTrigger>
       <TabsTrigger value="analytics">{t("admin.events.tabs.analytics")}</TabsTrigger>

@@ -7,8 +7,9 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 
 function Detail() {
-  const id = useSearchParams().get("id") ?? ""
-  return <EventAdminDetail key={id} id={id} />
+  const params = useSearchParams()
+  const id = params.get("id") ?? ""
+  return <EventAdminDetail key={id} id={id} initialTab={params.get("tab")} />
 }
 
 export default function Page() {

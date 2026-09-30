@@ -898,6 +898,7 @@
   "admin.events.manager.platformReadNote": "Platform administrators already have read access to all events.",
   "admin.events.manager.redundant": "Redundant",
   "admin.events.manager.redundantHint": "This role adds nothing: a platform administrator already reads every event. Give the moderator role or remove the entry.",
+  "admin.events.manager.implicitViewerNote": "All platform administrators have the view role in this event: they see everything but cannot change anything or solve tasks.",
   "admin.events.manager.saveError": "Could not save the role. Please try again.",
   "admin.events.manager.invited": "User invited and added to the event.",
   "admin.events.manager.invitedNotAssigned": "The invitation was sent, but event access was not granted. Find the user and add them again.",

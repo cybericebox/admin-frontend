@@ -152,6 +152,16 @@ describe("EventAdminDetail", () => {
     expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
   })
 
+  it("keeps the selected tab in the address and reopens «Аналітика» from it", async () => {
+    render(<EventAdminDetail id="event-1" initialTab="analytics" />)
+    expect(await screen.findByText(/^analytics:event-1:spring:/)).toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.overview" }))
+    expect(window.location.search).not.toContain("tab=")
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.analytics" }))
+    expect(window.location.search).toContain("tab=analytics")
+    window.history.replaceState(null, "", "/")
+  })
+
   it("offers the attempts journal only to the event's assigned owner or manager", async () => {
     const open = async () => {
       render(<EventAdminDetail id="event-1" />)

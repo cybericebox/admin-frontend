@@ -218,6 +218,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         </li>
       })}
     </ul>
+    <p className="mt-3 text-xs text-muted-foreground">{t("admin.events.manager.implicitViewerNote")}</p>
 
     {adding && editable && <div className="mt-4 space-y-3 rounded-md border border-border p-3">
       <div className="flex items-center gap-1.5"><label className="text-sm font-medium" htmlFor="event-manager-search">{t("admin.events.manager.user")}</label><FieldHelp text={t("admin.events.manager.userHelp")} /></div>
