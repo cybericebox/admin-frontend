@@ -27,19 +27,9 @@ import { agentDisplayName } from "@/lib/infrastructureMonitoring"
 import { usePolling } from "@/lib/usePolling"
 import { t } from "@/i18n/t"
 
-function modeLabel(mode: string): string {
-  switch (mode) {
-    case "available": return t("admin.labs.mode.available")
-    case "unhealthy": return t("admin.labs.mode.unhealthy")
-    case "missing_config": return t("admin.labs.mode.missingConfig")
-    default: return t("admin.labs.unknownState")
-  }
-}
-
+// One short reason under the chip, only when the chip alone does not say it.
 function warningLabel(status: InfrastructureStatus): string | null {
-  if (!status.Warning) return null
-  if (!status.Healthy) return t("admin.labs.warning.unhealthy")
-  return t("admin.labs.warning.attention")
+  return status.Warning && !status.Healthy ? t("admin.labs.warning.unhealthy") : null
 }
 
 function StateBadge({ good, children }: { good: boolean; children: React.ReactNode }) {
@@ -175,8 +165,8 @@ function LabsPage() {
       {error && status && <LoadError message={error} error={causes.status} compact onRetry={retry} />}
       {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} error={causes.status} onRetry={retry} className="flex-1" /> : !connected ? <EmptyState className="flex-1" message={t("admin.labs.notConnected")} /> : <>
         <Card><CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.connection")}<FieldHelp text={t("admin.labs.connectionHelp")} /></CardTitle></CardHeader><CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Healthy}>{t(status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention")}</StateBadge><span className="text-sm text-muted-foreground">{t("admin.labs.modeLine", { mode: modeLabel(status.Mode) })}</span></div>
-          {warningLabel(status) && <p role="alert" className="text-sm text-[var(--ib-warn)]">{warningLabel(status)}</p>}
+          <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Healthy}>{t(status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention")}</StateBadge></div>
+          {warningLabel(status) && <p role="alert" className="text-sm text-muted-foreground">{warningLabel(status)}</p>}
           {status.Agents.length > 0 && <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agentDisplayName(agent)}</span><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
         </CardContent></Card>
         <StandsTable filters={filters} searchInput={searchInput} onSearchInput={setSearchInput} onFilters={(patch) => setFilters((value) => ({ ...value, ...patch }))}

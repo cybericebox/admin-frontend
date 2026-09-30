@@ -45,7 +45,8 @@ describe("infrastructure page", () => {
     serve({ current: [currentLab()], capacity: [capacityRow({ cpu: 4 })] })
     render(<Page />)
     expect((await screen.findAllByText("Primary")).length).toBeGreaterThan(0)
-    expect(screen.getByText("Режим: доступно")).toBeInTheDocument()
+    expect(screen.getByText("Доступна")).toBeInTheDocument()
+    expect(screen.queryByText(/Режим:/)).not.toBeInTheDocument()
     expect(screen.getByText("Поточний стан лабораторій")).toBeInTheDocument()
     expect(screen.getAllByText("Осінній CTF").length).toBeGreaterThan(0)
     expect(screen.getByText("Червоні")).toBeInTheDocument()
@@ -104,10 +105,20 @@ describe("infrastructure page", () => {
     expect(screen.getByText("Перевищено доступну ємність.")).toBeInTheDocument()
   })
 
+  it("says an unhealthy agent once: one chip, one reason line, the agent row keeps its own chip", async () => {
+    serve({ status: { ...okStatus, Healthy: false, Mode: "unhealthy", Agents: [{ ...agent, Healthy: false }], Warning: { Code: "agent_unhealthy", Message: "x" } } })
+    render(<Page />)
+    expect(await screen.findByText("Потребує уваги")).toBeInTheDocument()
+    expect(screen.queryByText(/Режим:/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/потребує уваги/i)).toHaveLength(1)
+    expect(screen.getByRole("alert")).toHaveTextContent("Агент лабораторій не відповідає")
+    expect(screen.getByText("Недоступний")).toBeInTheDocument()
+  })
+
   it("keeps agent status visible when the current state fails to load", async () => {
     serve({ current: new Error("monitoring unavailable") })
     render(<Page />)
-    expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
+    expect(await screen.findByText("Доступна")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити спостереження лабораторій.")).toBeInTheDocument()
     expect(screen.queryByText("Немає даних про поточний стан лабораторій.")).not.toBeInTheDocument()
   })
@@ -115,7 +126,7 @@ describe("infrastructure page", () => {
   it("keeps agent status visible when capacity fails to load", async () => {
     serve({ capacity: new Error("capacity unavailable") })
     render(<Page />)
-    expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
+    expect(await screen.findByText("Доступна")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити ресурси кластера.")).toBeInTheDocument()
     expect(screen.queryByText("Немає даних про ресурси кластера.")).not.toBeInTheDocument()
   })
