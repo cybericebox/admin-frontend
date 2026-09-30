@@ -755,6 +755,7 @@
   "admin.labs.state.attention": "Needs attention",
   "admin.labs.modeLine": "Mode: {mode}",
   "admin.labs.agent.up": "Running",
+  "admin.labs.agent.primary": "Primary agent",
   "admin.labs.agent.down": "Unavailable",
   "admin.labs.obs.title": "Current laboratory state",
   "admin.labs.obs.empty": "No current laboratory state.",

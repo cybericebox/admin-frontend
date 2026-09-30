@@ -54,6 +54,12 @@ describe("infrastructure page", () => {
     expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/capacity/current")
   })
 
+  it("shows the translated label for the configured primary agent, not the stored name", async () => {
+    serve({ status: { ...okStatus, Agents: [{ ...agent, Key: "configured-primary", Name: "" }] } })
+    render(<Page />)
+    expect((await screen.findAllByText("Основний агент")).length).toBeGreaterThan(0)
+  })
+
   it("asks for recent events only when the toggle is on", async () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("switch", { name: "Показати недавні заходи" }))

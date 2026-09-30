@@ -113,3 +113,10 @@ export function monitoringUpdateDetails(payload: unknown): ObservationDetails {
     deleted: entries(source.deletedKeys).map((item) => ({ kind: stringField(item, "kind"), name: stringField(item, "name") })),
   }
 }
+
+// Key of the agent wired from deployment config; the backend stores it without a name.
+export const CONFIGURED_PRIMARY_AGENT_KEY = "configured-primary"
+
+export function agentDisplayName(agent: { Key: string; Name?: string }): string {
+  return agent.Key === CONFIGURED_PRIMARY_AGENT_KEY ? t("admin.labs.agent.primary") : agent.Name || agent.Key
+}

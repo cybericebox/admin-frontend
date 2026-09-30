@@ -755,6 +755,7 @@
   "admin.labs.state.attention": "Потребує уваги",
   "admin.labs.modeLine": "Режим: {mode}",
   "admin.labs.agent.up": "Працює",
+  "admin.labs.agent.primary": "Основний агент",
   "admin.labs.agent.down": "Недоступний",
   "admin.labs.obs.title": "Поточний стан лабораторій",
   "admin.labs.obs.empty": "Немає даних про поточний стан лабораторій.",
