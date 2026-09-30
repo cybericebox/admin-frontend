@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { ApiError } from "@/api/client"
 
-const mock = vi.hoisted(() => ({ access: vi.fn(), overview: vi.fn(), integrity: vi.fn() }))
+const mock = vi.hoisted(() => ({ access: vi.fn(), overview: vi.fn(), integrity: vi.fn(), usage: vi.fn() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}${JSON.stringify(vars)}` : key }))
 vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("@/api/events/analytics", async (importActual) => ({
   ...(await importActual<typeof import("@/api/events/analytics")>()),
-  getEventAnalyticsAccess: mock.access, getEventAnalyticsOverview: mock.overview, getEventIntegrity: mock.integrity,
+  getEventAnalyticsAccess: mock.access, getEventAnalyticsOverview: mock.overview, getEventIntegrity: mock.integrity, getEventAnalyticsUsage: mock.usage,
 }))
 
 import { EventAnalyticsTab } from "./EventAnalyticsTab"
@@ -46,6 +46,7 @@ describe("EventAnalyticsTab", () => {
     mock.access.mockResolvedValue({ Sections: true, Sensitive: true })
     mock.overview.mockResolvedValue(overview)
     mock.integrity.mockResolvedValue(integrity)
+    mock.usage.mockResolvedValue({ Available: false, At: "2026-10-01T10:00:00Z", Users: [], Summary: { Users: 0, OnlineNow: 0, VPNUsers: 0, ProxyUsers: 0, Sessions: 0, OnlineSeconds: 0, RxBytes: 0, TxBytes: 0, ProxyRequests: 0, ProxyBytes: 0 } })
   })
 
   it("shows the key figures of the event", async () => {

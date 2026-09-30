@@ -11,6 +11,7 @@ import { useEventSiteAddress } from "@/lib/eventSite"
 import { getEventAnalyticsOverview, isForbidden } from "@/api/events/analytics"
 import { formatCount, percent } from "./eventAnalyticsFormat"
 import { EventIntegrityTable } from "./EventIntegrityTable"
+import { EventUsageTable } from "./EventUsageTable"
 import { useEventReport } from "./useEventReport"
 
 const P = "admin.events.analytics"
@@ -46,10 +47,11 @@ function Kpis({ eventID, tag }: { eventID: string; tag: string }) {
   return <AnalyticsBlock title={t(`${P}.kpi.title`)} subtitle={t(`${P}.kpi.subtitle`)} actions={<OpenSiteButton tag={tag} />}>{body}</AnalyticsBlock>
 }
 
-/** The «Аналітика» tab of an event: key figures, the integrity evidence table and a way to the event site. Read-only. */
+/** The «Аналітика» tab of an event: key figures, VPN and web proxy usage per participant, the integrity evidence table and a way to the event site. Read-only. */
 export function EventAnalyticsTab({ eventID, tag, canOpenJournal }: { eventID: string; tag: string; canOpenJournal: boolean }) {
   return <div className="space-y-5">
     <Kpis eventID={eventID} tag={tag} />
+    <EventUsageTable eventID={eventID} />
     <EventIntegrityTable eventID={eventID} tag={tag} canOpenJournal={canOpenJournal} />
   </div>
 }

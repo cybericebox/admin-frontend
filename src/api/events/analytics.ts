@@ -98,4 +98,49 @@ export function integrityJournalPath(solve: { TeamID: string; ChallengeID: strin
   return `/manage/submissions?${new URLSearchParams({ tab: "attempts", challengeId: solve.ChallengeID, teamId: solve.TeamID }).toString()}`
 }
 
+export type UsageSession = { StartedAt: string; EndedAt: string; Seconds: number; RxBytes: number; TxBytes: number }
+export type UsageLab = { ChallengeID: string; Task: string; Surface: "vpn" | "proxy"; Attempts: number; BytesIn: number; BytesOut: number; FirstAt: string; LastAt: string }
+export type UsageUser = {
+  UserID: string
+  UserName: string
+  TeamID: string
+  TeamName: string
+  VPN: {
+    /** From the last WireGuard handshake alone (at most 3 minutes old), never from traffic. */
+    Online: boolean
+    LastHandshakeAt: string | null
+    FirstAt: string | null
+    Sessions: number
+    /** Online time of the period, seconds. */
+    Seconds: number
+    RxBytes: number
+    TxBytes: number
+    Recent: UsageSession[]
+  }
+  /** Over the whole event. */
+  Proxy: { Requests: number; BytesIn: number; BytesOut: number; FirstAt: string | null; LastAt: string | null }
+  Labs: UsageLab[]
+}
+export type EventUsage = {
+  /** false: the event has no infrastructure. */
+  Available: boolean
+  At: string
+  Summary: {
+    Users: number; OnlineNow: number; VPNUsers: number; ProxyUsers: number; Sessions: number; OnlineSeconds: number
+    RxBytes: number; TxBytes: number; ProxyRequests: number; ProxyBytes: number
+  }
+  Users: UsageUser[]
+}
+
+/** «Використання»: per participant VPN connection state and VPN / web proxy use. Counts and times only. */
+export async function getEventAnalyticsUsage(eventID: string): Promise<EventUsage> {
+  const data = await apiGet<EventUsage>(`${base(eventID)}/usage`)
+  return {
+    ...data,
+    Users: (data.Users ?? []).map((user) => ({ ...user, VPN: { ...user.VPN, Recent: user.VPN.Recent ?? [] }, Labs: user.Labs ?? [] })),
+  }
+}
+
+export const usageExportPath = (eventID: string) => `${base(eventID)}/usage/export.csv`
+
 export const isForbidden = (error: unknown) => error instanceof ApiError && error.status === 403

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState, type ReactNode } from "react"
+import { Fragment, useMemo, useState, type ReactNode } from "react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { SortableHeader } from "@/components/ui/sortable-header"
@@ -25,7 +25,7 @@ export type Column<Row> = {
  * (EmptyState) are centred inside the same block, which keeps `minHeight`, so the block does
  * not jump. Wide tables scroll horizontally inside the block.
  */
-export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false, error, onRetry, emptyMessage, errorMessage, minHeight = 320, ariaLabel, defaultSort, sort, onSort }: {
+export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false, error, onRetry, emptyMessage, errorMessage, minHeight = 320, ariaLabel, defaultSort, sort, onSort, renderDetail }: {
   columns: Column<Row>[]
   rows: Row[] | undefined
   rowKey: (row: Row) => string
@@ -40,6 +40,8 @@ export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false
   defaultSort?: { field: string; direction: "asc" | "desc" }
   sort?: { field: string; direction: "asc" | "desc" }
   onSort?: (field: string) => void
+  /** A full-width row under a row (an opened detail); null renders nothing. */
+  renderDetail?: (row: Row) => ReactNode
 }) {
   const [own, setOwn] = useState(defaultSort ?? { field: "", direction: "asc" as const })
   const active = sort ?? own
@@ -78,13 +80,17 @@ export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false
         <tbody className="divide-y divide-border">
           {sorted.map((row) => {
             const href = rowHref?.(row)
-            return <tr key={rowKey(row)} className={`${href ? "relative hover:bg-accent" : ""}`}>
-              {columns.map((column, index) => <td key={column.key} className={`px-3 py-2 text-left ${column.numeric ? "tabular-nums" : ""} ${column.className ?? ""}`}>
-                {href && index === 0
-                  ? <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary">{column.cell(row)}</Link>
-                  : column.cell(row)}
-              </td>)}
-            </tr>
+            const detail = renderDetail?.(row)
+            return <Fragment key={rowKey(row)}>
+              <tr className={`${href ? "relative hover:bg-accent" : ""}`}>
+                {columns.map((column, index) => <td key={column.key} className={`px-3 py-2 text-left ${column.numeric ? "tabular-nums" : ""} ${column.className ?? ""}`}>
+                  {href && index === 0
+                    ? <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary">{column.cell(row)}</Link>
+                    : column.cell(row)}
+                </td>)}
+              </tr>
+              {detail && <tr><td colSpan={columns.length} className="p-0">{detail}</td></tr>}
+            </Fragment>
           })}
         </tbody>
       </table>

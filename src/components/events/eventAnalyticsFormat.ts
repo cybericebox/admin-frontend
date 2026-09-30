@@ -31,6 +31,12 @@ export function formatDuration(seconds: number): string {
   return restMinutes === 0 ? t(`${P}.time.hours`, { h: hours }) : t(`${P}.time.hoursMinutes`, { h: hours, m: restMinutes })
 }
 
+export function formatBytes(bytes: number): string {
+  const units = [["admin.labs.unit.gib", 1024 ** 3], ["admin.labs.unit.mib", 1024 ** 2], ["admin.labs.unit.kib", 1024]] as const
+  for (const [key, scale] of units) if (bytes >= scale) return t(key, { value: new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 }).format(bytes / scale) })
+  return t("admin.labs.unit.b", { value: wholeNumber.format(bytes) })
+}
+
 export const percent = (part: number, whole: number) => whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%"
 
 export const kindLabel = (kind: string) => (integrityKinds as readonly string[]).includes(kind) ? t(`${P}.integrity.kind.${kind}`) : kind
