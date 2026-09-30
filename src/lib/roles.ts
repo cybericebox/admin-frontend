@@ -19,3 +19,8 @@ export function eventRoleLabel(code: number): string {
   const name = EVENT_ROLES[code as EventRoleCode]
   return name ? t(`role.event.${name}`) : String(code)
 }
+
+/** Platform roles that hold events.read (AP Backend rbac): they read every event without an assignment. */
+export function hasPlatformEventRead(role: string | undefined): boolean {
+  return role === "super_admin" || role === "admin" || role === "admin_viewer"
+}
