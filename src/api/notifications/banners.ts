@@ -1,11 +1,11 @@
 /**
  * banners.ts — site banners. Contract: docs/BROADCASTS.md, section «Банери».
- * Management (platform): /api/notifications/banners[/:id]
+ * Management (platform): /api/notifications/site-banners[/:id]
  * Public read (session optional): GET /api/banners → active, audience-filtered, critical first.
  */
 import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
 
-const BASE = '/api/notifications/banners'
+const BASE = '/api/notifications/site-banners'
 
 export type BannerLevel = 'info' | 'warning' | 'critical'
 export type BannerAudience = 'everyone' | 'signed_in' | 'participants'
