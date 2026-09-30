@@ -33,6 +33,17 @@ describe("operational overview", () => {
     expect(api.get).toHaveBeenCalledWith("/api/users/stats")
   })
 
+  it("counts failed deliveries per channel, even when the dispatch itself is done", async () => {
+    api.get.mockImplementation((path: string) => {
+      if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 2, ByStatus: [{ Key: "done", Count: 2 }], ByChannel: [{ Channel: "email", Status: "error", Count: 2 }, { Channel: "inapp", Status: "done", Count: 2 }] })
+      if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
+      return Promise.reject(new Error(path))
+    })
+    render(<Page />)
+    const tile = (await screen.findByText("admin.dashboard.deliveryErrors7d")).closest("a")!
+    await waitFor(() => expect(tile).toHaveTextContent("2"))
+  })
+
   it("shows stand and cluster tiles that click through to the filtered labs list", async () => {
     render(<Page />)
     const failed = (await screen.findByText("admin.dashboard.standsFailed")).closest("a")!

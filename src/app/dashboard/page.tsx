@@ -16,7 +16,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { EmptyState } from "@/components/ui/empty-state"
 
 type UserStats = { Total: number }
-type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[] }
+type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[]; ByChannel?: { Channel: string; Status: string; Count: number }[] }
 
 function Metric({ label, value, href }: { label: string; value: React.ReactNode; href: string }) {
   return <Link href={href} className="group flex min-h-28 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -77,7 +77,8 @@ export default function Page() {
   const percent = (value: number | null | undefined) => value === null || value === undefined ? unavailable : `${formatNumber(value, { maximumFractionDigits: 1 })}%`
   const stands = summary?.Stands
   const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? t("admin.dashboard.infra.disconnected") : infrastructure.Healthy ? t("admin.dashboard.infra.running") : t("admin.dashboard.infra.attention")
-  const notificationErrors = notifications?.ByStatus?.find((item) => item.Key === "error")?.Count ?? 0
+  // Failed deliveries are counted per channel: a dispatch whose in-app copy arrived is "done" even when its email failed.
+  const notificationErrors = (notifications?.ByChannel ?? []).reduce((sum, item) => item.Status === "error" ? sum + item.Count : sum, 0)
 
   return <div className="flex min-h-full flex-col gap-7">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.dashboard.subtitle")}</p></div>{infrastructureAllowed && <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />}</div>
