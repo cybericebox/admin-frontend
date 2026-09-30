@@ -48,6 +48,8 @@ const SECTIONS: Section[] = [
       href: "/notifications", label: "admin.nav.notifications", icon: Bell,
       children: [
         { href: "/notifications/logs", label: "admin.nav.notif.logs", perm: "notifications.templates.read" },
+        { href: "/notifications/broadcasts", label: "admin.nav.notif.broadcasts", perm: "notifications.broadcast" },
+        { href: "/notifications/banners", label: "admin.nav.notif.banners", perm: "notifications.banners.read" },
         { href: "/notifications/settings", label: "admin.nav.notif.settings", perm: "notifications.settings.read" },
         { href: "/notifications/templates/in-app", label: "admin.nav.notif.tplInApp", perm: "notifications.templates.read" },
         { href: "/notifications/templates/email", label: "admin.nav.notif.tplEmail", perm: "notifications.templates.read" },

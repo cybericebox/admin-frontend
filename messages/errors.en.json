@@ -81,5 +81,10 @@
   "71201": "Participation type is already set and cannot be changed",
   "71301": "Registration is closed for this event",
   "71302": "Registration after the event has started is not allowed",
-  "71305": "Participant is not pending"
+  "71305": "Participant is not pending",
+  "20221": "The broadcast message is invalid",
+  "20222": "The selected audience has no recipients",
+  "20224": "The banner is invalid",
+  "30220": "Broadcast not found",
+  "30223": "Banner not found"
 }
