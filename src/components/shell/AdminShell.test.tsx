@@ -7,7 +7,7 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ role: "admin", isLoading: fa
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span> }))
 vi.mock("./TopBar", () => ({ TopBar: ({ onMenuClick }: { onMenuClick: () => void }) => <button onClick={onMenuClick}>menu</button> }))
-vi.mock("./BannerStack", () => ({ BannerStack: () => null }))
+vi.mock("./SiteBanner", () => ({ SiteBannerBar: () => null }))
 
 describe("admin shell", () => {
   it("opens and closes the navigation drawer", () => {

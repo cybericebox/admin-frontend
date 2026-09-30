@@ -6,7 +6,7 @@ import { TopBar } from "./TopBar"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
-import { BannerStack } from "./BannerStack"
+import { SiteBannerBar } from "./SiteBanner"
 import { idOrigin, mainOrigin } from "@/lib/origins"
 const SIDEBAR_STORAGE_KEY = "cybericebox.admin.sidebar.collapsed"
 
@@ -85,7 +85,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       )}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
         <TopBar title={t(TITLES[titleKey])} onMenuClick={() => setMenuOpen(true)} />
-        <BannerStack />
+        <SiteBannerBar />
         <main data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
       </div>
     </div>
