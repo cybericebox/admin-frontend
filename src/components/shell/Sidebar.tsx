@@ -113,7 +113,7 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
             : <Link className="ib-admin-side__item" href={item.href} aria-current={isActive(pathname, item.href) ? "page" : undefined} onClick={onNavigate}>
               <item.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(item.label)}</span>
             </Link>}
-          {item.dividerAfter && <hr className="event-manage-sidebar__divider" />}
+          {item.dividerAfter && <hr className="ib-admin-side__rule" />}
         </Fragment>)}
         {groups.map((group) => {
           const isOpen = openGroupID === group.id
