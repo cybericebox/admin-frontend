@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { MAIL_FOOTER_MAX_BYTES, previewMailFooter, saveMailFooter, type LexicalState, type MailFooter, type MailFooterPreview, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
@@ -65,6 +65,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [retry, setRetry] = useState(0)
+  const edits = useRef(0)
   const variables = useMemo(() => footerVariables(footer.Variables), [footer.Variables])
 
   // Live preview: the backend renders the unsaved footer exactly as send appends it.
@@ -79,6 +80,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   }, [draft, retry])
 
   function change(value: LexicalState) {
+    edits.current += 1
     setDraft(value)
     setPreview({ status: "loading" })
     setNotice("")
@@ -87,12 +89,14 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
 
   async function save() {
     if (byteLength(draft) > MAIL_FOOTER_MAX_BYTES) { setError(t("admin.mail.footer.tooLong")); return }
+    const seen = edits.current
     setBusy(true)
     setError("")
     setNotice("")
     try {
       const next = await saveMailFooter(draft)
-      setDraft(footerDraft(next.Footer))
+      // A newer edit made while saving stays in the editor.
+      if (edits.current === seen) setDraft(footerDraft(next.Footer))
       onSaved(next)
       setNotice(t("admin.mail.footer.saved"))
     } catch (err) {
@@ -122,7 +126,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
               value={draft}
               onChange={change}
               variables={variables}
-              disabled={!canWrite || busy}
+              disabled={!canWrite}
               placeholder={t("admin.mail.footer.placeholder")}
             />
           </div>
@@ -147,8 +151,8 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
 
         <RequirePermission perm="platform.settings.write">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void save()} disabled={busy} busy={busy}>{t("admin.mail.save")}</Button>
-            <Button variant="outline" onClick={() => change(footer.DefaultContent)} disabled={busy || isDefault}>{t("admin.mail.footer.resetDefault")}</Button>
+            <Button onClick={() => void save()} busy={busy}>{t("admin.mail.save")}</Button>
+            <Button variant="outline" onClick={() => change(footer.DefaultContent)} disabled={isDefault}>{t("admin.mail.footer.resetDefault")}</Button>
           </div>
         </RequirePermission>
       </CardContent>

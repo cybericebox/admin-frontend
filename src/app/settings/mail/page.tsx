@@ -99,7 +99,8 @@ export default function Page() {
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
-  const [busy, setBusy] = useState<Busy>("")
+  // Each action busies only its own button: nothing else on the page is disabled while it runs.
+  const [busy, setBusy] = useState<Record<Exclude<Busy, "">, boolean>>({ identity: false, save: false, test: false, reset: false })
   const [testResult, setTestResult] = useState<MailTestResult | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -131,7 +132,7 @@ export default function Page() {
   }
 
   async function run(kind: Exclude<Busy, "">, action: () => Promise<void>) {
-    setBusy(kind)
+    setBusy((current) => ({ ...current, [kind]: true }))
     setError("")
     setNotice("")
     try {
@@ -139,7 +140,7 @@ export default function Page() {
     } catch (err) {
       setError(localizedError(err))
     } finally {
-      setBusy("")
+      setBusy((current) => ({ ...current, [kind]: false }))
     }
   }
 
@@ -185,7 +186,7 @@ export default function Page() {
     })
   }
 
-  const disabled = !canWrite || busy !== ""
+  const disabled = !canWrite
   const effective = settings?.Effective
   const sendingDomain = settings?.SendingDomain || ""
 
@@ -232,7 +233,7 @@ export default function Page() {
                   </div>
                 </section>
                 <RequirePermission perm="platform.settings.write">
-                  <Button onClick={saveIdentity} disabled={busy !== ""} busy={busy === "identity"}>{t("admin.mail.save")}</Button>
+                  <Button onClick={saveIdentity} busy={busy.identity}>{t("admin.mail.save")}</Button>
                 </RequirePermission>
               </CardContent>
             </Card>
@@ -293,9 +294,9 @@ export default function Page() {
 
                 <RequirePermission perm="platform.settings.write">
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={saveSmtp} disabled={busy !== ""} busy={busy === "save"}>{t("admin.mail.save")}</Button>
-                    <Button variant="outline" onClick={test} disabled={busy !== ""} busy={busy === "test"}>{t("admin.mail.test")}</Button>
-                    {settings.Source === "database" && <Button variant="outline" className="sm:ml-auto" onClick={() => setConfirmReset(true)} disabled={busy !== ""} busy={busy === "reset"}>{t("admin.mail.reset")}</Button>}
+                    <Button onClick={saveSmtp} busy={busy.save}>{t("admin.mail.save")}</Button>
+                    <Button variant="outline" onClick={test} busy={busy.test}>{t("admin.mail.test")}</Button>
+                    {settings.Source === "database" && <Button variant="outline" className="sm:ml-auto" onClick={() => setConfirmReset(true)} busy={busy.reset}>{t("admin.mail.reset")}</Button>}
                   </div>
                   <p className="text-xs text-muted-foreground">{t("admin.mail.testHint")}</p>
                 </RequirePermission>

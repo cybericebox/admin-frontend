@@ -19,6 +19,7 @@ import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { smtpErrorView } from "@/utils/smtpError"
 
 // W7 journal fields (ScopeEventID … Targets) are optional so an older backend
 // without them still renders the list.
@@ -29,7 +30,12 @@ type Target = {
   Attempts: number
   Transport?: string
   Recipient?: string
+  RecipientName?: string
+  ErrorKind?: string
+  ErrorCode?: string
   FallbackError?: string
+  FallbackErrorKind?: string
+  FallbackErrorCode?: string
   UpdatedAt: string
 }
 type Dispatch = {
@@ -40,6 +46,7 @@ type Dispatch = {
   ScopeEventID?: string | null
   EventName?: string
   RecipientEmail?: string
+  RecipientName?: string
   BroadcastID?: string | null
   Targets?: Target[]
   CreatedAt: string
@@ -71,6 +78,40 @@ function useEventOptions(enabled: boolean): EventOption[] {
   return options
 }
 
+// A compact error line for the journal row: the human text, the raw error in the tooltip.
+function ErrorText({ view, prefix = "", className }: { view: ReturnType<typeof smtpErrorView>; prefix?: string; className: string }) {
+  if (!view) return null
+  const full = view.technical ? `${view.text}\n${view.technical}` : view.text
+  return <HoverTooltip text={full} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${className}`}>{prefix}{view.text}</span></HoverTooltip>
+}
+
+// The error of a detail card: the human line, with the raw text under «Технічні деталі».
+function DetailError({ label, view, tone }: { label: string; view: ReturnType<typeof smtpErrorView>; tone: string }) {
+  if (!view) return null
+  return (
+    <div className="mt-1 text-xs">
+      <div className={tone}>{label}: {view.text}</div>
+      {view.technical && (
+        <details className="mt-0.5 text-muted-foreground">
+          <summary className="cursor-pointer">{t("admin.notif.logs.technical")}</summary>
+          <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{view.technical}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
+// The recipient user: name, then the email muted; only the email without a name.
+export function RecipientUser({ name, email }: { name?: string; email?: string }) {
+  if (!name && !email) return null
+  return (
+    <span className="inline-flex flex-col align-top">
+      {name && <span className="text-foreground">{name}</span>}
+      {email && <span className={name ? "text-muted-foreground" : "text-foreground"}>{email}</span>}
+    </span>
+  )
+}
+
 function TargetLine({ target }: { target: Target }) {
   const transport = mailTransportLabel(target.Transport)
   return (
@@ -81,8 +122,8 @@ function TargetLine({ target }: { target: Target }) {
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
-      {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
-      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"}`}>{target.Error}</span></HoverTooltip>}
+      {target.FallbackError && <ErrorText view={smtpErrorView(target.FallbackErrorKind, target.FallbackErrorCode, target.FallbackError)} prefix={`${t("admin.notif.logs.fallback")}: `} className="text-muted-foreground" />}
+      {target.Error && <ErrorText view={smtpErrorView(target.ErrorKind, target.ErrorCode, target.Error)} className={target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />}
     </div>
   )
 }
@@ -208,7 +249,7 @@ export function LogsTab() {
                           {names[d.RecipientUserID].name}
                         </Link>
                       ) : (
-                        <span className="font-mono text-xs text-muted-foreground">
+                        d.RecipientName ? <span className="font-medium text-foreground">{d.RecipientName}</span> : <span className="font-mono text-xs text-muted-foreground">
                           {d.RecipientUserID.slice(0, 8)}
                         </span>
                       )}
@@ -275,12 +316,15 @@ export function LogsTab() {
                   <div className="mt-1 text-xs text-muted-foreground">
                     {t("admin.notif.logs.attempts")}: {tg.Attempts}
                     {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
-                    {tg.Recipient && <> · {tg.Recipient}</>}
                   </div>
-                  {tg.FallbackError && <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {tg.FallbackError}</div>}
-                  {tg.Error && (tg.Status === "deferred"
-                    ? <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.reason")}: {tg.Error}</div>
-                    : <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>)}
+                  {(tg.Recipient || tg.RecipientName) && (
+                    <div className="mt-1 flex gap-1 text-xs">
+                      <span className="text-muted-foreground">{t("admin.notif.logs.recipientUser")}:</span>
+                      <RecipientUser name={tg.RecipientName} email={tg.Recipient} />
+                    </div>
+                  )}
+                  <DetailError label={t("admin.notif.logs.fallback")} view={smtpErrorView(tg.FallbackErrorKind, tg.FallbackErrorCode, tg.FallbackError)} tone="text-muted-foreground" />
+                  <DetailError label={t(tg.Status === "deferred" ? "admin.notif.logs.reason" : "admin.notif.logs.error")} view={smtpErrorView(tg.ErrorKind, tg.ErrorCode, tg.Error)} tone={tg.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />
                 </div>
               ))}
             </div>

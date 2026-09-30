@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
 import { DailyBlock } from "./DailyBlock"
 import { ErrorsBlock } from "./ErrorsBlock"
+import { FunnelCards } from "./FunnelCards"
 import { KeyTableBlock } from "./KeyTableBlock"
 import { MailFiltersBar } from "./MailFiltersBar"
 import { percent, transportLabel, typeLabel } from "./labels"
@@ -37,6 +38,7 @@ function Body() {
       <KpiTile {...tile} label={t(P + "kpi.rate")} hint={t(P + "kpi.rateHint")} value={data && percent(data.FailureRate, formatNumber)} />
       <KpiTile {...tile} label={t(P + "kpi.fallbacks")} hint={t(P + "kpi.fallbacksHint")} value={data && formatNumber(data.Fallbacks)} />
     </div>
+    <FunnelCards funnels={data?.Funnels} loading={loading} failed={failed} />
     <DailyBlock res={res} params={params} />
     <div className="grid gap-6 lg:grid-cols-2">
       <KeyTableBlock res={res} params={params} title={t(P + "byTransport.title")} hint={t(P + "byTransport.hint")} table="by_transport" keyHeader={t(P + "col.transport")} label={transportLabel} rows={data?.ByTransport} />
