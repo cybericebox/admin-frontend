@@ -841,8 +841,6 @@
   "admin.shell.closeMenu": "Close menu",
   "admin.shell.openMenu": "Open menu",
   "admin.shell.navLabel": "Administration sections",
-  "admin.shell.expandPanel": "Expand panel",
-  "admin.shell.collapsePanel": "Collapse panel",
   "admin.shell.banner.more": "Learn more",
   "admin.shell.banner.dismissError": "Could not close the banner. Try again.",
   "admin.shell.banner.close": "Close banner",

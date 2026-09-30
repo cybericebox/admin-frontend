@@ -841,8 +841,6 @@
   "admin.shell.closeMenu": "Закрити меню",
   "admin.shell.openMenu": "Відкрити меню",
   "admin.shell.navLabel": "Розділи адміністрування",
-  "admin.shell.expandPanel": "Розгорнути панель",
-  "admin.shell.collapsePanel": "Згорнути панель",
   "admin.shell.banner.more": "Докладніше",
   "admin.shell.banner.dismissError": "Не вдалося закрити банер. Спробуйте ще раз.",
   "admin.shell.banner.close": "Закрити банер",
