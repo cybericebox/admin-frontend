@@ -6,6 +6,7 @@ import { t } from "@/i18n/t"
 import { CapacityBlock } from "./CapacityBlock"
 import { FailuresBlock } from "./FailuresBlock"
 import { KindHoursBlock } from "./KindHoursBlock"
+import { ResourcesBlock } from "./ResourcesBlock"
 import { PeaksBlock } from "./PeaksBlock"
 import { StandHoursBlock } from "./StandHoursBlock"
 import type { InfrastructureData } from "./types"
@@ -36,6 +37,7 @@ function Body() {
     </div>
     <PeaksBlock res={res} />
     <KindHoursBlock res={res} />
+    <ResourcesBlock res={res} />
     <StandHoursBlock res={res} />
     <FailuresBlock res={res} />
     <CapacityBlock res={res} />

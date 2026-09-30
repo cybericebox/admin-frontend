@@ -1,5 +1,6 @@
 // GET /api/analytics/infrastructure (PascalCase JSON). Aggregates only.
 export type StandCounts = { Active: number; Creating: number; Ready: number; Failed: number; Removed: number }
+import type { LabResources } from "@/api/infrastructure"
 export type LabKind = "event" | "moderators" | "test"
 export type KindHours = { Kind: LabKind; Hours: number; Labs: number }
 export type StandHoursEvent = { EventID: string; EventName: string; Hours: number; Stands: number }
@@ -26,6 +27,8 @@ export type InfrastructureData = {
   TestLabs?: { Active: number; Expired: number }
   /** TotalHours counts team stands; Kinds splits by kind and AllHours adds the test labs. */
   StandHours: { TotalHours: number; TotalEvents: number; Events: StandHoursEvent[]; Kinds?: KindHours[]; AllHours?: number }
+  /** What the labs of each kind use right now. */
+  Resources?: Record<"Event" | "Moderators" | "Test", LabResources>
   /** Team stands only; TestLabPeaks test labs only; AllPeaks every lab at once. */
   Peaks: PeakPoint[]
   TestLabPeaks?: PeakPoint[]

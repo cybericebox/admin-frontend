@@ -18,6 +18,7 @@ const report = {
   Stands: { Active: 7, Creating: 2, Ready: 5, Failed: 1, Removed: 9 },
   Moderators: { Active: 1, Creating: 0, Ready: 1, Failed: 0, Removed: 0 },
   TestLabs: { Active: 3, Expired: 1 },
+  Resources: { Event: { Known: true, UsageAvailable: true, CPUMillicores: 3500, MemoryBytes: 8 * 1024 ** 3, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 }, Moderators: { Known: true, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 250, RequestedMemoryBytes: 512 * 1024 ** 2 }, Test: { Known: false, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } },
   StandHours: { TotalHours: 42.5, TotalEvents: 3, AllHours: 45, Kinds: [{ Kind: "event", Hours: 40, Labs: 8 }, { Kind: "moderators", Hours: 2.5, Labs: 1 }, { Kind: "test", Hours: 2.5, Labs: 4 }], Events: [
     { EventID: "e1", EventName: "Осінній CTF", Hours: 30, Stands: 6 },
     { EventID: "e2", EventName: "Зимовий CTF", Hours: 12.5, Stands: 3 },
@@ -91,6 +92,17 @@ describe("infrastructure analytics page", () => {
     const kinds = await screen.findByRole("table", { name: "Години за типом лабораторії" })
     for (const name of ["Команди заходів", "Команда модераторів", "Тестові лабораторії завдань"]) expect(within(kinds).getByText(name)).toBeInTheDocument()
     expect(within(kinds).getAllByText("2,5 год", { selector: "td" })).toHaveLength(2)
+  })
+
+  it("shows what the labs of each kind use now, live or requested, a dash when unknown", async () => {
+    mocks.apiGet.mockResolvedValue(report)
+    render(<Page />)
+    const table = await screen.findByRole("table", { name: "Ресурси лабораторій зараз" })
+    const rows = table.querySelectorAll("tbody tr")
+    expect(rows[0]).toHaveTextContent("3,5 vCPU")
+    expect(rows[0]).toHaveTextContent("8 ГіБ")
+    expect(rows[1]).toHaveTextContent(/0,25 vCPU\s*запрошено/)
+    expect(rows[2].textContent).not.toMatch(/vCPU/)
   })
 
   it("draws the team stand line alone while no test lab ran, and reads an older report", async () => {
