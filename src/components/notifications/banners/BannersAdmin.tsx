@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
 import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel } from "@/api/notifications/banners"
@@ -152,24 +152,31 @@ export function BannersAdmin() {
   const [removeBusy, setRemoveBusy] = useState(false)
   const [removeError, setRemoveError] = useState("")
   const [actionError, setActionError] = useState("")
-  const [toggling, setToggling] = useState("")
+  // Activate/deactivate saves run one after another; the row reacts at once and no button waits for the server.
+  const toggleQueue = useRef<Promise<void>>(Promise.resolve())
+  const latest = useRef<Banner[] | null>(null)
 
   const load = useCallback(() => {
-    listBanners().then((rows) => { setBanners(rows); setError(null) }).catch((cause) => setError({ cause }))
+    listBanners().then((rows) => { latest.current = rows; setBanners(rows); setError(null) }).catch((cause) => setError({ cause }))
   }, [])
   useEffect(() => { queueMicrotask(load) }, [load])
 
-  async function toggle(banner: Banner) {
-    setToggling(banner.ID)
+  function toggle(banner: Banner) {
     setActionError("")
-    try {
-      await updateBanner(banner.ID, { ...toInput(toForm(banner)), IsActive: !banner.IsActive })
-      load()
-    } catch (cause) {
-      setActionError(localizedError(cause))
-    } finally {
-      setToggling("")
-    }
+    const wanted = !banner.IsActive
+    const apply = (rows: Banner[] | null) => rows?.map((row) => (row.ID === banner.ID ? { ...row, IsActive: wanted } : row)) ?? rows
+    latest.current = apply(latest.current)
+    setBanners((rows) => apply(rows))
+    toggleQueue.current = toggleQueue.current.then(async () => {
+      const current = latest.current?.find((row) => row.ID === banner.ID)
+      if (!current || current.IsActive !== wanted) return // a newer click supersedes this one
+      try {
+        await updateBanner(banner.ID, { ...toInput(toForm(current)), IsActive: wanted })
+      } catch (cause) {
+        setActionError(localizedError(cause))
+        load() // silent refetch: the table keeps its rows while it reconciles
+      }
+    })
   }
 
   async function remove() {
@@ -227,7 +234,7 @@ export function BannersAdmin() {
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => setEditing(banner)}>{t("admin.notif.banners.edit")}</Button>
-                        <Button variant="outline" size="sm" busy={toggling === banner.ID} disabled={toggling !== ""} onClick={() => void toggle(banner)}>{t(banner.IsActive ? "admin.notif.banners.deactivate" : "admin.notif.banners.activate")}</Button>
+                        <Button variant="outline" size="sm" onClick={() => void toggle(banner)}>{t(banner.IsActive ? "admin.notif.banners.deactivate" : "admin.notif.banners.activate")}</Button>
                         <Button variant="outline" size="sm" onClick={() => { setRemoveError(""); setRemoving(banner) }}>{t("admin.notif.banners.delete")}</Button>
                       </div>
                     </td>

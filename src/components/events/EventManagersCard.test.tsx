@@ -90,4 +90,30 @@ describe("EventManagersCard", () => {
     await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/events/event-1/managers/invited-1", { Role: 1 }))
     expect(onChanged).toHaveBeenCalledWith({ UserID: "invited-1", Role: 1, CreatedAt: "2026-09-24T09:00:00Z" })
   })
+
+  it("shows the chosen role before the server answers and keeps other controls enabled", async () => {
+    let finish: (value: unknown) => void = () => {}
+    mocks.put.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+    render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={vi.fn()} />)
+    const role = await screen.findByRole("button", { name: "Змінити роль Іван Петренко" })
+    fireEvent.keyDown(role, { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Модератор" }))
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent("Модератор")
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Вилучити Іван Петренко" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Додати модератора" })).toBeEnabled()
+    finish({ UserID: "viewer-1", Role: 1, CreatedAt: managers[1].CreatedAt })
+    await waitFor(() => expect(mocks.put).toHaveBeenCalledTimes(1))
+  })
+
+  it("rolls the role back when the save fails", async () => {
+    mocks.put.mockRejectedValueOnce(new Error("nope"))
+    render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={vi.fn()} />)
+    const role = await screen.findByRole("button", { name: "Змінити роль Іван Петренко" })
+    const before = role.textContent
+    fireEvent.keyDown(role, { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Модератор" }))
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent("Модератор")
+    await waitFor(() => expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent(before ?? ""))
+  })
 })

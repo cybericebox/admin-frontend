@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
@@ -35,16 +35,33 @@ export function GlobalSettingsTab() {
     return () => { cancelled = true }
   }, [attempt])
 
-  async function toggle(s: Setting, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
-    const next = { ...s, [field]: value }
-    setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? next : r))) // optimistic
-    try {
-      await apiPut("/api/notifications/settings/global", next)
-      toast.success(t("admin.notif.settings.saved"))
-    } catch {
-      toast.error(t("admin.notif.settings.saveError"))
-      setRows((prev) => prev.map((r) => (rowKey(r) === rowKey(s) ? s : r))) // revert
-    }
+  // Saves run one after another; the switches react at once and are never disabled by a pending save.
+  const latest = useRef<Setting[]>([])
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  useEffect(() => { latest.current = rows }, [rows])
+
+  function patchRow(key: string, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
+    const next = latest.current.map((r) => (rowKey(r) === key ? { ...r, [field]: value } : r))
+    latest.current = next
+    setRows(next)
+  }
+
+  function toggle(s: Setting, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
+    const key = rowKey(s)
+    const previous = latest.current.find((r) => rowKey(r) === key)?.[field] ?? s[field]
+    patchRow(key, field, value) // optimistic
+    queue.current = queue.current.then(async () => {
+      const wanted = latest.current.find((r) => rowKey(r) === key)
+      if (!wanted) return
+      try {
+        await apiPut("/api/notifications/settings/global", wanted)
+        toast.success(t("admin.notif.settings.saved"))
+      } catch {
+        toast.error(t("admin.notif.settings.saveError"))
+        // Roll back only this field, and only if the user has not changed it again since.
+        if (latest.current.find((r) => rowKey(r) === key)?.[field] === value) patchRow(key, field, previous)
+      }
+    })
   }
 
   let globalSettings: ReactNode

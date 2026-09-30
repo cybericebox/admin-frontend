@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
 import type { CursorPage } from "@/api/pagination"
@@ -51,6 +51,10 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   const [newRole, setNewRole] = useState("1")
   const [platformRole, setPlatformRole] = useState<Role>("user")
   const [busyID, setBusyID] = useState("")
+  // Inline role changes: shown at once (optimistic), saved one after another, never disabling any control.
+  const [pendingRoles, setPendingRoles] = useState<Record<string, number>>({})
+  const wantedRoles = useRef<Record<string, number>>({})
+  const roleQueue = useRef<Promise<void>>(Promise.resolve())
   const [removing, setRemoving] = useState<EventManager | null>(null)
   const [removeError, setRemoveError] = useState("")
   const [error, setError] = useState<{ cause: unknown } | null>(null)
@@ -104,6 +108,30 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     } finally {
       setBusyID("")
     }
+  }
+
+  function clearPendingRole(userID: string) {
+    delete wantedRoles.current[userID]
+    setPendingRoles((previous) => { const next = { ...previous }; delete next[userID]; return next })
+  }
+
+  function changeRole(userID: string, role: number) {
+    wantedRoles.current[userID] = role
+    setPendingRoles((previous) => ({ ...previous, [userID]: role }))
+    roleQueue.current = roleQueue.current.then(async () => {
+      const wanted = wantedRoles.current[userID]
+      if (wanted === undefined) return
+      try {
+        const result = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(userID)}`, { Role: wanted })
+        // Keep the shown choice while a newer change is waiting; otherwise the server answer takes over.
+        if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
+        onChanged(result)
+        toast.success(t("admin.events.manager.saved"))
+      } catch {
+        if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
+        toast.error(t("admin.events.manager.saveError"))
+      }
+    })
   }
 
   const inviteEmail = search.trim().toLowerCase()
@@ -172,8 +200,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
             {user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
           </div>
           {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{eventRoleLabel(0)}</span> : editable ? <>
-            <SelectMenu value={String(manager.Role)} onChange={(value) => void save(manager.UserID, Number(value))} options={managerRoles} disabled={!!busyID} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
-            <Button type="button" variant="outline" size="sm" disabled={!!busyID} onClick={() => { setRemoveError(""); setRemoving(manager) }} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
+            <SelectMenu value={String(pendingRoles[manager.UserID] ?? manager.Role)} onChange={(value) => changeRole(manager.UserID, Number(value))} options={managerRoles} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
+            <Button type="button" variant="outline" size="sm" onClick={() => { setRemoveError(""); setRemoving(manager) }} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
           </> : <span className="text-sm text-muted-foreground">{eventRoleLabel(manager.Role)}</span>}
         </li>
       })}

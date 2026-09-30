@@ -61,6 +61,30 @@ describe("banners admin page", () => {
     await waitFor(() => expect(api.update).toHaveBeenCalledWith("b1", expect.objectContaining({ IsActive: false, Text: "Планові роботи" })))
   })
 
+  it("flips the state at once and keeps other rows' buttons enabled while the save is pending", async () => {
+    api.list.mockResolvedValue([banner, { ...banner, ID: "b2", Text: "Друга" }])
+    let finish: () => void = () => {}
+    api.update.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve }))
+    render(<BannersAdmin />)
+    await screen.findByText("Друга")
+    fireEvent.click(screen.getAllByRole("button", { name: "Вимкнути" })[0])
+    expect(screen.getAllByRole("button", { name: "Вимкнути" })).toHaveLength(1)
+    expect(screen.getByRole("button", { name: "Увімкнути" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Вимкнути" })).toBeEnabled()
+    finish()
+    await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1))
+  })
+
+  it("rolls back and shows the error when the toggle fails", async () => {
+    api.update.mockRejectedValueOnce(new Error("nope"))
+    render(<BannersAdmin />)
+    await screen.findByText("Планові роботи")
+    fireEvent.click(screen.getByRole("button", { name: "Вимкнути" }))
+    expect(screen.getByRole("button", { name: "Увімкнути" })).toBeInTheDocument()
+    expect(await screen.findByRole("alert")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole("button", { name: "Вимкнути" })).toBeInTheDocument())
+  })
+
   it("deletes only after the danger confirmation", async () => {
     render(<BannersAdmin />)
     await screen.findByText("Планові роботи")
