@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Bell, Users, ChevronDown, ChevronRight, CalendarDays, Server, Settings, X, PanelLeftClose, PanelLeftOpen, ChartNoAxesCombined, ExternalLink, Puzzle } from "lucide-react"
@@ -12,7 +12,7 @@ import { withReturnTo } from "@/lib/accountMenu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // perm: one permission, or a list of which any grants the item. exact: active only on this very path.
-type Child = { href: string; label: string; perm?: string | string[]; exact?: boolean }
+type Child = { divider?: boolean; href: string; label: string; perm?: string | string[]; exact?: boolean }
 type Item = {
   href: string
   label: string
@@ -48,12 +48,12 @@ const SECTIONS: Section[] = [
     items: [{
       href: "/notifications", label: "admin.nav.notifications", icon: Bell,
       children: [
-        { href: "/notifications/logs", label: "admin.nav.notif.logs", perm: "notifications.templates.read" },
         { href: "/notifications/broadcasts", label: "admin.nav.notif.broadcasts", perm: "notifications.broadcast" },
         { href: "/notifications/banners", label: "admin.nav.notif.banners", perm: "notifications.banners.read" },
-        { href: "/notifications/settings", label: "admin.nav.notif.settings", perm: "notifications.settings.read" },
-        { href: "/notifications/templates/in-app", label: "admin.nav.notif.tplInApp", perm: "notifications.templates.read" },
+        { href: "/notifications/templates/in-app", label: "admin.nav.notif.tplInApp", perm: "notifications.templates.read", divider: true },
         { href: "/notifications/templates/email", label: "admin.nav.notif.tplEmail", perm: "notifications.templates.read" },
+        { href: "/notifications/settings", label: "admin.nav.notif.settings", perm: "notifications.settings.read" },
+        { href: "/notifications/logs", label: "admin.nav.notif.logs", perm: "notifications.templates.read", divider: true },
       ],
     }],
   },
@@ -164,12 +164,15 @@ function NavGroup({ item, pathname, onNavigate, collapsed, onExpand }: { item: I
       </RailTip>
       {open && !collapsed && (
         <div className="ml-5 flex flex-col gap-1 border-l border-[var(--ib-brand-line)] pl-2">
-          {item.children!.map((c) => {
+          {item.children!.map((c, index) => {
             const active = pathname === c.href || (!c.exact && pathname.startsWith(c.href + "/"))
             return (
-              <Link key={c.href} href={c.href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`${itemBase} ${active ? activeCls : idleCls}`}>
-                {t(c.label)}
-              </Link>
+              <Fragment key={c.href}>
+                {c.divider && index > 0 && <hr className="my-1 h-px border-0 bg-[var(--ib-brand-line)]" />}
+                <Link href={c.href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`${itemBase} ${active ? activeCls : idleCls}`}>
+                  {t(c.label)}
+                </Link>
+              </Fragment>
             )
           })}
         </div>

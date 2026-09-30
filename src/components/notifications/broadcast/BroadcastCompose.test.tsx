@@ -2,11 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { BroadcastCompose } from "./BroadcastCompose"
 
-const api = vi.hoisted(() => ({ count: vi.fn(), send: vi.fn(), push: vi.fn() }))
+const api = vi.hoisted(() => ({ count: vi.fn(), send: vi.fn(), push: vi.fn(), emails: vi.fn(), inApps: vi.fn() }))
 vi.mock("@/api/notifications/broadcasts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/notifications/broadcasts")>()),
   broadcastAudienceCount: api.count, sendBroadcast: api.send,
 }))
+vi.mock("@/api/notifications/emailTemplates", () => ({ latestEmailTemplates: api.emails }))
+vi.mock("@/api/notifications/inAppTemplates", () => ({ latestInAppTemplates: api.inApps }))
+// The dropdown itself is covered elsewhere; here every option is a plain button.
+vi.mock("@/components/ui/select-menu", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/components/ui/select-menu")>()
+  return {
+    SelectMenu: (props: React.ComponentProps<typeof original.SelectMenu>) => props.ariaLabel === "Почати з шаблону"
+      ? <div aria-label={props.ariaLabel}>{props.options.map((o) => <button key={o.value} type="button" onClick={() => props.onChange(o.value)}>{`tpl:${o.label}`}</button>)}</div>
+      : <original.SelectMenu {...props} />,
+  }
+})
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: api.push }) }))
 // The editors and previews are covered by their own tests; here they are plain stand-ins.
 vi.mock("@/components/notifications/editor/VariableRichText", () => ({
@@ -16,7 +27,7 @@ vi.mock("@/components/notifications/editor/BlockEditor", () => ({
   BlockEditor: ({ onChange, hiddenBlockTypes }: { onChange: (b: unknown[]) => void; hiddenBlockTypes?: string[] }) => <button type="button" data-hidden={(hiddenBlockTypes ?? []).join(",")} onClick={() => onChange([{ type: "rich_text", content: {} }])}>add-block</button>,
 }))
 vi.mock("@/components/notifications/editor/InAppBodyEditor", () => ({ InAppBodyEditor: () => null }))
-vi.mock("@/components/notifications/editor/EmailPreview", () => ({ EmailPreview: ({ notificationType }: { notificationType: string }) => <div data-testid="email-preview">{notificationType}</div> }))
+vi.mock("@/components/notifications/editor/EmailPreview", () => ({ EmailPreview: ({ notificationType, subject, body }: { notificationType: string; subject?: string; body?: unknown }) => <div data-testid="email-preview" data-subject={subject} data-body={JSON.stringify(body)}>{notificationType}</div> }))
 vi.mock("@/components/notifications/editor/InAppPreview", () => ({ InAppPreview: () => <div data-testid="inapp-preview" /> }))
 vi.mock("./UserPicker", () => ({ UserPicker: () => null }))
 
@@ -27,6 +38,13 @@ describe("broadcast compose", () => {
     Object.values(api).forEach((fn) => fn.mockReset())
     api.count.mockResolvedValue({ Count: 3 })
     api.send.mockResolvedValue({ ID: "bc1" })
+    api.emails.mockResolvedValue([
+      { NotificationType: "participant.event.finished", Draft: null, Unpublished: null, Published: { Subject: "Привіт, {{.user_name}} {{.team_name}}", Preheader: "", Body: [{ type: "rich_text", content: "Про {{event_name}} і {{team_name}}" }] } },
+      { NotificationType: "draft.only", Published: null, Draft: { Subject: "x", Preheader: "", Body: [] }, Unpublished: null },
+    ])
+    api.inApps.mockResolvedValue([
+      { NotificationType: "participant.event.finished", Draft: null, Unpublished: null, Published: { Title: "Кінець", Body: "Дякуємо, {{user_name}}", Link: "" } },
+    ])
   })
 
   async function fillEmail() {
@@ -94,5 +112,51 @@ describe("broadcast compose", () => {
     expect(api.count).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("checkbox", { name: "Адміністратор" }))
     await waitFor(() => expect(api.count).toHaveBeenCalledWith({ Kind: "roles", Roles: ["admin"] }, expect.anything()))
+  })
+
+  describe("start from a template", () => {
+    const pick = async () => { fireEvent.click(await screen.findByRole("button", { name: /^tpl:/ })) }
+
+    it("lists only published templates, one entry per notification type", async () => {
+      render(<BroadcastCompose />)
+      expect(await screen.findAllByRole("button", { name: /^tpl:/ })).toHaveLength(1)
+      await wait()
+    })
+
+    it("prefills the email subject, blocks and the in-app fields without a confirmation on an empty composer", async () => {
+      render(<BroadcastCompose />)
+      await pick()
+      expect(screen.getByLabelText("Тема")).toHaveValue("Привіт, {{.user_name}} {{.team_name}}")
+      expect(screen.getByLabelText("Заголовок")).toHaveValue("Кінець")
+      expect(screen.getByTestId("email-preview").getAttribute("data-body")).toContain("Про {{event_name}} і ")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      await wait()
+    })
+
+    it("warns about a variable a broadcast cannot fill and previews it empty", async () => {
+      render(<BroadcastCompose />)
+      await pick()
+      expect(screen.getByText("Змінна team_name недоступна в розсилці — буде порожньою")).toBeInTheDocument()
+      expect(screen.queryByText(/Змінна user_name недоступна/)).not.toBeInTheDocument()
+      const preview = screen.getByTestId("email-preview")
+      expect(preview.getAttribute("data-subject")).toBe("Привіт, {{.user_name}} ")
+      expect(preview.getAttribute("data-body")).not.toContain("team_name")
+      await wait()
+    })
+
+    it("asks before replacing existing content, and keeps it on cancel", async () => {
+      render(<BroadcastCompose />)
+      fireEvent.change(screen.getByLabelText("Тема"), { target: { value: "Моя тема" } })
+      await pick()
+      expect(await screen.findByRole("dialog")).toBeInTheDocument()
+      expect(screen.getByLabelText("Тема")).toHaveValue("Моя тема")
+      fireEvent.click(screen.getByRole("button", { name: "Скасувати" }))
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+      expect(screen.getByLabelText("Тема")).toHaveValue("Моя тема")
+      await pick()
+      fireEvent.click(await screen.findByRole("button", { name: "Замінити" }))
+      expect(screen.getByLabelText("Тема")).toHaveValue("Привіт, {{.user_name}} {{.team_name}}")
+      await wait()
+    })
   })
 })

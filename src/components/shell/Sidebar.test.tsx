@@ -82,4 +82,12 @@ describe("admin sidebar", () => {
     expect(screen.getByRole("link", { name: "admin.nav.analyticsOverview" })).not.toHaveAttribute("aria-current")
     expect(screen.getByRole("link", { name: "admin.nav.analyticsEvents" })).toHaveAttribute("aria-current", "page")
   })
+
+  it("orders the notifications group in three blocks split by dividers", () => {
+    nav.path = "/notifications/logs"
+    const { container } = render(<Sidebar />)
+    const group = container.querySelector("div.ml-5")!
+    const order = Array.from(group.children).map((n) => (n.tagName === "HR" ? "|" : n.textContent))
+    expect(order).toEqual(["admin.nav.notif.broadcasts", "admin.nav.notif.banners", "|", "admin.nav.notif.tplInApp", "admin.nav.notif.tplEmail", "admin.nav.notif.settings", "|", "admin.nav.notif.logs"])
+  })
 })

@@ -19,6 +19,8 @@ import type { EmailBodyBlock } from "@/components/notifications/editor/emailBloc
 import type { VariableDef } from "@/components/notifications/editor/variableUtils"
 import { BROADCAST_VARIABLES, broadcastAudienceCount, sendBroadcast, type BroadcastChannel } from "@/api/notifications/broadcasts"
 import { broadcastSample } from "./broadcastLabels"
+import { TemplateStart } from "./TemplateStart"
+import { unsupportedVariables, withoutUnsupported, withoutUnsupportedBlocks, type BroadcastTemplate } from "./broadcastTemplates"
 import { AudiencePicker, EMPTY_AUDIENCE, audienceComplete, audienceToApi, type AudienceState } from "./AudiencePicker"
 
 const COUNT_DEBOUNCE_MS = 400
@@ -44,11 +46,43 @@ export function BroadcastCompose() {
   const [counted, setCounted] = useState<{ key: string; count: number | null } | null>(null)
   const [countReload, setCountReload] = useState(0)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  // A template chosen over existing content waits here for the replacement to be confirmed.
+  const [pendingTemplate, setPendingTemplate] = useState<BroadcastTemplate | null>(null)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState("")
 
   const variables = useMemo<VariableDef[]>(() => BROADCAST_VARIABLES.map((name) => ({ name, description: t(`admin.notif.broadcast.var.${name}`), example: broadcastSample(name) })), [])
   const previewValues = useMemo(() => Object.fromEntries(variables.map((variable) => [variable.name, variable.example ?? ""])), [variables])
+
+  // Template variables the broadcast cannot fill: flagged here and empty in the previews.
+  const unsupported = useMemo(() => unsupportedVariables([
+    ...(email ? [subject, preheader, JSON.stringify(body)] : []),
+    ...(inApp ? [title, inAppBody, link] : []),
+  ]), [email, inApp, subject, preheader, body, title, inAppBody, link])
+  const shown = useMemo(() => ({
+    subject: withoutUnsupported(subject), preheader: withoutUnsupported(preheader), body: withoutUnsupportedBlocks(body),
+    title: withoutUnsupported(title), inAppBody: withoutUnsupported(inAppBody), link: withoutUnsupported(link),
+  }), [subject, preheader, body, title, inAppBody, link])
+
+  function applyTemplate(template: BroadcastTemplate) {
+    if (template.email) {
+      setEmail(true)
+      setSubject(template.email.subject)
+      setPreheader(template.email.preheader)
+      setBody(template.email.body)
+    }
+    if (template.inApp) {
+      setInApp(true)
+      setTitle(template.inApp.title)
+      setInAppBody(template.inApp.body)
+      setLink(template.inApp.link)
+    }
+  }
+  function pickTemplate(template: BroadcastTemplate) {
+    const replaces = (template.email && (subject.trim() !== "" || preheader.trim() !== "" || body.length > 0)) || (template.inApp && (title.trim() !== "" || inAppBody.trim() !== "" || link.trim() !== ""))
+    if (replaces) setPendingTemplate(template)
+    else applyTemplate(template)
+  }
 
   const complete = audienceComplete(audience)
   const audienceKey = JSON.stringify(audienceToApi(audience))
@@ -108,6 +142,8 @@ export function BroadcastCompose() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,45%)]">
         <div className="min-w-0 space-y-6">
+          <TemplateStart onPick={pickTemplate} />
+
           <section className="space-y-2" aria-labelledby="bc-channels">
             <h2 id="bc-channels" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.channels")}</h2>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -173,22 +209,35 @@ export function BroadcastCompose() {
         </div>
 
         <div className="min-w-0 space-y-6">
+          {unsupported.length > 0 && (
+            <Alert variant="warning">
+              <ul className="space-y-1">{unsupported.map((name) => <li key={name}>{t("admin.notif.broadcast.template.unsupported", { name })}</li>)}</ul>
+            </Alert>
+          )}
           {email && (
             <div>
               <div className="mb-2 text-sm font-semibold text-foreground">{t("admin.notif.broadcast.previewEmail")}</div>
-              <EmailPreview notificationType="broadcast" subject={subject} preheader={preheader} body={body} styling={{}} />
+              <EmailPreview notificationType="broadcast" subject={shown.subject} preheader={shown.preheader} body={shown.body} styling={{}} />
             </div>
           )}
           {inApp && (
             <div>
               <div className="mb-2 text-sm font-semibold text-foreground">{t("admin.notif.broadcast.previewInApp")}</div>
-              <InAppPreview title={title} body={inAppBody} link={link} icon="bell" tone="neutral" accentColor="" surface="inbox" autoDismissMs={null} actions={[]} previewValues={previewValues} />
+              <InAppPreview title={shown.title} body={shown.inAppBody} link={shown.link} icon="bell" tone="neutral" accentColor="" surface="inbox" autoDismissMs={null} actions={[]} previewValues={previewValues} />
             </div>
           )}
           {!email && !inApp && <Alert variant="warning">{t("admin.notif.broadcast.channelsRequired")}</Alert>}
         </div>
       </div>
 
+      <ConfirmDialog
+        open={pendingTemplate !== null}
+        onCancel={() => setPendingTemplate(null)}
+        title={t("admin.notif.broadcast.template.replace.title")}
+        description={t("admin.notif.broadcast.template.replace.body", { name: pendingTemplate?.label ?? "" })}
+        confirmLabel={t("admin.notif.broadcast.template.replace.action")}
+        onConfirm={() => { if (pendingTemplate) applyTemplate(pendingTemplate); setPendingTemplate(null) }}
+      />
       <ConfirmDialog
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}
