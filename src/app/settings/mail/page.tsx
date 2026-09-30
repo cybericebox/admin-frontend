@@ -1,6 +1,6 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailLimitSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
+import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailTracking, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailLimitSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { NumberInput, parseNumberInput } from "@/components/ui/number-input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -33,7 +34,7 @@ const SOURCE_LABEL_KEY = {
 
 type SmtpForm = Omit<MailSmtpInput, "Port" | "MaxPerSecond" | "DailyQuota"> & { Port: string; MaxPerSecond: string; DailyQuota: string }
 type IdentityForm = { SenderName: string; SenderAddress: string; ReplyToName: string; ReplyToAddress: string; SendingDomain: string }
-type Busy = "" | "identity" | "save" | "test" | "reset"
+type Busy = "" | "identity" | "tracking" | "save" | "test" | "reset"
 
 function identityFrom(settings: MailSettings): IdentityForm {
   const { Sender, ReplyTo } = settings.Identity
@@ -168,6 +169,15 @@ export default function Page() {
     })
   }
 
+  function changeTracking(enabled: boolean) {
+    void run("tracking", async () => {
+      const next = await saveMailTracking(enabled)
+      // Only the tracking flag is taken: unsaved identity and SMTP edits stay in the forms.
+      setSettings((current) => current && { ...current, TrackEngagement: next.TrackEngagement })
+      setNotice(t("admin.mail.saved"))
+    })
+  }
+
   function test() {
     if (!smtp) return
     const invalid = validateSmtp(smtp)
@@ -234,6 +244,16 @@ export default function Page() {
                 <RequirePermission perm="platform.settings.write">
                   <Button onClick={saveIdentity} disabled={busy !== ""} busy={busy === "identity"}>{t("admin.mail.save")}</Button>
                 </RequirePermission>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="flex items-start gap-3 pt-6">
+                <Switch id="mail-tracking" checked={settings.TrackEngagement ?? true} onCheckedChange={changeTracking} disabled={disabled} aria-label={t("admin.mail.tracking.label")} />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">{t("admin.mail.tracking.label")}</div>
+                  <p className="text-sm text-muted-foreground">{t("admin.mail.tracking.hint")}</p>
+                </div>
               </CardContent>
             </Card>
 

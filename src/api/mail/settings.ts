@@ -7,6 +7,7 @@
  *   PUT    /api/mail/settings/smtp         the one custom SMTP server
  *   DELETE /api/mail/settings/smtp         → back to the env SMTP_* fallback
  *   POST   /api/mail/settings/smtp/test    → synchronous test mail to the current user
+ *   PUT    /api/mail/settings/tracking     {Enabled}: email opens and link clicks tracking
  *   PUT    /api/mail/settings/footer       the platform email footer (a Lexical document)
  *   POST   /api/mail/settings/footer/preview → the document rendered as it would be sent
  *
@@ -103,6 +104,8 @@ export type MailSettings = {
   SMTP: MailSmtp | null
   Env: MailEnvSummary | null
   Limits: MailLimits
+  /** Count email opens and link clicks; on by default (an older backend omits it). */
+  TrackEngagement?: boolean
 }
 
 export type MailSmtpInput = {
@@ -146,6 +149,11 @@ export function saveMailFooter(content: LexicalState | null): Promise<MailSettin
 
 export function previewMailFooter(content: LexicalState | null): Promise<MailFooterPreview> {
   return apiPost<MailFooterPreview>(`${BASE}/footer/preview`, { Content: content })
+}
+
+/** Turns email open and link click tracking on or off; returns the whole settings view. */
+export function saveMailTracking(enabled: boolean): Promise<MailSettings> {
+  return apiPut<MailSettings>(`${BASE}/tracking`, { Enabled: enabled })
 }
 
 export function saveMailSmtp(input: MailSmtpInput): Promise<MailSettings> {

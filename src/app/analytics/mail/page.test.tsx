@@ -95,4 +95,30 @@ describe("mail analytics page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Оновити" }))
     await waitFor(() => expect(mocks.apiGet).toHaveBeenCalledTimes(2))
   })
+
+  it("shows approximate open and click shares, the per-day engagement series and the table columns", async () => {
+    mocks.apiGet.mockResolvedValue({
+      ...report, Tracked: 10, Opened: 4, Clicked: 1, OpenRate: 0.4, ClickRate: 0.1,
+      Daily: report.Daily.map((d) => ({ ...d, Tracked: 5, Opened: 2, Clicked: 1 })),
+      ByTransport: [{ ...report.ByTransport[0], Tracked: 10, Opened: 4, Clicked: 1, OpenRate: 0.4, ClickRate: 0.1 }, { ...report.ByTransport[1], Tracked: 0, Opened: 0, Clicked: 0, OpenRate: 0, ClickRate: 0 }],
+    })
+    render(<Page />)
+    await screen.findByText("550 5.1.1")
+    expect(screen.getAllByText("40%").length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText("10%").length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText("Відкрито (приблизно)").length).toBeGreaterThanOrEqual(3)
+    const charts = await screen.findAllByTestId("echart")
+    expect(charts.some((c) => c.textContent === "Відкрито (приблизно)|Переходи")).toBe(true)
+    const transports = screen.getByRole("table", { name: "За транспортом" })
+    expect(within(transports).getByRole("columnheader", { name: /Відкрито \(приблизно\)/ })).toBeInTheDocument()
+    expect(within(transports).getAllByText("40%").length).toBe(1)
+    expect(within(transports).getAllByText("–").length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("shows dashes and an empty engagement chart when nothing was tracked (old payload too)", async () => {
+    mocks.apiGet.mockResolvedValue(report)
+    render(<Page />)
+    await screen.findByText("550 5.1.1")
+    expect(screen.getByText("Листів із відстеженням за цей період не було")).toBeInTheDocument()
+  })
 })

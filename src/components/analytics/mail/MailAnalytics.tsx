@@ -6,10 +6,11 @@ import { KpiTile, SectionPage, useAnalyticsResource } from "@/components/analyti
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
 import { DailyBlock } from "./DailyBlock"
+import { EngagementBlock } from "./EngagementBlock"
 import { ErrorsBlock } from "./ErrorsBlock"
 import { KeyTableBlock } from "./KeyTableBlock"
 import { MailFiltersBar } from "./MailFiltersBar"
-import { percent, transportLabel, typeLabel } from "./labels"
+import { engagementRate, percent, transportLabel, typeLabel } from "./labels"
 import type { MailData, MailFilters, MailOptions } from "./types"
 
 const P = "admin.platformAnalytics.mail."
@@ -37,7 +38,14 @@ function Body() {
       <KpiTile {...tile} label={t(P + "kpi.rate")} hint={t(P + "kpi.rateHint")} value={data && percent(data.FailureRate, formatNumber)} />
       <KpiTile {...tile} label={t(P + "kpi.fallbacks")} hint={t(P + "kpi.fallbacksHint")} value={data && formatNumber(data.Fallbacks)} />
     </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <KpiTile {...tile} label={t(P + "kpi.opened")} hint={t(P + "kpi.openedHint")} value={data && engagementRate(data.Tracked, data.OpenRate, formatNumber)}
+        sub={data ? t(P + "kpi.engagementSub", { count: formatNumber(data.Opened ?? 0), tracked: formatNumber(data.Tracked ?? 0) }) : undefined} />
+      <KpiTile {...tile} label={t(P + "kpi.clicked")} hint={t(P + "kpi.clickedHint")} value={data && engagementRate(data.Tracked, data.ClickRate, formatNumber)}
+        sub={data ? t(P + "kpi.engagementSub", { count: formatNumber(data.Clicked ?? 0), tracked: formatNumber(data.Tracked ?? 0) }) : undefined} />
+    </div>
     <DailyBlock res={res} params={params} />
+    <EngagementBlock res={res} params={params} />
     <div className="grid gap-6 lg:grid-cols-2">
       <KeyTableBlock res={res} params={params} title={t(P + "byTransport.title")} hint={t(P + "byTransport.hint")} table="by_transport" keyHeader={t(P + "col.transport")} label={transportLabel} rows={data?.ByTransport} />
       <KeyTableBlock res={res} params={params} title={t(P + "byType.title")} hint={t(P + "byType.hint")} table="by_type" keyHeader={t(P + "col.type")} label={typeLabel} rows={data?.ByType}

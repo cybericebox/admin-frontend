@@ -12,3 +12,8 @@ export const typeLabel = notifTypeLabel
 export function percent(ratio: number, format: (value: number, options?: Intl.NumberFormatOptions) => string): string {
   return t("admin.platformAnalytics.mail.percent", { value: format(ratio * 100, { maximumFractionDigits: 1 }) })
 }
+
+/** A rate of tracked emails, or a dash when nothing was sent with tracking (the rate is meaningless then). */
+export function engagementRate(tracked: number | undefined, ratio: number | undefined, format: (value: number, options?: Intl.NumberFormatOptions) => string): string {
+  return tracked && tracked > 0 ? percent(ratio ?? 0, format) : "–"
+}

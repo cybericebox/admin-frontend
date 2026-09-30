@@ -14,6 +14,7 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { EmailPreview } from "@/components/notifications/editor/EmailPreview"
 import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
 import { statusLabelKey } from "@/lib/templateStatus"
+import { BroadcastEngagement } from "./BroadcastEngagement"
 import { audienceLabel } from "./AudiencePicker"
 import { broadcastSample, broadcastChannelLabel, broadcastHeading, broadcastPillStatus, broadcastStatusLabel } from "./broadcastLabels"
 
@@ -134,7 +135,7 @@ export function BroadcastDetail({ id }: { id: string }) {
         {fact(t("admin.notif.broadcast.channels"), broadcast.Channels.map(broadcastChannelLabel).join(", "))}
         {fact(t("admin.notif.broadcast.audience.title"), audienceLabel(broadcast.Audience))}
         {fact(t("admin.notif.broadcast.col.recipients"), broadcast.RecipientCount)}
-        {fact(t("admin.notif.broadcast.col.delivery"), <>{broadcast.SentCount} / <span className={broadcast.FailedCount > 0 ? "text-destructive" : undefined}>{broadcast.FailedCount}</span></>)}
+        {fact(t("admin.notif.broadcast.col.delivery"), <>{broadcast.SentCount} / <span className={broadcast.FailedCount > 0 ? "text-destructive" : undefined}>{broadcast.FailedCount}</span><BroadcastEngagement broadcast={broadcast} /></>)}
         {fact(t("admin.notif.broadcast.col.author"), broadcast.CreatedByName || "—")}
         {fact(t("admin.notif.logs.created"), new Date(broadcast.CreatedAt).toLocaleString("uk-UA"))}
         {broadcast.FinishedAt && fact(t("admin.notif.broadcast.finished"), new Date(broadcast.FinishedAt).toLocaleString("uk-UA"))}
