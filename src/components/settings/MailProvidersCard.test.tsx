@@ -92,7 +92,7 @@ describe("MailProvidersCard", () => {
   it("shows the env transport read-only, as in use, when no providers are saved", () => {
     render(<Host initial={settings([], { Source: "env", EnvActive: true, Env: { Host: "env.smtp", Port: 465, FromName: "Env", FromAddress: "env@example.com", ReplyTo: "" } })} />)
     const env = screen.getByTestId("mail-env-provider")
-    expect(within(env).getByText(/Провайдерів не налаштовано, тому пошта йде через SMTP_\* з оточення/)).toBeInTheDocument()
+    expect(within(env).getByText(/Немає жодного увімкненого провайдера, тому пошта йде через SMTP_\* з оточення/)).toBeInTheDocument()
     expect(within(env).getByText(/env\.smtp:465/)).toBeInTheDocument()
   })
 
