@@ -1,63 +1,25 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailFieldSource, type MailLimitSource, type MailSettings, type MailSmtpInput, type MailTLSMode, type MailTestResult } from "@/api/mail/settings"
+import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, saveMailIdentity, type MailFieldSource, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { MailFooterCard } from "@/components/settings/MailFooterCard"
+import { MailProvidersCard } from "@/components/settings/MailProvidersCard"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { useRole } from "@/lib/useRole"
-import { mailTransportLabel } from "@/utils/notifType"
-import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
-import { NumberInput, parseNumberInput } from "@/components/ui/number-input"
-import { PasswordInput } from "@/components/ui/password-input"
-import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 
-const TLS_OPTIONS: { value: MailTLSMode; label: string }[] = [
-  { value: "starttls", label: "STARTTLS (587)" },
-  { value: "tls", label: "TLS (465)" },
-]
-
-const SOURCE_LABEL_KEY = {
-  database: "admin.mail.source.database",
-  env: "admin.mail.source.env",
-  none: "admin.mail.source.none",
-} as const
-
-type SmtpForm = Omit<MailSmtpInput, "Port" | "MaxPerSecond" | "DailyQuota"> & { Port: string; MaxPerSecond: string; DailyQuota: string }
 type IdentityForm = { SenderName: string; SenderAddress: string; ReplyToName: string; ReplyToAddress: string; SendingDomain: string }
-type Busy = "" | "identity" | "save" | "test" | "reset"
 
 function identityFrom(settings: MailSettings): IdentityForm {
   const { Sender, ReplyTo } = settings.Identity
   return { SenderName: Sender.Name, SenderAddress: Sender.Address, ReplyToName: ReplyTo.Name, ReplyToAddress: ReplyTo.Address, SendingDomain: settings.SavedSendingDomain }
-}
-
-// The SMTP form starts from the stored row. With the env fallback active it is
-// prefilled from the env summary so saving moves that config into the
-// database — the env password is never exposed, so it has to be typed in.
-function smtpFrom(settings: MailSettings): SmtpForm {
-  const env = settings.Source === "env" ? settings.Env : null
-  const stored = settings.SMTP
-  const port = env ? env.Port : stored?.Port ?? 0
-  const tls: MailTLSMode = (stored?.TLSMode || "") || (port === 465 ? "tls" : "starttls")
-  return {
-    Host: env ? env.Host : stored?.Host ?? "",
-    Port: port ? String(port) : "587",
-    TLSMode: tls,
-    Username: env ? "" : stored?.Username ?? "",
-    Password: "",
-    ClearPassword: false,
-    MaxPerSecond: stored?.MaxPerSecond != null ? String(stored.MaxPerSecond) : "",
-    DailyQuota: stored?.DailyQuota != null ? String(stored.DailyQuota) : "",
-  }
 }
 
 function validateIdentity(form: IdentityForm): string {
@@ -67,47 +29,21 @@ function validateIdentity(form: IdentityForm): string {
   return ""
 }
 
-function validateSmtp(form: SmtpForm): string {
-  if (!form.Host.trim()) return t("admin.mail.error.hostRequired")
-  const port = Number(form.Port)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return t("admin.mail.error.portInvalid")
-  if (Number.isNaN(parseNumberInput(form.MaxPerSecond))) return t("admin.mail.error.perSecondInvalid")
-  if (Number.isNaN(parseNumberInput(form.DailyQuota, true))) return t("admin.mail.error.dailyQuotaInvalid")
-  return ""
-}
-
-function smtpInput(form: SmtpForm): MailSmtpInput {
-  return {
-    Host: form.Host.trim(),
-    Port: Number(form.Port),
-    TLSMode: form.TLSMode,
-    Username: form.Username.trim(),
-    Password: form.ClearPassword ? "" : form.Password,
-    ClearPassword: form.ClearPassword,
-    MaxPerSecond: parseNumberInput(form.MaxPerSecond),
-    DailyQuota: parseNumberInput(form.DailyQuota, true),
-  }
-}
-
 export default function Page() {
   const { can } = useRole()
   const allowed = can("platform.settings.read")
   const canWrite = can("platform.settings.write")
   const [settings, setSettings] = useState<MailSettings | null>(null)
   const [identity, setIdentity] = useState<IdentityForm | null>(null)
-  const [smtp, setSmtp] = useState<SmtpForm | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
-  // Each action busies only its own button: nothing else on the page is disabled while it runs.
-  const [busy, setBusy] = useState<Record<Exclude<Busy, "">, boolean>>({ identity: false, save: false, test: false, reset: false })
-  const [testResult, setTestResult] = useState<MailTestResult | null>(null)
-  const [confirmReset, setConfirmReset] = useState(false)
+  // The save busies only its own button: nothing else on the page is disabled while it runs.
+  const [identityBusy, setIdentityBusy] = useState(false)
 
-  const apply = useCallback((next: MailSettings, part: "all" | "identity" | "smtp" = "all") => {
+  const apply = useCallback((next: MailSettings) => {
     setSettings(next)
-    if (part !== "smtp") setIdentity(identityFrom(next))
-    if (part !== "identity") setSmtp(smtpFrom(next))
+    setIdentity(identityFrom(next))
   }, [])
 
   const load = useCallback(async () => {
@@ -126,65 +62,30 @@ export default function Page() {
     setNotice("")
   }
 
-  function changeSmtp<K extends keyof SmtpForm>(key: K, value: SmtpForm[K]) {
-    setSmtp((current) => current && { ...current, [key]: value })
-    setNotice("")
-  }
-
-  async function run(kind: Exclude<Busy, "">, action: () => Promise<void>) {
-    setBusy((current) => ({ ...current, [kind]: true }))
-    setError("")
-    setNotice("")
-    try {
-      await action()
-    } catch (err) {
-      setError(localizedError(err))
-    } finally {
-      setBusy((current) => ({ ...current, [kind]: false }))
-    }
-  }
-
   function saveIdentity() {
     if (!identity) return
     const invalid = validateIdentity(identity)
     if (invalid) { setError(invalid); return }
-    void run("identity", async () => {
-      // Only the identity part is refreshed: unsaved SMTP edits stay in the form.
-      apply(await saveMailIdentity({
-        Sender: { Name: identity.SenderName.trim(), Address: identity.SenderAddress.trim() },
-        ReplyTo: { Name: identity.ReplyToName.trim(), Address: identity.ReplyToAddress.trim() },
-        SendingDomain: identity.SendingDomain.trim().toLowerCase(),
-      }), "identity")
+    setIdentityBusy(true)
+    setError("")
+    setNotice("")
+    saveMailIdentity({
+      Sender: { Name: identity.SenderName.trim(), Address: identity.SenderAddress.trim() },
+      ReplyTo: { Name: identity.ReplyToName.trim(), Address: identity.ReplyToAddress.trim() },
+      SendingDomain: identity.SendingDomain.trim().toLowerCase(),
+    }).then((next) => {
+      // Only the sender part is refreshed: the providers list may hold changes still being saved.
+      setSettings((current) => ({ ...next, Providers: current?.Providers ?? next.Providers }))
+      setIdentity(identityFrom(next))
       setNotice(t("admin.mail.identitySaved"))
-    })
+    }).catch((err) => setError(localizedError(err))).finally(() => setIdentityBusy(false))
   }
 
-  function saveSmtp() {
-    if (!smtp) return
-    const invalid = validateSmtp(smtp)
-    if (invalid) { setError(invalid); return }
-    void run("save", async () => {
-      apply(await saveMailSmtp(smtpInput(smtp)), "smtp")
-      setNotice(t("admin.mail.saved"))
-    })
-  }
-
-  function test() {
-    if (!smtp) return
-    const invalid = validateSmtp(smtp)
-    if (invalid) { setError(invalid); return }
-    setTestResult(null)
-    void run("test", async () => { setTestResult(await testMailSmtp(smtpInput(smtp))) })
-  }
-
-  function reset() {
-    setConfirmReset(false)
-    setTestResult(null)
-    void run("reset", async () => {
-      apply(await resetMailSmtp(), "smtp")
-      setNotice(t("admin.mail.resetDone"))
-    })
-  }
+  // A failed instant change of the providers list re-reads the settings: only the list is replaced, the sender form keeps its edits.
+  const reloadProviders = useCallback(async () => {
+    const next = await getMailSettings()
+    setSettings((current) => current && { ...current, Providers: next.Providers })
+  }, [])
 
   const disabled = !canWrite
   const effective = settings?.Effective
@@ -204,7 +105,7 @@ export default function Page() {
 
         {loadError ? (
           <LoadError message={t("admin.mail.loadError")} error={loadError.cause} onRetry={() => void load()} className="flex-1" />
-        ) : !settings || !identity || !smtp || !effective ? (
+        ) : !settings || !identity || !effective ? (
           <LoadingArea className="flex-1" label={t("admin.loading")} />
         ) : (
           <>
@@ -233,75 +134,14 @@ export default function Page() {
                   </div>
                 </section>
                 <RequirePermission perm="platform.settings.write">
-                  <Button onClick={saveIdentity} busy={busy.identity}>{t("admin.mail.save")}</Button>
+                  <Button onClick={saveIdentity} busy={identityBusy}>{t("admin.mail.save")}</Button>
                 </RequirePermission>
               </CardContent>
             </Card>
 
             <MailFooterCard footer={settings.Footer} canWrite={canWrite} onSaved={(next) => setSettings((current) => current && { ...current, Footer: next.Footer })} />
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.smtpTitle")}<FieldHelp text={t("admin.mail.smtpDescription")} /></CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1 text-sm">
-                  <p className={`flex items-center gap-1.5 ${settings.Source === "none" ? "font-medium text-destructive" : "font-medium text-foreground"}`} data-testid="mail-source">
-                    {settings.Source in SOURCE_LABEL_KEY ? t(SOURCE_LABEL_KEY[settings.Source]) : settings.Source}
-                    {sourceHelp(settings) && <FieldHelp text={sourceHelp(settings)} />}
-                  </p>
-                  {settings.Source === "database" && settings.SMTP?.UpdatedAt && <p className="text-muted-foreground">{t("admin.mail.updatedAt", { date: new Date(settings.SMTP.UpdatedAt).toLocaleString("uk-UA") })}</p>}
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field id="mail-host" label={t("admin.mail.host")} required><Input id="mail-host" value={smtp.Host} onChange={(event) => changeSmtp("Host", event.target.value)} disabled={disabled} placeholder="email-smtp.eu-central-1.amazonaws.com" autoComplete="off" /></Field>
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
-                    <Field id="mail-port" label={t("admin.mail.port")} required><Input id="mail-port" type="number" min={1} max={65535} value={smtp.Port} onChange={(event) => changeSmtp("Port", event.target.value)} disabled={disabled} /></Field>
-                    <div className="space-y-1.5"><span className="block text-sm font-medium">{t("admin.mail.encryption")}</span><SelectMenu value={smtp.TLSMode} onChange={(value) => { changeSmtp("TLSMode", value as MailTLSMode); if (value === "tls" && smtp.Port === "587") changeSmtp("Port", "465"); if (value === "starttls" && smtp.Port === "465") changeSmtp("Port", "587") }} options={TLS_OPTIONS} ariaLabel={t("admin.mail.encryption")} disabled={disabled} className="w-full" /></div>
-                  </div>
-                  <Field id="mail-username" label={t("admin.mail.username")}><Input id="mail-username" value={smtp.Username} onChange={(event) => changeSmtp("Username", event.target.value)} disabled={disabled} autoComplete="off" /></Field>
-                  <Field id="mail-password" label={t("admin.mail.password")}>
-                    {smtp.ClearPassword ? (
-                      <div className="flex h-10 items-center justify-between gap-3 rounded-md border border-border bg-secondary px-3 text-sm">
-                        <span className="text-muted-foreground">{t("admin.mail.passwordWillClear")}</span>
-                        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => changeSmtp("ClearPassword", false)}>{t("admin.mail.cancel")}</Button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <PasswordInput id="mail-password" value={smtp.Password} onChange={(event) => changeSmtp("Password", event.target.value)} disabled={disabled} autoComplete="new-password" placeholder={settings.SMTP?.PasswordSet ? t("admin.mail.passwordSet") : ""} />
-                        {settings.SMTP?.PasswordSet && canWrite && <Button type="button" variant="outline" className="h-10 shrink-0" disabled={disabled} onClick={() => { changeSmtp("ClearPassword", true); changeSmtp("Password", "") }}>{t("admin.mail.clearPassword")}</Button>}
-                      </div>
-                    )}
-                    {settings.SMTP?.PasswordSet && !smtp.ClearPassword && <p className="text-xs text-muted-foreground">{t("admin.mail.passwordKeepHint")}</p>}
-                  </Field>
-                  <Field id="mail-max-per-second" label={t("admin.mail.maxPerSecond")} help={withLimitSource(t("admin.mail.maxPerSecondHelp"), settings.Limits.PerSecondSource, "SMTP_MAX_PER_SECOND")}>
-                    <NumberInput id="mail-max-per-second" decimal value={smtp.MaxPerSecond} onChange={(value) => changeSmtp("MaxPerSecond", value)} disabled={disabled} placeholder={settings.Limits.EnvPerSecond > 0 ? String(settings.Limits.EnvPerSecond) : t("admin.mail.limitPlaceholder")} />
-                  </Field>
-                  <Field id="mail-daily-quota" label={t("admin.mail.dailyQuota")} help={withLimitSource(t("admin.mail.dailyQuotaHelp"), settings.Limits.DailyQuotaSource, "SMTP_DAILY_QUOTA")}>
-                    <NumberInput id="mail-daily-quota" value={smtp.DailyQuota} onChange={(value) => changeSmtp("DailyQuota", value)} disabled={disabled} placeholder={settings.Limits.EnvDailyQuota > 0 ? String(settings.Limits.EnvDailyQuota) : t("admin.mail.limitPlaceholder")} />
-                    {settings.Limits.DailyQuota > 0 && <p className="text-xs text-muted-foreground" data-testid="mail-quota-used">{t("admin.mail.quotaUsed", { used: settings.Limits.Used24h, limit: settings.Limits.DailyQuota })}</p>}
-                  </Field>
-                </div>
-
-                {testResult && (
-                  <Alert variant={testResult.Sent ? "success" : "destructive"}>
-                    {testResult.Sent
-                      ? testResult.Transport
-                        ? t("admin.mail.test.sentVia", { recipient: testResult.Recipient, transport: mailTransportLabel(testResult.Transport) })
-                        : t("admin.mail.test.sent", { recipient: testResult.Recipient })
-                      : t(testResult.Recipient ? "admin.mail.test.failedTo" : "admin.mail.test.failed", { recipient: testResult.Recipient, error: testResult.Error || t("admin.mail.test.unknownError") })}
-                  </Alert>
-                )}
-
-                <RequirePermission perm="platform.settings.write">
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={saveSmtp} busy={busy.save}>{t("admin.mail.save")}</Button>
-                    <Button variant="outline" onClick={test} busy={busy.test}>{t("admin.mail.test")}</Button>
-                    {settings.Source === "database" && <Button variant="outline" className="sm:ml-auto" onClick={() => setConfirmReset(true)} busy={busy.reset}>{t("admin.mail.reset")}</Button>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t("admin.mail.testHint")}</p>
-                </RequirePermission>
-              </CardContent>
-            </Card>
+            <MailProvidersCard settings={settings} canWrite={canWrite} update={setSettings} reload={reloadProviders} />
 
             {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
             {notice && <p role="status" className="rounded-md bg-[var(--ib-ok-bg)] p-3 text-sm text-foreground">{notice}</p>}
@@ -309,29 +149,12 @@ export default function Page() {
         )}
       </div>
 
-      <ConfirmDialog open={confirmReset} onCancel={() => setConfirmReset(false)} tone="danger"
-        title={t("admin.mail.resetConfirmTitle")} description={t("admin.mail.resetConfirmBody")}
-        cancelLabel={t("admin.mail.cancel")} confirmLabel={t("admin.mail.resetConfirm")} onConfirm={reset} />
     </RequirePermission>
   )
 }
 
-// The details of the SMTP source (server config values, what to do) sit behind the (?).
-function sourceHelp(settings: MailSettings): string {
-  if (settings.Source === "none") return t("admin.mail.noneHint")
-  if (settings.Source !== "env" || !settings.Env) return ""
-  const env = settings.Env
-  const summary = t(env.ReplyTo ? "admin.mail.envSummaryReplyTo" : "admin.mail.envSummary", { host: env.Host, port: env.Port, name: env.FromName, address: env.FromAddress, replyTo: env.ReplyTo })
-  return `${summary}. ${t("admin.mail.envHint")}`
-}
-
 // A field tooltip: what the field is, then where its current value comes from.
 function withSource(help: string, source: MailFieldSource, envName: string): string {
-  return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
-}
-
-// The same for a send limit: saved, from the server config, or not set.
-function withLimitSource(help: string, source: MailLimitSource, envName: string): string {
   return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
 }
 

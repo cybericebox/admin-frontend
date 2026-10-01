@@ -90,5 +90,7 @@
   "31404": "The test laboratory is already gone",
   "71405": "The device keeps no state, there is nothing to reset",
   "31406": "The lab or device was not found",
-  "71407": "The device is still restarting, try again in a moment"
+  "71407": "The device is still restarting, try again in a moment",
+  "72107": "An SMTP provider with this name already exists",
+  "32108": "SMTP provider not found"
 }

@@ -1,26 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import type { MailSettings } from "@/api/mail/settings"
+import type { MailProvider, MailSettings } from "@/api/mail/settings"
 
 const getMailSettings = vi.fn()
 const saveMailIdentity = vi.fn()
-const saveMailSmtp = vi.fn()
-const resetMailSmtp = vi.fn()
-const testMailSmtp = vi.fn()
 vi.mock("@/api/mail/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/mail/settings")>()),
   previewMailFooter: () => Promise.resolve({ HTML: "<p>preview</p>", Text: "preview" }),
   getMailSettings: () => getMailSettings(),
   saveMailIdentity: (input: unknown) => saveMailIdentity(input),
-  saveMailSmtp: (input: unknown) => saveMailSmtp(input),
-  resetMailSmtp: () => resetMailSmtp(),
-  testMailSmtp: (input: unknown) => testMailSmtp(input),
 }))
 let perms = ["platform.settings.read", "platform.settings.write"]
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => perms.includes(perm) }) }))
 vi.mock("next/navigation", () => ({ usePathname: () => "/settings/mail" }))
 
 import Page from "./page"
+
+const PROVIDER: MailProvider = {
+  ID: "p1", Name: "Brevo", Host: "smtp.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", PasswordSet: true, Priority: 0, Enabled: true,
+  Sender: { Name: "", Address: "" }, ReplyTo: { Name: "", Address: "" }, MaxPerSecond: null, DailyLimit: 300, SentToday: 120, Exhausted: false,
+  ResetsAt: "2026-10-02T00:00:00Z", LastUsedAt: null, LastError: "", LastErrorAt: null, UpdatedAt: "2026-09-29T10:00:00Z",
+}
 
 const STORED: MailSettings = {
   Identity: { Sender: { Name: "CyberICEBox", Address: "notifications@mail.cybericebox.com" }, ReplyTo: { Name: "", Address: "support@cybericebox.com" } },
@@ -32,9 +32,9 @@ const STORED: MailSettings = {
   Sources: { SenderName: "saved", SenderAddress: "saved", ReplyToName: "none", ReplyToAddress: "saved", SendingDomain: "saved" },
   Source: "database",
   Configured: true,
-  SMTP: { Host: "smtp.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", PasswordSet: true, UpdatedAt: "2026-09-29T10:00:00Z", MaxPerSecond: null, DailyQuota: null },
+  EnvActive: false,
   Env: null,
-  Limits: { PerSecond: 14, DailyQuota: 50000, PerSecondSource: "env", DailyQuotaSource: "env", EnvPerSecond: 14, EnvDailyQuota: 50000, Used24h: 1200 },
+  Providers: [PROVIDER],
 }
 
 describe("mail settings page", () => {
@@ -43,104 +43,29 @@ describe("mail settings page", () => {
     perms = ["platform.settings.read", "platform.settings.write"]
   })
 
-  it("shows the database source, sending domain and keeps the stored password on save", async () => {
+  it("shows the sender section and the providers list", async () => {
     getMailSettings.mockResolvedValue(STORED)
-    saveMailSmtp.mockResolvedValue({ ...STORED, Host: "smtp2.example.com" })
     render(<Page />)
-    expect(await screen.findByText("Налаштування платформи")).toBeInTheDocument()
+    expect(await screen.findByText("SMTP-провайдери")).toBeInTheDocument()
     expect(screen.getByLabelText("Домен відправлення")).toHaveValue("mail.cybericebox.com")
-    expect(screen.getByPlaceholderText("Пароль збережено")).toHaveValue("")
-    fireEvent.change(screen.getByLabelText("Сервер"), { target: { value: "smtp2.example.com" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith({
-      Host: "smtp2.example.com", Port: 587, TLSMode: "starttls", Username: "mailer", Password: "", ClearPassword: false, MaxPerSecond: null, DailyQuota: null,
-    }))
-    expect(await screen.findByText("Налаштування пошти збережено.")).toBeInTheDocument()
+    expect(screen.getByText("Brevo")).toBeInTheDocument()
   })
 
-  it("sends ClearPassword after «Видалити пароль»", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    saveMailSmtp.mockResolvedValue({ ...STORED, PasswordSet: false })
+  it("shows a load error with a retry that reloads", async () => {
+    getMailSettings.mockRejectedValueOnce(new Error("boom")).mockResolvedValue(STORED)
     render(<Page />)
-    fireEvent.click(await screen.findByRole("button", { name: "Видалити пароль" }))
-    expect(screen.getByText("Пароль буде видалено після збереження")).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith(expect.objectContaining({ Password: "", ClearPassword: true })))
-  })
-
-  it("tests the current form values and shows the result inline", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    testMailSmtp.mockResolvedValue({ Sent: false, Recipient: "admin@example.com", Transport: "platform", Error: "535 auth failed" })
-    render(<Page />)
-    fireEvent.change(await screen.findByLabelText("Порт"), { target: { value: "2525" } })
-    fireEvent.click(screen.getByRole("button", { name: "Перевірити підключення" }))
-    await waitFor(() => expect(testMailSmtp).toHaveBeenCalledWith(expect.objectContaining({ Host: "smtp.example.com", Port: 2525 })))
-    expect(await screen.findByText(/admin@example.com: 535 auth failed/)).toBeInTheDocument()
-  })
-
-  it("validates the port before calling the API", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    render(<Page />)
-    fireEvent.change(await screen.findByLabelText("Порт"), { target: { value: "70000" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    expect(await screen.findByText("Порт має бути цілим числом від 1 до 65535.")).toBeInTheDocument()
-    expect(saveMailSmtp).not.toHaveBeenCalled()
-  })
-
-  it("shows the env limits as placeholders and the daily usage", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    render(<Page />)
-    const perSecond = await screen.findByLabelText("Максимум листів за секунду")
-    expect(perSecond).toHaveValue("")
-    expect(perSecond).toHaveAttribute("placeholder", "14")
-    expect(perSecond).toHaveAttribute("type", "text")
-    expect(screen.getByLabelText("Ліміт листів на добу")).toHaveAttribute("placeholder", "50000")
-    expect(screen.getByTestId("mail-quota-used")).toHaveTextContent("За останні 24 години надіслано: 1200 з 50000.")
-  })
-
-  it("saves the typed limits, a fractional rate included, and sends null for empty ones", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    saveMailSmtp.mockResolvedValue(STORED)
-    render(<Page />)
-    fireEvent.change(await screen.findByLabelText("Максимум листів за секунду"), { target: { value: "0,5" } })
-    fireEvent.change(screen.getByLabelText("Ліміт листів на добу"), { target: { value: "50000" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    await waitFor(() => expect(saveMailSmtp).toHaveBeenCalledWith(expect.objectContaining({ MaxPerSecond: 0.5, DailyQuota: 50000 })))
-  })
-
-  it("prefills the saved limits and validates them before calling the API", async () => {
-    getMailSettings.mockResolvedValue({ ...STORED, SMTP: { ...STORED.SMTP!, MaxPerSecond: 14, DailyQuota: 50000 } })
-    render(<Page />)
-    expect(await screen.findByLabelText("Максимум листів за секунду")).toHaveValue("14")
-    fireEvent.change(screen.getByLabelText("Максимум листів за секунду"), { target: { value: "0" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    expect(await screen.findByText("Максимум листів за секунду має бути числом більше нуля.")).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText("Максимум листів за секунду"), { target: { value: "" } })
-    fireEvent.change(screen.getByLabelText("Ліміт листів на добу"), { target: { value: "0" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[2])
-    expect(await screen.findByText("Ліміт листів на добу має бути цілим числом більше нуля.")).toBeInTheDocument()
-    expect(saveMailSmtp).not.toHaveBeenCalled()
-  })
-
-  it("returns to env settings after confirmation", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    resetMailSmtp.mockResolvedValue({ ...STORED, Source: "env", SMTP: null, Env: { Host: "smtp.env", Port: 465, FromName: "Env", FromAddress: "env@example.com", ReplyTo: "" } })
-    render(<Page />)
-    fireEvent.click(await screen.findByRole("button", { name: "Повернутися до налаштувань оточення" }))
-    fireEvent.click(await screen.findByRole("button", { name: "Видалити налаштування" }))
-    await waitFor(() => expect(resetMailSmtp).toHaveBeenCalled())
-    expect(await screen.findByText("Резервні налаштування з оточення (SMTP_*)")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /smtp\.env:465/ })).toBeInTheDocument()
-    expect(screen.getByLabelText("Сервер")).toHaveValue("smtp.env")
+    fireEvent.click(await screen.findByRole("button", { name: "Спробувати ще раз" }))
+    expect(await screen.findByText("SMTP-провайдери")).toBeInTheDocument()
   })
 
   it("is read-only without platform.settings.write", async () => {
     perms = ["platform.settings.read"]
-    getMailSettings.mockResolvedValue({ ...STORED, Source: "none", Configured: false, SMTP: null })
+    getMailSettings.mockResolvedValue(STORED)
     render(<Page />)
-    expect(await screen.findByText("Пошту не налаштовано")).toBeInTheDocument()
-    expect(screen.getByLabelText("Сервер")).toBeDisabled()
+    expect(await screen.findByText("Brevo")).toBeInTheDocument()
     expect(screen.getByLabelText("Ім'я", { selector: "#mail-sender-name" })).toBeDisabled()
+    expect(screen.getByRole("switch", { name: "Увімкнути «Brevo»" })).toBeDisabled()
+    expect(screen.queryByRole("button", { name: "Додати провайдера" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
   })
 
@@ -155,7 +80,6 @@ describe("mail settings page", () => {
     await waitFor(() => expect(saveMailIdentity).toHaveBeenCalledWith({
       Sender: { Name: "", Address: "" }, ReplyTo: { Name: "", Address: "help@cybericebox.com" }, SendingDomain: "mail.cybericebox.com",
     }))
-    expect(saveMailSmtp).not.toHaveBeenCalled()
     expect(await screen.findByText("Відправника збережено.")).toBeInTheDocument()
   })
 
@@ -207,34 +131,18 @@ describe("mail settings page", () => {
     expect(screen.getByRole("button", { name: /Зараз: не задано\./ })).toBeInTheDocument()
   })
 
-  it("keeps the other sections enabled while one section saves", async () => {
+  it("keeps the providers and the footer enabled while the sender saves", async () => {
     getMailSettings.mockResolvedValue(STORED)
     saveMailIdentity.mockReturnValue(new Promise(() => {}))
     render(<Page />)
-    await screen.findByText("Налаштування платформи")
+    await screen.findByText("SMTP-провайдери")
     const saves = screen.getAllByRole("button", { name: "Зберегти" })
     fireEvent.click(saves[0])
     await waitFor(() => expect(saveMailIdentity).toHaveBeenCalled())
     expect(saves[0]).toBeDisabled()
-    expect(screen.getByLabelText("Сервер")).toBeEnabled()
-    expect(screen.getByLabelText("Домен відправлення")).toBeEnabled()
     expect(saves[1]).toBeEnabled()
-    expect(saves[2]).toBeEnabled()
-    expect(screen.getByRole("button", { name: "Перевірити підключення" })).toBeEnabled()
-  })
-
-  it("keeps the identity section and footer enabled while the SMTP section saves", async () => {
-    getMailSettings.mockResolvedValue(STORED)
-    saveMailSmtp.mockReturnValue(new Promise(() => {}))
-    render(<Page />)
-    await screen.findByText("Налаштування платформи")
-    const saves = screen.getAllByRole("button", { name: "Зберегти" })
-    fireEvent.click(saves[2])
-    await waitFor(() => expect(saveMailSmtp).toHaveBeenCalled())
-    expect(saves[2]).toBeDisabled()
     expect(screen.getByLabelText("Домен відправлення")).toBeEnabled()
-    expect(saves[0]).toBeEnabled()
-    expect(saves[1]).toBeEnabled()
-    expect(screen.getByLabelText("Сервер")).toBeEnabled()
+    expect(screen.getByRole("switch", { name: "Увімкнути «Brevo»" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Додати провайдера" })).toBeEnabled()
   })
 })

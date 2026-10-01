@@ -3,9 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/api/client")
 
 import * as client from "@/api/client"
-import { getMailSettings, isValidEmail, isValidSendingDomain, previewMailFooter, saveMailFooter, resetMailSmtp, saveMailIdentity, saveMailSmtp, testMailSmtp, type MailSmtpInput } from "./settings"
+import { createMailProvider, deleteMailProvider, getMailSettings, isValidEmail, isValidSendingDomain, previewMailFooter, reorderMailProviders, saveMailFooter, saveMailIdentity, saveMailProvider, setMailProviderEnabled, testMailProvider, testMailProviderForm, testMailTransportInUse, type MailProviderInput } from "./settings"
 
-const smtp: MailSmtpInput = {
+const provider: MailProviderInput = {
+  Name: "SES",
+  Sender: { Name: "", Address: "" },
+  ReplyTo: { Name: "", Address: "" },
   Host: "email-smtp.eu-central-1.amazonaws.com",
   Port: 587,
   TLSMode: "starttls",
@@ -15,6 +18,7 @@ const smtp: MailSmtpInput = {
   MaxPerSecond: 14,
   DailyQuota: 50000,
 }
+const ID = "0197a1b2-0000-7000-8000-000000000001"
 
 describe("mail settings API", () => {
   beforeEach(() => vi.clearAllMocks())
@@ -39,21 +43,31 @@ describe("mail settings API", () => {
     expect(client.apiPost).toHaveBeenCalledWith("/api/mail/settings/footer/preview", { Content: null })
   })
 
-  it("saves the SMTP form body", async () => {
-    await saveMailSmtp(smtp)
-    expect(client.apiPut).toHaveBeenCalledWith("/api/mail/settings/smtp", smtp)
+  it("adds and saves a provider with the whole form body", async () => {
+    await createMailProvider(provider)
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/providers", provider)
+    await saveMailProvider(ID, provider)
+    expect(client.apiPut).toHaveBeenLastCalledWith(`/api/mail/settings/providers/${ID}`, provider)
   })
 
-  it("resets to the env fallback with DELETE", async () => {
-    await resetMailSmtp()
-    expect(client.apiDelete).toHaveBeenCalledWith("/api/mail/settings/smtp")
+  it("switches, deletes and orders providers", async () => {
+    await setMailProviderEnabled(ID, false)
+    expect(client.apiPatch).toHaveBeenLastCalledWith(`/api/mail/settings/providers/${ID}/enabled`, { Enabled: false })
+    await deleteMailProvider(ID)
+    expect(client.apiDelete).toHaveBeenLastCalledWith(`/api/mail/settings/providers/${ID}`)
+    await reorderMailProviders([ID, "b"])
+    expect(client.apiPut).toHaveBeenLastCalledWith("/api/mail/settings/providers/order", { IDs: [ID, "b"] })
   })
 
-  it("tests the given SMTP, or the stored one with an empty body", async () => {
-    await testMailSmtp(smtp)
-    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/smtp/test", smtp)
-    await testMailSmtp()
-    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/smtp/test", {})
+  it("tests a stored provider, form values (with the provider id for its password), or the transport in use", async () => {
+    await testMailProvider(ID)
+    expect(client.apiPost).toHaveBeenLastCalledWith(`/api/mail/settings/providers/${ID}/test`, {})
+    await testMailProviderForm(provider, ID)
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/providers/test", { ...provider, ID })
+    await testMailProviderForm(provider)
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/providers/test", { ...provider, ID: "" })
+    await testMailTransportInUse()
+    expect(client.apiPost).toHaveBeenLastCalledWith("/api/mail/settings/providers/test", {})
   })
 
   it("accepts empty and well-formed addresses only", () => {
