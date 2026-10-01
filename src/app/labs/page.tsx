@@ -18,6 +18,7 @@ import {
   type CapacityObservation, type CurrentLab, type InfrastructureStatus, type Stand, type StandEventOption, type TestLab,
 } from "@/api/infrastructure"
 import { CapacityPanel } from "@/components/infrastructure/CapacityPanel"
+import { StandDetailDialog, TestLabDetailDialog } from "@/components/infrastructure/LabDetailDialogs"
 import { CurrentState } from "@/components/infrastructure/CurrentState"
 import { RefreshIndicator } from "@/components/infrastructure/RefreshIndicator"
 import { StandsTable, teamLabel, type StandsFilters } from "@/components/infrastructure/StandsTable"
@@ -128,6 +129,12 @@ function LabsPage() {
     }
   }
 
+  const [detailStand, setDetailStand] = useState<Stand | null>(null)
+  const [detailLab, setDetailLab] = useState<TestLab | null>(null)
+  // The open detail follows the freshest row of its list (queue, warning), keeping the last one if the row left the page.
+  const shownStand = detailStand && (stands?.find((item) => item.EventID === detailStand.EventID && item.TeamID === detailStand.TeamID) ?? detailStand)
+  const shownLab = detailLab && (testLabs?.find((item) => item.ID === detailLab.ID) ?? detailLab)
+
   const [labTarget, setLabTarget] = useState<TestLab | null>(null)
   const [labBusy, setLabBusy] = useState(false)
   const [labError, setLabError] = useState<string | null>(null)
@@ -171,13 +178,15 @@ function LabsPage() {
         </CardContent></Card>
         <StandsTable filters={filters} searchInput={searchInput} onSearchInput={setSearchInput} onFilters={(patch) => setFilters((value) => ({ ...value, ...patch }))}
           events={standEvents} items={stands} total={standsTotal} loading={standsLoading} error={standsError} errorCause={causes.stands} canWrite={canWrite} onRetry={retry}
-          onRecreate={(stand) => { setRecreateError(null); setTarget(stand) }} />
+          onRecreate={(stand) => { setRecreateError(null); setTarget(stand) }} onDetails={setDetailStand} />
         <TestLabsTable filters={testLabsFilters} searchInput={testLabsSearchInput} onSearchInput={setTestLabsSearchInput} onFilters={(patch) => setTestLabsFilters((value) => ({ ...value, ...patch }))}
           items={testLabs} total={testLabsTotal} loading={standsLoading} error={testLabsError} errorCause={causes.testLabs} canWrite={canWrite} onRetry={retry}
-          onTerminate={(lab) => { setLabError(null); setLabTarget(lab) }} />
+          onTerminate={(lab) => { setLabError(null); setLabTarget(lab) }} onDetails={setDetailLab} />
         <CurrentState rows={current} includeRecent={includeRecent} onIncludeRecent={setIncludeRecent} loadError={labsError} errorCause={causes.labs} onRetry={retry} />
         <CapacityPanel rows={capacity} agents={status.Agents} loadError={capacityError} errorCause={causes.capacity} onRetry={retry} />
       </>}
+      <StandDetailDialog stand={detailStand ? shownStand : null} canWrite={canWrite} onClose={() => setDetailStand(null)} />
+      <TestLabDetailDialog lab={detailLab ? shownLab : null} canWrite={canWrite} onClose={() => setDetailLab(null)} />
       <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} error={recreateError}
         title={t("admin.labs.stands.recreate.title")}
         description={target ? t("admin.labs.stands.recreate.body", { event: target.EventName || target.EventTag, team: teamLabel(target) }) : undefined}

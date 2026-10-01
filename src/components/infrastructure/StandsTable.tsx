@@ -1,6 +1,6 @@
 "use client"
 
-import { RotateCw } from "lucide-react"
+import { Info, RotateCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -12,6 +12,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
+import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import type { Stand, StandEventOption } from "@/api/infrastructure"
 import { formatDateTime } from "@/lib/locale"
@@ -39,7 +40,7 @@ export const STAND_KIND_FILTERS = ["event", "moderators"] as const
 
 export type StandsFilters = { eventId: string; status: string; kind: string; search: string; page: number; pageSize: number }
 
-export function StandsTable({ filters, searchInput, onSearchInput, onFilters, events, items, total, loading, error, errorCause, canWrite, onRetry, onRecreate }: {
+export function StandsTable({ filters, searchInput, onSearchInput, onFilters, events, items, total, loading, error, errorCause, canWrite, onRetry, onRecreate, onDetails }: {
   filters: StandsFilters
   searchInput: string
   onSearchInput: (value: string) => void
@@ -53,6 +54,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
   canWrite: boolean
   onRetry: () => void
   onRecreate: (stand: Stand) => void
+  onDetails: (stand: Stand) => void
 }) {
   const block = "flex min-h-64 items-center justify-center"
   return <Card>
@@ -89,26 +91,31 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.resources.memory")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.stands.col.time")}</th>
                   <th scope="col" className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1.5">{t("admin.labs.stands.col.generation")}<FieldHelp text={t("admin.labs.stands.col.generationHelp")} /></span></th>
-                  {canWrite && <th scope="col" className="w-12 px-3 py-2"><span className="sr-only">{t("admin.labs.stands.col.actions")}</span></th>}
+                  <th scope="col" className="w-24 px-3 py-2"><span className="sr-only">{t("admin.labs.stands.col.actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((stand) => <tr key={`${stand.EventID}:${stand.TeamID}`} className="border-b border-border/50 transition-colors hover:bg-accent/10">
                   <td className="px-3 py-2"><span className="block font-medium text-foreground">{stand.EventName || stand.EventTag}</span><EventSiteLink tag={stand.EventTag} path="/manage/labs" tooltip={t("admin.labs.stands.openManage")} /></td>
                   <td className="px-3 py-2">{teamLabel(stand)}</td>
-                  <td className="px-3 py-2"><StandStatusBadge status={stand.Status} /></td>
+                  <td className="px-3 py-2"><span className="inline-flex flex-wrap items-center gap-1.5"><StandStatusBadge status={stand.Status} />{stand.Queue && <QueueBadge position={stand.Queue.Position} length={stand.Queue.Length} reason={stand.Queue.Reason} labs={stand.Queue.QueuedLabs} />}{stand.ImageWarning && <ImageWarningIcon />}</span></td>
                   <td className="max-w-xs break-words px-3 py-2 text-muted-foreground">{stand.Reason || "—"}</td>
                   <td className="px-3 py-2"><ResourceCell resources={stand.Resources} kind="cpu" /></td>
                   <td className="px-3 py-2"><ResourceCell resources={stand.Resources} kind="memory" /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(stand.UpdatedAt)}</td>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{stand.Generation}</td>
-                  {canWrite && <td className="px-3 py-2">
-                    {stand.Status !== "removed" && <HoverTooltip text={t("admin.labs.stands.recreate")}>
+                  <td className="px-3 py-2"><span className="inline-flex items-center gap-1">
+                    <HoverTooltip text={t("admin.labs.detail.open")}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t("admin.labs.detail.open")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onDetails(stand)}>
+                        <Info aria-hidden="true" className="h-4 w-4" />
+                      </Button>
+                    </HoverTooltip>
+                    {canWrite && stand.Status !== "removed" && <HoverTooltip text={t("admin.labs.stands.recreate")}>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.stands.recreate")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onRecreate(stand)}>
                         <RotateCw aria-hidden="true" className="h-4 w-4" />
                       </Button>
                     </HoverTooltip>}
-                  </td>}
+                  </span></td>
                 </tr>)}
               </tbody>
             </table>

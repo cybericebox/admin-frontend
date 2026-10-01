@@ -56,6 +56,31 @@ export type LabResources = {
   RequestedMemoryBytes: number
 }
 
+/** Where a lab waits in the launch queue; Reason is one of the scheduler's queue reasons. */
+export type LabQueue = { Position: number; Length: number; Reason: string; Message: string; Pods: number; Pending: number }
+
+export type DeviceFailure = { Reason: string; Message: string; RestartCount: number; At: string | null }
+export type DeviceScheduling = {
+  State: string
+  QueuedAt: string | null
+  DispatchedAt: string | null
+  StartedAt: string | null
+  Failure: DeviceFailure | null
+}
+export type DeviceSnapshot = { LastSnapshotAt: string | null; RestoredAt: string | null; SizeBytes: number; Warning: string; Rescue: boolean }
+export type LabDevice = { Name: string; Ready: boolean; Reason: string; Scheduling: DeviceScheduling | null; Snapshot: DeviceSnapshot | null }
+export type LabLive = {
+  Phase: string
+  Ready: boolean
+  Queue: LabQueue | null
+  ImageWarning: string
+  GroupImageWarning: string
+  Devices: LabDevice[]
+}
+
+/** The best placed queued lab of a stand. */
+export type StandQueue = { QueuedLabs: number; Position: number; Length: number; Reason: string }
+
 export type Stand = {
   EventID: string
   EventName: string
@@ -69,6 +94,8 @@ export type Stand = {
   StatusChangedAt: string | null
   Generation: number
   Resources?: LabResources
+  Queue?: StandQueue | null
+  ImageWarning?: boolean
 }
 
 export type StandEventOption = { ID: string; Name: string; Tag: string }
@@ -77,7 +104,7 @@ export type StandKind = "event" | "moderators"
 export type StandsFilter = { eventId?: string; status?: string; kind?: string; search?: string; page: number; pageSize: number }
 
 /** Live state of a catalog test lab; "unknown" when the agent did not answer. */
-export type TestLabStatus = "creating" | "ready" | "failed" | "unknown"
+export type TestLabStatus = "queued" | "creating" | "ready" | "failed" | "unknown"
 
 /** A catalog test lab: an exercise test deploy running on the infrastructure. */
 export type TestLab = {
@@ -96,6 +123,8 @@ export type TestLab = {
   Expired: boolean
   Status: TestLabStatus
   Resources?: LabResources
+  Queue?: LabQueue | null
+  ImageWarning?: boolean
 }
 
 export type TestLabsFilter = { search?: string; page: number; pageSize: number }
@@ -138,3 +167,33 @@ export function listTestLabs(filter: TestLabsFilter): Promise<OffsetPage<TestLab
 }
 
 export const terminateTestLab = (id: string) => apiPost<unknown>(`${BASE}/test-labs/${encodeURIComponent(id)}/terminate`, {})
+
+export type StandLabDetail = { ChallengeID: string; ChallengeName: string; Status: string; Reason: string; Live: LabLive | null; LiveUnavailable: boolean }
+export type StandDetail = {
+  TeamID: string
+  TeamName: string
+  Moderators: boolean
+  Status: StandStatus
+  Reason: string
+  Generation: number
+  LaboratoriesAvailable: boolean
+  Labs: StandLabDetail[]
+}
+export type TestLabDetail = { ID: string; GroupName: string; Status: "queued" | "creating" | "ready" | "failed"; Live: LabLive | null }
+
+const standPath = (eventId: string, teamId: string) => `${BASE}/stands/${encodeURIComponent(eventId)}/${encodeURIComponent(teamId)}`
+
+export const getStandDetail = (eventId: string, teamId: string) => apiGet<StandDetail>(`${standPath(eventId, teamId)}/detail`)
+export const getTestLabDetail = (id: string) => apiGet<TestLabDetail>(`${BASE}/test-labs/${encodeURIComponent(id)}/detail`)
+
+const standDevicePath = (eventId: string, teamId: string, challengeId: string, device: string) =>
+  `${standPath(eventId, teamId)}/challenges/${encodeURIComponent(challengeId)}/devices/${encodeURIComponent(device)}`
+const testLabDevicePath = (id: string, device: string) => `${BASE}/test-labs/${encodeURIComponent(id)}/devices/${encodeURIComponent(device)}`
+
+export const resetStandDevice = (eventId: string, teamId: string, challengeId: string, device: string) =>
+  apiPost<unknown>(`${standDevicePath(eventId, teamId, challengeId, device)}/reset`, {})
+export const rescueStandDevice = (eventId: string, teamId: string, challengeId: string, device: string, enable: boolean) =>
+  apiPost<unknown>(`${standDevicePath(eventId, teamId, challengeId, device)}/rescue`, { Enable: enable })
+export const resetTestLabDevice = (id: string, device: string) => apiPost<unknown>(`${testLabDevicePath(id, device)}/reset`, {})
+export const rescueTestLabDevice = (id: string, device: string, enable: boolean) =>
+  apiPost<unknown>(`${testLabDevicePath(id, device)}/rescue`, { Enable: enable })

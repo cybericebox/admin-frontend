@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink, Power } from "lucide-react"
+import { ExternalLink, Info, Power } from "lucide-react"
+import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ import { t } from "@/i18n/t"
 export type TestLabsFilters = { search: string; page: number; pageSize: number }
 
 const STATUS_STYLE: Record<string, string> = {
+  queued: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
   creating: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
   ready: "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
   failed: "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]",
@@ -35,7 +37,7 @@ export function testLabAuthor(lab: TestLab): string {
   return lab.AuthorName || lab.AuthorEmail
 }
 
-export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, items, total, loading, error, errorCause, canWrite, onRetry, onTerminate }: {
+export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, items, total, loading, error, errorCause, canWrite, onRetry, onTerminate, onDetails }: {
   filters: TestLabsFilters
   searchInput: string
   onSearchInput: (value: string) => void
@@ -48,6 +50,7 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
   canWrite: boolean
   onRetry: () => void
   onTerminate: (lab: TestLab) => void
+  onDetails: (lab: TestLab) => void
 }) {
   const block = "flex min-h-64 items-center justify-center"
   return <Card id="test-labs">
@@ -73,7 +76,7 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.created")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.until")}</th>
                   <th scope="col" className="px-3 py-2 font-medium">{t("admin.labs.testLabs.col.status")}</th>
-                  {canWrite && <th scope="col" className="w-12 px-3 py-2"><span className="sr-only">{t("admin.labs.testLabs.col.actions")}</span></th>}
+                  <th scope="col" className="w-24 px-3 py-2"><span className="sr-only">{t("admin.labs.testLabs.col.actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -93,14 +96,19 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                   <td className="px-3 py-2"><ResourceCell resources={lab.Resources} kind="memory" /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(lab.CreatedAt)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(lab.ExpiresAt)}</td>
-                  <td className="px-3 py-2"><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Expired && <span className="inline-flex rounded-md bg-secondary/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{t("admin.labs.testLabs.expired")}</span>}</span></td>
-                  {canWrite && <td className="px-3 py-2">
-                    <HoverTooltip text={t("admin.labs.testLabs.terminate")}>
+                  <td className="px-3 py-2"><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Queue && <QueueBadge position={lab.Queue.Position} length={lab.Queue.Length} reason={lab.Queue.Reason} />}{lab.ImageWarning && <ImageWarningIcon />}{lab.Expired && <span className="inline-flex rounded-md bg-secondary/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{t("admin.labs.testLabs.expired")}</span>}</span></td>
+                  <td className="px-3 py-2"><span className="inline-flex items-center gap-1">
+                    <HoverTooltip text={t("admin.labs.detail.open")}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t("admin.labs.detail.open")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onDetails(lab)}>
+                        <Info aria-hidden="true" className="h-4 w-4" />
+                      </Button>
+                    </HoverTooltip>
+                    {canWrite && <HoverTooltip text={t("admin.labs.testLabs.terminate")}>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.testLabs.terminate")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onTerminate(lab)}>
                         <Power aria-hidden="true" className="h-4 w-4" />
                       </Button>
-                    </HoverTooltip>
-                  </td>}
+                    </HoverTooltip>}
+                  </span></td>
                 </tr>)}
               </tbody>
             </table>
