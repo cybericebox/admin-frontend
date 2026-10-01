@@ -15,12 +15,12 @@ const summary = { Users: 3, OnlineNow: 1, VPNUsers: 2, ProxyUsers: 1, Sessions: 
 const report = {
   Available: true, At: at, Summary: summary,
   Users: [
-    { UserID: "u-bob", UserName: "Bob", TeamID: "t2", TeamName: "Red", VPN: { Online: false, LastHandshakeAt: at, FirstAt: at, Sessions: 1, Seconds: 0, RxBytes: 0, TxBytes: 0, Recent: [] }, Proxy: noProxy, Labs: [] },
-    { UserID: "u-ann", UserName: "Ann", TeamID: "t1", TeamName: "Blue",
+    { UserID: "u-bob", UserName: "Bob", TeamID: "t2", TeamName: "Red", LastSeenAt: null, LastLabAt: null, VPN: { Online: false, LastHandshakeAt: at, FirstAt: at, Sessions: 1, Seconds: 0, RxBytes: 0, TxBytes: 0, Recent: [] }, Proxy: noProxy, Labs: [] },
+    { UserID: "u-ann", UserName: "Ann", TeamID: "t1", TeamName: "Blue", LastSeenAt: at, LastLabAt: null,
       VPN: { Online: true, LastHandshakeAt: at, FirstAt: at, Sessions: 2, Seconds: 600, RxBytes: 1024, TxBytes: 2048, Recent: [{ StartedAt: at, EndedAt: at, Seconds: 600, RxBytes: 1024, TxBytes: 2048 }] },
       Proxy: { Requests: 12, BytesIn: 3072, BytesOut: 1024, FirstAt: at, LastAt: at },
       Labs: [{ ChallengeID: "c1", Task: "Web login", Surface: "proxy" as const, Attempts: 12, BytesIn: 3072, BytesOut: 1024, FirstAt: at, LastAt: at }] },
-    { UserID: "u-cid", UserName: "", TeamID: "t2", TeamName: "Red", VPN: { Online: false, LastHandshakeAt: null, FirstAt: null, ...none }, Proxy: noProxy, Labs: [] },
+    { UserID: "u-cid", UserName: "", TeamID: "t2", TeamName: "Red", LastSeenAt: null, LastLabAt: null, VPN: { Online: false, LastHandshakeAt: null, FirstAt: null, ...none }, Proxy: noProxy, Labs: [] },
   ],
 }
 
@@ -38,6 +38,13 @@ describe("EventUsageTable", () => {
     expect(within(rows[2]).getByText("admin.events.analytics.usage.unnamed")).toBeInTheDocument()
     expect(within(rows[2]).getByText("admin.events.analytics.usage.state.never")).toBeInTheDocument()
     expect(mock.usage).toHaveBeenCalledWith("event-1")
+  })
+
+  it("has the last online and last in a laboratory columns", async () => {
+    render(<EventUsageTable eventID="event-1" />)
+    const table = await screen.findByRole("table", { name: "admin.events.analytics.usage.tableLabel" })
+    expect(within(table).getByText("admin.events.analytics.usage.col.seen")).toBeInTheDocument()
+    expect(within(table).getByText("admin.events.analytics.usage.col.lab")).toBeInTheDocument()
   })
 
   it("opens the sessions and the task access of a participant", async () => {

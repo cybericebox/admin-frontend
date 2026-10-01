@@ -1622,6 +1622,8 @@
   "admin.events.analytics.usage.stat.proxyHint": "Participants who opened web tasks through the proxy. Only requests and volume over the whole event are counted, no addresses and no content.",
   "admin.events.analytics.usage.col.participant": "Participant",
   "admin.events.analytics.usage.col.state": "VPN",
+  "admin.events.analytics.usage.col.seen": "Last online",
+  "admin.events.analytics.usage.col.lab": "Last in a laboratory",
   "admin.events.analytics.usage.col.last": "Last connected",
   "admin.events.analytics.usage.col.sessions": "Sessions",
   "admin.events.analytics.usage.col.time": "Online time",

@@ -127,6 +127,8 @@ export function EventUsageTable({ eventID }: { eventID: string }) {
         </span>
       } },
       { key: "state", header: t(`${P}.col.state`), sortValue: (user) => stateRank[usageState(user)], cell: (user) => <StateTag state={usageState(user)} /> },
+      { key: "seen", header: t(`${P}.col.seen`), sortValue: (user) => time(user.LastSeenAt), cell: (user) => <span className="whitespace-nowrap">{formatDateTime(user.LastSeenAt)}</span> },
+      { key: "lab", header: t(`${P}.col.lab`), sortValue: (user) => time(user.LastLabAt), cell: (user) => <span className="whitespace-nowrap">{formatDateTime(user.LastLabAt)}</span> },
       { key: "last", header: t(`${P}.col.last`), sortValue: (user) => time(user.VPN.LastHandshakeAt), cell: (user) => <span className="whitespace-nowrap">{formatDateTime(user.VPN.LastHandshakeAt)}</span> },
       { key: "sessions", header: t(`${P}.col.sessions`), numeric: true, sortValue: (user) => user.VPN.Sessions, cell: (user) => user.VPN.Sessions === 0 ? none : formatCount(user.VPN.Sessions) },
       { key: "time", header: t(`${P}.col.time`), numeric: true, sortValue: (user) => user.VPN.Seconds, cell: (user) => <span className="whitespace-nowrap">{user.VPN.Sessions === 0 ? none : formatDuration(user.VPN.Seconds)}</span> },

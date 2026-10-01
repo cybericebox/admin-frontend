@@ -105,6 +105,9 @@ export type UsageUser = {
   UserName: string
   TeamID: string
   TeamName: string
+  /** The last request on the event and the last lab access (VPN or proxy); null = never. */
+  LastSeenAt: string | null
+  LastLabAt: string | null
   VPN: {
     /** From the last WireGuard handshake alone (at most 3 minutes old), never from traffic. */
     Online: boolean
