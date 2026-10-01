@@ -122,6 +122,7 @@
   "admin.users.col.role": "Role",
   "admin.users.col.status": "Status",
   "admin.users.col.created": "Created",
+  "admin.users.col.lastSeen": "Last online",
   "admin.users.empty": "No users found",
   "admin.users.emptyInitial": "No users yet",
   "admin.users.loadError": "Failed to load users",

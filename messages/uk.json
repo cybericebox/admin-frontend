@@ -122,6 +122,7 @@
   "admin.users.col.role": "Роль",
   "admin.users.col.status": "Статус",
   "admin.users.col.created": "Створено",
+  "admin.users.col.lastSeen": "Востаннє онлайн",
   "admin.users.empty": "Користувачів не знайдено",
   "admin.users.emptyInitial": "Користувачів поки немає",
   "admin.users.loadError": "Не вдалося завантажити користувачів",
