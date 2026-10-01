@@ -103,10 +103,10 @@ export type MailSettings = {
   /** The server config (SMTP_SENDER_EMAIL) domain: the placeholder. */
   EnvSendingDomain: string
   Sources: MailFieldSources
-  /** The SMTP transport in use: the env one (SMTP_*), the saved providers, or none. */
+  /** The SMTP transport in use: the saved providers, else the env one (SMTP_*), else none. */
   Source: MailSource
   Configured: boolean
-  /** SMTP_* is set: it is the only transport and the saved providers are not used. */
+  /** No provider is saved and SMTP_* is set: the env transport is the one in use. */
   EnvActive: boolean
   Env: MailEnvSummary | null
   /** By priority. */

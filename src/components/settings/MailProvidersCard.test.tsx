@@ -89,12 +89,16 @@ describe("MailProvidersCard", () => {
     expect(screen.getByText(/Ліміт вичерпано, відновиться/)).toBeInTheDocument()
   })
 
-  it("shows the env transport read-only and says the saved list is not used", () => {
-    render(<Host initial={settings([provider("p1", "Brevo", 0)], { Source: "env", EnvActive: true, Env: { Host: "env.smtp", Port: 465, FromName: "Env", FromAddress: "env@example.com", ReplyTo: "" } })} />)
+  it("shows the env transport read-only, as in use, when no providers are saved", () => {
+    render(<Host initial={settings([], { Source: "env", EnvActive: true, Env: { Host: "env.smtp", Port: 465, FromName: "Env", FromAddress: "env@example.com", ReplyTo: "" } })} />)
     const env = screen.getByTestId("mail-env-provider")
-    expect(within(env).getByText("Пошта йде через SMTP_* з оточення. Список нижче збережено, але зараз не використовується.")).toBeInTheDocument()
+    expect(within(env).getByText(/Провайдерів не налаштовано, тому пошта йде через SMTP_\* з оточення/)).toBeInTheDocument()
     expect(within(env).getByText(/env\.smtp:465/)).toBeInTheDocument()
-    expect(screen.getByText("Ці провайдери не використовуються, поки задано SMTP_*.")).toBeInTheDocument()
+  })
+
+  it("does not show env as active once a provider is saved", () => {
+    render(<Host initial={settings([provider("p1", "Brevo", 0)], { Env: { Host: "env.smtp", Port: 465, FromName: "Env", FromAddress: "env@example.com", ReplyTo: "" } })} />)
+    expect(screen.queryByTestId("mail-env-provider")).not.toBeInTheDocument()
     expect(screen.getByText("Brevo")).toBeInTheDocument()
   })
 

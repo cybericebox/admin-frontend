@@ -112,8 +112,8 @@ const dateText = (iso: string) => new Date(iso).toLocaleString("uk-UA")
  * The platform SMTP providers: a list by priority (the first enabled provider with room left
  * sends, the next one takes over at its daily limit or on a provider error). Instant controls
  * (enable, order) show the choice at once and save through one queue, so quick changes never
- * race and nothing is disabled while a save runs. With SMTP_* set the env transport is the
- * only one in use; the saved list stays visible but is marked as not used.
+ * race and nothing is disabled while a save runs. SMTP_* from the environment is shown
+ * read-only, and only while the list is empty: it is the transport used then.
  */
 export function MailProvidersCard({ settings, canWrite, update, reload }: {
   settings: MailSettings
@@ -219,7 +219,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
         {providers.length === 0 ? (
           <EmptyState message={t(canWrite ? "admin.mail.providers.empty" : "admin.mail.providers.emptyReadonly")} />
         ) : (
-          <ul className={cn("divide-y divide-border rounded-lg border border-border", env && "opacity-60")} data-testid="mail-providers">
+          <ul className={"divide-y divide-border rounded-lg border border-border"} data-testid="mail-providers">
             {providers.map((provider, index) => (
               <ProviderRow
                 key={provider.ID}
@@ -239,8 +239,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
             ))}
           </ul>
         )}
-        {providers.length > 0 && env && <p className="text-sm text-muted-foreground">{t("admin.mail.providers.listIgnored")}</p>}
-        {providers.length > 0 && !env && settings.Source === "database" && <p className="text-xs text-muted-foreground">{t("admin.mail.providers.orderHint")}</p>}
+        {providers.length > 0 && <p className="text-xs text-muted-foreground">{t("admin.mail.providers.orderHint")}</p>}
       </CardContent>
 
       {editing && (
