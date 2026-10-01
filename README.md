@@ -27,15 +27,17 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 
 ## Configuration
 
-`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment.
+`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment. A missing required value fails the build (`next.config.ts`) or the container start; there are no fallbacks.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_DOMAIN` | yes | Platform apex domain; the other hosts derive from it. |
-| `NEXT_PUBLIC_API_DOMAIN` | no | API host (bare host, no scheme). Defaults to `api.<domain>`. |
-| `NEXT_PUBLIC_ID_DOMAIN` | no | ID app host. Defaults to `id.<domain>`. |
-| `NEXT_PUBLIC_ADMIN_DOMAIN` | no | Admin app host. Defaults to `admin.<domain>`. |
-| `NEXT_PUBLIC_EXERCISES_DOMAIN` | no | Exercises app host. Defaults to `exercises.<domain>`. |
+| `NEXT_PUBLIC_MAIN_HOST` | yes | Landing host (bare host, no scheme). |
+| `NEXT_PUBLIC_API_HOST` | yes | API host. |
+| `NEXT_PUBLIC_ID_HOST` | yes | ID app host. |
+| `NEXT_PUBLIC_ADMIN_HOST` | yes | Admin app host (its first label is a reserved event tag when under the event domain). |
+| `NEXT_PUBLIC_EXERCISES_HOST` | yes | Exercises app host. |
+| `NEXT_PUBLIC_EVENT_DOMAIN` | yes | Event sites are `<tag>.<domain>`; also the shared cookie domain. |
+| `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of hosts allowed by `next dev` (default: the hosts above). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 
 ## i18n

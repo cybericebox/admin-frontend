@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(), setInfra: vi.fn(), canWrite: true, me: { ID: "user-1" } as { ID: string } | null }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: mock.me, can: (permission: string) => permission === "events.write" ? mock.canWrite : true }) }))
 vi.mock("@/api/events/catalog", () => ({ getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers, setEventInfrastructure: mock.setInfra }))
 vi.mock("@/components/events/EventAnalyticsTab", () => ({ EventAnalyticsTab: ({ eventID, tag, canOpenJournal }: { eventID: string; tag: string; canOpenJournal: boolean }) => <div>analytics:{eventID}:{tag}:{String(canOpenJournal)}</div> }))

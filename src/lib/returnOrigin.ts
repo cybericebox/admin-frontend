@@ -1,4 +1,4 @@
-import { publicDomain } from "@/lib/origins"
+import { eventDomain, platformHosts } from "@/lib/origins"
 import { STORAGE_RETURN_EVENT } from "@/lib/storageKeys"
 
 // Where an admin session came from: only an event's /manage counts (the catalog and the profile are
@@ -6,18 +6,18 @@ import { STORAGE_RETURN_EVENT } from "@/lib/storageKeys"
 // it is validated against our own event hosts (no open redirects) and kept for the session.
 export const FROM_PARAM = "from"
 export const FROM_NAME_PARAM = "from_name"
-const RESERVED = new Set(["admin", "api", "id", "exercises", "www"])
 const NAME_MAX = 120
 
 export type EventReturn = { url: string; name: string }
 
-function appDomain(): string {
-  if (publicDomain) return publicDomain
-  return typeof window === "undefined" ? "" : (window.location.hostname ?? "").replace(/^(admin|www)\./i, "")
+// Tags taken by the platform apps: the first labels of the hosts that sit under the event domain.
+function reservedTags(domain: string, hosts: string[]): Set<string> {
+  const suffix = `.${domain.toLowerCase()}`
+  return new Set(hosts.map((h) => h.toLowerCase()).filter((h) => h.endsWith(suffix)).map((h) => h.slice(0, -suffix.length)))
 }
 
 // The /manage address in `value` when it is on an event host of our domain (<tag>.<domain>) over https.
-export function validEventReturn(value: string | null | undefined, domain: string = appDomain()): string | null {
+export function validEventReturn(value: string | null | undefined, domain: string = eventDomain, hosts: string[] = platformHosts): string | null {
   if (!value || !domain) return null
   try {
     const url = new URL(value)
@@ -26,7 +26,7 @@ export function validEventReturn(value: string | null | undefined, domain: strin
     const host = url.hostname.toLowerCase()
     if (!host.endsWith(suffix)) return null
     const tag = host.slice(0, -suffix.length)
-    if (!/^[a-z0-9-]+$/.test(tag) || RESERVED.has(tag)) return null
+    if (!/^[a-z0-9-]+$/.test(tag) || reservedTags(domain, hosts).has(tag)) return null
     if (url.pathname !== "/manage" && !url.pathname.startsWith("/manage/")) return null
     url.hash = ""
     return url.href
@@ -35,9 +35,9 @@ export function validEventReturn(value: string | null | undefined, domain: strin
   }
 }
 
-export function readEventReturn(search: string, storage: Pick<Storage, "getItem" | "setItem"> | null, domain: string = appDomain()): EventReturn | null {
+export function readEventReturn(search: string, storage: Pick<Storage, "getItem" | "setItem"> | null, domain: string = eventDomain, hosts: string[] = platformHosts): EventReturn | null {
   const params = new URLSearchParams(search)
-  const url = validEventReturn(params.get(FROM_PARAM), domain)
+  const url = validEventReturn(params.get(FROM_PARAM), domain, hosts)
   if (url) {
     const found = { url, name: (params.get(FROM_NAME_PARAM) ?? "").trim().slice(0, NAME_MAX) }
     try { storage?.setItem(STORAGE_RETURN_EVENT, JSON.stringify(found)) } catch { /* Session storage may be unavailable; the origin lasts for this page. */ }
@@ -45,7 +45,7 @@ export function readEventReturn(search: string, storage: Pick<Storage, "getItem"
   }
   try {
     const stored = JSON.parse(storage?.getItem(STORAGE_RETURN_EVENT) ?? "null") as Partial<EventReturn> | null
-    const restored = validEventReturn(stored?.url, domain)
+    const restored = validEventReturn(stored?.url, domain, hosts)
     return restored ? { url: restored, name: typeof stored?.name === "string" ? stored.name.slice(0, NAME_MAX) : "" } : null
   } catch {
     return null

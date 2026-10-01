@@ -6,7 +6,7 @@ import Page from "./page"
 const mocks = vi.hoisted(() => ({ apiGet: vi.fn() }))
 vi.mock("@/api/client", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/client")>()), apiGet: mocks.apiGet }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true, permissions: ["*"], role: "super_admin", me: null, isLoading: false }) }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox.test", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox.test", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("echarts-for-react", () => ({ default: ({ option }: { option: { series: unknown[] } }) => <div data-testid="echart">{option.series.length} series</div> }))
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("period=30d"),

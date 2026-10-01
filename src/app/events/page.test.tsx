@@ -9,7 +9,7 @@ import React from 'react'
 const h = vi.hoisted(() => ({ canWrite: true }))
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
-vi.mock('@/lib/origins', () => ({ publicDomain: 'cybericebox-dev.pp.ua', apiOrigin: '', mainOrigin: '/', idOrigin: '' }))
+vi.mock('@/lib/origins', () => ({ eventDomain: 'cybericebox-dev.pp.ua', apiOrigin: '', mainOrigin: '/', idOrigin: '' }))
 vi.mock('@/lib/useRole', () => ({
   useRole: () => ({
     me: null, role: 'admin', isLoading: false, permissions: ['*'],

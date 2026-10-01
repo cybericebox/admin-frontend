@@ -4,7 +4,7 @@ import { ApiError } from "@/api/client"
 
 const mock = vi.hoisted(() => ({ access: vi.fn(), overview: vi.fn(), integrity: vi.fn(), usage: vi.fn() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}${JSON.stringify(vars)}` : key }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("@/api/events/analytics", async (importActual) => ({
   ...(await importActual<typeof import("@/api/events/analytics")>()),
   getEventAnalyticsAccess: mock.access, getEventAnalyticsOverview: mock.overview, getEventIntegrity: mock.integrity, getEventAnalyticsUsage: mock.usage,

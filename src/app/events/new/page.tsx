@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { createEvent, getInfrastructureAvailable, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
@@ -13,17 +13,14 @@ import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, localToIso, type EventFormValues } from "@/lib/eventSchemas"
-import { publicDomain } from "@/lib/origins"
+import { eventDomain } from "@/lib/origins"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { toast } from "@/components/ui/toast"
 
-const subscribeToHost = () => () => {}
-const currentDomain = () => publicDomain || window.location.hostname.replace(/^(admin|www)\./i, "")
-const serverDomain = () => publicDomain
 
 export default function NewEventPage() {
-  const domain = useSyncExternalStore(subscribeToHost, currentDomain, serverDomain)
+  const domain = eventDomain
   const { can } = useRole()
   const [draft, setDraft] = useState<EventFormValues>({ Name: "", Tag: "", AvailableFrom: "", ArchiveAt: "" })
   const [created, setCreated] = useState<Event | null>(null)

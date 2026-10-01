@@ -8,7 +8,7 @@ const rights = vi.hoisted(() => ({ infrastructure: true, denied: new Set<string>
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission !== "platform.settings.read" && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span> }))
-vi.mock("@/lib/origins", () => ({ exercisesOrigin: "https://exercises.cybericebox.local", publicDomain: "example.org" }))
+vi.mock("@/lib/origins", () => ({ exercisesOrigin: "https://exercises.cybericebox.local", eventDomain: "example.org", platformHosts: ["example.org", "api.example.org", "id.example.org", "admin.example.org", "exercises.example.org"] }))
 
 describe("admin sidebar", () => {
   beforeEach(() => { rights.infrastructure = true; rights.denied = new Set(); nav.path = "/events" })
