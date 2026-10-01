@@ -9,6 +9,7 @@ const REQUIRED = [
   "NEXT_PUBLIC_ADMIN_HOST",
   "NEXT_PUBLIC_EXERCISES_HOST",
   "NEXT_PUBLIC_EVENT_DOMAIN",
+  "NEXT_PUBLIC_COOKIE_DOMAIN",
 ]
 const missing = REQUIRED.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
@@ -17,7 +18,7 @@ if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}
 const devOrigins = process.env.DEV_ALLOWED_ORIGINS
   ? process.env.DEV_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
   : [
-      ...REQUIRED.filter((name) => name !== "NEXT_PUBLIC_EVENT_DOMAIN").map((name) => process.env[name]!.trim()),
+      ...REQUIRED.filter((name) => name.endsWith("_HOST")).map((name) => process.env[name]!.trim()),
       process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim(),
       `*.${process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim()}`,
     ]

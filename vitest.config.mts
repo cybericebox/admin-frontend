@@ -13,6 +13,7 @@ export default defineConfig({
       NEXT_PUBLIC_EXERCISES_HOST: "exercises.example.test",
       // localhost so the shared-domain cookies are accepted by jsdom.
       NEXT_PUBLIC_EVENT_DOMAIN: "localhost",
+      NEXT_PUBLIC_COOKIE_DOMAIN: "localhost",
     },
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],

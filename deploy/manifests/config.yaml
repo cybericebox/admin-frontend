@@ -11,5 +11,7 @@ data:
   ADMIN_HOST: ""
   EXERCISES_HOST: ""
   EVENT_DOMAIN: ""
+  # Shared cookie domain for the theme and consent cookies (apex, e.g. cybericebox.com); required.
+  COOKIE_DOMAIN: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""

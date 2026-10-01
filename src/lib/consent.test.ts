@@ -18,7 +18,7 @@ describe("consent", () => {
   })
   afterEach(() => {
     delete (window as GtagWindow).gtag
-    delete process.env.NEXT_PUBLIC_EVENT_DOMAIN
+    delete process.env.NEXT_PUBLIC_COOKIE_DOMAIN
     clearCookies()
   })
 
@@ -80,7 +80,7 @@ describe("consent", () => {
       "cib_consent=analytics:granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
     )
     expect(consent.consentCookie({ analytics: false }, { secure: false })).toBe("cib_consent=analytics:denied; path=/; max-age=31536000; SameSite=Lax")
-    process.env.NEXT_PUBLIC_EVENT_DOMAIN = "cybericebox.com"
+    process.env.NEXT_PUBLIC_COOKIE_DOMAIN = "cybericebox.com"
     const writes: string[] = []
     const desc = Object.getOwnPropertyDescriptor(Document.prototype, "cookie")!
     Object.defineProperty(document, "cookie", { configurable: true, get: () => "", set: (s: string) => writes.push(s) })
