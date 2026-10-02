@@ -15,10 +15,22 @@ vi.mock("@/api/client", async (importOriginal) => ({
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => permissions.includes(perm) }) }))
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
 
+const presets = [
+  { ID: "micro", Blocks: 1, CPUMillicores: 16, MemoryBytes: 64 * 1024 ** 2 },
+  { ID: "small", Blocks: 2, CPUMillicores: 32, MemoryBytes: 128 * 1024 ** 2 },
+  { ID: "medium", Blocks: 8, CPUMillicores: 128, MemoryBytes: 512 * 1024 ** 2 },
+  { ID: "large", Blocks: 16, CPUMillicores: 256, MemoryBytes: 1024 ** 3 },
+  { ID: "xlarge", Blocks: 32, CPUMillicores: 512, MemoryBytes: 2 * 1024 ** 3 },
+  { ID: "huge", Blocks: 64, CPUMillicores: 1024, MemoryBytes: 4 * 1024 ** 3 },
+]
+/** Capabilities answer on its own path; everything else gets the given value. */
+const serve = (value: unknown) => apiGet.mockImplementation((path: string) =>
+  path === "/api/exercises/capabilities" ? Promise.resolve({ Resources: { Presets: presets } }) : Promise.resolve(value))
+
 const request = (over: Partial<ElevationRequest> = {}): ElevationRequest => ({
   ID: "r1", ExerciseID: "e1", ExerciseName: "SQL injection", Status: "pending", Reason: "Needs a database", RequestedByName: "Олена",
   RequestedAt: "2026-10-02T10:00:00Z", DecidedByName: "", DecidedAt: null, DecisionNote: "", VersionID: "v1", Approved: [],
-  Requested: [{ DeviceID: "d1", Name: "db", CPUMillicores: 500, MemoryBytes: 2 * 1024 ** 3 }], ...over,
+  Requested: [{ DeviceID: "d1", Name: "db", Blocks: 32, CPUMillicores: 512, MemoryBytes: 2 * 1024 ** 3 }], ...over,
 })
 
 beforeEach(() => {
@@ -61,18 +73,21 @@ describe("elevations list", () => {
 
 describe("elevation detail", () => {
   it("shows the reason, the requested values and the device list", async () => {
-    apiGet.mockResolvedValue(request())
+    serve(request())
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByTestId("elevation-reason")).toHaveTextContent("Needs a database")
     expect(apiGet).toHaveBeenCalledWith("/api/exercises/elevations/r1")
     const table = screen.getByTestId("elevation-devices")
     expect(within(table).getByText("db")).toBeInTheDocument()
-    expect(within(table).getByLabelText(/^CPU для «db»/)).toHaveValue("500")
-    expect(within(table).getByLabelText(/^Памʼять для «db»/)).toHaveValue("2048")
+    expect(within(table).getByText("Дуже великий")).toBeInTheDocument()
+    const select = await within(table).findByLabelText(/^Розмір для «db»/)
+    expect(select).toHaveValue("32")
+    // Only the requested block and smaller ones are offered.
+    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2", "8", "16", "32"])
   })
 
   it("approves through the confirm dialog", async () => {
-    apiGet.mockResolvedValue(request())
+    serve(request())
     apiPost.mockResolvedValue(request({ Status: "approved", DecidedByName: "Адмін" }))
     render(<ElevationDetail id="r1" />)
     fireEvent.click(await screen.findByRole("button", { name: "Погодити" }))
@@ -84,45 +99,30 @@ describe("elevation detail", () => {
     expect(screen.queryByRole("button", { name: "Відхилити" })).toBeNull()
   })
 
-  it("approves with lowered values, sends Devices only then and says so in the dialog", async () => {
-    apiGet.mockResolvedValue(request())
+  it("approves with a smaller block, sends Devices only then and says so in the dialog", async () => {
+    serve(request())
     apiPost.mockResolvedValue(request({ Status: "approved" }))
     render(<ElevationDetail id="r1" />)
-    fireEvent.change(await screen.findByLabelText(/^CPU для «db»/), { target: { value: "300" } })
+    fireEvent.change(await screen.findByLabelText(/^Розмір для «db»/), { target: { value: "8" } })
     fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByTestId("elevation-reduced")).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole("button", { name: "Погодити" }))
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", {
-      Note: "", Devices: [{ DeviceID: "d1", CPUMillicores: 300, MemoryBytes: 2 * 1024 ** 3 }],
+      Note: "", Devices: [{ DeviceID: "d1", Blocks: 8 }],
     }))
   })
 
-  it("lowers memory in MiB", async () => {
-    apiGet.mockResolvedValue(request())
-    apiPost.mockResolvedValue(request({ Status: "approved" }))
+  it("never offers a block above the request, even for a small request", async () => {
+    serve(request({ Requested: [{ DeviceID: "d1", Name: "db", Blocks: 2, CPUMillicores: 32, MemoryBytes: 128 * 1024 ** 2 }] }))
     render(<ElevationDetail id="r1" />)
-    fireEvent.change(await screen.findByLabelText(/^Памʼять для «db»/), { target: { value: "1024" } })
-    fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Погодити" }))
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", expect.objectContaining({ Devices: [{ DeviceID: "d1", CPUMillicores: 500, MemoryBytes: 1024 ** 3 }] })))
-  })
-
-  it("does not allow values above the request or empty ones", async () => {
-    apiGet.mockResolvedValue(request())
-    render(<ElevationDetail id="r1" />)
-    const cpu = await screen.findByLabelText(/^CPU для «db»/)
-    fireEvent.change(cpu, { target: { value: "600" } })
-    expect(screen.getByRole("button", { name: "Погодити" })).toBeDisabled()
-    expect(screen.getByTestId("elevation-edit-hint")).toHaveTextContent("додатними")
-    fireEvent.change(cpu, { target: { value: "" } })
-    expect(screen.getByRole("button", { name: "Погодити" })).toBeDisabled()
-    fireEvent.change(cpu, { target: { value: "1" } })
-    expect(screen.getByRole("button", { name: "Погодити" })).toBeEnabled()
+    const select = await screen.findByLabelText(/^Розмір для «db»/)
+    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2"])
+    expect(select).toHaveValue("2")
   })
 
   it("rejects with a danger confirm and shows a failure inside the dialog", async () => {
-    apiGet.mockResolvedValue(request())
+    serve(request())
     apiPost.mockRejectedValue(new ApiError(500, "boom"))
     render(<ElevationDetail id="r1" />)
     fireEvent.click(await screen.findByRole("button", { name: "Відхилити" }))
@@ -134,14 +134,14 @@ describe("elevation detail", () => {
 
   it("hides the decision without the permission", async () => {
     permissions = []
-    apiGet.mockResolvedValue(request())
+    serve(request())
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByText("У вас немає права розглядати запити.")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Погодити" })).toBeNull()
   })
 
   it("shows the outcome of a decided request", async () => {
-    apiGet.mockResolvedValue(request({ Status: "rejected", DecidedByName: "Адмін", DecisionNote: "Too much", DecidedAt: "2026-10-02T11:00:00Z" }))
+    serve(request({ Status: "rejected", DecidedByName: "Адмін", DecisionNote: "Too much", DecidedAt: "2026-10-02T11:00:00Z" }))
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByText("Too much")).toBeInTheDocument()
     expect(screen.getByText("Відхилено")).toBeInTheDocument()

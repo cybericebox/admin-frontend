@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { decideElevation, ELEVATION_WRITE_PERM, getElevation, type ElevationRequest } from "@/api/elevations"
+import { decideElevation, ELEVATION_WRITE_PERM, getElevation, getResourcePresets, type ElevationRequest, type ResourcePreset } from "@/api/elevations"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
-import { NumberInput } from "@/components/ui/number-input"
+import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { ApiError } from "@/api/client"
@@ -20,22 +20,22 @@ import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { useRole } from "@/lib/useRole"
 import { StatusBadge } from "./ElevationsPage"
 
-const MIB = 1024 ** 2
 type Decision = "approve" | "reject"
-type Edit = { cpu: string; memory: string }
+type Device = ElevationRequest["Requested"][number]
+const PRESET_IDS = ["micro", "small", "medium", "large", "xlarge", "huge"]
 
-/** The values a device would be approved with, and whether they are valid: positive, never above the request. */
-function editState(device: ElevationRequest["Requested"][number], edit: Edit | undefined) {
-  const cpu = edit ? Number(edit.cpu) : device.CPUMillicores
-  const mib = edit ? Number(edit.memory) : Math.round(device.MemoryBytes / MIB)
-  const requestedMib = Math.round(device.MemoryBytes / MIB)
-  const changed = cpu !== device.CPUMillicores || mib !== requestedMib
-  return {
-    cpuInvalid: !(cpu > 0) || cpu > device.CPUMillicores,
-    memoryInvalid: !(mib > 0) || mib > requestedMib,
-    changed,
-    value: { DeviceID: device.DeviceID, CPUMillicores: cpu, MemoryBytes: changed && mib !== requestedMib ? mib * MIB : device.MemoryBytes },
-  }
+/** Presets a device may be approved with: the requested block or any smaller offered one. */
+function allowedPresets(device: Device, presets: ResourcePreset[]) {
+  return presets.filter((preset) => preset.Blocks <= device.Blocks)
+}
+
+function presetName(blocks: number, presets: ResourcePreset[]): string {
+  const preset = presets.find((item) => item.Blocks === blocks)
+  return preset && PRESET_IDS.includes(preset.ID) ? t(`admin.res.preset.${preset.ID}`) : t("admin.elevations.blocksCount", { count: blocks })
+}
+
+function sizeText(device: { CPUMillicores: number; MemoryBytes: number }) {
+  return `${formatCpu(device.CPUMillicores)} · ${formatBytes(device.MemoryBytes)}`
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -51,7 +51,8 @@ export function ElevationDetail({ id }: { id: string }) {
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const [edits, setEdits] = useState<Record<string, Edit>>({})
+  const [edits, setEdits] = useState<Record<string, number>>({})
+  const [presets, setPresets] = useState<ResourcePreset[]>([])
 
   useEffect(() => {
     if (!id) return
@@ -61,6 +62,13 @@ export function ElevationDetail({ id }: { id: string }) {
       .catch((cause) => { if (!cancelled) setState({ id, item: null, error: cause }) })
     return () => { cancelled = true }
   }, [id, attempt])
+
+  useEffect(() => {
+    if (!canReview) return
+    let cancelled = false
+    getResourcePresets().then((list) => { if (!cancelled) setPresets(list) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [canReview])
 
   const settled = state.id === id
   const item = settled ? state.item : null
@@ -72,14 +80,10 @@ export function ElevationDetail({ id }: { id: string }) {
 
   const pending = item.Status === "pending"
 
-  const states = item.Requested.map((device) => editState(device, edits[device.DeviceID]))
   const editing = pending && canReview
-  const invalid = states.some((state) => state.cpuInvalid || state.memoryInvalid)
-  const reduced = states.some((state) => state.changed)
-  const setEdit = (device: ElevationRequest["Requested"][number], field: keyof Edit, value: string) => setEdits((current) => {
-    const edit: Edit = current[device.DeviceID] ?? { cpu: String(device.CPUMillicores), memory: String(Math.round(device.MemoryBytes / MIB)) }
-    return { ...current, [device.DeviceID]: { ...edit, [field]: value } }
-  })
+  const approvedBlocks = (device: Device) => edits[device.DeviceID] ?? device.Blocks
+  const reduced = item.Requested.some((device) => approvedBlocks(device) !== device.Blocks)
+  const setEdit = (device: Device, blocks: number) => setEdits((current) => ({ ...current, [device.DeviceID]: blocks }))
 
   function open(next: Decision) { setNote(""); setError(""); setDecision(next) }
 
@@ -90,8 +94,8 @@ export function ElevationDetail({ id }: { id: string }) {
     try {
       const saved = await decideElevation(item.ID, {
         Approve: decision === "approve", Note: note.trim(),
-        // Values go out only when something was lowered; otherwise the request is approved as it is.
-        ...(decision === "approve" && reduced ? { Devices: states.map((state) => state.value) } : {}),
+        // Blocks go out only when something was lowered; otherwise the request is approved as it is.
+        ...(decision === "approve" && reduced ? { Devices: item.Requested.map((device) => ({ DeviceID: device.DeviceID, Blocks: approvedBlocks(device) })) } : {}),
       })
       setState({ id, item: saved, error: null })
       setDecision(null)
@@ -112,7 +116,7 @@ export function ElevationDetail({ id }: { id: string }) {
       </div>
       {pending && canReview && <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={() => open("reject")}>{t("admin.elevations.reject.action")}</Button>
-        <Button type="button" disabled={invalid} onClick={() => open("approve")}>{t("admin.elevations.approve.action")}</Button>
+        <Button type="button" onClick={() => open("approve")}>{t("admin.elevations.approve.action")}</Button>
       </div>}
     </div>
     {pending && !canReview && <p role="status" className="text-sm text-muted-foreground">{t("admin.elevations.noReview")}</p>}
@@ -132,35 +136,35 @@ export function ElevationDetail({ id }: { id: string }) {
       <table data-testid="elevation-devices" className="w-full text-sm">
         <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.device")}</th>
+          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.requested")}</th>
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.cpu")}</th>
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.memory")}</th>
+          {editing && <th className="px-4 py-2 font-medium">{t("admin.elevations.col.approved")}</th>}
         </tr></thead>
         <tbody className="divide-y divide-border">
-          {item.Requested.map((device, index) => <tr key={device.DeviceID}>
-            <td className="px-4 py-2 font-medium">{device.Name || device.DeviceID}</td>
-            {editing ? <>
-              <td className="px-4 py-2"><div className="flex items-center gap-2">
-                <NumberInput value={edits[device.DeviceID]?.cpu ?? String(device.CPUMillicores)} onChange={(value) => setEdit(device, "cpu", value)}
-                  aria-label={t("admin.elevations.edit.cpu", { name: device.Name || device.DeviceID })} aria-invalid={states[index].cpuInvalid || undefined} className="h-8 w-24" inputMode="numeric" />
-                <span className="text-xs text-muted-foreground">{t("admin.elevations.edit.cpuUnit", { requested: formatCpu(device.CPUMillicores) })}</span>
-              </div></td>
-              <td className="px-4 py-2"><div className="flex items-center gap-2">
-                <NumberInput value={edits[device.DeviceID]?.memory ?? String(Math.round(device.MemoryBytes / MIB))} onChange={(value) => setEdit(device, "memory", value)}
-                  aria-label={t("admin.elevations.edit.memory", { name: device.Name || device.DeviceID })} aria-invalid={states[index].memoryInvalid || undefined} className="h-8 w-24" inputMode="numeric" />
-                <span className="text-xs text-muted-foreground">{t("admin.elevations.edit.memoryUnit", { requested: formatBytes(device.MemoryBytes) })}</span>
-              </div></td>
-            </> : <>
+          {item.Requested.map((device) => {
+            const name = device.Name || device.DeviceID
+            const options = allowedPresets(device, presets)
+            return <tr key={device.DeviceID}>
+              <td className="px-4 py-2 font-medium">{name}</td>
+              <td className="px-4 py-2">{presetName(device.Blocks, presets)}</td>
               <td className="px-4 py-2">{formatCpu(device.CPUMillicores)}</td>
               <td className="px-4 py-2">{formatBytes(device.MemoryBytes)}</td>
-            </>}
-          </tr>)}
+              {editing && <td className="px-4 py-2">
+                {options.some((preset) => preset.Blocks === device.Blocks)
+                  ? <Select value={String(approvedBlocks(device))} onChange={(event) => setEdit(device, Number(event.target.value))}
+                      aria-label={t("admin.elevations.edit.block", { name })} className="h-8 min-w-56">
+                      {options.map((preset) => <option key={preset.ID} value={preset.Blocks}>{presetName(preset.Blocks, presets)} · {sizeText(preset)}</option>)}
+                    </Select>
+                  : <span className="text-xs text-muted-foreground">{presetName(device.Blocks, presets)}</span>}
+              </td>}
+            </tr>
+          })}
         </tbody>
       </table>
-      {editing && <p className={invalid ? "border-t border-border px-4 py-2 text-xs text-[var(--ib-warn)]" : "border-t border-border px-4 py-2 text-xs text-muted-foreground"} role={invalid ? "alert" : undefined} data-testid="elevation-edit-hint">
-        {t(invalid ? "admin.elevations.edit.invalid" : "admin.elevations.edit.hint")}
-      </p>}
+      {editing && <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground" data-testid="elevation-edit-hint">{t("admin.elevations.edit.hint")}</p>}
       {item.Approved.length > 0 && <p data-testid="elevation-approved" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-        {t("admin.elevations.approvedValues")} {item.Approved.map((device) => `${device.Name || device.DeviceID}: ${formatCpu(device.CPUMillicores)} · ${formatBytes(device.MemoryBytes)}`).join("; ")}
+        {t("admin.elevations.approvedValues")} {item.Approved.map((device) => `${device.Name || device.DeviceID}: ${presetName(device.Blocks, presets)} · ${sizeText(device)}`).join("; ")}
       </p>}
     </Card>
 
