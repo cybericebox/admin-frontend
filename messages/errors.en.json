@@ -92,5 +92,14 @@
   "31406": "The lab or device was not found",
   "71407": "The device is still restarting, try again in a moment",
   "72107": "An SMTP provider with this name already exists",
-  "32108": "SMTP provider not found"
+  "32108": "SMTP provider not found",
+  "21409": "The infrastructure agent settings are invalid",
+  "21414": "The agent rejected the enrollment token",
+  "31408": "Infrastructure agent not found",
+  "41413": "An agent with this endpoint is already added",
+  "71401": "infrastructure agent is not connected",
+  "71410": "The platform secrets key is not configured",
+  "71411": "The agent still holds laboratories",
+  "71415": "The renewed certificate names another tenant",
+  "71416": "Deleting the agent affects future reservations: confirm the delete"
 }
