@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { BRAND_HEAD, BRAND_TAIL } from "@/i18n/brand"
 import { Logo } from "@/components/brand/Logo"
-import { ELEVATION_PERM } from "@/lib/elevationPermission"
+import { ELEVATION_READ_PERM } from "@/lib/elevationPermission"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { exercisesOrigin } from "@/lib/origins"
@@ -68,7 +68,7 @@ const GROUPS: Group[] = [
     children: [
       { href: "/labs", label: "admin.nav.labs", icon: Server, perm: "infrastructure.read" },
       { href: "/agents", label: "admin.nav.agents", icon: Cable, perm: "infrastructure.read" },
-      { href: "/elevations", label: "admin.nav.elevations", icon: Cpu, perm: ELEVATION_PERM },
+      { href: "/elevations", label: "admin.nav.elevations", icon: Cpu, perm: ELEVATION_READ_PERM },
       { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read" },
       { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read" },
       { href: "/errors", label: "admin.nav.errors", icon: Bug, perm: "platform.errors.read" },

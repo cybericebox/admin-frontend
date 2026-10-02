@@ -26,6 +26,8 @@ export type AgentFeatures = {
   ProxySessionMaxTTLSeconds: number
 }
 
+export type UnmetRequirement = { Resource: "deviceCpu" | "deviceMemory" | "devices"; Required: number; Max: number }
+
 export type Agent = {
   ID: string
   Name: string
@@ -43,6 +45,8 @@ export type Agent = {
   Features: AgentFeatures | null
   /** false: the agent's maxima are below the platform frame; it is not used. */
   MeetsRequirements: boolean
+  /** Which maxima fall short of the platform frame; empty when the agent meets it. */
+  Unmet: UnmetRequirement[] | null
   FeaturesAt: string | null
   ArchivedAt: string | null
   CertExpiresAt: string | null

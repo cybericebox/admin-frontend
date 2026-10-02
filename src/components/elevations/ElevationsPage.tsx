@@ -14,7 +14,7 @@ import { formatDateTime } from "@/lib/locale"
 import { cn } from "@/utils/cn"
 import { STATUS_STYLE } from "./elevationView"
 
-const FILTERS: ElevationFilter[] = ["pending", "decided"]
+const FILTERS: ElevationFilter[] = ["pending", "approved", "rejected", ""]
 
 export function StatusBadge({ status }: { status: ElevationRequest["Status"] }) {
   return <span data-status={status} className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", STATUS_STYLE[status])}>{t(`admin.elevations.status.${status}`)}</span>
@@ -42,9 +42,9 @@ export function ElevationsPage() {
       <div><h2 className="text-xl font-semibold text-foreground">{t("admin.elevations.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.elevations.subtitle")}</p></div>
       <div className="flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label={t("admin.elevations.filter")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
-          {FILTERS.map((value) => <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)}
+          {FILTERS.map((value) => <button key={value || "all"} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)}
             className={cn("h-7 rounded px-3 text-sm", filter === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            {t(`admin.elevations.filter.${value}`)}
+            {t(`admin.elevations.filter.${value || "all"}`)}
           </button>)}
         </div>
         <Button variant="outline" onClick={retry}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
@@ -53,7 +53,7 @@ export function ElevationsPage() {
 
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} />
       : !items ? <LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="flex-1" />
-      : items.length === 0 ? <EmptyState className="flex-1" message={t(`admin.elevations.empty.${filter}`)} />
+      : items.length === 0 ? <EmptyState className="flex-1" message={t(`admin.elevations.empty.${filter || "all"}`)} />
       : <Card><ul className="divide-y divide-border" data-testid="elevations-list">
         {items.map((item) => <li key={item.ID} data-testid={`elevation-${item.ID}`}>
           <Link href={`/elevations/detail?id=${encodeURIComponent(item.ID)}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-primary">
@@ -61,7 +61,7 @@ export function ElevationsPage() {
               <span className="block truncate text-sm font-medium text-foreground">{item.ExerciseName}</span>
               <span className="block truncate text-sm text-muted-foreground">{item.RequestedByName} · {formatDateTime(item.RequestedAt)}</span>
             </span>
-            <span className="text-sm text-muted-foreground">{t("admin.elevations.devicesCount", { count: item.Devices.length })}</span>
+            <span className="text-sm text-muted-foreground">{t("admin.elevations.devicesCount", { count: item.Requested.length })}</span>
             <StatusBadge status={item.Status} />
           </Link>
         </li>)}

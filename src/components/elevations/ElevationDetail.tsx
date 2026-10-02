@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { approveElevation, ELEVATION_PERM, getElevation, rejectElevation, type ElevationRequest } from "@/api/elevations"
+import { decideElevation, ELEVATION_WRITE_PERM, findElevation, type ElevationRequest } from "@/api/elevations"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -17,11 +17,8 @@ import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
 import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { useRole } from "@/lib/useRole"
-import { cn } from "@/utils/cn"
 import { StatusBadge } from "./ElevationsPage"
-import { CEILING, FRAME, deviceLevel, hasCeilingDevice } from "./elevationView"
 
-const MIB = 1024 ** 2
 type Decision = "approve" | "reject"
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -30,7 +27,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 export function ElevationDetail({ id }: { id: string }) {
   const { can } = useRole()
-  const canReview = can(ELEVATION_PERM)
+  const canReview = can(ELEVATION_WRITE_PERM)
   const [state, setState] = useState<{ id: string; item: ElevationRequest | null; error: unknown }>({ id: "", item: null, error: null })
   const [attempt, setAttempt] = useState(0)
   const [decision, setDecision] = useState<Decision | null>(null)
@@ -41,8 +38,8 @@ export function ElevationDetail({ id }: { id: string }) {
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    getElevation(id)
-      .then((item) => { if (!cancelled) setState({ id, item, error: null }) })
+    findElevation(id)
+      .then((item) => { if (!cancelled) setState({ id, item, error: item ? null : new ApiError(404, "not found") }) })
       .catch((cause) => { if (!cancelled) setState({ id, item: null, error: cause }) })
     return () => { cancelled = true }
   }, [id, attempt])
@@ -56,7 +53,6 @@ export function ElevationDetail({ id }: { id: string }) {
   if (!item) return <LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="h-full" />
 
   const pending = item.Status === "pending"
-  const ceiling = hasCeilingDevice(item.Devices)
 
   function open(next: Decision) { setNote(""); setError(""); setDecision(next) }
 
@@ -65,7 +61,7 @@ export function ElevationDetail({ id }: { id: string }) {
     setBusy(true)
     setError("")
     try {
-      const saved = await (decision === "approve" ? approveElevation : rejectElevation)(item.ID, note.trim())
+      const saved = await decideElevation(item.ID, { Approve: decision === "approve", Note: note.trim() })
       setState({ id, item: saved, error: null })
       setDecision(null)
       toast.success(t(`admin.elevations.${decision}.done`))
@@ -85,41 +81,40 @@ export function ElevationDetail({ id }: { id: string }) {
       </div>
       {pending && canReview && <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={() => open("reject")}>{t("admin.elevations.reject.action")}</Button>
-        <Button type="button" disabled={ceiling} onClick={() => open("approve")}>{t("admin.elevations.approve.action")}</Button>
+        <Button type="button" onClick={() => open("approve")}>{t("admin.elevations.approve.action")}</Button>
       </div>}
     </div>
     {pending && !canReview && <p role="status" className="text-sm text-muted-foreground">{t("admin.elevations.noReview")}</p>}
-    {pending && ceiling && <p role="alert" data-ceiling className="text-sm text-[var(--ib-warn)]">{t("admin.elevations.ceiling", { cpu: formatCpu(CEILING.cpu), memory: formatBytes(CEILING.memory * MIB) })}</p>}
 
     <Card className="space-y-4 p-4">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-4">
         <Fact label={t("admin.elevations.fact.author")}>{item.RequestedByName || "—"}</Fact>
         <Fact label={t("admin.elevations.fact.requested")}>{formatDateTime(item.RequestedAt)}</Fact>
-        {!pending && <Fact label={t("admin.elevations.fact.reviewer")}>{item.ReviewedByName || "—"}</Fact>}
-        {!pending && <Fact label={t("admin.elevations.fact.reviewed")}>{formatDateTime(item.ReviewedAt)}</Fact>}
+        {!pending && <Fact label={t("admin.elevations.fact.reviewer")}>{item.DecidedByName || "—"}</Fact>}
+        {!pending && <Fact label={t("admin.elevations.fact.reviewed")}>{formatDateTime(item.DecidedAt)}</Fact>}
       </dl>
       <div><p className="text-xs text-muted-foreground">{t("admin.elevations.reason")}</p><p data-testid="elevation-reason" className="whitespace-pre-wrap break-words text-sm text-foreground">{item.Reason || "—"}</p></div>
-      {item.ReviewNote && <div><p className="text-xs text-muted-foreground">{t("admin.elevations.note")}</p><p className="whitespace-pre-wrap break-words text-sm text-foreground">{item.ReviewNote}</p></div>}
+      {item.DecisionNote && <div><p className="text-xs text-muted-foreground">{t("admin.elevations.note")}</p><p className="whitespace-pre-wrap break-words text-sm text-foreground">{item.DecisionNote}</p></div>}
     </Card>
 
     <Card className="overflow-x-auto">
       <table data-testid="elevation-devices" className="w-full text-sm">
         <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.device")}</th>
-          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.variant")}</th>
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.cpu")}</th>
           <th className="px-4 py-2 font-medium">{t("admin.elevations.col.memory")}</th>
         </tr></thead>
         <tbody className="divide-y divide-border">
-          {item.Devices.map((device) => <tr key={device.DeviceID} data-level={deviceLevel(device)}>
-            <td className="px-4 py-2 font-medium">{device.DeviceName || device.DeviceID}</td>
-            <td className="px-4 py-2 text-muted-foreground">{device.Variant}</td>
-            <td className={cn("px-4 py-2", deviceLevel(device) === "ceiling" && "text-[var(--ib-warn)]")}>{device.CPU}</td>
-            <td className={cn("px-4 py-2", deviceLevel(device) === "ceiling" && "text-[var(--ib-warn)]")}>{device.Memory}</td>
+          {item.Requested.map((device) => <tr key={device.DeviceID}>
+            <td className="px-4 py-2 font-medium">{device.Name || device.DeviceID}</td>
+            <td className="px-4 py-2">{formatCpu(device.CPUMillicores)}</td>
+            <td className="px-4 py-2">{formatBytes(device.MemoryBytes)}</td>
           </tr>)}
         </tbody>
       </table>
-      <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">{t("admin.elevations.frameNote", { cpu: formatCpu(FRAME.cpu), memory: formatBytes(FRAME.memory * MIB), maxCpu: formatCpu(CEILING.cpu), maxMemory: formatBytes(CEILING.memory * MIB) })}</p>
+      {item.Approved.length > 0 && <p data-testid="elevation-approved" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+        {t("admin.elevations.approvedValues")} {item.Approved.map((device) => `${device.Name || device.DeviceID}: ${formatCpu(device.CPUMillicores)} · ${formatBytes(device.MemoryBytes)}`).join("; ")}
+      </p>}
     </Card>
 
     <ConfirmDialog open={decision !== null} busy={busy} error={error} tone={decision === "reject" ? "danger" : "default"}

@@ -133,7 +133,7 @@ describe("admin sidebar", () => {
   })
   it("does not show the platform infrastructure section without its permission", () => {
     rights.infrastructure = false
-    rights.denied = new Set(["platform.audit.read", "platform.errors.read", "exercises.elevations.review"])
+    rights.denied = new Set(["platform.audit.read", "platform.errors.read", "exercises.elevations.read"])
     render(<Sidebar />)
     expect(screen.queryByRole("link", { name: "admin.nav.labs" })).not.toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "admin.nav.elevations" })).not.toBeInTheDocument()

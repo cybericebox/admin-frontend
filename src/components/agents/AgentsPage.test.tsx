@@ -19,7 +19,7 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => permi
 const agent = (over: Partial<Agent> = {}): Agent => ({
   ID: "a1", Name: "Київ", Source: "admin", Endpoint: "agent.test:443", Enabled: true, Priority: 10, HasCA: false, InUse: false, Tenant: "tenant-a", AccessKeyID: "k1", RetiredKeys: 0, Groups: 0,
   Capacity: { CPUMillicores: 4000, MemoryBytes: 8 * 1024 ** 3, SeenAt: "2026-10-01T10:00:00Z" },
-  MeetsRequirements: true,
+  MeetsRequirements: true, Unmet: null,
   Features: { PersistenceAvailable: true, PersistenceDefaultDebounceMs: 0, PersistenceWriteQuotaBytes: 0, PersistenceMaxFileSizeBytes: 0, PersistenceExcludedPaths: null, ImageCacheEnabled: false, ImageCacheRegistries: null, SchedulerEnabled: true, SchedulerMaxPods: 5, LabsDomain: "", VPNEndpoint: "", ProxyAccessTokenMaxTTLSeconds: 0, ProxySessionMaxTTLSeconds: 0 },
   FeaturesAt: "2026-10-01T10:00:00Z", ArchivedAt: null, CertExpiresAt: "2099-01-01T00:00:00Z", Connected: true, Healthy: true, LatencyMs: 12, Error: "", CreatedAt: "2026-09-01T00:00:00Z", UpdatedAt: "2026-09-01T00:00:00Z", ...over,
 })
@@ -70,11 +70,13 @@ describe("agents page", () => {
   })
 
   it("flags an agent below the platform requirements", async () => {
-    serve([agent(), agent({ ID: "a2", Name: "Львів", MeetsRequirements: false })])
+    serve([agent(), agent({ ID: "a2", Name: "Львів", MeetsRequirements: false, Unmet: [{ Resource: "deviceCpu", Required: 250, Max: 100 }, { Resource: "devices", Required: 32, Max: 16 }] })])
     render(<AgentsPage />)
     const flagged = await screen.findByTestId("agent-a2")
     expect(within(flagged).getByTestId("agent-unmet")).toHaveTextContent("Не відповідає вимогам платформи")
     expect(within(flagged).getByText(/Агент не використовується/)).toBeInTheDocument()
+    expect(within(flagged).getByText(/CPU на пристрій: потрібно 250 .*, є 100 /)).toBeInTheDocument()
+    expect(within(flagged).getByText(/Пристроїв на лабораторію: потрібно 32, є 16/)).toBeInTheDocument()
     expect(within(screen.getByTestId("agent-a1")).queryByTestId("agent-unmet")).toBeNull()
   })
 

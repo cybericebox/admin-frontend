@@ -48,3 +48,9 @@ export function featureChips(agent: Agent): string[] | null {
 export function sortAgents(items: Agent[]): Agent[] {
   return [...items].sort((a, b) => Number(!!a.ArchivedAt) - Number(!!b.ArchivedAt) || a.Priority - b.Priority || a.Name.localeCompare(b.Name))
 }
+
+/** «CPU на пристрій: потрібно 250m, є 100m» for each maximum below the platform frame. */
+export function unmetLines(agent: Agent): string[] {
+  const format = (resource: string, value: number) => resource === "deviceCpu" ? formatCpu(value) : resource === "deviceMemory" ? formatBytes(value) : String(value)
+  return (agent.Unmet ?? []).map((item) => t(`admin.agents.requirements.${item.Resource}`, { required: format(item.Resource, item.Required), max: format(item.Resource, item.Max) }))
+}

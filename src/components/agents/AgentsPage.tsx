@@ -23,7 +23,7 @@ import { usePolling } from "@/lib/usePolling"
 import { useRole } from "@/lib/useRole"
 import { cn } from "@/utils/cn"
 import { DeleteBlockedDialog, EditAgentDialog, EnrollDialog, ReconnectDialog, ReservationImpactList } from "./AgentDialogs"
-import { CERT_WARN_DAYS, agentState, capacityText, certDaysLeft, featureChips, sortAgents, type AgentState } from "./agentView"
+import { CERT_WARN_DAYS, agentState, capacityText, certDaysLeft, featureChips, sortAgents, unmetLines, type AgentState } from "./agentView"
 
 const STATE_STYLE: Record<AgentState, string> = {
   online: "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
@@ -235,7 +235,10 @@ export function AgentsPage() {
             <div className="flex flex-wrap items-center gap-1.5" data-testid="agent-features">
               {chips ? chips.map((chip) => <Badge key={chip} className="bg-secondary text-muted-foreground">{chip}</Badge>) : <span className="text-xs text-muted-foreground">{t("admin.agents.feature.unknown")}</span>}
             </div>
-            {agent.MeetsRequirements === false && state !== "archived" && <p className="text-xs text-[var(--ib-warn)]">{t("admin.agents.requirements.unmetHint")}</p>}
+            {agent.MeetsRequirements === false && state !== "archived" && <div className="space-y-0.5 text-xs text-[var(--ib-warn)]" data-testid="agent-unmet-hint">
+              <p>{t("admin.agents.requirements.unmetHint")}</p>
+              {unmetLines(agent).map((line) => <p key={line}>{line}</p>)}
+            </div>}
             {state !== "online" && state !== "archived" && agent.Error && <p className="break-words text-xs text-destructive">{agent.Error}</p>}
           </li>
         })}

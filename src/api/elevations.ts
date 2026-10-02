@@ -1,63 +1,59 @@
 /**
- * elevations.ts — resource elevation requests (a task above the platform frame). Platform admins decide.
- * JSON PascalCase. An approval stores the requested values per device; the author may later lower them
- * under the approval, never raise them.
+ * elevations.ts — resource elevation requests (devices above the platform frame). A super admin decides.
+ * JSON PascalCase, CPU in millicores, memory in bytes. An approval stores the values per device; the author
+ * may later lower them under the approval, never raise them.
  */
 import { apiGet, apiPost } from "@/api/client"
 
-const BASE = "/api/exercises/elevations"
+export { ELEVATION_READ_PERM, ELEVATION_WRITE_PERM } from "@/lib/elevationPermission"
 
-export { ELEVATION_PERM } from "@/lib/elevationPermission"
+const BASE = "/api/exercises/resource-elevations"
 
 export type ElevationStatus = "pending" | "approved" | "rejected"
 
-export type ElevationDevice = {
-  DeviceID: string
-  DeviceName: string
-  /** Position of the variant the device belongs to (1-based). */
-  Variant: number
-  /** Kubernetes quantities, as requested: "500m", "2Gi". */
-  CPU: string
-  Memory: string
-}
+export type ElevationDevice = { DeviceID: string; Name: string; CPUMillicores: number; MemoryBytes: number }
 
 export type ElevationRequest = {
   ID: string
   ExerciseID: string
   ExerciseName: string
+  VersionID: string
   Status: ElevationStatus
   Reason: string
+  Requested: ElevationDevice[]
+  Approved: ElevationDevice[]
+  DecisionNote: string
   RequestedByName: string
   RequestedAt: string
-  ReviewedByName: string
-  ReviewedAt: string | null
-  ReviewNote: string
-  Devices: ElevationDevice[]
+  DecidedByName: string
+  DecidedAt: string | null
 }
 
-export type ElevationFilter = "pending" | "decided"
+/** "" lists every request. */
+export type ElevationFilter = ElevationStatus | ""
 
-type Raw = Omit<ElevationRequest, "Devices" | "ReviewedByName" | "ReviewNote" | "ReviewedAt"> & Partial<Pick<ElevationRequest, "ReviewedByName" | "ReviewNote" | "ReviewedAt">> & { Devices: ElevationDevice[] | null }
+type Raw = Partial<ElevationRequest> & Pick<ElevationRequest, "ID" | "Status">
 
 function normalize(raw: Raw): ElevationRequest {
-  return { ...raw, ReviewedByName: raw.ReviewedByName ?? "", ReviewNote: raw.ReviewNote ?? "", ReviewedAt: raw.ReviewedAt ?? null, Devices: raw.Devices ?? [] }
+  return {
+    ID: raw.ID, ExerciseID: raw.ExerciseID ?? "", ExerciseName: raw.ExerciseName ?? "", VersionID: raw.VersionID ?? "",
+    Status: raw.Status, Reason: raw.Reason ?? "", Requested: raw.Requested ?? [], Approved: raw.Approved ?? [],
+    DecisionNote: raw.DecisionNote ?? "", RequestedByName: raw.RequestedByName ?? "", RequestedAt: raw.RequestedAt ?? "",
+    DecidedByName: raw.DecidedByName ?? "", DecidedAt: raw.DecidedAt ?? null,
+  }
 }
-
-const path = (id: string) => `${BASE}/${encodeURIComponent(id)}`
 
 export async function listElevations(filter: ElevationFilter): Promise<ElevationRequest[]> {
-  const result = await apiGet<{ Items: Raw[] | null }>(`${BASE}?status=${filter}`)
-  return (result.Items ?? []).map(normalize)
+  const result = await apiGet<Raw[] | null>(`${BASE}${filter ? `?status=${filter}` : ""}`)
+  return (result ?? []).map(normalize)
 }
 
-export async function getElevation(id: string): Promise<ElevationRequest> {
-  return normalize(await apiGet<Raw>(path(id)))
+/** There is no single-request route: the detail finds the request in the full list. */
+export async function findElevation(id: string): Promise<ElevationRequest | null> {
+  return (await listElevations("")).find((item) => item.ID === id) ?? null
 }
 
-export async function approveElevation(id: string, note: string): Promise<ElevationRequest> {
-  return normalize(await apiPost<Raw>(`${path(id)}/approve`, { Note: note }))
-}
-
-export async function rejectElevation(id: string, note: string): Promise<ElevationRequest> {
-  return normalize(await apiPost<Raw>(`${path(id)}/reject`, { Note: note }))
+/** Omitting devices approves what was requested; values may be lower, never above the ceiling. */
+export async function decideElevation(id: string, input: { Approve: boolean; Note: string; Devices?: Pick<ElevationDevice, "DeviceID" | "CPUMillicores" | "MemoryBytes">[] }): Promise<ElevationRequest> {
+  return normalize(await apiPost<Raw>(`${BASE}/${encodeURIComponent(id)}/decide`, input))
 }
