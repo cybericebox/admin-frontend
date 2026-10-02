@@ -2312,10 +2312,12 @@
   "admin.elevations.col.approved": "Approve",
   "admin.elevations.edit.block": "Size for \"{name}\"",
   "admin.elevations.blocksCount": "{count} blocks",
+  "admin.res.preset.nano": "Nano",
   "admin.res.preset.micro": "Micro",
   "admin.res.preset.small": "Small",
+  "admin.res.preset.standard": "Standard",
   "admin.res.preset.medium": "Medium",
   "admin.res.preset.large": "Large",
   "admin.res.preset.xlarge": "X-Large",
-  "admin.res.preset.huge": "Maximum"
+  "admin.res.preset.max": "Maximum"
 }

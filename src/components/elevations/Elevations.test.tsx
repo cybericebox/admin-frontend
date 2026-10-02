@@ -16,12 +16,14 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => permi
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
 
 const presets = [
-  { ID: "micro", Blocks: 1, CPUMillicores: 16, MemoryBytes: 64 * 1024 ** 2 },
-  { ID: "small", Blocks: 2, CPUMillicores: 32, MemoryBytes: 128 * 1024 ** 2 },
-  { ID: "medium", Blocks: 8, CPUMillicores: 128, MemoryBytes: 512 * 1024 ** 2 },
-  { ID: "large", Blocks: 16, CPUMillicores: 256, MemoryBytes: 1024 ** 3 },
-  { ID: "xlarge", Blocks: 32, CPUMillicores: 512, MemoryBytes: 2 * 1024 ** 3 },
-  { ID: "huge", Blocks: 64, CPUMillicores: 1024, MemoryBytes: 4 * 1024 ** 3 },
+  { ID: "nano", Blocks: 1, CPUMillicores: 7, MemoryBytes: 32 * 1024 ** 2 },
+  { ID: "micro", Blocks: 2, CPUMillicores: 15, MemoryBytes: 64 * 1024 ** 2 },
+  { ID: "small", Blocks: 4, CPUMillicores: 31, MemoryBytes: 128 * 1024 ** 2 },
+  { ID: "standard", Blocks: 8, CPUMillicores: 62, MemoryBytes: 256 * 1024 ** 2 },
+  { ID: "medium", Blocks: 16, CPUMillicores: 125, MemoryBytes: 512 * 1024 ** 2 },
+  { ID: "large", Blocks: 32, CPUMillicores: 250, MemoryBytes: 1024 ** 3 },
+  { ID: "xlarge", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2 * 1024 ** 3 },
+  { ID: "max", Blocks: 128, CPUMillicores: 1000, MemoryBytes: 4 * 1024 ** 3 },
 ]
 /** Capabilities answer on its own path; everything else gets the given value. */
 const serve = (value: unknown) => apiGet.mockImplementation((path: string) =>
@@ -30,7 +32,7 @@ const serve = (value: unknown) => apiGet.mockImplementation((path: string) =>
 const request = (over: Partial<ElevationRequest> = {}): ElevationRequest => ({
   ID: "r1", ExerciseID: "e1", ExerciseName: "SQL injection", Status: "pending", Reason: "Needs a database", RequestedByName: "Олена",
   RequestedAt: "2026-10-02T10:00:00Z", DecidedByName: "", DecidedAt: null, DecisionNote: "", VersionID: "v1", Approved: [],
-  Requested: [{ DeviceID: "d1", Name: "db", Blocks: 32, CPUMillicores: 512, MemoryBytes: 2 * 1024 ** 3 }], ...over,
+  Requested: [{ DeviceID: "d1", Name: "db", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2 * 1024 ** 3 }], ...over,
 })
 
 beforeEach(() => {
@@ -81,9 +83,9 @@ describe("elevation detail", () => {
     expect(within(table).getByText("db")).toBeInTheDocument()
     expect(within(table).getByText("Дуже великий")).toBeInTheDocument()
     const select = await within(table).findByLabelText(/^Розмір для «db»/)
-    expect(select).toHaveValue("32")
+    expect(select).toHaveValue("64")
     // Only the requested block and smaller ones are offered.
-    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2", "8", "16", "32"])
+    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2", "4", "8", "16", "32", "64"])
   })
 
   it("approves through the confirm dialog", async () => {
@@ -103,22 +105,22 @@ describe("elevation detail", () => {
     serve(request())
     apiPost.mockResolvedValue(request({ Status: "approved" }))
     render(<ElevationDetail id="r1" />)
-    fireEvent.change(await screen.findByLabelText(/^Розмір для «db»/), { target: { value: "8" } })
+    fireEvent.change(await screen.findByLabelText(/^Розмір для «db»/), { target: { value: "16" } })
     fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByTestId("elevation-reduced")).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole("button", { name: "Погодити" }))
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", {
-      Note: "", Devices: [{ DeviceID: "d1", Blocks: 8 }],
+      Note: "", Devices: [{ DeviceID: "d1", Blocks: 16 }],
     }))
   })
 
   it("never offers a block above the request, even for a small request", async () => {
-    serve(request({ Requested: [{ DeviceID: "d1", Name: "db", Blocks: 2, CPUMillicores: 32, MemoryBytes: 128 * 1024 ** 2 }] }))
+    serve(request({ Requested: [{ DeviceID: "d1", Name: "db", Blocks: 4, CPUMillicores: 31, MemoryBytes: 128 * 1024 ** 2 }] }))
     render(<ElevationDetail id="r1" />)
     const select = await screen.findByLabelText(/^Розмір для «db»/)
-    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2"])
-    expect(select).toHaveValue("2")
+    expect(within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["1", "2", "4"])
+    expect(select).toHaveValue("4")
   })
 
   it("rejects with a danger confirm and shows a failure inside the dialog", async () => {

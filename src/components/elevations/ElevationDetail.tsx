@@ -22,7 +22,7 @@ import { StatusBadge } from "./ElevationsPage"
 
 type Decision = "approve" | "reject"
 type Device = ElevationRequest["Requested"][number]
-const PRESET_IDS = ["micro", "small", "medium", "large", "xlarge", "huge"]
+const PRESET_IDS = ["nano", "micro", "small", "standard", "medium", "large", "xlarge", "max"]
 
 /** Presets a device may be approved with: the requested block or any smaller offered one. */
 function allowedPresets(device: Device, presets: ResourcePreset[]) {

@@ -2312,10 +2312,12 @@
   "admin.elevations.col.approved": "Погодити",
   "admin.elevations.edit.block": "Розмір для «{name}»",
   "admin.elevations.blocksCount": "{count} бл.",
+  "admin.res.preset.nano": "Нано",
   "admin.res.preset.micro": "Мікро",
   "admin.res.preset.small": "Малий",
+  "admin.res.preset.standard": "Стандартний",
   "admin.res.preset.medium": "Середній",
   "admin.res.preset.large": "Великий",
   "admin.res.preset.xlarge": "Дуже великий",
-  "admin.res.preset.huge": "Максимальний"
+  "admin.res.preset.max": "Максимальний"
 }
