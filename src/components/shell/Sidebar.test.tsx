@@ -133,10 +133,17 @@ describe("admin sidebar", () => {
   })
   it("does not show the platform infrastructure section without its permission", () => {
     rights.infrastructure = false
-    rights.denied = new Set(["platform.audit.read", "platform.errors.read"])
+    rights.denied = new Set(["platform.audit.read", "platform.errors.read", "exercises.elevations.review"])
     render(<Sidebar />)
     expect(screen.queryByRole("link", { name: "admin.nav.labs" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "admin.nav.elevations" })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.nav.section.platform")).not.toBeInTheDocument()
+  })
+
+  it("shows resource requests with the review permission", () => {
+    nav.path = "/elevations"
+    render(<Sidebar />)
+    expect(screen.getByRole("link", { name: "admin.nav.elevations" })).toHaveAttribute("href", "/elevations")
   })
 
   it("keeps Users in analytics for the old users.read right and hides the rest without analytics.read", () => {

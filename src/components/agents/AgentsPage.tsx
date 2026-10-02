@@ -33,8 +33,8 @@ const STATE_STYLE: Record<AgentState, string> = {
   archived: "bg-secondary text-muted-foreground",
 }
 
-function Badge({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", className)}>{children}</span>
+function Badge({ className, children, ...rest }: { className?: string; children: React.ReactNode; "data-testid"?: string }) {
+  return <span {...rest} className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", className)}>{children}</span>
 }
 
 function Fact({ label, children, warn }: { label: string; children: React.ReactNode; warn?: boolean }) {
@@ -202,6 +202,7 @@ export function AgentsPage() {
                   <span className="truncate">{agent.Name}</span>
                   <Badge className={STATE_STYLE[!agent.Enabled && state !== "archived" ? "disabled" : state]}>{t(`admin.agents.state.${!agent.Enabled && state !== "archived" ? "disabled" : state}`)}</Badge>
                   <Badge className="bg-secondary text-muted-foreground">{t(`admin.agents.source.${agent.Source}`)}</Badge>
+                  {agent.MeetsRequirements === false && state !== "archived" && <Badge className="bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]" data-testid="agent-unmet">{t("admin.agents.requirements.unmet")}</Badge>}
                 </p>
                 <p className="truncate text-sm text-muted-foreground">{agent.Endpoint || "—"}{agent.Tenant && ` · ${agent.Tenant}`}</p>
               </div>
@@ -234,6 +235,7 @@ export function AgentsPage() {
             <div className="flex flex-wrap items-center gap-1.5" data-testid="agent-features">
               {chips ? chips.map((chip) => <Badge key={chip} className="bg-secondary text-muted-foreground">{chip}</Badge>) : <span className="text-xs text-muted-foreground">{t("admin.agents.feature.unknown")}</span>}
             </div>
+            {agent.MeetsRequirements === false && state !== "archived" && <p className="text-xs text-[var(--ib-warn)]">{t("admin.agents.requirements.unmetHint")}</p>}
             {state !== "online" && state !== "archived" && agent.Error && <p className="break-words text-xs text-destructive">{agent.Error}</p>}
           </li>
         })}

@@ -41,6 +41,8 @@ export type Agent = {
   Groups: number
   Capacity: AgentCapacity
   Features: AgentFeatures | null
+  /** false: the agent's maxima are below the platform frame; it is not used. */
+  MeetsRequirements: boolean
   FeaturesAt: string | null
   ArchivedAt: string | null
   CertExpiresAt: string | null
