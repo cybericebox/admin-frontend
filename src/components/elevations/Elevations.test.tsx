@@ -66,8 +66,8 @@ describe("elevation detail", () => {
     expect(await screen.findByTestId("elevation-reason")).toHaveTextContent("Needs a database")
     const table = screen.getByTestId("elevation-devices")
     expect(within(table).getByText("db")).toBeInTheDocument()
-    expect(within(table).getByText(/^500 /)).toBeInTheDocument()
-    expect(within(table).getByText(/^2 .*ГіБ/)).toBeInTheDocument()
+    expect(within(table).getByLabelText(/^CPU для «db»/)).toHaveValue("500")
+    expect(within(table).getByLabelText(/^Памʼять для «db»/)).toHaveValue("2048")
   })
 
   it("approves through the confirm dialog", async () => {
@@ -81,6 +81,43 @@ describe("elevation detail", () => {
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/resource-elevations/r1/decide", { Approve: true, Note: "ok" }))
     await waitFor(() => expect(screen.getByText("Погоджено")).toBeInTheDocument())
     expect(screen.queryByRole("button", { name: "Відхилити" })).toBeNull()
+  })
+
+  it("approves with lowered values, sends Devices only then and says so in the dialog", async () => {
+    apiGet.mockResolvedValue([request()])
+    apiPost.mockResolvedValue(request({ Status: "approved" }))
+    render(<ElevationDetail id="r1" />)
+    fireEvent.change(await screen.findByLabelText(/^CPU для «db»/), { target: { value: "300" } })
+    fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByTestId("elevation-reduced")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "Погодити" }))
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/resource-elevations/r1/decide", {
+      Approve: true, Note: "", Devices: [{ DeviceID: "d1", CPUMillicores: 300, MemoryBytes: 2 * 1024 ** 3 }],
+    }))
+  })
+
+  it("lowers memory in MiB", async () => {
+    apiGet.mockResolvedValue([request()])
+    apiPost.mockResolvedValue(request({ Status: "approved" }))
+    render(<ElevationDetail id="r1" />)
+    fireEvent.change(await screen.findByLabelText(/^Памʼять для «db»/), { target: { value: "1024" } })
+    fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Погодити" }))
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ Devices: [{ DeviceID: "d1", CPUMillicores: 500, MemoryBytes: 1024 ** 3 }] })))
+  })
+
+  it("does not allow values above the request or empty ones", async () => {
+    apiGet.mockResolvedValue([request()])
+    render(<ElevationDetail id="r1" />)
+    const cpu = await screen.findByLabelText(/^CPU для «db»/)
+    fireEvent.change(cpu, { target: { value: "600" } })
+    expect(screen.getByRole("button", { name: "Погодити" })).toBeDisabled()
+    expect(screen.getByTestId("elevation-edit-hint")).toHaveTextContent("додатними")
+    fireEvent.change(cpu, { target: { value: "" } })
+    expect(screen.getByRole("button", { name: "Погодити" })).toBeDisabled()
+    fireEvent.change(cpu, { target: { value: "1" } })
+    expect(screen.getByRole("button", { name: "Погодити" })).toBeEnabled()
   })
 
   it("rejects with a danger confirm and shows a failure inside the dialog", async () => {
