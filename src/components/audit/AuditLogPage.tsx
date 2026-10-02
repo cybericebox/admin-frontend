@@ -1,7 +1,8 @@
-"use client"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { AUDIT_LOG_LIMIT, listAuditLog, type AuditRecord } from "@/api/auditLog"
+import { listAuditLog, type AuditFilters, type AuditRecord } from "@/api/auditLog"
+import { Button } from "@/components/ui/button"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -14,17 +15,10 @@ import { useUserNames } from "@/lib/userNames"
 import { useRole } from "@/lib/useRole"
 import { AuditUserFilter, type PickedUser } from "./AuditUserFilter"
 
-const STATUS_FILTERS = ["ok", "denied", "client", "server"] as const
-const PERIODS = { hour: 3_600_000, day: 86_400_000, week: 7 * 86_400_000, month: 30 * 86_400_000 } as const
+const METHODS = ["POST", "PUT", "PATCH", "DELETE", "GET"] as const
+const STATUS_FILTERS = ["2xx", "3xx", "4xx", "5xx", "403", "409"] as const
+// Kind tokens the daemon handlers set explicitly; route-param kinds (userID, id, ...) are typed by hand.
 const TARGET_KINDS = ["event", "team", "user", "agent", "test-lab", "exercise", "challenge", "device"]
-const PERIOD_KEYS = Object.keys(PERIODS) as (keyof typeof PERIODS)[]
-
-const matchesStatus = (status: number, filter: string) =>
-  filter === "ok" ? status >= 200 && status < 300
-  : filter === "denied" ? status === 403
-  : filter === "client" ? status >= 400 && status < 500
-  : filter === "server" ? status >= 500
-  : true
 
 const statusTone = (status: number) =>
   status >= 500 ? "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]"
@@ -42,37 +36,75 @@ function useDebounced(value: string, delay = 300): string {
   return debounced
 }
 
+// «YYYY-MM-DDTHH:mm» wall clock of the picker -> RFC3339 instant. «to» is inclusive, so it covers its whole minute.
+const toInstant = (local: string, endOfMinute = false) => {
+  if (!local) return ""
+  const at = new Date(local)
+  if (Number.isNaN(at.getTime())) return ""
+  if (endOfMinute) at.setSeconds(59)
+  return at.toISOString().replace(/\.\d{3}Z$/, "Z")
+}
+
+type Shown = { key: string; rows: AuditRecord[]; next: string }
+
 export function AuditLogPage() {
   const { can } = useRole()
   const [user, setUser] = useState<PickedUser | null>(null)
   const [permissionInput, setPermissionInput] = useState("")
   const [routeInput, setRouteInput] = useState("")
+  const [kindInput, setKindInput] = useState("")
+  const [targetIDInput, setTargetIDInput] = useState("")
+  const [method, setMethod] = useState("")
   const [status, setStatus] = useState("")
-  const [period, setPeriod] = useState("")
+  const [fromLocal, setFromLocal] = useState("")
+  const [toLocal, setToLocal] = useState("")
   const permission = useDebounced(permissionInput.trim())
   const route = useDebounced(routeInput.trim())
+  const targetKind = useDebounced(kindInput.trim())
+  const targetID = useDebounced(targetIDInput.trim())
   const [reload, setReload] = useState(0)
-  // The last answer stays on screen while the next one loads, so the table never flashes empty.
-  const [data, setData] = useState<{ key: string; rows: AuditRecord[]; at: number } | null>(null)
+  // The shown rows stay on screen while a changed filter loads, so the table never flashes empty.
+  const [data, setData] = useState<Shown | null>(null)
   const [failure, setFailure] = useState<{ key: string; cause: unknown } | null>(null)
+  const [more, setMore] = useState<{ key: string; loading: boolean; error: unknown } | null>(null)
+  // Answers of anything but the latest request are dropped.
+  const latest = useRef(0)
 
+  const from = toInstant(fromLocal)
+  const to = toInstant(toLocal, true)
+  const badRange = !!from && !!to && to < from
   const actorID = user?.id ?? ""
-  const key = `${actorID}|${permission}|${route}|${reload}`
+  const filters: AuditFilters = { actorID, permission, route, method, status, from, to, targetKind, targetID }
+  const key = `${JSON.stringify(filters)}|${reload}`
+
   useEffect(() => {
-    let active = true
-    listAuditLog({ actorID, permission, route })
-      .then((rows) => { if (active) { setData({ key, rows, at: Date.now() }); setFailure(null) } })
-      .catch((cause) => { if (active) setFailure({ key, cause }) })
-    return () => { active = false }
-  }, [actorID, permission, route, key])
+    if (badRange) { latest.current++; return }
+    const request = ++latest.current
+    const query: AuditFilters = { actorID, permission, route, method, status, from, to, targetKind, targetID }
+    listAuditLog(query)
+      .then((page) => { if (request === latest.current) { setData({ key, rows: page.Items, next: page.NextCursor }); setFailure(null) } })
+      .catch((cause) => { if (request === latest.current) setFailure({ key, cause }) })
+  }, [key, badRange, actorID, permission, route, method, status, from, to, targetKind, targetID])
+
+  const loadMore = () => {
+    if (!data?.next || data.key !== key) return
+    const request = ++latest.current
+    const cursor = data.next
+    setMore({ key, loading: true, error: null })
+    listAuditLog(filters, cursor)
+      .then((page) => {
+        if (request !== latest.current) return
+        setData((current) => current && current.key === key ? { ...current, rows: [...current.rows, ...page.Items.filter((item) => !current.rows.some((row) => row.ID === item.ID))], next: page.NextCursor } : current)
+        setMore(null)
+      })
+      .catch((cause) => { if (request === latest.current) setMore({ key, loading: false, error: cause }) })
+  }
 
   const failed = failure?.key === key ? failure : null
-  const refreshing = !failed && data?.key !== key
-  const rows = useMemo(() => {
-    const since = period && data ? data.at - PERIODS[period as keyof typeof PERIODS] : 0
-    return (data?.rows ?? []).filter((row) => matchesStatus(row.ResponseStatus, status) && (!since || new Date(row.CreatedAt).getTime() >= since))
-  }, [data, status, period])
-  const filtered = !!(user || permission || route || status || period)
+  const refreshing = !badRange && !failed && data?.key !== key
+  const moreState = more?.key === key ? more : null
+  const rows = data?.rows ?? []
+  const filtered = Object.values(filters).some(Boolean)
   const names = useUserNames(rows.map((row) => row.ActorID))
 
   return (
@@ -81,11 +113,17 @@ export function AuditLogPage() {
         {can("users.read") && <AuditUserFilter value={user} onChange={setUser} />}
         <Input value={permissionInput} onChange={(event) => setPermissionInput(event.target.value)} placeholder={t("admin.audit.filter.permission")} aria-label={t("admin.audit.col.permission")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
         <Input value={routeInput} onChange={(event) => setRouteInput(event.target.value)} placeholder={t("admin.audit.filter.route")} aria-label={t("admin.audit.col.route")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
+        <SelectMenu value={method} onChange={setMethod} ariaLabel={t("admin.audit.filter.method")} className="min-w-40"
+          options={[{ value: "", label: t("admin.audit.filter.methodAll") }, ...METHODS.map((value) => ({ value, label: value === "GET" ? t("admin.audit.filter.methodGet") : value }))]} />
         <SelectMenu value={status} onChange={setStatus} ariaLabel={t("admin.audit.filter.status")} className="min-w-44"
-          options={[{ value: "", label: t("admin.audit.filter.statusAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status${value[0].toUpperCase()}${value.slice(1)}`) }))]} />
-        <SelectMenu value={period} onChange={setPeriod} ariaLabel={t("admin.audit.filter.period")} className="min-w-44"
-          options={[{ value: "", label: t("admin.audit.filter.periodAll") }, ...PERIOD_KEYS.map((value) => ({ value, label: t(`admin.audit.filter.period${value[0].toUpperCase()}${value.slice(1)}`) }))]} />
+          options={[{ value: "", label: t("admin.audit.filter.statusAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status_${value}`) }))]} />
+        <Input value={kindInput} onChange={(event) => setKindInput(event.target.value)} list="audit-target-kinds" placeholder={t("admin.audit.filter.targetKind")} aria-label={t("admin.audit.filter.targetKind")} className="min-w-[min(100%,12rem)] flex-1 lg:max-w-[14rem]" />
+        <datalist id="audit-target-kinds">{TARGET_KINDS.map((kind) => <option key={kind} value={kind} />)}</datalist>
+        <Input value={targetIDInput} onChange={(event) => setTargetIDInput(event.target.value)} placeholder={t("admin.audit.filter.targetID")} aria-label={t("admin.audit.filter.targetID")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
+        <DateTimePicker value={fromLocal} onChange={setFromLocal} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} />
+        <DateTimePicker value={toLocal} onChange={setToLocal} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} />
       </div>
+      {badRange && <p role="alert" className="mb-3 text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}
 
       <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={refreshing}>
         {failed ? (
@@ -134,9 +172,12 @@ export function AuditLogPage() {
         )}
       </div>
 
-      <div className="mt-auto flex shrink-0 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground">
-        <span>{t("admin.audit.limitNote", { count: AUDIT_LOG_LIMIT })}</span>
-        <span className="inline-flex w-5 justify-center">{refreshing && <Spinner size="sm" label={t("admin.table.updating")} />}</span>
+      <div className="mt-auto flex shrink-0 items-center justify-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground">
+        {moreState?.error ? <LoadError compact message={t("admin.audit.loadMoreError")} error={moreState.error} onRetry={loadMore} className="min-h-0 w-auto py-0" /> : null}
+        {data?.next && !moreState?.error ? (
+          <Button type="button" variant="outline" onClick={loadMore} busy={!!moreState?.loading}>{t("admin.audit.showMore")}</Button>
+        ) : null}
+        <span className="inline-flex w-5 justify-center">{refreshing && !!data && <Spinner size="sm" label={t("admin.table.updating")} />}</span>
       </div>
     </div>
   )

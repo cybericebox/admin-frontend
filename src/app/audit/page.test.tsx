@@ -13,11 +13,13 @@ const ACTOR = "11111111-1111-4111-8111-111111111111"
 const EVENT = "22222222-2222-4222-8222-222222222222"
 const row = (over: object = {}) => ({ ID: "r1", ActorID: ACTOR, Permission: "events.write", Method: "PATCH", Route: "/api/events/:id", ResponseStatus: 200, CreatedAt: new Date().toISOString(), Target: `event:${EVENT}`, ...over })
 
-function answer(rows: object[]) {
+const pageOf = (rows: object[], next = "") => ({ Items: rows, NextCursor: next })
+
+function answer(rows: object[], next = "") {
   mocks.get.mockImplementation((path: string) => {
     if (path.startsWith("/api/users/")) return Promise.resolve({ ID: ACTOR, FirstName: "Олена", LastName: "Коваль", Email: "o@example.test" })
     if (path.startsWith("/api/users?")) return Promise.resolve({ Items: [{ ID: ACTOR, FirstName: "Олена", LastName: "Коваль", Email: "o@example.test" }], Total: 1 })
-    return Promise.resolve(rows)
+    return Promise.resolve(pageOf(rows, next))
   })
 }
 
@@ -56,13 +58,47 @@ describe("admin audit log page", () => {
     expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?permission=events.read")
   })
 
-  it("filters by status within the loaded records and shows the filtered empty state", async () => {
-    answer([row(), row({ ID: "r2", ResponseStatus: 403, Permission: "users.write" })])
+  it("sends status, method and target filters to the server", async () => {
     render(<Page />)
-    await screen.findByText("users.write")
+    await screen.findByText("events.write")
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.statusServer" }))
-    expect(await screen.findByText("admin.audit.emptyFiltered")).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=5xx"))
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.method" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "DELETE" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx"))
+    fireEvent.change(screen.getByLabelText("admin.audit.filter.targetKind"), { target: { value: "team" } })
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx&targetKind=team"))
+  })
+
+  it("appends the next page with «show more» and keeps the earlier rows", async () => {
+    mocks.get.mockImplementation((path: string) => {
+      if (path.startsWith("/api/users")) return Promise.resolve({ ID: ACTOR, FirstName: "О", LastName: "К", Email: "o@example.test" })
+      return Promise.resolve(path.includes("cursor=c1") ? pageOf([row({ ID: "r2", Permission: "users.write" })]) : pageOf([row()], "c1"))
+    })
+    render(<Page />)
+    await screen.findByText("events.write")
+    fireEvent.click(screen.getByRole("button", { name: "admin.audit.showMore" }))
+    expect(await screen.findByText("users.write")).toBeInTheDocument()
+    expect(screen.getByText("events.write")).toBeInTheDocument()
+    expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?cursor=c1")
+    expect(screen.queryByRole("button", { name: "admin.audit.showMore" })).not.toBeInTheDocument()
+  })
+
+  it("keeps the rows while a changed filter loads and ignores the stale answer", async () => {
+    render(<Page />)
+    await screen.findByText("events.write")
+    let resolve: (value: unknown) => void = () => {}
+    mocks.get.mockImplementationOnce(() => new Promise((done) => { resolve = done }))
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_4xx" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=4xx"))
+    expect(screen.getByText("events.write")).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
+    await screen.findByText("events.write")
+    await act(async () => { resolve(pageOf([row({ ID: "old", Permission: "stale.perm" })])) })
+    expect(screen.queryByText("stale.perm")).not.toBeInTheDocument()
   })
 
   it("shows the empty state, and a load error with retry", async () => {
