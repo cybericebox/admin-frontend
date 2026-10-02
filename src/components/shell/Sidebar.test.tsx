@@ -17,6 +17,7 @@ describe("admin sidebar", () => {
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("href", "/events")
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
     expect(screen.getByRole("link", { name: "admin.nav.labs" })).toHaveAttribute("href", "/labs")
+    expect(screen.getByRole("link", { name: "admin.nav.audit" })).toHaveAttribute("href", "/audit")
     const exercises = screen.getByRole("link", { name: "admin.nav.exercises" })
     // The catalog opens with return_to, so it can offer the way back here.
     expect(exercises).toHaveAttribute("href", `https://exercises.cybericebox.local?return_to=${encodeURIComponent(window.location.href)}`)
@@ -114,8 +115,15 @@ describe("admin sidebar", () => {
       }
     })
   })
+  it("shows the audit log only with platform.audit.read", () => {
+    rights.denied = new Set(["platform.audit.read"])
+    render(<Sidebar />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
+    expect(screen.queryByRole("link", { name: "admin.nav.audit" })).not.toBeInTheDocument()
+  })
   it("does not show the platform infrastructure section without its permission", () => {
     rights.infrastructure = false
+    rights.denied = new Set(["platform.audit.read"])
     render(<Sidebar />)
     expect(screen.queryByRole("link", { name: "admin.nav.labs" })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.nav.section.platform")).not.toBeInTheDocument()
