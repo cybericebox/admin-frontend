@@ -47,7 +47,7 @@ describe("InviteUsersDialog", () => {
     fireEvent.change(input, { target: { value: "new@example.test" } })
     fireEvent.keyDown(input, { key: "Enter" })
     fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
-    await waitFor(() => expect(error).toHaveBeenCalledWith("admin.users.invite.rateLimited"))
+    await waitFor(() => expect(error).toHaveBeenCalledWith("error.rateLimited"))
   })
 
   it("does not claim success for an address missing from a partial response", async () => {

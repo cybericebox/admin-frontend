@@ -10,8 +10,12 @@ describe("localizedError", () => {
     expect(formatWait(90)).toBe(t("error.wait.minutes", { count: 2 }))
   })
 
+  it("answers a bare 429 without Retry-After with the generic wait message", () => {
+    expect(localizedError(new ApiError(429, null))).toBe(t("error.rateLimitedNoWait"))
+  })
+
   it("maps the new codes through the catalog", () => {
-    for (const code of [20225, 20427, 60429, 71327]) {
+    for (const code of [20225, 20427, 60429, 70428]) {
       expect(localizedError(new ApiError(400, null, "x", undefined, code))).not.toBe(t("error.generic"))
     }
   })

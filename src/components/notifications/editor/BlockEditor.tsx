@@ -35,7 +35,8 @@ import type {
 import type { VariableDef } from "@/components/notifications/editor/variableUtils";
 import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
-import { ApiError, mediaUrl } from "@/api/client";
+import { mediaUrl } from "@/api/client";
+import { errorOr } from "@/i18n/apiError";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ export function BlockEditor({
     } catch (err) {
       setUploadState((prev) => ({
         ...prev,
-        [key]: { uploading: false, error: err instanceof ApiError ? err.message : t("admin.notif.tpl.saveError") },
+        [key]: { uploading: false, error: errorOr(err, t("admin.notif.tpl.saveError")) },
       }));
     }
   };
@@ -228,8 +229,8 @@ export function BlockEditor({
       setShowSaveForm(false);
       setPresetName("");
       setSelectedIdxs(new Set());
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"));
+    } catch (err) {
+      toast.error(errorOr(err, t("admin.notif.tpl.saveError")));
     } finally {
       setSavingPreset(false);
     }

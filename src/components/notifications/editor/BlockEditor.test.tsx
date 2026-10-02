@@ -588,8 +588,8 @@ describe('BlockEditor', () => {
     expect(uploadEmailImage).toHaveBeenCalledWith(file)
   })
 
-  it('a failed upload shows the backend error message inline on the block', async () => {
-    ;(uploadEmailImage as unknown as Mock).mockRejectedValue(new ApiError(400, {}, 'invalid image type'))
+  it('a failed upload shows the localized error for its code inline on the block', async () => {
+    ;(uploadEmailImage as unknown as Mock).mockRejectedValue(new ApiError(400, {}, 'invalid image type', undefined, 21005))
     render(
       <BlockEditor value={[makeImage()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />
     )
@@ -597,7 +597,7 @@ describe('BlockEditor', () => {
     const input = screen.getByTestId('image-file-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
-    expect(await screen.findByText('invalid image type')).toBeInTheDocument()
+    expect(await screen.findByText('Не вдалося прочитати зображення. Оберіть інший файл.')).toBeInTheDocument()
   })
 
   it('the URL input is still editable and clears file_id when typed into', () => {

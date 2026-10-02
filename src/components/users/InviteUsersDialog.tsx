@@ -1,8 +1,8 @@
 "use client"
 
 import { useId, useMemo, useRef, useState } from "react"
-import { apiPost, ApiError } from "@/api/client"
-import { formatWait } from "@/i18n/apiError"
+import { apiPost } from "@/api/client"
+import { errorOr } from "@/i18n/apiError"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog"
@@ -103,9 +103,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
         setChips((prev) => prev.filter((c) => c.status !== "invited"))
       }, 1500)
     } catch (error) {
-      toast.error(error instanceof ApiError && error.status === 429
-        ? (error.retryAfter ? t("admin.users.invite.rateLimited", { wait: formatWait(error.retryAfter) }) : t("admin.users.invite.code.rate_limited"))
-        : t("admin.users.invite.error"))
+      toast.error(errorOr(error, t("admin.users.invite.error")))
     } finally {
       setBusy(false)
     }

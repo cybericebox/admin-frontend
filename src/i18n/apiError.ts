@@ -22,8 +22,10 @@ export function formatWait(seconds: number): string {
 }
 
 export function localizedError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
-    return t("error.rateLimited", { wait: formatWait(err.retryAfter) })
+  if (err instanceof ApiError && err.status === 429) {
+    // A bucket-limiter 429 has an empty body (no code); Retry-After is the only hint.
+    if (err.retryAfter) return t("error.rateLimited", { wait: formatWait(err.retryAfter) })
+    if (err.code == null) return t("error.rateLimitedNoWait")
   }
   if (err instanceof ApiError && err.code != null) {
     const key = String(err.code)
