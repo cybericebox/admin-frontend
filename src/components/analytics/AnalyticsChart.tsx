@@ -19,7 +19,7 @@ const ReactECharts = lazy(() => import("echarts-for-react"))
  * current chart theme (light/dark) - build it with lineOption / barOption / hBarOption
  * / donutOption from chartOptions.ts.
  */
-export function AnalyticsChart({ option, loading = false, error, empty = false, height = 320, ariaLabel, emptyMessage, errorMessage, onRetry, className }: {
+export function AnalyticsChart({ option, loading = false, error, empty = false, height = 320, ariaLabel, emptyMessage, errorMessage, onRetry, onEvents, className }: {
   option?: ChartOption | ((theme: ChartTheme) => ChartOption)
   loading?: boolean
   error?: unknown
@@ -29,6 +29,8 @@ export function AnalyticsChart({ option, loading = false, error, empty = false, 
   emptyMessage?: string
   errorMessage?: string
   onRetry?: () => void
+  /** ECharts event handlers by event name, e.g. { click: (params) => … }. */
+  onEvents?: Record<string, (params: never) => void>
   className?: string
 }) {
   const theme = useChartTheme()
@@ -41,7 +43,7 @@ export function AnalyticsChart({ option, loading = false, error, empty = false, 
     {state === "empty" && <EmptyState className="h-full" message={emptyMessage ?? t("admin.platformAnalytics.chart.empty")} />}
     {state === "ready" && resolved && (
       <Suspense fallback={<LoadingArea className="h-full w-full" label={t("admin.loading")} />}>
-        <ReactECharts style={{ height: "100%", width: "100%" }} option={resolved as EChartsOption} notMerge />
+        <ReactECharts style={{ height: "100%", width: "100%" }} option={resolved as EChartsOption} onEvents={onEvents} notMerge />
       </Suspense>
     )}
   </div>

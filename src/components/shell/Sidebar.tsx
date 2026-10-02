@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   ArrowLeft, Bell, BellRing, CalendarCheck, CalendarDays, ChartNoAxesCombined, ChevronDown, ClipboardList, ExternalLink, Gauge, Layers,
-  LayoutDashboard, Mail, Megaphone, MessageSquare, Puzzle, ScrollText, Send, Server, Settings, ShieldCheck, Bug, Settings2, Cpu, Users, UserSearch, X, Activity, Cable,
+  LayoutDashboard, Mail, Megaphone, MessageSquare, Puzzle, ScrollText, Send, Server, Settings, ShieldCheck, Bug, Settings2, Cpu, Users, UserSearch, X, Activity, Cable, CalendarClock,
   type LucideIcon,
 } from "lucide-react"
 import { BRAND_HEAD, BRAND_TAIL } from "@/i18n/brand"
@@ -68,6 +68,7 @@ const GROUPS: Group[] = [
     children: [
       { href: "/labs", label: "admin.nav.labs", icon: Server, perm: "infrastructure.read" },
       { href: "/agents", label: "admin.nav.agents", icon: Cable, perm: "infrastructure.read" },
+      { href: "/resources", label: "admin.nav.resources", icon: CalendarClock, perm: "infrastructure.read" },
       { href: "/elevations", label: "admin.nav.elevations", icon: Cpu, perm: ELEVATION_READ_PERM },
       { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read" },
       { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read" },

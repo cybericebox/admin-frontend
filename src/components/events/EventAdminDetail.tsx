@@ -6,6 +6,7 @@ import { getEvent, listEventManagers, setEventInfrastructure, updateEvent, type 
 import { EventAnalyticsTab } from "@/components/events/EventAnalyticsTab"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
+import { EventReservationButton } from "@/components/resources/EventReservationButton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -202,6 +203,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
           <label htmlFor="event-infrastructure" className="cursor-pointer select-none text-sm font-medium">{t("admin.events.field.infrastructure")}</label>
           <FieldHelp text={t("admin.events.field.infrastructureHelp")} />
         </div>
+        {event.InfrastructureAllowed && <div className="flex items-center gap-3" data-testid="event-reservation"><EventReservationButton eventID={event.ID} name={event.Name} /></div>}
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         {writable && <div className="flex justify-end"><Button type="submit" busy={saving} disabled={!isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>

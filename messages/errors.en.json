@@ -158,5 +158,13 @@
   "71416": "Deleting the agent affects future reservations: confirm the delete",
   "72103": "This notification is always sent and cannot be changed",
   "72107": "An SMTP provider with this name already exists",
-  "72204": "The event report is available after the event finishes"
+  "72204": "The event report is available after the event finishes",
+  "22501": "The reservation window is invalid",
+  "22502": "The reservation is invalid",
+  "32503": "Reservation not found",
+  "32505": "Change request not found",
+  "32511": "Readiness alarm not found",
+  "32513": "The event has no resource reservation",
+  "72504": "The reservation does not fit the available resources",
+  "72506": "The change request was decided already"
 }
