@@ -62,6 +62,11 @@ const nextConfig: NextConfig = {
   ...(process.env.NODE_ENV === "development"
     ? { headers: async () => [{ source: "/:path*", headers: [{ key: "Content-Security-Policy", value: devContentSecurityPolicy() }] }] }
     : {}),
+  // The static export has one `errors` page that serves /errors/<groupID> (nginx does the same in
+  // production, see deploy/nginx.conf); `next dev` has no nginx, so it rewrites here.
+  ...(process.env.NODE_ENV === "development"
+    ? { rewrites: async () => [{ source: "/errors/:groupID", destination: "/errors" }] }
+    : {}),
   output: process.env.NODE_ENV === "production" ? "export" : undefined,
   images: {
     unoptimized: true,
