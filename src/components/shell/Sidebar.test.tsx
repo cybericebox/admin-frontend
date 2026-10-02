@@ -121,9 +121,19 @@ describe("admin sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
     expect(screen.queryByRole("link", { name: "admin.nav.audit" })).not.toBeInTheDocument()
   })
+  it("shows the system errors only with platform.errors.read", () => {
+    render(<Sidebar />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
+    expect(screen.getByRole("link", { name: "admin.nav.errors" })).toHaveAttribute("href", "/errors")
+    cleanup()
+    rights.denied = new Set(["platform.errors.read"])
+    render(<Sidebar />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
+    expect(screen.queryByRole("link", { name: "admin.nav.errors" })).not.toBeInTheDocument()
+  })
   it("does not show the platform infrastructure section without its permission", () => {
     rights.infrastructure = false
-    rights.denied = new Set(["platform.audit.read"])
+    rights.denied = new Set(["platform.audit.read", "platform.errors.read"])
     render(<Sidebar />)
     expect(screen.queryByRole("link", { name: "admin.nav.labs" })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.nav.section.platform")).not.toBeInTheDocument()

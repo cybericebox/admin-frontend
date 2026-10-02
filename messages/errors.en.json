@@ -115,5 +115,13 @@
   "21004": "The image has too many pixels. Use a smaller one.",
   "21005": "The image cannot be read. Choose another file.",
   "20226": "A block preset cannot contain another preset.",
-  "41316": "This pseudonym is already taken."
+  "41316": "This pseudonym is already taken.",
+  "32401": "The error group was not found.",
+  "22402": "The error journal filter is invalid.",
+  "22403": "The error group status is invalid.",
+  "22404": "The notification address is not a valid e-mail address.",
+  "22405": "Too many notification e-mail addresses.",
+  "22406": "The Telegram chat id is not valid.",
+  "22407": "Too many Telegram chats.",
+  "22408": "The error journal period is invalid."
 }
