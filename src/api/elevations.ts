@@ -7,7 +7,7 @@ import { apiGet, apiPost } from "@/api/client"
 
 export { ELEVATION_READ_PERM, ELEVATION_WRITE_PERM } from "@/lib/elevationPermission"
 
-const BASE = "/api/exercises/resource-elevations"
+const BASE = "/api/exercises/elevations"
 
 export type ElevationStatus = "pending" | "approved" | "rejected"
 
@@ -30,7 +30,8 @@ export type ElevationRequest = {
 }
 
 /** "" lists every request. */
-export type ElevationFilter = ElevationStatus | ""
+/** "decided" is approved and rejected together. */
+export type ElevationFilter = ElevationStatus | "decided" | ""
 
 type Raw = Partial<ElevationRequest> & Pick<ElevationRequest, "ID" | "Status">
 
@@ -48,12 +49,12 @@ export async function listElevations(filter: ElevationFilter): Promise<Elevation
   return (result ?? []).map(normalize)
 }
 
-/** There is no single-request route: the detail finds the request in the full list. */
-export async function findElevation(id: string): Promise<ElevationRequest | null> {
-  return (await listElevations("")).find((item) => item.ID === id) ?? null
+export async function getElevation(id: string): Promise<ElevationRequest> {
+  return normalize(await apiGet<Raw>(`${BASE}/${encodeURIComponent(id)}`))
 }
 
 /** Omitting devices approves what was requested; values may be lower, never above the ceiling. */
 export async function decideElevation(id: string, input: { Approve: boolean; Note: string; Devices?: Pick<ElevationDevice, "DeviceID" | "CPUMillicores" | "MemoryBytes">[] }): Promise<ElevationRequest> {
-  return normalize(await apiPost<Raw>(`${BASE}/${encodeURIComponent(id)}/decide`, input))
+  const { Approve, ...body } = input
+  return normalize(await apiPost<Raw>(`${BASE}/${encodeURIComponent(id)}/${Approve ? "approve" : "reject"}`, Approve ? body : { Note: body.Note }))
 }

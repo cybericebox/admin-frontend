@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { decideElevation, ELEVATION_WRITE_PERM, findElevation, type ElevationRequest } from "@/api/elevations"
+import { decideElevation, ELEVATION_WRITE_PERM, getElevation, type ElevationRequest } from "@/api/elevations"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -56,8 +56,8 @@ export function ElevationDetail({ id }: { id: string }) {
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    findElevation(id)
-      .then((item) => { if (!cancelled) setState({ id, item, error: item ? null : new ApiError(404, "not found") }) })
+    getElevation(id)
+      .then((item) => { if (!cancelled) setState({ id, item, error: null }) })
       .catch((cause) => { if (!cancelled) setState({ id, item: null, error: cause }) })
     return () => { cancelled = true }
   }, [id, attempt])

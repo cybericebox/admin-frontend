@@ -36,7 +36,7 @@ describe("elevations list", () => {
     expect(within(row).getByText("Пристроїв: 1")).toBeInTheDocument()
     expect(within(row).getByText("Очікує")).toBeInTheDocument()
     expect(within(row).getByRole("link")).toHaveAttribute("href", "/elevations/detail?id=r1")
-    expect(apiGet).toHaveBeenCalledWith("/api/exercises/resource-elevations?status=pending")
+    expect(apiGet).toHaveBeenCalledWith("/api/exercises/elevations?status=pending")
   })
 
   it("filters by status; «Усі» sends no status", async () => {
@@ -45,10 +45,10 @@ describe("elevations list", () => {
     expect(await screen.findByText("Немає запитів, що очікують рішення")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("tab", { name: "Відхилені" }))
     expect(await screen.findByText("Відхилених запитів ще немає")).toBeInTheDocument()
-    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/resource-elevations?status=rejected")
+    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations?status=rejected")
     fireEvent.click(screen.getByRole("tab", { name: "Усі" }))
     expect(await screen.findByText("Запитів ще немає")).toBeInTheDocument()
-    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/resource-elevations")
+    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations")
   })
 
   it("shows the centered load error with a retry", async () => {
@@ -61,9 +61,10 @@ describe("elevations list", () => {
 
 describe("elevation detail", () => {
   it("shows the reason, the requested values and the device list", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByTestId("elevation-reason")).toHaveTextContent("Needs a database")
+    expect(apiGet).toHaveBeenCalledWith("/api/exercises/elevations/r1")
     const table = screen.getByTestId("elevation-devices")
     expect(within(table).getByText("db")).toBeInTheDocument()
     expect(within(table).getByLabelText(/^CPU для «db»/)).toHaveValue("500")
@@ -71,20 +72,20 @@ describe("elevation detail", () => {
   })
 
   it("approves through the confirm dialog", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     apiPost.mockResolvedValue(request({ Status: "approved", DecidedByName: "Адмін" }))
     render(<ElevationDetail id="r1" />)
     fireEvent.click(await screen.findByRole("button", { name: "Погодити" }))
     const dialog = await screen.findByRole("dialog")
     fireEvent.change(within(dialog).getByLabelText(/Коментар/), { target: { value: " ok " } })
     fireEvent.click(within(dialog).getByRole("button", { name: "Погодити" }))
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/resource-elevations/r1/decide", { Approve: true, Note: "ok" }))
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", { Note: "ok" }))
     await waitFor(() => expect(screen.getByText("Погоджено")).toBeInTheDocument())
     expect(screen.queryByRole("button", { name: "Відхилити" })).toBeNull()
   })
 
   it("approves with lowered values, sends Devices only then and says so in the dialog", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     apiPost.mockResolvedValue(request({ Status: "approved" }))
     render(<ElevationDetail id="r1" />)
     fireEvent.change(await screen.findByLabelText(/^CPU для «db»/), { target: { value: "300" } })
@@ -92,23 +93,23 @@ describe("elevation detail", () => {
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByTestId("elevation-reduced")).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole("button", { name: "Погодити" }))
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/resource-elevations/r1/decide", {
-      Approve: true, Note: "", Devices: [{ DeviceID: "d1", CPUMillicores: 300, MemoryBytes: 2 * 1024 ** 3 }],
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", {
+      Note: "", Devices: [{ DeviceID: "d1", CPUMillicores: 300, MemoryBytes: 2 * 1024 ** 3 }],
     }))
   })
 
   it("lowers memory in MiB", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     apiPost.mockResolvedValue(request({ Status: "approved" }))
     render(<ElevationDetail id="r1" />)
     fireEvent.change(await screen.findByLabelText(/^Памʼять для «db»/), { target: { value: "1024" } })
     fireEvent.click(screen.getByRole("button", { name: "Погодити" }))
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Погодити" }))
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ Devices: [{ DeviceID: "d1", CPUMillicores: 500, MemoryBytes: 1024 ** 3 }] })))
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/approve", expect.objectContaining({ Devices: [{ DeviceID: "d1", CPUMillicores: 500, MemoryBytes: 1024 ** 3 }] })))
   })
 
   it("does not allow values above the request or empty ones", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     render(<ElevationDetail id="r1" />)
     const cpu = await screen.findByLabelText(/^CPU для «db»/)
     fireEvent.change(cpu, { target: { value: "600" } })
@@ -121,26 +122,26 @@ describe("elevation detail", () => {
   })
 
   it("rejects with a danger confirm and shows a failure inside the dialog", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     apiPost.mockRejectedValue(new ApiError(500, "boom"))
     render(<ElevationDetail id="r1" />)
     fireEvent.click(await screen.findByRole("button", { name: "Відхилити" }))
     const dialog = await screen.findByRole("dialog")
     fireEvent.click(within(dialog).getByRole("button", { name: "Відхилити" }))
     expect(await within(dialog).findByRole("alert")).toBeInTheDocument()
-    expect(apiPost).toHaveBeenCalledWith("/api/exercises/resource-elevations/r1/decide", { Approve: false, Note: "" })
+    expect(apiPost).toHaveBeenCalledWith("/api/exercises/elevations/r1/reject", { Note: "" })
   })
 
   it("hides the decision without the permission", async () => {
     permissions = []
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockResolvedValue(request())
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByText("У вас немає права розглядати запити.")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Погодити" })).toBeNull()
   })
 
   it("shows the outcome of a decided request", async () => {
-    apiGet.mockResolvedValue([request({ Status: "rejected", DecidedByName: "Адмін", DecisionNote: "Too much", DecidedAt: "2026-10-02T11:00:00Z" })])
+    apiGet.mockResolvedValue(request({ Status: "rejected", DecidedByName: "Адмін", DecisionNote: "Too much", DecidedAt: "2026-10-02T11:00:00Z" }))
     render(<ElevationDetail id="r1" />)
     expect(await screen.findByText("Too much")).toBeInTheDocument()
     expect(screen.getByText("Відхилено")).toBeInTheDocument()
@@ -148,7 +149,7 @@ describe("elevation detail", () => {
   })
 
   it("shows not found for a missing request", async () => {
-    apiGet.mockResolvedValue([request()])
+    apiGet.mockRejectedValue(new ApiError(404, "no"))
     render(<ElevationDetail id="missing" />)
     expect(await screen.findByText("Запит не знайдено")).toBeInTheDocument()
   })
