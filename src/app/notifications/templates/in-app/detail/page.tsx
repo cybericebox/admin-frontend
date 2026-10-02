@@ -25,6 +25,7 @@ import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { ApiError } from "@/api/client"
+import { errorOr } from "@/i18n/apiError"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -178,8 +179,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setVersionRevision((value) => value + 1)
         toast.success(t("admin.notif.tpl.saved"))
       }
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -193,8 +194,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
       toast.success(t("admin.notif.tpl.published"))
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -222,8 +223,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
       toast.success(t("admin.notif.tpl.restored"))
       return true
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
       return false
     } finally {
       setBusyAction("")
@@ -253,8 +254,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
       toast.success(t("admin.notif.tpl.draftOpened"))
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }

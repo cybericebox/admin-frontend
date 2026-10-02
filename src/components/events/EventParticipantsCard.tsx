@@ -118,7 +118,7 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
       const user = users[item.UserID]
       const name = nameOf(user, item.UserID)
       return <li key={item.UserID} className="flex flex-wrap items-center gap-3 py-3">
-        <div className="min-w-0 flex-1"><Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(item.UserID)}`}>{name}</Link>{user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}</div>
+        <div className="min-w-0 flex-1"><Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(item.UserID)}`}>{name}</Link>{user?.Email && user.Email !== name && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}</div>
         <span className="text-sm text-muted-foreground">{statusOf(item)}</span>
         {editable && item.Status === 1 && !isInvitation(item) && <div className="flex gap-2"><Button type="button" size="sm" busy={busyIDs.includes(item.UserID) && rejecting?.UserID !== item.UserID} disabled={busyIDs.includes(item.UserID)} onClick={() => void decide(item, "approve")} aria-label={t("admin.events.participants.approveName", { name })}>{t("admin.events.participants.approve")}</Button><Button type="button" size="sm" variant="outline" disabled={busyIDs.includes(item.UserID)} onClick={() => { setRejectError(""); setRejecting(item) }} aria-label={t("admin.events.participants.rejectName", { name })}>{t("admin.events.participants.reject")}</Button></div>}
       </li>

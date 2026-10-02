@@ -1927,5 +1927,12 @@
   "admin.agents.clearCa.title": "Remove the CA certificate of agent “{name}”?",
   "admin.agents.clearCa.body": "The platform stops trusting the self-signed server certificate. If the cluster uses one, the connection will not recover until the CA is set again by reconnecting.",
   "admin.agents.clearCa.confirm": "Remove",
-  "admin.agents.clearCa.done": "The CA certificate of agent “{name}” was removed."
+  "admin.agents.clearCa.done": "The CA certificate of agent “{name}” was removed.",
+  "error.rateLimited": "Too many attempts. Try again in {wait}.",
+  "error.wait.seconds": "{count} s",
+  "error.wait.minutes": "{count} min",
+  "error.wait.hours": "{count} h",
+  "admin.users.invite.code.rate_limited": "Too many invitations. Try again later.",
+  "admin.users.invite.rateLimited": "Too many invitations. Try again in {wait}.",
+  "admin.events.participants.invitedNoName": "Invited"
 }

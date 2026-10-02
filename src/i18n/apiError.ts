@@ -14,11 +14,30 @@ import { t } from "./t"
 const uk = errorsUk as Record<string, string>
 const en = errorsEn as Record<string, string>
 
+/** "45 с", "3 хв", "2 год": the wait from a Retry-After value, rounded up. */
+export function formatWait(seconds: number): string {
+  if (seconds < 60) return t("error.wait.seconds", { count: Math.max(1, Math.ceil(seconds)) })
+  if (seconds < 3600) return t("error.wait.minutes", { count: Math.ceil(seconds / 60) })
+  return t("error.wait.hours", { count: Math.ceil(seconds / 3600) })
+}
+
 export function localizedError(err: unknown): string {
+  if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
+    return t("error.rateLimited", { wait: formatWait(err.retryAfter) })
+  }
   if (err instanceof ApiError && err.code != null) {
     const key = String(err.code)
     const msg = uk[key] ?? en[key]
     if (msg) return msg
   }
   return t("error.generic")
+}
+
+/** The catalog message when the error carries a known code, else `fallback`. */
+export function errorOr(err: unknown, fallback: string): string {
+  if (err instanceof ApiError && (err.code != null || err.status === 429)) {
+    const message = localizedError(err)
+    if (message !== t("error.generic")) return message
+  }
+  return fallback
 }

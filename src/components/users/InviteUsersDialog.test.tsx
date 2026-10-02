@@ -3,7 +3,10 @@ import { StrictMode } from "react"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 const post = vi.hoisted(() => vi.fn())
-vi.mock("@/api/client", () => ({ apiPost: post }))
+const FakeApiError = vi.hoisted(() => class FakeApiError extends Error {
+  constructor(public status: number, public retryAfter?: number) { super("x") }
+})
+vi.mock("@/api/client", () => ({ apiPost: post, ApiError: FakeApiError }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, v?: Record<string, number>) => key === "admin.users.invite.summary" && v ? `${v.invited} / ${v.skipped} / ${v.failed}` : key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
@@ -33,6 +36,17 @@ describe("InviteUsersDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
     await waitFor(() => expect(error).toHaveBeenCalledWith("admin.users.invite.error"))
     expect(screen.getByRole("button", { name: "admin.users.invite.submit" })).toBeEnabled()
+  })
+
+  it("shows the wait time when the server answers 429", async () => {
+    post.mockRejectedValueOnce(new FakeApiError(429, 30))
+    const error = vi.spyOn(toast, "error")
+    render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+    const input = screen.getByPlaceholderText("admin.users.invite.emailPlaceholder")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
+    await waitFor(() => expect(error).toHaveBeenCalledWith("admin.users.invite.rateLimited"))
   })
 
   it("does not claim success for an address missing from a partial response", async () => {

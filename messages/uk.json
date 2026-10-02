@@ -1927,5 +1927,12 @@
   "admin.agents.clearCa.title": "Прибрати сертифікат CA агента «{name}»?",
   "admin.agents.clearCa.body": "Платформа перестане довіряти самопідписаному сертифікату сервера. Якщо кластер його використовує, з'єднання не відновиться, доки CA не буде задано знову через перепідключення.",
   "admin.agents.clearCa.confirm": "Прибрати",
-  "admin.agents.clearCa.done": "Сертифікат CA агента «{name}» прибрано."
+  "admin.agents.clearCa.done": "Сертифікат CA агента «{name}» прибрано.",
+  "error.rateLimited": "Забагато спроб. Спробуйте за {wait}.",
+  "error.wait.seconds": "{count} с",
+  "error.wait.minutes": "{count} хв",
+  "error.wait.hours": "{count} год",
+  "admin.users.invite.code.rate_limited": "Забагато запрошень. Спробуйте пізніше.",
+  "admin.users.invite.rateLimited": "Забагато запрошень. Спробуйте за {wait}.",
+  "admin.events.participants.invitedNoName": "Запрошено"
 }

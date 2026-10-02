@@ -20,6 +20,7 @@ import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
 import { eventRoleLabel, hasPlatformEventRead, roleLabel } from "@/lib/roles"
 import { t } from "@/i18n/t"
+import { errorOr } from "@/i18n/apiError"
 
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string; Role?: string }
 type InviteResult = { Email: string; Error?: string }
@@ -169,8 +170,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       setSearchedQuery("")
       setMatches([])
       setAdding(false)
-    } catch {
-      toast.error(t(invited ? "admin.events.manager.invitedNotAssigned" : "admin.events.manager.inviteError"))
+    } catch (cause) {
+      toast.error(invited ? t("admin.events.manager.invitedNotAssigned") : errorOr(cause, t("admin.events.manager.inviteError")))
     } finally {
       setBusyID("")
     }
@@ -208,7 +209,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         return <li key={manager.UserID} className="flex flex-wrap items-center gap-3 py-3">
           <div className="min-w-0 flex-1">
             <Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(manager.UserID)}`}>{displayName}</Link>
-            {user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
+            {user?.Email && user.Email !== displayName && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
             {redundant && <HoverTooltip text={t("admin.events.manager.redundantHint")}><span className="mt-1 inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{t("admin.events.manager.redundant")}</span></HoverTooltip>}
           </div>
           {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{eventRoleLabel(0)}</span> : editable ? <>

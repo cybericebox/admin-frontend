@@ -19,7 +19,9 @@ export class ApiError extends Error {
     public readonly signInUrl?: string,
     // Stable numeric FullCode from the envelope (Status.Code). This — not the
     // English message — is the i18n key callers localize against (see i18n/apiError).
-    public readonly code?: number
+    public readonly code?: number,
+    // Seconds from the Retry-After header of a 429 (undefined when absent).
+    public readonly retryAfter?: number
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
@@ -76,6 +78,13 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
   redirectToSignInPage(signInUrl)
 }
 
+// Retry-After as whole seconds (the backend sends seconds, never a date).
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined
+  const seconds = Number(value)
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined
+}
+
 // Shared by request() and apiPostMultipart(): 401 redirect, then envelope
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
@@ -117,7 +126,8 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       parsed,
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
-      envelope?.Status?.Code
+      envelope?.Status?.Code,
+      parseRetryAfter(res.headers.get("Retry-After"))
     )
   }
 
