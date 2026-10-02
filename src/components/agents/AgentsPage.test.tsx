@@ -99,7 +99,7 @@ describe("agents page", () => {
     expect(first).toHaveAttribute("aria-checked", "false")
     expect(first).toBeEnabled()
     expect(second).toBeEnabled()
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith("/api/infrastructure/agents/a1", { Name: "Київ", Priority: 10, Enabled: false, CAPEM: "" }))
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith("/api/infrastructure/agents/a1", { Enabled: false }))
     await act(async () => finish(agent({ Enabled: false })))
     expect(first).toHaveAttribute("aria-checked", "false")
   })
@@ -163,6 +163,28 @@ describe("agents page", () => {
     expect(within(dialog).getByText("Осінній CTF")).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole("button", { name: "Видалити" }))
     await waitFor(() => expect(apiDelete).toHaveBeenCalledWith("/api/infrastructure/agents/a1?confirm=1"))
+  })
+
+  it("removes the stored CA only after a danger confirmation, with ClearCA", async () => {
+    serve([agent({ HasCA: true })])
+    apiPut.mockResolvedValue(agent({ HasCA: false }))
+    render(<AgentsPage />)
+    await openMenu("Прибрати сертифікат CA")
+    const dialog = await screen.findByRole("dialog")
+    expect(apiPut).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "Прибрати" }))
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith("/api/infrastructure/agents/a1", { ClearCA: true }))
+  })
+
+  it("sends only the changed fields from the edit dialog", async () => {
+    serve([agent()])
+    apiPut.mockResolvedValue(agent({ Priority: 5 }))
+    render(<AgentsPage />)
+    await openMenu("Змінити")
+    const dialog = await screen.findByRole("dialog")
+    fireEvent.change(within(dialog).getByLabelText(/^Пріоритет/), { target: { value: "5" } })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Зберегти" }))
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith("/api/infrastructure/agents/a1", { Priority: 5 }))
   })
 
   it("hides the write actions without infrastructure.write", async () => {

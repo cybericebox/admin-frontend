@@ -45,7 +45,7 @@ function Fact({ label, children, warn }: { label: string; children: React.ReactN
 }
 
 type Action = "check" | "renew" | "rotate" | "preview" | "delete"
-type Confirm = { kind: "rotate"; agent: Agent } | { kind: "renew"; agent: Agent } | { kind: "delete"; agent: Agent; preview: DeletePreview }
+type Confirm = { kind: "clearCa"; agent: Agent } | { kind: "rotate"; agent: Agent } | { kind: "renew"; agent: Agent } | { kind: "delete"; agent: Agent; preview: DeletePreview }
 
 export function AgentsPage() {
   const { can } = useRole()
@@ -98,7 +98,7 @@ export function AgentsPage() {
     queue.current = queue.current.then(async () => {
       try {
         const live = itemsRef.current?.find((a) => a.ID === agent.ID) ?? agent
-        const saved = await updateAgent(agent.ID, { Name: live.Name, Priority: live.Priority, Enabled: live.Enabled })
+        const saved = await updateAgent(agent.ID, { Enabled: live.Enabled })
         waiting.current -= 1
         if (waiting.current === 0) upsert(saved)
       } catch (err) {
@@ -151,6 +151,10 @@ export function AgentsPage() {
         toast.success(t("admin.agents.delete.done", { name: agent.Name }))
         setConfirm(null)
         void refresh(true)
+      } else if (confirm.kind === "clearCa") {
+        upsert(await updateAgent(agent.ID, { ClearCA: true }))
+        toast.success(t("admin.agents.clearCa.done", { name: agent.Name }))
+        setConfirm(null)
       } else {
         const saved = await (confirm.kind === "rotate" ? rotateAgentAccessKey : renewAgentCertificate)(agent.ID)
         upsert(saved)
@@ -212,6 +216,7 @@ export function AgentsPage() {
                     <DropdownMenuItem onSelect={() => setReconnecting(agent)}>{t("admin.agents.action.reconnect")}</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "renew", agent }) }}>{t("admin.agents.action.renew")}</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "rotate", agent }) }}>{t("admin.agents.action.rotate")}</DropdownMenuItem>
+                    {agent.HasCA && <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "clearCa", agent }) }}>{t("admin.agents.action.clearCa")}</DropdownMenuItem>}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive" onSelect={() => void startDelete(agent)}>{t("admin.agents.action.delete")}</DropdownMenuItem>
                   </DropdownMenuContent>
@@ -240,7 +245,7 @@ export function AgentsPage() {
     {blocked && <DeleteBlockedDialog agent={blocked.agent} preview={blocked.preview} onClose={() => setBlocked(null)} />}
 
     <ConfirmDialog open={confirm !== null} onCancel={() => { if (!confirmBusy) setConfirm(null) }} busy={confirmBusy} error={confirmError}
-      tone={confirm?.kind === "delete" ? "danger" : "default"}
+      tone={confirm?.kind === "delete" || confirm?.kind === "clearCa" ? "danger" : "default"}
       title={confirm ? t(`admin.agents.${confirm.kind}.title`, { name: confirm.agent.Name }) : ""}
       description={confirm ? t(`admin.agents.${confirm.kind}.body`) : undefined}
       confirmLabel={confirm ? t(`admin.agents.${confirm.kind}.confirm`) : ""}

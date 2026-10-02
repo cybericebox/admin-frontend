@@ -53,7 +53,8 @@ export type Agent = {
 }
 
 export type EnrollAgentInput = { Name: string; Endpoint: string; EnrollmentToken: string; CAPEM: string; Enabled: boolean; Priority: number }
-export type UpdateAgentInput = { Name: string; Enabled: boolean; Priority: number }
+// Partial update: a field left out stays. ClearCA is the only way to remove the stored CA.
+export type UpdateAgentInput = { Name?: string; Enabled?: boolean; Priority?: number; ClearCA?: boolean }
 
 export type ReservationImpact = {
   ReservationID: string
@@ -70,8 +71,7 @@ const path = (id: string) => `${BASE}/${encodeURIComponent(id)}`
 
 export const listAgents = (archived: boolean) => apiGet<{ Items: Agent[] | null }>(`${BASE}${archived ? "?archived=1" : ""}`)
 export const enrollAgent = (input: EnrollAgentInput) => apiPost<Agent>(BASE, input)
-// CAPEM stays empty: the server keeps the stored CA only when it is not sent again, see the agents card.
-export const updateAgent = (id: string, input: UpdateAgentInput) => apiPut<Agent>(path(id), { ...input, CAPEM: "" })
+export const updateAgent = (id: string, input: UpdateAgentInput) => apiPut<Agent>(path(id), input)
 export const previewAgentDelete = (id: string) => apiGet<DeletePreview>(`${path(id)}/delete-preview`)
 export const deleteAgent = (id: string) => apiDelete<unknown>(`${path(id)}?confirm=1`)
 export const checkAgent = (id: string) => apiPost<Agent>(`${path(id)}/check`, {})

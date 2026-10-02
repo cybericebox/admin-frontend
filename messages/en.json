@@ -1922,5 +1922,10 @@
   "admin.agents.delete.done": "Agent “{name}” deleted.",
   "admin.agents.delete.reservations": "These future reservations lose capacity and become not covered ({count}):",
   "admin.agents.delete.blockedTitle": "Agent “{name}” cannot be deleted",
-  "admin.agents.delete.blockedBody": "The agent still holds laboratories ({count}). Switch it off, wait for them to finish, then delete it."
+  "admin.agents.delete.blockedBody": "The agent still holds laboratories ({count}). Switch it off, wait for them to finish, then delete it.",
+  "admin.agents.action.clearCa": "Remove CA certificate",
+  "admin.agents.clearCa.title": "Remove the CA certificate of agent “{name}”?",
+  "admin.agents.clearCa.body": "The platform stops trusting the self-signed server certificate. If the cluster uses one, the connection will not recover until the CA is set again by reconnecting.",
+  "admin.agents.clearCa.confirm": "Remove",
+  "admin.agents.clearCa.done": "The CA certificate of agent “{name}” was removed."
 }

@@ -156,10 +156,12 @@ export function EditAgentDialog({ agent, onClose, onDone }: { agent: Agent; onCl
     const next = parsePriority(priority)
     if (!name.trim() || name.trim().length > AGENT_NAME_MAX) { setError(t("admin.agents.error.name", { max: AGENT_NAME_MAX })); return }
     if (next === null) { setError(t("admin.agents.error.priority", { max: AGENT_PRIORITY_MAX })); return }
+    const patch = { ...(name.trim() !== agent.Name && { Name: name.trim() }), ...(next !== agent.Priority && { Priority: next }) }
+    if (Object.keys(patch).length === 0) { onClose(); return }
     setBusy(true)
     setError("")
     try {
-      onDone(await updateAgent(agent.ID, { Name: name.trim(), Enabled: agent.Enabled, Priority: next }))
+      onDone(await updateAgent(agent.ID, patch))
     } catch (err) {
       setError(localizedError(err))
       setBusy(false)

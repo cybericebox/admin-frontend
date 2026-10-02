@@ -1922,5 +1922,10 @@
   "admin.agents.delete.done": "Агента «{name}» видалено.",
   "admin.agents.delete.reservations": "Ці майбутні резервування втратять ємність і стануть непокритими ({count}):",
   "admin.agents.delete.blockedTitle": "Агента «{name}» не можна видалити",
-  "admin.agents.delete.blockedBody": "Агент ще містить лабораторії ({count}). Вимкніть його, дочекайтеся завершення лабораторій і видаліть після цього."
+  "admin.agents.delete.blockedBody": "Агент ще містить лабораторії ({count}). Вимкніть його, дочекайтеся завершення лабораторій і видаліть після цього.",
+  "admin.agents.action.clearCa": "Прибрати сертифікат CA",
+  "admin.agents.clearCa.title": "Прибрати сертифікат CA агента «{name}»?",
+  "admin.agents.clearCa.body": "Платформа перестане довіряти самопідписаному сертифікату сервера. Якщо кластер його використовує, з'єднання не відновиться, доки CA не буде задано знову через перепідключення.",
+  "admin.agents.clearCa.confirm": "Прибрати",
+  "admin.agents.clearCa.done": "Сертифікат CA агента «{name}» прибрано."
 }
