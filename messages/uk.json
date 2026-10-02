@@ -1934,5 +1934,8 @@
   "error.wait.hours": "{count} год",
   "admin.users.invite.code.rate_limited": "Забагато запрошень. Спробуйте пізніше.",
   "admin.users.invite.rateLimited": "Забагато запрошень. Спробуйте за {wait}.",
-  "admin.events.participants.invitedNoName": "Запрошено"
+  "admin.events.participants.invitedNoName": "Запрошено",
+  "feedback.link": "Надіслати відгук",
+  "feedback.subject": "Відгук: {app} {page}",
+  "feedback.app": "Cyber ICE Box Адміністрування"
 }

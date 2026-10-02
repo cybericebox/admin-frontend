@@ -1934,5 +1934,8 @@
   "error.wait.hours": "{count} h",
   "admin.users.invite.code.rate_limited": "Too many invitations. Try again later.",
   "admin.users.invite.rateLimited": "Too many invitations. Try again in {wait}.",
-  "admin.events.participants.invitedNoName": "Invited"
+  "admin.events.participants.invitedNoName": "Invited",
+  "feedback.link": "Send feedback",
+  "feedback.subject": "Feedback: {app} {page}",
+  "feedback.app": "Cyber ICE Box Administration"
 }

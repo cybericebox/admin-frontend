@@ -10,6 +10,7 @@ const REQUIRED = [
   "NEXT_PUBLIC_EXERCISES_HOST",
   "NEXT_PUBLIC_EVENT_DOMAIN",
   "NEXT_PUBLIC_COOKIE_DOMAIN",
+  "NEXT_PUBLIC_SUPPORT_EMAIL",
 ]
 const missing = REQUIRED.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)

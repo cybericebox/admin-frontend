@@ -38,6 +38,7 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 | `NEXT_PUBLIC_EXERCISES_HOST` | yes | Exercises app host. |
 | `NEXT_PUBLIC_EVENT_DOMAIN` | yes | Event sites are `<tag>.<domain>`. |
 | `NEXT_PUBLIC_COOKIE_DOMAIN` | yes | Domain attribute of the shared theme and consent cookies (e.g. `cybericebox.com`); never inferred. |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
 | `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of hosts allowed by `next dev` (default: the hosts above). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 

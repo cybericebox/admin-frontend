@@ -14,6 +14,7 @@ export default defineConfig({
       // localhost so the shared-domain cookies are accepted by jsdom.
       NEXT_PUBLIC_EVENT_DOMAIN: "localhost",
       NEXT_PUBLIC_COOKIE_DOMAIN: "localhost",
+      NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],
