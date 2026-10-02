@@ -44,8 +44,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   onChanged: (manager: EventManager) => void
   onRemoved?: (userID: string) => void
 }) {
-  const { can } = useRole()
-  const assignablePlatformRoles = assignableRoles(can)
+  const { can, role: callerRole } = useRole()
+  const assignablePlatformRoles = assignableRoles(can, callerRole)
   const [users, setUsers] = useState<Record<string, UserSummary>>({})
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState("")

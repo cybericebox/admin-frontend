@@ -8,7 +8,8 @@ const FakeApiError = vi.hoisted(() => class FakeApiError extends Error {
 })
 vi.mock("@/api/client", () => ({ apiPost: post, ApiError: FakeApiError }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, v?: Record<string, number>) => key === "admin.users.invite.summary" && v ? `${v.invited} / ${v.skipped} / ${v.failed}` : key }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+const callerRole = vi.hoisted(() => ({ value: "super_admin" }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true, role: callerRole.value }) }))
 
 import InviteUsersDialog from "./InviteUsersDialog"
 import { toast } from "@/components/ui/toast"
@@ -138,5 +139,18 @@ describe("InviteUsersDialog", () => {
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.users.invite.submit" }))
     await waitFor(() => expect(post).toHaveBeenCalledWith("/api/users/invite", { Entries: [{ Email: "first@example.test", FirstName: "", LastName: "", Role: "admin" }, { Email: "second@example.test", FirstName: "", LastName: "", Role: "admin" }] }))
+  })
+
+  it("offers an admin no role of admin or above", async () => {
+    callerRole.value = "admin"
+    try {
+      render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
+      fireEvent.keyDown(screen.getByRole("button", { name: "role.user" }), { key: "ArrowDown" })
+      expect(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" })).toBeInTheDocument()
+      expect(screen.queryByRole("menuitemradio", { name: "role.admin" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("menuitemradio", { name: "role.super_admin" })).not.toBeInTheDocument()
+    } finally {
+      callerRole.value = "super_admin"
+    }
   })
 })

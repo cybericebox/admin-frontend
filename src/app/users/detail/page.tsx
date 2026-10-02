@@ -4,7 +4,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
-import { useRole } from "@/lib/useRole"
+import { useRole, type Role } from "@/lib/useRole"
+import { assignableRoles } from "@/lib/assignableRoles"
 import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
@@ -29,13 +30,6 @@ type UserDetail = {
   CreatedAt: string
 }
 
-// Roles assignable by the current caller (only a holder of "*" — super_admin — can grant super_admin).
-function assignableRoles(permissions: string[]): string[] {
-  return permissions.includes("*")
-    ? ["super_admin", "admin", "admin_viewer", "user"]
-    : ["admin", "admin_viewer", "user"]
-}
-
 function fullName(u: UserDetail): string {
   const n = `${u.FirstName ?? ""} ${u.LastName ?? ""}`.trim()
   return n || u.Email
@@ -49,7 +43,7 @@ function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
   const router = useRouter()
-  const { can, permissions, me } = useRole()
+  const { can, permissions, me, role: callerRole } = useRole()
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -170,7 +164,7 @@ function Detail() {
               <SelectMenu
                 value={user.Role}
                 onChange={changeRole}
-                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: roleLabel(r) }))}
+                options={Array.from(new Set([user.Role, ...assignableRoles(can, callerRole, user.Role as Role)])).map((r) => ({ value: r, label: roleLabel(r) }))}
                 className="w-48"
               />
             </label>

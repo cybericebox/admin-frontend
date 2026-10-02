@@ -50,8 +50,8 @@ function downloadTemplate() {
 // the server re-checks every role against the caller's rights.
 export default function InviteUsersDialog({ open, onOpenChange, onClosed }: InviteUsersDialogProps) {
   const id = useId()
-  const { can } = useRole()
-  const roles = useMemo(() => assignableRoles(can), [can])
+  const { can, role: callerRole } = useRole()
+  const roles = useMemo(() => assignableRoles(can, callerRole), [can, callerRole])
   const [chips, setChips] = useState<EmailChip[]>([])
   const [role, setRole] = useState<Role | "">("")
   const [busy, setBusy] = useState(false)
