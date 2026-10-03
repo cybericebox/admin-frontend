@@ -24,7 +24,8 @@ spec:
     spec:
       containers:
         - name: admin-frontend
-          image: cybericebox/admin-frontend:latest
+          image: cybericebox/admin-frontend:v0.1.0 # the release tag: an exact version, never latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: NEXT_PUBLIC_MAIN_HOST
               valueFrom:
