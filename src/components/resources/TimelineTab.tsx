@@ -14,7 +14,8 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
-import { attentionIDs, buildTimelineModel, rangeFrom, type Bar, type Resource } from "@/lib/resourceCalendar"
+import { formatDateTime } from "@/lib/locale"
+import { attentionIDs, buildMaintenanceTracks, buildTimelineModel, rangeFrom, type Bar, type MaintenanceBand, type Resource } from "@/lib/resourceCalendar"
 import { RefreshIndicator } from "@/components/infrastructure/RefreshIndicator"
 import { Badge, BLOCK, THEAD, TROW, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
 import { timelineOption } from "./timelineOption"
@@ -26,6 +27,17 @@ function Legend({ items }: { items: { label: string; className: string }[] }) {
   return <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label={t("admin.resources.timeline.legend")}>
     {items.map((item) => <li key={item.label} className="flex items-center gap-1.5"><span aria-hidden className={`inline-block h-3 w-4 rounded-sm border ${item.className}`} />{item.label}</li>)}
   </ul>
+}
+
+/** Hatched amber band: «the agent gives the platform no capacity here». */
+const MAINTENANCE_BAND = "block h-full w-full rounded-sm border border-[#F59E0B] bg-[repeating-linear-gradient(135deg,rgba(245,158,11,0.35)_0_4px,rgba(245,158,11,0.08)_4px_8px)]"
+
+function maintenanceText(band: MaintenanceBand) {
+  const { window } = band
+  const from = formatDateTime(window.From, { dateStyle: "short", timeStyle: "short" })
+  const to = window.To ? formatDateTime(window.To, { dateStyle: "short", timeStyle: "short" }) : t("admin.resources.timeline.maintenanceNoEnd")
+  const hasLeft = window.Left.CPUMillicores > 0 || window.Left.MemoryBytes > 0
+  return [window.Name, window.Reason, `${from} – ${to}`, hasLeft ? t("admin.resources.timeline.maintenanceLeft", { amount: formatAmount(window.Left) }) : ""].filter(Boolean).join("\n")
 }
 
 export type TimelineTabProps = {
@@ -45,6 +57,7 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
 
   const cpu = useMemo(() => (data ? buildTimelineModel(data, "cpu") : null), [data])
   const memory = useMemo(() => (data ? buildTimelineModel(data, "memory") : null), [data])
+  const tracks = useMemo(() => (data ? buildMaintenanceTracks(data) : []), [data])
   const attention = useMemo(() => (data ? attentionIDs(data) : new Set<string>()), [data])
   const shift = (direction: -1 | 1) => setStart((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() + direction * days))
 
@@ -87,6 +100,7 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
           { label: t("admin.resources.uncovered"), className: "border-dashed border-[#F59E0B] bg-[#F59E0B]/25" },
           { label: t("admin.resources.timeline.pool"), className: "border-border bg-muted" },
           { label: t("admin.resources.timeline.conflict"), className: "border-[#EF4444] bg-[#EF4444]/15" },
+          ...(tracks.length > 0 ? [{ label: t("admin.resources.timeline.maintenanceLegend"), className: "border-[#F59E0B] bg-[#F59E0B]/30" }] : []),
         ]} />
         {charts.map(({ resource, model }) => model && <Card key={resource}>
           <CardHeader className="pb-0"><CardTitle className="text-base">{t(resource === "cpu" ? "admin.resources.cpu" : "admin.resources.memory")}</CardTitle></CardHeader>
@@ -97,6 +111,23 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
             {model.unlimited && <p className="text-sm text-muted-foreground" data-testid={`unlimited-${resource}`}>{t("admin.resources.timeline.unlimited", { resource: t(resource === "cpu" ? "admin.resources.cpu" : "admin.resources.memory") })}</p>}
           </CardContent>
         </Card>)}
+
+        {(tracks.length > 0 || !data.MaintenanceReported) && <Card data-testid="timeline-maintenance">
+          <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.timeline.maintenance")}</CardTitle></CardHeader>
+          <CardContent className="space-y-2 pt-3">
+            {tracks.map((track) => <div key={track.agentID} className="flex items-center gap-3 text-sm">
+              <span className="w-32 shrink-0 truncate font-medium" title={track.agentName}>{track.agentName}</span>
+              <div className="relative h-7 flex-1 rounded-sm bg-muted" role="img" aria-label={t("admin.resources.timeline.maintenanceTrack", { agent: track.agentName })}>
+                {track.bands.map((band) => <div key={`${band.window.From}-${band.window.Name}`} className="absolute inset-y-1" style={{ left: `${band.left}%`, width: `max(${band.width}%, 4px)` }}>
+                  <HoverTooltip text={maintenanceText(band)} className="flex h-full w-full">
+                    <span className={MAINTENANCE_BAND} tabIndex={0} aria-label={band.window.Name} />
+                  </HoverTooltip>
+                </div>)}
+              </div>
+            </div>)}
+            {!data.MaintenanceReported && <p className="text-sm text-muted-foreground" data-testid="maintenance-not-reported">{t("admin.resources.timeline.maintenanceNotReported")}</p>}
+          </CardContent>
+        </Card>}
 
         {(data.Conflicts ?? []).length > 0 && <Card data-testid="timeline-conflicts">
           <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.timeline.conflicts")}</CardTitle></CardHeader>

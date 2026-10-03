@@ -78,9 +78,11 @@ export type Capacity = {
   CPUUnlimited: boolean
   MemoryUnlimited: boolean
   TestPool: Amount
-  PerNodeRoomReported: boolean
   Agents: CapacityAgent[] | null
 }
+
+/** An agent maintenance window announced on the cluster side. To is null for a window without an end; Left is the capacity the agent still gives meanwhile. */
+export type Maintenance = { AgentID: string; AgentName: string; Name: string; Reason: string; From: string; To: string | null; Left: Amount }
 
 export type Timeline = {
   From: string
@@ -90,6 +92,7 @@ export type Timeline = {
   Reserved: Segment[] | null
   Conflicts: Conflict[] | null
   Capacity: Capacity
+  Maintenance: Maintenance[] | null
   MaintenanceReported: boolean
 }
 

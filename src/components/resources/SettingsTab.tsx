@@ -86,7 +86,6 @@ export function SettingsTab({ canWrite, onSaved }: { canWrite: boolean; onSaved:
           : <>
             <p className="text-sm">{t("admin.resources.settings.total")}: <span className="font-medium tabular-nums">{formatAmount(capacity.data.Total)}</span></p>
             {(capacity.data.CPUUnlimited || capacity.data.MemoryUnlimited) && <p className="text-sm text-muted-foreground">{t("admin.resources.settings.unlimited")}</p>}
-            {!capacity.data.PerNodeRoomReported && <p className="text-sm text-muted-foreground">{t("admin.resources.settings.noPerNode")}</p>}
             {agents.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left text-sm">
               <thead className={THEAD}><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.settings.deviceMax")}</Th><Th>{t("admin.resources.col.state")}</Th></tr></thead>
               <tbody>{agents.map((agent) => <tr key={agent.ID} className={TROW}>

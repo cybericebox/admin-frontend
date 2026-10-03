@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Reservation, Timeline } from "@/api/resourceCalendar"
 import { chartThemes } from "@/components/analytics/chartTheme"
 import { timelineOption } from "@/components/resources/timelineOption"
-import { MIB, amountToText, attentionIDs, buildTimelineModel, rangeFrom, textToAmount } from "./resourceCalendar"
+import { MIB, amountToText, attentionIDs, buildMaintenanceTracks, buildTimelineModel, rangeFrom, textToAmount } from "./resourceCalendar"
 
 const amount = (cpu: number, mem = 0) => ({ CPUMillicores: cpu, MemoryBytes: mem * MIB })
 const at = (hour: number) => `2026-10-05T${String(hour).padStart(2, "0")}:00:00Z`
@@ -14,8 +14,8 @@ const reservation = (over: Partial<Reservation>): Reservation => ({
 })
 
 const timeline = (over: Partial<Timeline> = {}): Timeline => ({
-  From: at(0), To: "2026-10-06T00:00:00Z", SlotMinutes: 15, Reservations: [], Reserved: [], Conflicts: [], MaintenanceReported: false,
-  Capacity: { Total: amount(4000, 8192), CPUUnlimited: false, MemoryUnlimited: false, TestPool: amount(250, 512), PerNodeRoomReported: true, Agents: [] },
+  From: at(0), To: "2026-10-06T00:00:00Z", SlotMinutes: 15, Reservations: [], Reserved: [], Conflicts: [], Maintenance: [], MaintenanceReported: false,
+  Capacity: { Total: amount(4000, 8192), CPUUnlimited: false, MemoryUnlimited: false, TestPool: amount(250, 512), Agents: [] },
   ...over,
 })
 
@@ -119,5 +119,30 @@ describe("amount text", () => {
     expect(textToAmount({ cpu: "", memoryMiB: "" })).toBeNull()
     expect(textToAmount({ cpu: "500", memoryMiB: "256" })).toEqual({ CPUMillicores: 500, MemoryBytes: 256 * MIB })
     expect(amountToText({ CPUMillicores: 500, MemoryBytes: 256 * MIB })).toEqual({ cpu: "500", memoryMiB: "256" })
+  })
+})
+
+describe("buildMaintenanceTracks", () => {
+  const window = (over: object) => ({ AgentID: "a1", AgentName: "Agent 1", Name: "kernel", Reason: "upgrade", From: at(2), To: at(4) as string | null, Left: amount(0), ...over })
+
+  it("places a window on its agent's track as a share of the range", () => {
+    const tracks = buildMaintenanceTracks(timeline({ From: at(0), To: at(10), Maintenance: [window({})] }))
+    expect(tracks).toHaveLength(1)
+    expect(tracks[0].bands[0]).toMatchObject({ left: 20, width: 20, open: false })
+  })
+
+  it("runs a window without an end to the right edge and clips one that starts before the range", () => {
+    const tracks = buildMaintenanceTracks(timeline({ From: at(2), To: at(10), Maintenance: [window({ From: at(0), To: null })] }))
+    expect(tracks[0].bands[0]).toMatchObject({ left: 0, width: 100, open: true })
+  })
+
+  it("groups the windows of one agent and skips the ones outside the range", () => {
+    const tracks = buildMaintenanceTracks(timeline({ From: at(0), To: at(10), Maintenance: [window({}), window({ From: at(6), To: at(8) }), window({ AgentID: "a2", AgentName: "Agent 2", From: at(11), To: at(12) })] }))
+    expect(tracks).toHaveLength(1)
+    expect(tracks[0].bands).toHaveLength(2)
+  })
+
+  it("has no tracks when no window is reported", () => {
+    expect(buildMaintenanceTracks(timeline({ Maintenance: null }))).toEqual([])
   })
 })

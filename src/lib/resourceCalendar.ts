@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/client"
-import type { Amount, Conflict, Reservation, ReservationKind, Timeline } from "@/api/resourceCalendar"
+import type { Amount, Conflict, Maintenance, Reservation, ReservationKind, Timeline } from "@/api/resourceCalendar"
 
 export const CODE_DOES_NOT_FIT = 72504
 export const CODE_ALREADY_DECIDED = 72506
@@ -85,6 +85,34 @@ export function buildTimelineModel(timeline: Timeline, resource: Resource): Time
     conflicts: (timeline.Conflicts ?? []).map((conflict) => ({ from: ms(conflict.From), to: ms(conflict.To), poolShort: conflict.PoolShort })),
     top: Math.max(pool, capacity ?? 0, ...placed.map((bar) => bar.y1)),
   }
+}
+
+export type MaintenanceBand = {
+  window: Maintenance
+  /** Position inside the range, in percent of its width; the band is clipped to the range. */
+  left: number
+  width: number
+  /** The window has no end: it runs past the right edge. */
+  open: boolean
+}
+
+export type MaintenanceTrack = { agentID: string; agentName: string; bands: MaintenanceBand[] }
+
+/** One track per agent, with the announced maintenance windows placed on the range of the timeline. */
+export function buildMaintenanceTracks(timeline: Timeline): MaintenanceTrack[] {
+  const from = ms(timeline.From)
+  const span = ms(timeline.To) - from
+  const tracks = new Map<string, MaintenanceTrack>()
+  if (span <= 0) return []
+  for (const window of timeline.Maintenance ?? []) {
+    const start = Math.max(from, ms(window.From))
+    const end = window.To === null ? from + span : Math.min(from + span, ms(window.To))
+    if (end <= start) continue
+    const track = tracks.get(window.AgentID) ?? { agentID: window.AgentID, agentName: window.AgentName, bands: [] }
+    track.bands.push({ window, left: ((start - from) / span) * 100, width: ((end - start) / span) * 100, open: window.To === null })
+    tracks.set(window.AgentID, track)
+  }
+  return [...tracks.values()].sort((a, b) => a.agentName.localeCompare(b.agentName))
 }
 
 /** Reservations the admin has to look at: not covered by resources, or listed in a conflict. */
