@@ -65,13 +65,8 @@ chmod -R a+rX tls ca
 # a mismatched pair: the certificate of server with the key of server2
 mkdir bad; cp server.crt bad/tls.crt; cp server2.key bad/tls.key; chmod -R a+rX bad
 
-# The runtime values the entrypoint requires: the NEXT_PUBLIC_* names in its "for ... in" list.
-ENVS=()
-for name in $(grep -E '^for [a-z]+ in NEXT_PUBLIC_' "$SRC/deploy/docker-entrypoint.sh" | grep -Eo 'NEXT_PUBLIC_[A-Z0-9_]+'); do
-  ENVS+=(-e "$name=test.example.com")
-done
-ENVS+=(-e "NEXT_PUBLIC_CAPTCHA_PROVIDER=none") # id-frontend validates it; ignored elsewhere
-ENVS+=(-e "WARMUP_FLAG=ICE{test}")
+# The only runtime inputs the entrypoint requires.
+ENVS=(-e "NEXT_PUBLIC_DOMAIN=test.example.com" -e "NEXT_PUBLIC_SUPPORT_EMAIL=support@test.example.com")
 cd "$SRC"
 
 HARDEN=(--read-only --cap-drop=ALL --security-opt no-new-privileges --user 101:101
@@ -124,7 +119,7 @@ check "A1 /healthz on 3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 300
 hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 3000)/")
 grep -qi '^content-security-policy:' <<<"$hdr" && ok "A2 CSP header present" || bad "A2 CSP header missing"
 refused "A3 nothing on 8443" -k "https://localhost:$(port "$C" 8443)/"
-refused "A4 nothing on 8081" "http://127.0.0.1:$(port "$C" 8081)/healthz"
+check "A4 /healthz on the default health port 8081 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 stop "$C"
 C=$(start plain-port -e HTTP_PORT=3000) || bad "A5 explicit HTTP_PORT=3000 did not start"
 check "A5 HTTP_PORT=3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
@@ -204,6 +199,19 @@ fails "H9 bad TLS_MIN_VERSION" "TLS_MIN_VERSION" "${TLS[@]}" -e TLS_MIN_VERSION=
 fails "H10 bad TLS_CLIENT_AUTH" "TLS_CLIENT_AUTH must be" -e TLS_CLIENT_AUTH=maybe
 fails "H11 bad HTTP_PORT" "HTTP_PORT must be" -e HTTP_PORT=abc
 fails "H12 health port equals the plain port" "HEALTH_PORT must differ" -e HEALTH_PORT=3000
+
+echo "== K baked defaults (/tls, /aop, 8081, nothing set)"
+C=$(start defaults-tls -v "$WORK/tls:/tls:ro" -e HTTP_PORT=) || { bad "K1 container did not start"; exit 1; }
+check "K1 /tls files found: TLS on, no client auth without /aop" 200 "$(code "${SERVER[@]}" "https://localhost:$(port "$C" 8443)/healthz")"
+check "K2 default health port 8081" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
+stop "$C"
+C=$(start defaults-aop -v "$WORK/tls:/tls:ro" -v "$WORK/ca:/aop:ro" -e HTTP_PORT=) || { bad "K3 container did not start"; exit 1; }
+refused "K3 /aop/ca.crt found: client auth is require" "${SERVER[@]}" "https://localhost:$(port "$C" 8443)/healthz"
+check "K4 valid client cert -> 200" 200 "$(code "${SERVER[@]}" "${CLIENT[@]}" "https://localhost:$(port "$C" 8443)/healthz")"
+stop "$C"
+C=$(start defaults-aop-only -v "$WORK/ca:/aop:ro") || { bad "K5 CA without TLS did not start"; exit 1; }
+check "K5 /aop without /tls: plain, no error" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+stop "$C"
 
 echo "== I live replacement without a restart"
 C=$(start reload "${TLS[@]}" "${CA[@]}" -e TLS_CLIENT_AUTH=optional -e HTTP_PORT=) || { bad "container did not start"; exit 1; }
