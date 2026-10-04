@@ -125,4 +125,20 @@ describe("MailFooterCard", () => {
     render(<MailFooterCard footer={FOOTER} canWrite={false} onSaved={() => {}} />)
     expect(screen.getByTestId("editor")).toHaveAttribute("data-disabled", "yes")
   })
+
+  it("keeps the editor and the reset button enabled while a save is pending", async () => {
+    let finish: (value: MailSettings) => void = () => {}
+    saveMailFooter.mockReturnValue(new Promise<MailSettings>((resolve) => { finish = resolve }))
+    render(<MailFooterCard footer={{ ...FOOTER, Content: doc(text("custom")) }} canWrite onSaved={() => {}} />)
+    const save = screen.getByRole("button", { name: "Зберегти" })
+    await act(async () => { fireEvent.click(save) })
+    expect(save).toBeDisabled()
+    expect(screen.getByTestId("editor")).toHaveAttribute("data-disabled", "no")
+    expect(screen.getByRole("button", { name: "Типовий підвал" })).toBeEnabled()
+    // A newer edit made during the save is not overwritten by the answer.
+    const newer = doc(text("newer"))
+    act(() => editorProps?.onChange(newer))
+    await act(async () => { finish({ Footer: { ...FOOTER, Content: doc(text("custom")) } } as MailSettings) })
+    expect(editorProps?.value).toBe(newer)
+  })
 })

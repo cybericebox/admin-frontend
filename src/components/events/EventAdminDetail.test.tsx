@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
-const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(), setInfra: vi.fn(), canWrite: true }))
+const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(), setInfra: vi.fn(), canWrite: true, me: { ID: "user-1" } as { ID: string } | null }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission === "events.write" ? mock.canWrite : true }) }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: mock.me, can: (permission: string) => permission === "events.write" ? mock.canWrite : true }) }))
 vi.mock("@/api/events/catalog", () => ({ getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers, setEventInfrastructure: mock.setInfra }))
+vi.mock("@/components/events/EventAnalyticsTab", () => ({ EventAnalyticsTab: ({ eventID, tag, canOpenJournal }: { eventID: string; tag: string; canOpenJournal: boolean }) => <div>analytics:{eventID}:{tag}:{String(canOpenJournal)}</div> }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ editable }: { editable: boolean }) => <div>access:{String(editable)}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
 
@@ -21,6 +22,7 @@ describe("EventAdminDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mock.canWrite = true
+    mock.me = { ID: "user-1" }
     mock.get.mockResolvedValue(event)
     mock.managers.mockResolvedValue([])
   })
@@ -136,5 +138,52 @@ describe("EventAdminDetail", () => {
     expect(screen.getByDisplayValue("spring")).toBeDisabled()
     expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument()
     expect(screen.getByText("access:false")).toBeInTheDocument()
+  })
+
+  it("keeps the details and access under «Огляд» and opens «Аналітика» as a second tab", async () => {
+    render(<EventAdminDetail id="event-1" />)
+    expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "admin.events.tabs.overview" })).toHaveAttribute("aria-selected", "true")
+    expect(screen.queryByText(/^analytics:/)).not.toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.analytics" }))
+    expect(await screen.findByText(/^analytics:event-1:spring:/)).toBeInTheDocument()
+    expect(screen.queryByDisplayValue("Spring CTF")).not.toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.overview" }))
+    expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
+  })
+
+  it("keeps the selected tab in the address and reopens «Аналітика» from it", async () => {
+    render(<EventAdminDetail id="event-1" initialTab="analytics" />)
+    expect(await screen.findByText(/^analytics:event-1:spring:/)).toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.overview" }))
+    expect(window.location.search).not.toContain("tab=")
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.analytics" }))
+    expect(window.location.search).toContain("tab=analytics")
+    window.history.replaceState(null, "", "/")
+  })
+
+  it("offers the attempts journal only to the event's assigned owner or manager", async () => {
+    const open = async () => {
+      render(<EventAdminDetail id="event-1" />)
+      await screen.findByDisplayValue("Spring CTF")
+      await waitFor(() => expect(mock.managers).toHaveBeenCalled())
+      await screen.findByText("access:true")
+      fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.analytics" }))
+    }
+    mock.managers.mockResolvedValue([{ UserID: "user-1", Role: 1, CreatedAt: "" }])
+    await open()
+    expect(await screen.findByText("analytics:event-1:spring:true")).toBeInTheDocument()
+  })
+
+  it.each([
+    ["a viewer of the event", [{ UserID: "user-1", Role: 2, CreatedAt: "" }]],
+    ["someone else's assignment", [{ UserID: "other", Role: 0, CreatedAt: "" }]],
+    ["no assignment", []],
+  ])("hides the journal for %s", async (_name, list) => {
+    mock.managers.mockResolvedValue(list)
+    render(<EventAdminDetail id="event-1" />)
+    await screen.findByText("access:true")
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.analytics" }))
+    expect(await screen.findByText("analytics:event-1:spring:false")).toBeInTheDocument()
   })
 })

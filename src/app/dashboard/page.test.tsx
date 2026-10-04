@@ -15,7 +15,7 @@ describe("operational overview", () => {
     api.get.mockImplementation((path: string) => {
       if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
       if (path === "/api/infrastructure/status") return Promise.resolve({ Available: false, Healthy: false, agents: [] })
-      if (path === "/api/infrastructure/summary") return Promise.resolve({ Stands: { Total: 9, Creating: 1, Ready: 6, Failed: 2, Removed: 0, Active: 7 }, Capacity: { Available: true, CPUPercent: 42.5, MemoryPercent: null } })
+      if (path === "/api/infrastructure/summary") return Promise.resolve({ Stands: { Total: 9, Creating: 1, Ready: 6, Failed: 2, Removed: 0, Active: 7 }, TestLabs: { Total: 4, Active: 3, Expired: 1 }, Capacity: { Available: true, CPUPercent: 42.5, MemoryPercent: null } })
       if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 20, ByStatus: [] })
       return Promise.reject(new Error(path))
     })
@@ -33,6 +33,17 @@ describe("operational overview", () => {
     expect(api.get).toHaveBeenCalledWith("/api/users/stats")
   })
 
+  it("counts failed deliveries per channel, even when the dispatch itself is done", async () => {
+    api.get.mockImplementation((path: string) => {
+      if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 2, ByStatus: [{ Key: "done", Count: 2 }], ByChannel: [{ Channel: "email", Status: "error", Count: 2 }, { Channel: "inapp", Status: "done", Count: 2 }] })
+      if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
+      return Promise.reject(new Error(path))
+    })
+    render(<Page />)
+    const tile = (await screen.findByText("admin.dashboard.deliveryErrors7d")).closest("a")!
+    await waitFor(() => expect(tile).toHaveTextContent("2"))
+  })
+
   it("shows stand and cluster tiles that click through to the filtered labs list", async () => {
     render(<Page />)
     const failed = (await screen.findByText("admin.dashboard.standsFailed")).closest("a")!
@@ -40,7 +51,9 @@ describe("operational overview", () => {
     expect(failed).toHaveTextContent("2")
     const active = screen.getByText("admin.dashboard.standsActive").closest("a")!
     expect(active).toHaveAttribute("href", "/labs?status=active")
-    expect(active).toHaveTextContent("7")
+    // Team stands (7) and catalog test labs (3) are all labs on the infrastructure.
+    expect(active).toHaveTextContent("10")
+    expect(active).toHaveTextContent("admin.dashboard.testLabsActive")
     const cpu = screen.getByText("admin.dashboard.clusterCpu").closest("a")!
     expect(cpu).toHaveAttribute("href", "/labs#capacity")
     expect(cpu).toHaveTextContent("42,5%")

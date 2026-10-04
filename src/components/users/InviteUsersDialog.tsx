@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useRef, useState } from "react"
 import { apiPost } from "@/api/client"
+import { errorOr } from "@/i18n/apiError"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog"
@@ -49,8 +50,8 @@ function downloadTemplate() {
 // the server re-checks every role against the caller's rights.
 export default function InviteUsersDialog({ open, onOpenChange, onClosed }: InviteUsersDialogProps) {
   const id = useId()
-  const { can } = useRole()
-  const roles = useMemo(() => assignableRoles(can), [can])
+  const { can, role: callerRole } = useRole()
+  const roles = useMemo(() => assignableRoles(can, callerRole), [can, callerRole])
   const [chips, setChips] = useState<EmailChip[]>([])
   const [role, setRole] = useState<Role | "">("")
   const [busy, setBusy] = useState(false)
@@ -101,8 +102,8 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
       dropTimerRef.current = setTimeout(() => {
         setChips((prev) => prev.filter((c) => c.status !== "invited"))
       }, 1500)
-    } catch {
-      toast.error(t("admin.users.invite.error"))
+    } catch (error) {
+      toast.error(errorOr(error, t("admin.users.invite.error")))
     } finally {
       setBusy(false)
     }

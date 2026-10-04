@@ -25,7 +25,8 @@ import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { ApiError } from "@/api/client"
-import { EmptyState } from "@/components/ui/empty-state"
+import { errorOr } from "@/i18n/apiError"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
@@ -178,8 +179,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setVersionRevision((value) => value + 1)
         toast.success(t("admin.notif.tpl.saved"))
       }
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -193,8 +194,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
       toast.success(t("admin.notif.tpl.published"))
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -222,8 +223,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       router.replace(`/notifications/templates/in-app/detail?id=${updated.ID}`)
       toast.success(t("admin.notif.tpl.restored"))
       return true
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
       return false
     } finally {
       setBusyAction("")
@@ -253,8 +254,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       })
       router.replace(`/notifications/templates/in-app/detail?id=${draft.ID}`)
       toast.success(t("admin.notif.tpl.draftOpened"))
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -296,13 +297,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (notFound) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link
-          href="/notifications/templates/in-app"
-          className="text-sm text-primary hover:underline"
-        >
-          ← {t("admin.notif.tpl.inapp")}
-        </Link>
-        <EmptyState message={t("admin.notif.tpl.empty")} className="flex-1" />
+        <NotFoundScreen block title={t("admin.notif.tpl.notFound")} />
       </div>
     )
   }

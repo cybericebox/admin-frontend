@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import type { CapacityObservation, InfrastructureAgent } from "@/api/infrastructure"
-import { capacityMetrics, formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
+import { agentDisplayName, capacityMetrics, formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { formatDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 
@@ -25,7 +25,7 @@ export function CapacityPanel({ rows, agents, loadError, errorCause, onRetry }: 
     <CardContent className="space-y-5">
       {loadError ? <LoadError message={loadError} error={errorCause} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.capacity.empty")} compact /> : rows.map((row) => {
         const agent = agents.find((item) => item.ID === row.AgentID || item.Key === row.AgentID)
-        const name = agent?.Name || agent?.Key || row.AgentID
+        const name = agent ? agentDisplayName(agent) : row.AgentID
         const metrics = capacityMetrics(row.Payload)
         return <section key={row.ID} className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-sm font-semibold text-foreground">{name}</h3><time dateTime={row.ObservedAt} className="text-xs text-muted-foreground">{formatDateTime(row.ObservedAt)}</time></div>

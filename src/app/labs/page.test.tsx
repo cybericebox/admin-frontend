@@ -12,17 +12,19 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(s
 
 const agent = { ID: "agent-1", Key: "primary", Name: "Primary", Configured: true, Healthy: true }
 const okStatus = { Available: true, Healthy: true, Mode: "available", Agents: [agent], Capabilities: { Laboratories: true } }
-const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2 }
+const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 1500, MemoryBytes: 2 * 1024 ** 3, RequestedCPUMillicores: 2000, RequestedMemoryBytes: 4 * 1024 ** 3 } }
 const currentLab = (over: object = {}) => ({ EventID: "event-1", EventName: "Осінній CTF", EventTeamID: "team-1", TeamName: "Червоні", LabGroupName: "e-1-t-1", AgentID: "agent-1", Sequence: 8, ObservedAt: "2026-09-24T12:00:00Z", UpdatedAt: "2026-09-24T12:00:00Z", Payload: {}, ...over })
+const testLab = { ID: "lab-1", GroupName: "t-1", ExerciseID: "ex-1", ExerciseName: "Вебуразливість", VariantNumber: 2, AuthorID: "user-1", AuthorName: "Анна Лі", AuthorEmail: "ann@example.test", CreatedAt: "2026-09-24T10:00:00Z", ExpiresAt: "2026-09-24T12:00:00Z", Expired: false, Status: "ready" }
 const capacityRow = (payload: unknown) => ({ ID: "capacity-1", AgentID: "agent-1", Sequence: 1, ObservedAt: "2026-09-24T12:00:00Z", ReceivedAt: "2026-09-24T12:00:00Z", SchemaVersion: 1, Snapshot: true, Payload: payload })
 
-type Routes = { status?: unknown; current?: unknown; capacity?: unknown; stands?: unknown; events?: unknown }
+type Routes = { status?: unknown; current?: unknown; capacity?: unknown; stands?: unknown; events?: unknown; testLabs?: unknown }
 function serve(routes: Routes = {}) {
   const pick = (value: unknown, fallback: unknown) => value instanceof Error ? Promise.reject(value) : Promise.resolve(value ?? fallback)
   apiGet.mockImplementation((path: string) => {
     if (path.endsWith("/status")) return pick(routes.status, okStatus)
     if (path.includes("/monitoring/capacity/current")) return pick(routes.capacity, [])
     if (path.includes("/monitoring/current")) return pick(routes.current, [])
+    if (path.includes("/test-labs")) return pick(routes.testLabs, { Items: [], Total: 0, Page: 1, PageSize: 25 })
     if (path.includes("/stands/events")) return pick(routes.events, [{ ID: "event-1", Name: "Осінній CTF", Tag: "autumn" }])
     if (path.includes("/stands")) return pick(routes.stands, { Items: [], Total: 0, Page: 1, PageSize: 25 })
     return Promise.reject(new Error(path))
@@ -43,7 +45,8 @@ describe("infrastructure page", () => {
     serve({ current: [currentLab()], capacity: [capacityRow({ cpu: 4 })] })
     render(<Page />)
     expect((await screen.findAllByText("Primary")).length).toBeGreaterThan(0)
-    expect(screen.getByText("Режим: доступно")).toBeInTheDocument()
+    expect(screen.getByText("Доступна")).toBeInTheDocument()
+    expect(screen.queryByText(/Режим:/)).not.toBeInTheDocument()
     expect(screen.getByText("Поточний стан лабораторій")).toBeInTheDocument()
     expect(screen.getAllByText("Осінній CTF").length).toBeGreaterThan(0)
     expect(screen.getByText("Червоні")).toBeInTheDocument()
@@ -54,17 +57,24 @@ describe("infrastructure page", () => {
     expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/capacity/current")
   })
 
+  it("shows the translated label for the configured primary agent, not the stored name", async () => {
+    serve({ status: { ...okStatus, Agents: [{ ...agent, Key: "configured-primary", Name: "" }] } })
+    render(<Page />)
+    expect((await screen.findAllByText("Основний агент")).length).toBeGreaterThan(0)
+  })
+
   it("asks for recent events only when the toggle is on", async () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("switch", { name: "Показати недавні заходи" }))
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/current?includeRecent=true"))
   })
 
-  it("explains a missing agent without exposing backend English messages", async () => {
+  it("shows only a not-connected state, without refresh or tables, when no agent is configured", async () => {
     serve({ status: { Available: false, Healthy: false, Mode: "missing_config", Agents: [], Capabilities: { Laboratories: false }, Warning: { Code: "infrastructure_unavailable", Message: "No infrastructure agent is configured" } } })
     render(<Page />)
-    expect(await screen.findByText("Режим: не налаштовано")).toBeInTheDocument()
-    expect(screen.getByText("Агент лабораторій не налаштований.")).toBeInTheDocument()
+    expect(await screen.findByText(/Лабораторії не підключено/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Оновити/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.queryByText("No infrastructure agent is configured")).not.toBeInTheDocument()
   })
 
@@ -95,10 +105,20 @@ describe("infrastructure page", () => {
     expect(screen.getByText("Перевищено доступну ємність.")).toBeInTheDocument()
   })
 
+  it("says an unhealthy agent once: one chip, one reason line, the agent row keeps its own chip", async () => {
+    serve({ status: { ...okStatus, Healthy: false, Mode: "unhealthy", Agents: [{ ...agent, Healthy: false }], Warning: { Code: "agent_unhealthy", Message: "x" } } })
+    render(<Page />)
+    expect(await screen.findByText("Потребує уваги")).toBeInTheDocument()
+    expect(screen.queryByText(/Режим:/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/потребує уваги/i)).toHaveLength(1)
+    expect(screen.getByRole("alert")).toHaveTextContent("Агент лабораторій не відповідає")
+    expect(screen.getByText("Недоступний")).toBeInTheDocument()
+  })
+
   it("keeps agent status visible when the current state fails to load", async () => {
     serve({ current: new Error("monitoring unavailable") })
     render(<Page />)
-    expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
+    expect(await screen.findByText("Доступна")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити спостереження лабораторій.")).toBeInTheDocument()
     expect(screen.queryByText("Немає даних про поточний стан лабораторій.")).not.toBeInTheDocument()
   })
@@ -106,7 +126,7 @@ describe("infrastructure page", () => {
   it("keeps agent status visible when capacity fails to load", async () => {
     serve({ capacity: new Error("capacity unavailable") })
     render(<Page />)
-    expect(await screen.findByText("Режим: доступно")).toBeInTheDocument()
+    expect(await screen.findByText("Доступна")).toBeInTheDocument()
     expect(screen.getByText("Не вдалося завантажити ресурси кластера.")).toBeInTheDocument()
     expect(screen.queryByText("Немає даних про ресурси кластера.")).not.toBeInTheDocument()
   })
@@ -123,7 +143,7 @@ describe("infrastructure page", () => {
     fireEvent.click(await screen.findByText("Переглянути показники"))
     expect(screen.getByText("web-lab")).toBeInTheDocument()
     expect(screen.getByText("web")).toBeInTheDocument()
-    expect(screen.getByText("CPU: 0,25 vCPU")).toBeInTheDocument()
+    expect(screen.getByText("CPU: 250 mCPU")).toBeInTheDocument()
     expect(screen.getByText("Отримано: 1 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Передано: 2 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Заборонено")).toBeInTheDocument()
@@ -142,7 +162,10 @@ describe("infrastructure page", () => {
       expect(within(table).getByText("Команда модераторів")).toBeInTheDocument()
       expect(within(table).getByText("Помилка")).toBeInTheDocument()
       expect(within(table).getByText("Готується")).toBeInTheDocument()
-      expect(within(table).getAllByRole("link")[0].getAttribute("href") ?? "").toBe("https://autumn.localhost/manage/labs")
+      // The link into /manage carries this admin page, so the event can offer the way back.
+      const eventLink = new URL(within(table).getAllByRole("link")[0].getAttribute("href") ?? "")
+      expect(eventLink.origin + eventLink.pathname).toBe("https://autumn.localhost/manage/labs")
+      expect(eventLink.searchParams.get("from")).toBe(window.location.href)
       const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
       const query = new URLSearchParams(call.split("?")[1])
       expect(query.get("status")).toBe("failed")
@@ -193,6 +216,112 @@ describe("infrastructure page", () => {
       await screen.findByText("Червоні")
       fireEvent.click(screen.getByRole("button", { name: /Перестворити стенд/ }))
       fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Перестворити" }))
+      expect(await screen.findByRole("alert")).toBeInTheDocument()
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+  })
+
+  describe("resources", () => {
+    it("shows live CPU and memory per stand, requested ones marked when usage is unavailable, a dash when unknown", async () => {
+      const requestedOnly = { ...stand, TeamID: "team-2", TeamName: "Сині", Resources: { Known: true, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 500, RequestedMemoryBytes: 512 * 1024 ** 2 } }
+      const unknown = { ...stand, TeamID: "team-3", TeamName: "Сірі", Resources: { Known: false, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }
+      serve({ stands: { Items: [stand, requestedOnly, unknown], Total: 3, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const rows = (await screen.findByText("Червоні")).closest("table")!.querySelectorAll("tbody tr")
+      expect(rows[0]).toHaveTextContent("1,5 vCPU")
+      expect(rows[0]).toHaveTextContent("2 ГіБ")
+      expect(rows[0]).not.toHaveTextContent("запрошено")
+      expect(rows[1]).toHaveTextContent(/500 mCPU\s*запрошено/)
+      expect(rows[1]).toHaveTextContent(/512 МіБ\s*запрошено/)
+      expect(rows[2].textContent).not.toMatch(/CPU/)
+    })
+
+    it("reads small CPU in millicores, never as 0 vCPU", async () => {
+      serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 7, MemoryBytes: 16 * 1024 ** 2, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const row = (await screen.findByText("Вебуразливість")).closest("tr")!
+      expect(row).toHaveTextContent("7 mCPU")
+      expect(row).not.toHaveTextContent("0 vCPU")
+    })
+
+    it("shows the resources of a test lab", async () => {
+      serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 250, MemoryBytes: 1024 ** 3, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const row = (await screen.findByText("Вебуразливість")).closest("tr")!
+      expect(row).toHaveTextContent("250 mCPU")
+      expect(row).toHaveTextContent("1 ГіБ")
+    })
+  })
+
+  describe("stand kind filter", () => {
+    it("sends the kind to the API and keeps it in the filtered empty state", async () => {
+      search = "kind=moderators"
+      render(<Page />)
+      expect(await screen.findByText("За цими умовами стендів не знайдено.")).toBeInTheDocument()
+      const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
+      expect(new URLSearchParams(call.split("?")[1]).get("kind")).toBe("moderators")
+    })
+  })
+
+  describe("test labs", () => {
+    it("lists catalog test labs with author, exercise, variant, lease and live status", async () => {
+      serve({ testLabs: { Items: [testLab, { ...testLab, ID: "lab-2", Status: "unknown", Expired: true, VariantNumber: 0 }], Total: 2, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      const table = (await screen.findAllByText("Вебуразливість"))[0].closest("table") as HTMLElement
+      expect(screen.getByText("Тестові лабораторії завдань")).toBeInTheDocument()
+      expect(within(table).getAllByRole("link", { name: "Анна Лі" })[0]).toHaveAttribute("href", "/users/detail?id=user-1")
+      expect(within(table).getAllByText("ann@example.test")[0]).toBeInTheDocument()
+      expect(within(table).getAllByRole("link", { name: /Вебуразливість/ })[0].getAttribute("href")).toMatch(/\/detail\?id=ex-1$/)
+      expect(within(table).getByText("Варіант 2")).toBeInTheDocument()
+      expect(within(table).getByText("Готова")).toBeInTheDocument()
+      expect(within(table).getByText("Невідомо")).toBeInTheDocument()
+      expect(within(table).getByText("Строк минув")).toBeInTheDocument()
+    })
+
+    it("shows a centered empty state and a load error with retry", async () => {
+      render(<Page />)
+      expect(await screen.findByText("Тестових лабораторій зараз немає.")).toBeInTheDocument()
+      serve({ testLabs: new Error("boom") })
+      fireEvent.click(screen.getByRole("button", { name: /Оновити/ }))
+      expect(await screen.findByText("Не вдалося завантажити тестові лабораторії.")).toBeInTheDocument()
+    })
+
+    it("searches through the API after a pause", async () => {
+      render(<Page />)
+      fireEvent.change(await screen.findByLabelText("Пошук за завданням або автором"), { target: { value: "web" } })
+      await waitFor(() => expect(apiGet.mock.calls.some((c) => String(c[0]).includes("/test-labs?") && String(c[0]).includes("search=web"))).toBe(true))
+    })
+
+    it("hides the end action without infrastructure.write", async () => {
+      permissions = ["infrastructure.read"]
+      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
+      render(<Page />)
+      await screen.findByText("Вебуразливість")
+      expect(screen.queryByRole("button", { name: /Завершити лабораторію/ })).not.toBeInTheDocument()
+    })
+
+    it("ends a lab after a danger confirmation naming the exercise and author", async () => {
+      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
+      apiPost.mockResolvedValue({})
+      render(<Page />)
+      await screen.findByText("Вебуразливість")
+      fireEvent.click(screen.getByRole("button", { name: /Завершити лабораторію/ }))
+      const dialog = await screen.findByRole("dialog")
+      expect(dialog).toHaveTextContent("«Вебуразливість»")
+      expect(dialog).toHaveTextContent("«Анна Лі»")
+      expect(apiPost).not.toHaveBeenCalled()
+      fireEvent.click(within(dialog).getByRole("button", { name: "Завершити" }))
+      await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/test-labs/lab-1/terminate", {}))
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    })
+
+    it("keeps the dialog open with a localized error when ending fails", async () => {
+      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
+      apiPost.mockRejectedValue(new Error("boom"))
+      render(<Page />)
+      await screen.findByText("Вебуразливість")
+      fireEvent.click(screen.getByRole("button", { name: /Завершити лабораторію/ }))
+      fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Завершити" }))
       expect(await screen.findByRole("alert")).toBeInTheDocument()
       expect(screen.getByRole("dialog")).toBeInTheDocument()
     })

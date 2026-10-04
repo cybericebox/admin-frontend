@@ -1,11 +1,12 @@
 // Minimal fetch-based API client.
-// The API origin is api.<NEXT_PUBLIC_DOMAIN> or NEXT_PUBLIC_API_DOMAIN: every
+// The API origin is https://api.<NEXT_PUBLIC_DOMAIN>: every
 // frontend calls the single api host cross-origin with credentials included,
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
-import { apiOrigin } from "@/lib/origins"
+import { apiOrigin, idOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
@@ -18,7 +19,9 @@ export class ApiError extends Error {
     public readonly signInUrl?: string,
     // Stable numeric FullCode from the envelope (Status.Code). This — not the
     // English message — is the i18n key callers localize against (see i18n/apiError).
-    public readonly code?: number
+    public readonly code?: number,
+    // Seconds from the Retry-After header of a 429 (undefined when absent).
+    public readonly retryAfter?: number
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
@@ -26,7 +29,7 @@ export class ApiError extends Error {
 }
 
 // ApiOptions controls cross-cutting request behavior.
-//   required (default true) — a 401 writes the return_to cookie and redirects
+//   required (default true) — a 401 writes the cib_return_to cookie and redirects
 //       the browser to the backend-advertised sign-in page (X-Sign-In-URL).
 //       The promise never resolves (navigation is underway), so no catch/finally
 //       runs on the caller.
@@ -51,11 +54,11 @@ function portless(href: string): string {
 }
 
 // writeReturnToCookie writes the current page URL (portless, https) as the
-// return_to cookie the backend consumes at session creation. The backend rejects
+// cib_return_to cookie the backend consumes at session creation. The backend rejects
 // URLs with a port and requires https, so the value must be portless https.
 function writeReturnToCookie(): void {
   if (typeof window === "undefined") return
-  document.cookie = `return_to=${encodeURIComponent(portless(window.location.href))}; path=/; SameSite=Lax; Secure`
+  document.cookie = `${COOKIE_RETURN_TO}=${encodeURIComponent(portless(window.location.href))}; path=/; SameSite=Lax; Secure`
 }
 
 // redirectToSignInPage is inlined here (no import of lib/auth) to avoid a
@@ -66,7 +69,7 @@ function writeReturnToCookie(): void {
 // a back-button re-triggering the 401 redirect loop.
 function redirectToSignInPage(signInUrl: string | null): void {
   if (typeof window === "undefined") return
-  window.location.replace(signInUrl || portless(window.location.origin) + "/sign-in")
+  window.location.replace(signInUrl || `${idOrigin}/sign-in`)
 }
 
 /** Shared by JSON requests and the progress-reporting multipart upload. */
@@ -75,13 +78,20 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
   redirectToSignInPage(signInUrl)
 }
 
+// Retry-After as whole seconds (the backend sends seconds, never a date).
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined
+  const seconds = Number(value)
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined
+}
+
 // Shared by request() and apiPostMultipart(): 401 redirect, then envelope
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
   if (isUnavailableStatus(res.status)) reportServiceUnavailable()
 
-  // Centralized auth handling: required (default true) → write return_to cookie
+  // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the
   // caller's success/catch paths from running while the browser navigates away.
   // required:false → fall through to throw ApiError so callers treat it as anon.
@@ -116,7 +126,8 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       parsed,
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
-      envelope?.Status?.Code
+      envelope?.Status?.Code,
+      parseRetryAfter(res.headers.get("Retry-After"))
     )
   }
 
@@ -205,6 +216,21 @@ export async function apiPostBlob(path: string, body: unknown, opts: ApiOptions 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
+  } catch (error) {
+    if (isNetworkOutage(error)) reportServiceUnavailable()
+    throw error
+  }
+  if (!res.ok) return finishRequest<never>(res, opts)
+  return { blob: await res.blob(), filename: filenameFromContentDisposition(res.headers.get("Content-Disposition")) }
+}
+
+// apiGetBlob — GET a binary body (e.g. a CSV export) with the same credentials,
+// 401 redirect and ApiError conventions as apiPostBlob.
+export async function apiGetBlob(path: string, opts: ApiOptions = {}): Promise<BlobResponse> {
+  const url = `${BASE_URL}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, { method: "GET", credentials: "include" })
   } catch (error) {
     if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error

@@ -208,6 +208,27 @@ describe('LogsTab', () => {
     expect(screen.queryByText('error')).not.toBeInTheDocument()
   })
 
+  it('a deferred target shows the deferred label and its reason', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/notifications/dispatches/')) {
+        return Promise.resolve({
+          ...DISPATCH_ROW,
+          Targets: [
+            { Channel: 'email', Status: 'deferred', Error: 'Відкладено: вичерпано добовий ліміт', Attempts: 0, UpdatedAt: '2026-06-01T00:00:00Z' },
+          ],
+        })
+      }
+      return Promise.resolve(LIST_RESPONSE)
+    })
+
+    render(<LogsTab />)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument())
+    fireEvent.click(screen.getAllByRole('cell')[0].closest('tr')!)
+
+    await waitFor(() => expect(screen.getByText('admin.notif.status.deferred')).toBeInTheDocument())
+    expect(screen.getByText(/Відкладено: вичерпано добовий ліміт/)).toBeInTheDocument()
+  })
+
   it('clicking chip ✕ clears the filter and removes user= from subsequent fetch', async () => {
     render(<LogsTab />)
     await waitFor(() => {

@@ -29,12 +29,14 @@ import type {
   ButtonBlock,
   ImageBlock,
   LogoBlock,
+  FactsBlock,
   PresetBlock,
 } from "@/components/notifications/editor/emailBlocks";
 import type { VariableDef } from "@/components/notifications/editor/variableUtils";
 import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
-import { ApiError, mediaUrl } from "@/api/client";
+import { mediaUrl } from "@/api/client";
+import { errorOr } from "@/i18n/apiError";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export type BlockEditorProps = {
   presets: BlockPreset[];
   onSavePreset: (blocks: EmailBodyBlock[], name: string) => Promise<void>;
   showPresetSave?: boolean;
+  /** Block types that cannot be added (e.g. image for broadcasts, which have no image upload yet). */
+  hiddenBlockTypes?: Array<EmailBodyBlock["type"]>;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -57,6 +61,7 @@ const BLOCK_LABEL_KEYS: Record<EmailBodyBlock["type"], string> = {
   divider: "admin.notif.editor.block.divider",
   preset: "admin.notif.editor.block.preset",
   logo: "admin.notif.editor.block.logo",
+  facts: "admin.notif.editor.block.facts",
 };
 
 const ADD_BLOCK_ARIA_KEYS: Record<EmailBodyBlock["type"], string> = {
@@ -66,6 +71,7 @@ const ADD_BLOCK_ARIA_KEYS: Record<EmailBodyBlock["type"], string> = {
   divider: "admin.notif.editor.addDividerBlock",
   preset: "admin.notif.editor.block.preset",
   logo: "admin.notif.editor.addLogoBlock",
+  facts: "admin.notif.editor.addFactsBlock",
 };
 
 const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
@@ -75,6 +81,7 @@ const BLOCK_PILL_STYLES: Record<EmailBodyBlock["type"], string> = {
   divider:   "bg-muted text-muted-foreground",
   preset:    "bg-primary/10 text-primary",
   logo:      "bg-muted text-muted-foreground",
+  facts:     "bg-muted text-muted-foreground",
 };
 
 const ADD_BLOCK_TYPES: Array<EmailBodyBlock["type"]> = [
@@ -83,6 +90,7 @@ const ADD_BLOCK_TYPES: Array<EmailBodyBlock["type"]> = [
   "image",
   "divider",
   "logo",
+  "facts",
 ];
 
 // ── Key generation ────────────────────────────────────────────────────────────
@@ -103,6 +111,7 @@ export function BlockEditor({
   presets,
   onSavePreset,
   showPresetSave = true,
+  hiddenBlockTypes = [],
 }: BlockEditorProps) {
   // Keys follow internal add/remove/reorder operations. For a parent-initiated
   // length change, adjust them before rendering children so mounted editors keep
@@ -158,7 +167,7 @@ export function BlockEditor({
     } catch (err) {
       setUploadState((prev) => ({
         ...prev,
-        [key]: { uploading: false, error: err instanceof ApiError ? err.message : t("admin.notif.tpl.saveError") },
+        [key]: { uploading: false, error: errorOr(err, t("admin.notif.tpl.saveError")) },
       }));
     }
   };
@@ -220,8 +229,8 @@ export function BlockEditor({
       setShowSaveForm(false);
       setPresetName("");
       setSelectedIdxs(new Set());
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"));
+    } catch (err) {
+      toast.error(errorOr(err, t("admin.notif.tpl.saveError")));
     } finally {
       setSavingPreset(false);
     }
@@ -464,6 +473,55 @@ export function BlockEditor({
               </div>
             )}
 
+            {block.type === "facts" && (
+              <div className="space-y-2">
+                {(block as FactsBlock).items.map((item, row) => (
+                  <div key={row} className="flex items-center gap-2">
+                    <Input
+                      value={item.label}
+                      aria-label={t("admin.notif.editor.factLabelPlaceholder")}
+                      onChange={(e) => {
+                        const items = (block as FactsBlock).items.map((it, k) => (k === row ? { ...it, label: e.target.value } : it));
+                        updateBlock(i, { ...(block as FactsBlock), items });
+                      }}
+                      placeholder={t("admin.notif.editor.factLabelPlaceholder")}
+                    />
+                    <Input
+                      value={item.value}
+                      aria-label={t("admin.notif.editor.factValuePlaceholder")}
+                      onChange={(e) => {
+                        const items = (block as FactsBlock).items.map((it, k) => (k === row ? { ...it, value: e.target.value } : it));
+                        updateBlock(i, { ...(block as FactsBlock), items });
+                      }}
+                      placeholder={t("admin.notif.editor.factValuePlaceholder")}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t("admin.notif.editor.removeFactRow")}
+                      onClick={() => {
+                        const items = (block as FactsBlock).items.filter((_, k) => k !== row);
+                        updateBlock(i, { ...(block as FactsBlock), items });
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    updateBlock(i, { ...(block as FactsBlock), items: [...(block as FactsBlock).items, { label: "", value: "" }] })
+                  }
+                >
+                  {t("admin.notif.editor.addFactRow")}
+                </Button>
+              </div>
+            )}
+
             {block.type === "logo" && (
               <div className="space-y-2">
                 <label className="block text-sm">
@@ -531,7 +589,7 @@ export function BlockEditor({
           {t("admin.notif.editor.addBlock")}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
-          {ADD_BLOCK_TYPES.map((type) => (
+          {ADD_BLOCK_TYPES.filter((type) => !hiddenBlockTypes.includes(type)).map((type) => (
             <button
               key={type}
               type="button"

@@ -10,7 +10,7 @@
  * Rendered inside GlobalSettingsTab, below the global settings table.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
 import { Switch } from "@/components/ui/switch"
 import { notifTypeLabel, notifChannelLabel, notifAudienceLabel } from "@/utils/notifType"
@@ -64,17 +64,39 @@ export function SignalDefaultsSection() {
     return () => { cancelled = true }
   }, [attempt])
 
-  async function toggle(current: SignalDefault, enabled: boolean) {
-    const next = { ...current, Enabled: enabled }
-    setItems((prev) => prev.map((i) => (rowKey(i) === rowKey(current) ? next : i))) // optimistic
-    try {
-      const saved = await updateSignalDefault(next)
-      setItems((prev) => prev.map((i) => (rowKey(i) === rowKey(saved) ? saved : i)))
-      toast.success(t("admin.notif.signalDefaults.saved"))
-    } catch {
-      toast.error(t("admin.notif.settings.saveError"))
-      setItems((prev) => prev.map((i) => (rowKey(i) === rowKey(current) ? current : i))) // revert
-    }
+  // Saves run one after another; the switches react at once and are never disabled by a pending save.
+  const latest = useRef<SignalDefault[]>([])
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  useEffect(() => { latest.current = items }, [items])
+
+  function setEnabled(key: string, enabled: boolean) {
+    const next = latest.current.map((i) => (rowKey(i) === key ? { ...i, Enabled: enabled } : i))
+    latest.current = next
+    setItems(next)
+  }
+
+  function toggle(current: SignalDefault, enabled: boolean) {
+    const key = rowKey(current)
+    const previous = latest.current.find((i) => rowKey(i) === key)?.Enabled ?? current.Enabled
+    setEnabled(key, enabled) // optimistic
+    queue.current = queue.current.then(async () => {
+      const wanted = latest.current.find((i) => rowKey(i) === key)
+      if (!wanted) return
+      try {
+        const saved = await updateSignalDefault(wanted)
+        // Apply the server answer only when no newer change is waiting and it differs from what is shown.
+        const shown = latest.current.find((i) => rowKey(i) === key)
+        if (shown === wanted && JSON.stringify(saved) !== JSON.stringify(shown)) {
+          const next = latest.current.map((i) => (rowKey(i) === key ? saved : i))
+          latest.current = next
+          setItems(next)
+        }
+        toast.success(t("admin.notif.signalDefaults.saved"))
+      } catch {
+        toast.error(t("admin.notif.settings.saveError"))
+        if (latest.current.find((i) => rowKey(i) === key)?.Enabled === enabled) setEnabled(key, previous)
+      }
+    })
   }
 
   if (error) return <LoadError message={t("admin.notif.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setAttempt((key) => key + 1) }} />

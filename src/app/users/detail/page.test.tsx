@@ -114,4 +114,29 @@ describe("admin user detail", () => {
     expect(screen.queryByRole("button", { name: "admin.userDetail.delete" })).not.toBeInTheDocument()
     expect(screen.getByText("admin.userDetail.protectedSuperAdmin")).toBeInTheDocument()
   })
+
+  it("shows the block optimistically and keeps other controls enabled while the save is pending", async () => {
+    let finish: () => void = () => {}
+    mocks.patch.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve }))
+    render(<Page />)
+    await screen.findByText("Олена Коваль")
+    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.block" }))
+    expect(await screen.findByRole("button", { name: "admin.userDetail.unblock" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "admin.userDetail.delete" })).toBeEnabled()
+    expect(screen.queryByText("admin.loading")).not.toBeInTheDocument()
+    finish()
+    await waitFor(() => expect(mocks.patch).toHaveBeenCalledTimes(1))
+  })
+
+  it("rolls the role back and reports an error when the save fails, without a loader", async () => {
+    mocks.patch.mockRejectedValueOnce(new Error("nope"))
+    render(<Page />)
+    await screen.findByText("Олена Коваль")
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" }))
+    expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer")
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.user"))
+    expect(screen.queryByText("admin.loading")).not.toBeInTheDocument()
+  })
 })

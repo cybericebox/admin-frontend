@@ -1,17 +1,28 @@
-// All browser-facing application origins derive from the one public domain.
-// NEXT_PUBLIC_{API,ID,EXERCISES}_DOMAIN override a single host (bare host, no scheme),
-// e.g. to point this app at another backend. Empty origin intentionally means
-// same-origin during local development.
-const domain = process.env.NEXT_PUBLIC_DOMAIN?.trim() ?? ""
-export const publicDomain = domain
+// Browser-facing origins. Every host derives from the one base domain NEXT_PUBLIC_DOMAIN (src/lib/hosts.ts); a missing domain fails
+// the build (next.config.ts) and the container start (entrypoint).
+import { hosts } from "@/lib/hosts"
 
-const origin = (override: string | undefined, fallback: string) => {
-  const host = override?.trim() || fallback
-  return host ? `https://${host}` : ""
-}
+const h = hosts()
+const origin = (host: string) => `https://${host}`
 
-export const apiOrigin = origin(process.env.NEXT_PUBLIC_API_DOMAIN, domain && `api.${domain}`)
-export const idOrigin = origin(process.env.NEXT_PUBLIC_ID_DOMAIN, domain && `id.${domain}`)
-export const mainOrigin = domain ? `https://${domain}` : "/"
+export const mainHost = h.main
+export const apiHost = h.api
+export const idHost = h.id
+export const adminHost = h.admin
+export const exercisesHost = h.exercises
+// Event sites are <tag>.<eventDomain>; the theme and consent cookies are shared on this domain.
+export const eventDomain = h.eventDomain
+
+export const apiOrigin = origin(apiHost)
+export const idOrigin = origin(idHost)
+export const mainOrigin = origin(mainHost) || "/"
 // The exercise catalog lives in its own app (exercises-frontend).
-export const exercisesOrigin = origin(process.env.NEXT_PUBLIC_EXERCISES_DOMAIN, domain && `exercises.${domain}`) || "/"
+export const exercisesOrigin = origin(exercisesHost) || "/"
+
+export const platformHosts: string[] = [mainHost, apiHost, idHost, adminHost, exercisesHost].filter(Boolean)
+
+/** True for a platform app host or an event site (<tag>.<eventDomain>). */
+export function isPlatformHost(hostname: string, hosts: string[] = platformHosts, domain: string = eventDomain): boolean {
+  const h = hostname.toLowerCase()
+  return hosts.includes(h) || (!!domain && (h === domain || h.endsWith(`.${domain}`)))
+}

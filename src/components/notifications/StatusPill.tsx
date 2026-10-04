@@ -5,6 +5,7 @@ const STYLES: Record<string, string> = {
   active: "bg-primary/15 text-primary",
   published: "bg-primary/15 text-primary",
   error: "bg-destructive/15 text-destructive",
+  deferred: "bg-secondary text-secondary-foreground",
   pending: "bg-muted text-muted-foreground",
   started: "bg-secondary text-secondary-foreground",
   draft: "bg-muted text-muted-foreground",

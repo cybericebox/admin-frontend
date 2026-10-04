@@ -26,7 +26,7 @@ import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { ApiError } from "@/api/client"
-import { EmptyState } from "@/components/ui/empty-state"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
@@ -295,13 +295,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (notFound) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link
-          href="/notifications/templates/email"
-          className="text-sm text-primary hover:underline"
-        >
-          ← {t("admin.notif.tpl.email")}
-        </Link>
-        <EmptyState message={t("admin.notif.tpl.empty")} className="flex-1" />
+        <NotFoundScreen block title={t("admin.notif.tpl.notFound")} />
       </div>
     )
   }

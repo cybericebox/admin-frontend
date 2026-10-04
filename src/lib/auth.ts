@@ -8,13 +8,15 @@
  * Usage on id-frontend (the Authorization Server):
  *   - `fetchMe` / `Me` are used for auth-state checks.
  *   - `rememberReturnTo` is called on mount by each auth page to persist the
- *     return_to cookie, which the backend consumes at session creation.
+ *     cib_return_to cookie, which the backend consumes at session creation.
  *   - `safeReturnTo` / `redirectIfAuthed` guard guest-only pages.
  *
  * No JSX — plain TypeScript; safe to import without 'use client' propagation issues.
  */
 
 import { apiGet, ApiError } from "@/api/client"
+import { isPlatformHost } from "@/lib/origins"
+import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 
 // ---------------------------------------------------------------------------
 // /me — identity object returned by the RP's /api/me endpoint.
@@ -75,16 +77,14 @@ export function redirectToSignIn(signInUrl?: string, returnTo?: string): void {
  * back to /profile. This prevents an attacker-supplied ?return_to=https://evil.com
  * from bouncing an authed user off-platform.
  *
- * id is served from id.<domain>; the platform root domain is the current host
- * minus the leading "id." prefix.
+ * Allowed: the platform app hosts and event sites, all from env (see origins.ts).
  */
 export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
   if (!returnTo) return fallback
-  const root = window.location.hostname.replace(/^id\./, "")
   try {
     const u = new URL(returnTo)
     const h = u.hostname.toLowerCase()
-    if (u.protocol === "https:" && (h === root || h.endsWith("." + root))) {
+    if (u.protocol === "https:" && isPlatformHost(h)) {
       // Strip any port: the platform is always reached on its fixed external
       // port, so a redirect target must never carry one (e.g. a dev :3001).
       return `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
@@ -94,9 +94,9 @@ export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
 }
 
 /**
- * rememberReturnTo — persists the return_to cookie on auth-page mount.
+ * rememberReturnTo — persists the cib_return_to cookie on auth-page mount.
  *
- * Writes `document.cookie = return_to=<portless-https-url>; ...` ONLY when
+ * Writes `document.cookie = cib_return_to=<portless-https-url>; ...` ONLY when
  * `returnTo` is a genuine absolute https URL within the platform domain (same
  * trust logic as `safeReturnTo`). Relative paths and off-platform URLs are
  * silently ignored — the backend's ConsumeReturnTo trusts only absolute
@@ -111,14 +111,13 @@ export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
 export function rememberReturnTo(returnTo?: string): void {
   if (typeof window === "undefined") return
   if (!returnTo) return
-  const root = window.location.hostname.replace(/^id\./, "")
   try {
     const u = new URL(returnTo)
     const h = u.hostname.toLowerCase()
-    if (u.protocol === "https:" && (h === root || h.endsWith("." + root))) {
+    if (u.protocol === "https:" && isPlatformHost(h)) {
       // Force portless https — mirrors Task 7 writeReturnToCookie convention.
       const portless = `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
-      document.cookie = `return_to=${encodeURIComponent(portless)}; path=/; SameSite=Lax; Secure`
+      document.cookie = `${COOKIE_RETURN_TO}=${encodeURIComponent(portless)}; path=/; SameSite=Lax; Secure`
     }
   } catch {
     // Unparseable URL — do nothing.

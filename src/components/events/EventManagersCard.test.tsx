@@ -32,6 +32,11 @@ describe("EventManagersCard", () => {
     expect(screen.queryByRole("button", { name: "Вилучити Олена Коваль" })).not.toBeInTheDocument()
   })
 
+  it("says at the bottom that platform administrators implicitly have the view role", async () => {
+    render(<EventManagersCard eventID="event-1" managers={managers} editable={false} onChanged={vi.fn()} />)
+    expect(await screen.findByText(/Усі адміністратори платформи мають у цьому заході роль перегляду/)).toBeInTheDocument()
+  })
+
   it("changes a non-owner role through the event API", async () => {
     const onChanged = vi.fn()
     render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={onChanged} />)
@@ -89,5 +94,61 @@ describe("EventManagersCard", () => {
     await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/users/invite", { Emails: ["new@example.com"], Role: "user" }))
     await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/events/event-1/managers/invited-1", { Role: 1 }))
     expect(onChanged).toHaveBeenCalledWith({ UserID: "invited-1", Role: 1, CreatedAt: "2026-09-24T09:00:00Z" })
+  })
+
+  it("shows the chosen role before the server answers and keeps other controls enabled", async () => {
+    let finish: (value: unknown) => void = () => {}
+    mocks.put.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+    render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={vi.fn()} />)
+    const role = await screen.findByRole("button", { name: "Змінити роль Іван Петренко" })
+    fireEvent.keyDown(role, { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Модератор" }))
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent("Модератор")
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Вилучити Іван Петренко" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Додати модератора" })).toBeEnabled()
+    finish({ UserID: "viewer-1", Role: 1, CreatedAt: managers[1].CreatedAt })
+    await waitFor(() => expect(mocks.put).toHaveBeenCalledTimes(1))
+  })
+
+  it("rolls the role back when the save fails", async () => {
+    mocks.put.mockRejectedValueOnce(new Error("nope"))
+    render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={vi.fn()} />)
+    const role = await screen.findByRole("button", { name: "Змінити роль Іван Петренко" })
+    const before = role.textContent
+    fireEvent.keyDown(role, { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Модератор" }))
+    expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent("Модератор")
+    await waitFor(() => expect(screen.getByRole("button", { name: "Змінити роль Іван Петренко" })).toHaveTextContent(before ?? ""))
+  })
+  it("marks a viewer row of platform staff as redundant and does not offer the viewer role", async () => {
+    mocks.get.mockImplementation((path: string) => {
+      if (path === "/api/users/owner-1") return Promise.resolve({ ID: "owner-1", FirstName: "Олена", LastName: "Коваль", Email: "owner@example.com" })
+      if (path === "/api/users/viewer-1") return Promise.resolve({ ID: "viewer-1", FirstName: "Іван", LastName: "Петренко", Email: "viewer@example.com", Role: "admin_viewer" })
+      return Promise.reject(new Error(path))
+    })
+    render(<EventManagersCard eventID="event-1" managers={managers} editable onChanged={vi.fn()} />)
+    expect(await screen.findByText("Зайва")).toBeInTheDocument()
+    const role = screen.getByRole("button", { name: "Змінити роль Іван Петренко" })
+    fireEvent.keyDown(role, { key: "ArrowDown" })
+    expect(await screen.findByRole("menuitemradio", { name: "Спостерігач" })).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("offers only the write role for a platform administrator and says why", async () => {
+    mocks.get.mockImplementation((path: string) => {
+      if (path.startsWith("/api/users?")) return Promise.resolve({ Items: [{ ID: "adm-1", FirstName: "Марія", LastName: "Савчук", Email: "maria@example.com", Role: "admin" }], NextCursor: "" })
+      return Promise.reject(new Error(path))
+    })
+    mocks.put.mockResolvedValueOnce({ UserID: "adm-1", Role: 1, CreatedAt: "2026-09-24T09:00:00Z" })
+    render(<EventManagersCard eventID="event-1" managers={[]} editable onChanged={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "Додати модератора" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "Користувач" }), { target: { value: "maria" } })
+    fireEvent.click(await screen.findByRole("button", { name: /Марія Савчук/ }))
+    expect(screen.getByText("Адміністратори платформи вже мають доступ на читання до всіх заходів.")).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole("button", { name: "Роль нового модератора" }), { key: "ArrowDown" })
+    expect(screen.queryByRole("menuitemradio", { name: "Спостерігач" })).not.toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" })
+    fireEvent.click(screen.getByRole("button", { name: "Надати доступ" }))
+    await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/events/event-1/managers/adm-1", { Role: 1 }))
   })
 })

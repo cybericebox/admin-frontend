@@ -39,6 +39,9 @@ export type PresetBlock = { type: 'preset'; preset_id: string; name: string; pla
 /** Platform/Event brand logo block — rendered server-side from the brand logo asset. */
 export type LogoBlock = { type: 'logo'; align?: 'left' | 'center' | 'right'; width_px?: number }
 
+/** Key facts card: label/value rows; values may hold {{variables}}, a row with an empty value is dropped. */
+export type FactsBlock = { type: 'facts'; items: { label: string; value: string }[] }
+
 export type EmailBodyBlock =
   | RichTextBlock
   | ButtonBlock
@@ -46,6 +49,7 @@ export type EmailBodyBlock =
   | ImageBlock
   | PresetBlock
   | LogoBlock
+  | FactsBlock
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 
@@ -87,6 +91,8 @@ export function defaultBlockForType(type: EmailBodyBlock['type']): EmailBodyBloc
       return { type: 'preset', preset_id: '', name: '' }
     case 'logo':
       return { type: 'logo', align: 'center', width_px: 64 }
+    case 'facts':
+      return { type: 'facts', items: [{ label: '', value: '' }] }
     default: {
       const _exhaustive: never = type
       void _exhaustive

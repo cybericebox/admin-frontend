@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '../styles/ds-tokens.css';
+@import '../styles/admin-sidebar.css';
 
 .exercise-editor-toolbar button:not(.bg-primary):hover,
 .exercise-editor-toolbar button:not(.bg-primary):focus-visible {

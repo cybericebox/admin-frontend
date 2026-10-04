@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
 import type { CursorPage } from "@/api/pagination"
@@ -13,18 +13,24 @@ import { toast } from "@/components/ui/toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FieldHelp } from "@/components/ui/field-help"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
-import { eventRoleLabel, roleLabel } from "@/lib/roles"
+import { eventRoleLabel, hasPlatformEventRead, roleLabel } from "@/lib/roles"
 import { t } from "@/i18n/t"
+import { errorOr } from "@/i18n/apiError"
 
-type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string }
+type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string; Role?: string }
 type InviteResult = { Email: string; Error?: string }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const managerRoles = [1, 2].map((code) => ({ value: String(code), label: eventRoleLabel(code) }))
+// Platform administrators already read every event, so only the write role is offered to them.
+const writeRoles = managerRoles.filter((option) => option.value === "1")
+// A redundant viewer row keeps its shown value, but only the write role can be picked.
+const redundantRoles = managerRoles.map((option) => option.value === "2" ? { ...option, disabled: true } : option)
 
 function nameOf(user: UserSummary | undefined, fallback: string): string {
   if (!user) return fallback
@@ -38,8 +44,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   onChanged: (manager: EventManager) => void
   onRemoved?: (userID: string) => void
 }) {
-  const { can } = useRole()
-  const assignablePlatformRoles = assignableRoles(can)
+  const { can, role: callerRole } = useRole()
+  const assignablePlatformRoles = assignableRoles(can, callerRole)
   const [users, setUsers] = useState<Record<string, UserSummary>>({})
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState("")
@@ -51,6 +57,10 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
   const [newRole, setNewRole] = useState("1")
   const [platformRole, setPlatformRole] = useState<Role>("user")
   const [busyID, setBusyID] = useState("")
+  // Inline role changes: shown at once (optimistic), saved one after another, never disabling any control.
+  const [pendingRoles, setPendingRoles] = useState<Record<string, number>>({})
+  const wantedRoles = useRef<Record<string, number>>({})
+  const roleQueue = useRef<Promise<void>>(Promise.resolve())
   const [removing, setRemoving] = useState<EventManager | null>(null)
   const [removeError, setRemoveError] = useState("")
   const [error, setError] = useState<{ cause: unknown } | null>(null)
@@ -106,8 +116,36 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
     }
   }
 
+  function clearPendingRole(userID: string) {
+    delete wantedRoles.current[userID]
+    setPendingRoles((previous) => { const next = { ...previous }; delete next[userID]; return next })
+  }
+
+  function changeRole(userID: string, role: number) {
+    wantedRoles.current[userID] = role
+    setPendingRoles((previous) => ({ ...previous, [userID]: role }))
+    roleQueue.current = roleQueue.current.then(async () => {
+      const wanted = wantedRoles.current[userID]
+      if (wanted === undefined) return
+      try {
+        const result = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(userID)}`, { Role: wanted })
+        // Keep the shown choice while a newer change is waiting; otherwise the server answer takes over.
+        if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
+        onChanged(result)
+        toast.success(t("admin.events.manager.saved"))
+      } catch {
+        if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
+        toast.error(t("admin.events.manager.saveError"))
+      }
+    })
+  }
+
   const inviteEmail = search.trim().toLowerCase()
   const canInvite = editable && can("users.invite") && EMAIL_RE.test(inviteEmail) && searchedQuery.toLowerCase() === inviteEmail && !searching && !selected && !foundExact
+
+  // The picked user, or the account about to be invited, already reads every event.
+  const newIsAdmin = selected ? hasPlatformEventRead(selected.Role) : canInvite && hasPlatformEventRead(platformRole)
+  const grantRoles = newIsAdmin ? writeRoles : managerRoles
 
   // One fixed-size results block: crest while searching, matches, or the empty state before the invite form.
   const showResults = !selected && (searching || matches.length > 0 || canInvite)
@@ -124,7 +162,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       const page = await apiGet<CursorPage<UserSummary>>(`/api/users?${new URLSearchParams({ search: inviteEmail, pageSize: "10" })}`)
       const user = (page.Items ?? []).find((item) => item.Email.toLowerCase() === inviteEmail)
       if (!user) throw new Error("invited_user_not_found")
-      const manager = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(user.ID)}`, { Role: Number(newRole) })
+      const manager = await apiPut<EventManager>(`/api/events/${encodeURIComponent(eventID)}/managers/${encodeURIComponent(user.ID)}`, { Role: newIsAdmin ? 1 : Number(newRole) })
       setUsers((previous) => ({ ...previous, [user.ID]: user }))
       onChanged(manager)
       toast.success(t("admin.events.manager.invited"))
@@ -132,8 +170,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       setSearchedQuery("")
       setMatches([])
       setAdding(false)
-    } catch {
-      toast.error(t(invited ? "admin.events.manager.invitedNotAssigned" : "admin.events.manager.inviteError"))
+    } catch (cause) {
+      toast.error(invited ? t("admin.events.manager.invitedNotAssigned") : errorOr(cause, t("admin.events.manager.inviteError")))
     } finally {
       setBusyID("")
     }
@@ -166,18 +204,22 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       {managers.map((manager) => {
         const user = users[manager.UserID]
         const displayName = nameOf(user, manager.UserID)
+        // A viewer row of platform staff adds nothing: they read every event anyway.
+        const redundant = manager.Role === 2 && hasPlatformEventRead(user?.Role)
         return <li key={manager.UserID} className="flex flex-wrap items-center gap-3 py-3">
           <div className="min-w-0 flex-1">
             <Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(manager.UserID)}`}>{displayName}</Link>
-            {user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
+            {user?.Email && user.Email !== displayName && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}
+            {redundant && <HoverTooltip text={t("admin.events.manager.redundantHint")}><span className="mt-1 inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{t("admin.events.manager.redundant")}</span></HoverTooltip>}
           </div>
           {manager.Role === 0 ? <span className="text-sm text-muted-foreground">{eventRoleLabel(0)}</span> : editable ? <>
-            <SelectMenu value={String(manager.Role)} onChange={(value) => void save(manager.UserID, Number(value))} options={managerRoles} disabled={!!busyID} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
-            <Button type="button" variant="outline" size="sm" disabled={!!busyID} onClick={() => { setRemoveError(""); setRemoving(manager) }} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
+            <SelectMenu value={String(pendingRoles[manager.UserID] ?? manager.Role)} onChange={(value) => changeRole(manager.UserID, Number(value))} options={redundant ? redundantRoles : managerRoles} ariaLabel={t("admin.events.manager.changeRole", { name: displayName })} className="w-36" />
+            <Button type="button" variant="outline" size="sm" onClick={() => { setRemoveError(""); setRemoving(manager) }} aria-label={t("admin.events.manager.removeName", { name: displayName })}>{t("admin.events.manager.remove")}</Button>
           </> : <span className="text-sm text-muted-foreground">{eventRoleLabel(manager.Role)}</span>}
         </li>
       })}
     </ul>
+    <p className="mt-3 text-xs text-muted-foreground">{t("admin.events.manager.implicitViewerNote")}</p>
 
     {adding && editable && <div className="mt-4 space-y-3 rounded-md border border-border p-3">
       <div className="flex items-center gap-1.5"><label className="text-sm font-medium" htmlFor="event-manager-search">{t("admin.events.manager.user")}</label><FieldHelp text={t("admin.events.manager.userHelp")} /></div>
@@ -185,7 +227,7 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       {showResults && <div className="flex h-48 flex-col overflow-y-auto rounded-md border border-border">
         {searching ? <LoadingArea compact className="flex-1" label={t("admin.events.manager.searching")} /> : matches.length > 0 ? <ul>{matches.map((user) => <li key={user.ID}><button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => { setSelected(user); setSearch(`${nameOf(user, user.ID)} — ${user.Email}`); setMatches([]) }}>{nameOf(user, user.ID)} <span className="text-muted-foreground">{user.Email}</span></button></li>)}</ul> : <EmptyState message={t("admin.events.manager.notFoundInvite")} compact className="flex-1" />}
       </div>}
-      <div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.eventRole")}</span><FieldHelp text={t("admin.events.manager.eventRoleHelp")} /></div><SelectMenu value={newRole} onChange={setNewRole} options={managerRoles} ariaLabel={t("admin.events.manager.newRole")} className="w-40" /></div><Button type="button" busy={!!selected && busyID === selected.ID} disabled={!selected || !!busyID} onClick={() => { if (selected) void save(selected.ID, Number(newRole)) }}>{t("admin.events.manager.grant")}</Button></div>
+      <div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.eventRole")}</span><FieldHelp text={t("admin.events.manager.eventRoleHelp")} /></div><SelectMenu value={newIsAdmin ? "1" : newRole} onChange={setNewRole} options={grantRoles} ariaLabel={t("admin.events.manager.newRole")} className="w-40" />{newIsAdmin && <p className="max-w-xs text-xs text-muted-foreground">{t("admin.events.manager.platformReadNote")}</p>}</div><Button type="button" busy={!!selected && busyID === selected.ID} disabled={!selected || !!busyID} onClick={() => { if (selected) void save(selected.ID, newIsAdmin ? 1 : Number(newRole)) }}>{t("admin.events.manager.grant")}</Button></div>
       {canInvite && <div className="space-y-2 border-t border-border pt-3">{matches.length > 0 && <p className="text-sm text-muted-foreground">{t("admin.events.manager.notFoundInvite")}</p>}<div className="flex flex-wrap items-end gap-2"><div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.manager.platformRole")}</span><FieldHelp text={t("admin.events.manager.platformRoleHelp")} /></div><SelectMenu value={platformRole} onChange={(value) => setPlatformRole(value as Role)} options={assignablePlatformRoles.map((role) => ({ value: role, label: roleLabel(role) }))} ariaLabel={t("admin.events.manager.platformRole")} disabled={!!busyID} className="w-44" /></div><Button type="button" variant="outline" busy={busyID === "invite"} disabled={!!busyID} onClick={() => void inviteAndAdd()}>{t("admin.events.manager.inviteAndAdd")}</Button></div></div>}
     </div>}
 

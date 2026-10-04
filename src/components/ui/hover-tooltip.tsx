@@ -104,7 +104,7 @@ export function HoverTooltip({ text, content, children, className, side = "top",
         ref={tooltip}
         id={id}
         role="tooltip"
-        className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
+        className={`pointer-events-none fixed z-[100] ${text.length > 60 || text.includes("\n") ? "max-w-72 whitespace-pre-line" : "whitespace-nowrap"} rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground`}
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
           transform: side === "right" ? "translateY(-50%)" : `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{content ?? text}</div>,

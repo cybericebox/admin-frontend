@@ -29,6 +29,8 @@ import {
   bellCount, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
   type InboxCounts, type InboxDefaultTab, type InboxMessage as Message, type InboxTab,
 } from "./inboxModel"
+import { keepBrand } from "@/i18n/brand"
+import { STORAGE_INBOX_READ } from "@/lib/storageKeys"
 
 // Dropdown height cap, the same in every app: tune it here.
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
@@ -36,7 +38,6 @@ const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
 type InboxCursor = { ID: string; CreatedAt: string }
 type InboxPoll = { Cursor: InboxCursor | null; NewInbox: Message[]; UnreadCount: number; Counts?: unknown; OtherEventsCount?: unknown }
 type InboxPage = { Items: Message[]; NextCursor: InboxCursor | null }
-const READ_SYNC_KEY = "cybericebox:inbox-read"
 // A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
 const OPEN_PARAM = "inbox"
 
@@ -225,7 +226,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     document.addEventListener("visibilitychange", pollWhenVisible)
     window.addEventListener("focus", pollWhenVisible)
     window.addEventListener("cybericebox:inbox-updated", pollWhenVisible)
-    const onStorage = (event: StorageEvent) => { if (event.key === READ_SYNC_KEY) { void pollWhenVisible(); if (openRef.current) void refresh() } }
+    const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { void pollWhenVisible(); if (openRef.current) void refresh() } }
     window.addEventListener("storage", onStorage)
     return () => {
       active = false
@@ -279,8 +280,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   function announceRead() {
     try {
-      const previous = window.localStorage.getItem(READ_SYNC_KEY)
-      window.localStorage.setItem(READ_SYNC_KEY, previous === "1" ? "0" : "1")
+      const previous = window.localStorage.getItem(STORAGE_INBOX_READ)
+      window.localStorage.setItem(STORAGE_INBOX_READ, previous === "1" ? "0" : "1")
     } catch { /* Polling still synchronizes read state. */ }
   }
 
@@ -398,7 +399,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className={`px-4 py-3 hover:bg-accent/50 ${resolved ? "opacity-60" : ""}`}>
               <NotificationMessageCard
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
-                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined}
+                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })) }} /> : undefined}
                 unread={unreadItem} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved

@@ -4,10 +4,12 @@ metadata:
   name: admin-frontend-config
   namespace: cybericebox
 data:
-  DOMAIN: "cybericebox.com"
-  # Optional host overrides (bare host, no scheme). Empty → <service>.<DOMAIN>.
-  API_DOMAIN: ""
-  ID_DOMAIN: ""
-  EXERCISES_DOMAIN: ""
+  # All hosts are required (bare host, no scheme); fill them from platform.env.
+  # REQUIRED: the one base domain, a bare lowercase host name. Every host derives from it: DOMAIN, api./id./admin./exercises.DOMAIN,
+  # event sites <tag>.DOMAIN, the cookie domain DOMAIN. There are no per-host settings.
+  DOMAIN: ""
+  # Shared cookie domain for the theme and consent cookies (apex, e.g. cybericebox.com); required.
+  # REQUIRED: support mailbox of the «Надіслати відгук» (send feedback) link on every page.
+  SUPPORT_EMAIL: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""

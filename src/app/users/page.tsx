@@ -23,6 +23,9 @@ import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { formatDateTime } from "@/lib/locale"
+import { relativeTime } from "@/utils/relativeTime"
 
 export type UserRow = {
   ID: string
@@ -31,6 +34,7 @@ export type UserRow = {
   Email: string
   Role: string
   Status: string
+  LastSeen?: string
   CreatedAt: string
 }
 type ListResp = OffsetPage<UserRow>
@@ -100,7 +104,7 @@ export default function Page() {
 
   function sort(field: string) {
     const nextDir = field === sortBy ? sortDir === "asc" ? "desc" : "asc"
-      : field === "created" ? "desc" : "asc"
+      : field === "created" || field === "lastSeen" ? "desc" : "asc"
     setSortBy(field)
     setSortDir(nextDir)
     goToPage(1)
@@ -174,6 +178,7 @@ export default function Page() {
                 <SortableHeader label={t("admin.users.col.user")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.users.col.role")} field="role" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.users.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.users.col.lastSeen")} field="lastSeen" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.users.col.created")} field="created" activeField={sortBy} direction={sortDir} onSort={sort} />
               </tr>
             </thead>
@@ -188,6 +193,9 @@ export default function Page() {
                   </td>
                   <td className="px-3 py-2"><RoleBadge role={u.Role} /></td>
                   <td className="px-3 py-2"><StatusBadge status={u.Status} /></td>
+                  <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                    {u.LastSeen ? <HoverTooltip text={formatDateTime(u.LastSeen)}><span>{relativeTime(u.LastSeen)}</span></HoverTooltip> : "—"}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{u.CreatedAt ? new Date(u.CreatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</td>
                 </tr>
               ))}

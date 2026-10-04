@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { getEvent, listEventManagers, setEventInfrastructure, updateEvent, type Event, type EventManager } from "@/api/events/catalog"
+import { EventAnalyticsTab } from "@/components/events/EventAnalyticsTab"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
+import { EventReservationButton } from "@/components/resources/EventReservationButton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -15,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, isoToLocal, localToIso } from "@/lib/eventSchemas"
@@ -30,8 +33,18 @@ function formOf(event: Event) {
   }
 }
 
-export function EventAdminDetail({ id }: { id: string }) {
-  const { can } = useRole()
+export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: string | null }) {
+  const { can, me } = useRole()
+  const [tab, setTab] = useState(initialTab === "analytics" ? "analytics" : "overview")
+
+  // The tab lives in the address (?tab=analytics), so the way back from the event site lands on it.
+  function changeTab(next: string) {
+    setTab(next)
+    const url = new URL(window.location.href)
+    if (next === "overview") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", next)
+    window.history.replaceState(window.history.state, "", url)
+  }
   const [event, setEvent] = useState<Event | null>(null)
   const [managers, setManagers] = useState<EventManager[]>([])
   const [draft, setDraft] = useState<ReturnType<typeof formOf> | null>(null)
@@ -103,6 +116,8 @@ export function EventAdminDetail({ id }: { id: string }) {
     void loadManagers()
   }
 
+  // The raw attempts journal is for the event's assigned write moderators only (owner or manager).
+  const canOpenJournal = Boolean(me?.ID && managers.some((manager) => manager.UserID === me.ID && (manager.Role === 0 || manager.Role === 1)))
   const writable = can("events.write") && event?.Status !== "archived"
   const isDirty = Boolean(event && draft && Object.entries(formOf(event)).some(([key, value]) => draft[key as keyof typeof draft] !== value))
 
@@ -166,6 +181,12 @@ export function EventAdminDetail({ id }: { id: string }) {
       <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{t(`admin.events.lifecycle.${event.Status === "archived" ? "archived" : event.Status === "pending" ? "not_available" : event.LifecycleStatus ?? "not_published"}`)}</span>
     </div>
 
+    <Tabs value={tab} onValueChange={changeTab}>
+    <TabsList aria-label={t("admin.events.tabs.label")}>
+      <TabsTrigger value="overview">{t("admin.events.tabs.overview")}</TabsTrigger>
+      <TabsTrigger value="analytics">{t("admin.events.tabs.analytics")}</TabsTrigger>
+    </TabsList>
+    <TabsContent value="overview" className="mt-5 space-y-5">
     <Card><CardContent className="pt-5">
       <div className="mb-4"><h2 className="text-base font-semibold text-foreground">{t("admin.events.details.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.details.description")}</p></div>
       <form className="space-y-4" onSubmit={(e) => void save(e)}>
@@ -182,10 +203,24 @@ export function EventAdminDetail({ id }: { id: string }) {
           <label htmlFor="event-infrastructure" className="cursor-pointer select-none text-sm font-medium">{t("admin.events.field.infrastructure")}</label>
           <FieldHelp text={t("admin.events.field.infrastructureHelp")} />
         </div>
+        {event.InfrastructureAllowed && <div className="flex items-center gap-3" data-testid="event-reservation"><EventReservationButton eventID={event.ID} name={event.Name} /></div>}
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         {writable && <div className="flex justify-end"><Button type="submit" busy={saving} disabled={!isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
       </form>
     </CardContent></Card>
+
+    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} error={managersError.cause} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
+      eventID={event.ID}
+      managers={managers}
+      editable={can("events.write")}
+      onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])}
+      onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))}
+    />}
+    </TabsContent>
+    <TabsContent value="analytics" className="mt-5">
+      <EventAnalyticsTab eventID={event.ID} tag={event.Tag} canOpenJournal={canOpenJournal} />
+    </TabsContent>
+    </Tabs>
 
     <ConfirmDialog
       open={infraTarget !== null}
@@ -197,13 +232,5 @@ export function EventAdminDetail({ id }: { id: string }) {
       error={infraError}
       onConfirm={() => void confirmInfrastructure()}
     />
-
-    {managersLoading ? <LoadingArea label={t("admin.loading")} /> : managersError ? <Card><CardContent className="pt-5"><LoadError message={t("admin.events.access.loadError")} error={managersError.cause} onRetry={retryManagers} /></CardContent></Card> : <EventManagersCard
-      eventID={event.ID}
-      managers={managers}
-      editable={can("events.write")}
-      onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])}
-      onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))}
-    />}
   </div>
 }

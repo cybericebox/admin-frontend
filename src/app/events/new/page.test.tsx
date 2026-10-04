@@ -4,7 +4,7 @@ import NewEventPage from "./page"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "" }))
 vi.mock("@/api/events/catalog", () => ({ createEvent: vi.fn(), listEventManagers: vi.fn(), getInfrastructureAvailable: vi.fn() }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ eventID }: { eventID: string }) => <div>Managers for {eventID}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))

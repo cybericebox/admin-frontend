@@ -1,44 +1,80 @@
 # admin-frontend
 
-The administration app of Cyber ICE Box, served on `admin.<domain>`. Platform administrators manage users, events, labs and notifications here. Sign-in goes through the ID app.
+The platform administration app of Cyber ICE Box: management of users, events, infrastructure, mail and analytics.
 
-## What you can do
+## Stack
 
-- See the platform dashboard and user and notification analytics.
-- Find users, open a user and change their access.
-- Create events and manage their settings; open an event's site.
-- Watch and manage lab infrastructure.
-- Edit email and in-app notification templates, check delivery logs and stats, and set notification and mail settings.
-- Open the exercise catalog in the exercises app.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Radix UI, react-hook-form with Zod, Lexical editor, ECharts. Tests: Vitest with Testing Library. Lint: ESLint 10.
 
-## Environment variables
+## Prerequisites
 
-Static builds (`npm run build`, GitHub Pages) read these at build time. The Docker image reads them at container start.
-
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_DOMAIN` | yes | — | Platform apex domain, e.g. `cybericebox.com`. |
-| `NEXT_PUBLIC_API_DOMAIN` | no | `api.<domain>` | API host (bare host, no scheme). |
-| `NEXT_PUBLIC_ID_DOMAIN` | no | `id.<domain>` | ID app host. |
-| `NEXT_PUBLIC_EXERCISES_DOMAIN` | no | `exercises.<domain>` | Exercises app host. |
-| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | analytics off | Google Analytics 4 measurement id (`G-…`). |
+Node.js 26 or newer (see `.nvmrc`).
 
 ## Commands
 
 ```bash
 npm install
-npm run dev          # http://localhost:3002
-npm run build        # static export → out/
+npm run dev          # dev server on http://localhost:3002
+npm run build        # production build (static export to out/)
 npm run lint
 npm run typecheck
 npm test             # Vitest
-
-docker build -f deploy/Dockerfile -t cybericebox/admin-frontend .
-docker run --rm -p 3000:3000 -e NEXT_PUBLIC_DOMAIN=cybericebox.local cybericebox/admin-frontend
 ```
+
+## Static export
+
+Production builds are a **static export** (`output: "export"`, written to `out/`) and need no Node server at runtime; `npm run dev` runs the regular Next.js dev server. `npm start` is `next start` and is only meaningful outside the static build.
+
+## Configuration
+
+`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment. A missing required value fails the build (`next.config.ts`) or the container start; there are no fallbacks.
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_DOMAIN` | yes | The one base domain, a bare lowercase host name (no scheme, port or path). Every host derives from it: `<DOMAIN>` (landing), `api.`, `id.`, `admin.`, `exercises.<DOMAIN>`, event sites `<tag>.<DOMAIN>`, the shared theme and consent cookies on `.<DOMAIN>`. There are no per-host settings. |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
+| `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of hosts allowed by `next dev` (default: the hosts above). |
+| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
+
+## i18n
+
+All user-facing text lives in `messages/uk.json` and `messages/en.json` and is rendered through the translate function `t("key", { vars })`. Ukrainian is the default language. Every key must exist in both files.
+
+## Listeners and TLS (container)
+
+The nginx image needs no listener settings: plain HTTP on `HTTP_PORT` 8080, a health listener on 8081 (`/healthz` only), TLS on 8443 when `/tls/tls.crt` and `/tls/tls.key` exist (without them plain HTTP only), and client certificates required when `/aop/ca.crt` exists (else off). One startup log line names the mode: `mode: http`, `mode: https` or `mode: https+client-auth`. Mount the files and nothing else is passed. Every default can be overridden by env, read at container start by `deploy/nginx-entrypoint.sh`. The nginx config is in files under `deploy/nginx/` (`nginx.conf`, `server.conf`, and the snippets `listen-http.conf`, `listen-https.conf`, `client-auth.conf`, `health.conf`); the entrypoint only validates the env, renders the active snippets with `envsubst` into `/tmp/nginx-gen` (an empty file for each inactive one), and runs `nginx -t`, so a bad combination stops the container at start.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `HTTP_PORT` | `8080` | Plain HTTP listener. Set but empty turns it off. |
+| `HTTPS_PORT` | `8443` | TLS listener (HTTP/2); on only when TLS is on. |
+| `TLS_CERT_FILE`, `TLS_KEY_FILE` | `/tls/tls.crt`, `/tls/tls.key` | PEM server certificate chain and key. TLS is on when both files exist. A path that is set but missing = start error; setting only one of the two = start error. |
+| `TLS_MIN_VERSION` | `1.2` | `1.2` or `1.3`. |
+| `TLS_CLIENT_CA_FILE` | `/aop/ca.crt` | PEM bundle of the root (and intermediate) CAs that signed the client certificates. |
+| `TLS_CLIENT_AUTH` | `require` when TLS is on and the default CA file exists, else `off` | `off`, `optional` (verify when presented, the result is `$ssl_client_verify`) or `require`. `optional` and `require` need TLS and the CA file at its path (default or `TLS_CLIENT_CA_FILE`), else start error. A missing or invalid certificate gets the connection dropped (nginx 444). |
+| `HEALTH_PORT` | `8081` | An extra plain-HTTP listener on `HEALTH_BIND` (default `0.0.0.0`) that serves only `/healthz` (everything else 404), for kubelet probes that cannot present a client certificate. Set empty to turn it off. |
+| `TLS_RELOAD_INTERVAL` | `60` | Seconds between checksum checks of the certificate, key and CA files. A change runs `nginx -t` and `nginx -s reload`, no restart; a config that fails the test keeps the running one and logs it. It polls (no inotify) because Kubernetes swaps a Secret mount through the `..data` symlink. |
+
+`HTTP_PORT` empty with no TLS is a start error. With TLS on, the plain listener stays on unless `HTTP_PORT` is set empty; with `TLS_CLIENT_AUTH=require` the entrypoint warns about it, because the plain port is not protected by client certificates: set `HTTP_PORT=` and use the health port for probes. `scripts/test-nginx-tls.sh` (Docker) tests the whole matrix, including a live certificate replacement.
+
+## Content Security Policy
+
+The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`api.<NEXT_PUBLIC_DOMAIN>`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
+
+The export is static, so a per-request nonce is not possible. Instead, at container start `deploy/csp.sh` (runs after the env substitution) hashes every inline `<script>` in the exported pages, plus the scripts the client creates at runtime (the Google Analytics boot; `scripts/csp-inline.mjs` writes its text at build time), and writes the header to `/tmp/nginx-gen/csp.conf`. `deploy/nginx/server.conf` includes that file in the server block and in every location that sets its own `add_header` (nginx does not inherit `add_header` into a location that defines one). A new inline script needs no manual step; a new runtime-created inline script must be added to `scripts/csp-inline.mjs`.
+
+`next dev` sends the same policy from `headers()` in `next.config.ts`, only when `NODE_ENV=development`, with `'unsafe-inline'` and `'unsafe-eval'` for scripts and websockets for HMR. Check the browser console for `Content Security Policy` violations after adding a script, an iframe or a new external host.
 
 ## Deployment
 
-- **GitHub Pages** — publishing a release runs `.github/workflows/pages.yml`, which builds the static export and deploys it. Set the variables above (and secrets) on the `github-pages` environment (Settings → Environments); the custom domain is set in Settings → Pages.
-- **Docker images** — a push to `develop` builds `cybericebox/admin-frontend:<commit sha>` (`develop-image.yml`); a published release builds `cybericebox/admin-frontend:latest` and `:<release tag>` (`publish-image.yml`).
-- **Kubernetes** — manifests are in `deploy/manifests`. Put the values in `config.yaml`; an empty key uses the default.
+Deployment and cluster configuration: see the infrastructure repository.
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
+
+Copyright 2024-2026 CyberICEBox
+
+### One base domain
+
+`NEXT_PUBLIC_DOMAIN` is the only host input and every host derives from it: main = `DOMAIN`, `api.DOMAIN`, `id.DOMAIN`, `admin.DOMAIN`, `exercises.DOMAIN`, event sites `<tag>.DOMAIN`, the cookie domain = `DOMAIN`. The code reads the derived hosts through one helper (`src/**/hosts.ts`); `deploy/base-domain.sh` (sourced by the container entrypoint and the Pages workflow) and the domain check in `next.config` reject an unset or malformed domain. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against all three; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).

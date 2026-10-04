@@ -48,7 +48,7 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
   const [cursor, setCursor] = useState("")
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [busyID, setBusyID] = useState("")
+  const [busyIDs, setBusyIDs] = useState<string[]>([])
   const [rejecting, setRejecting] = useState<Participant | null>(null)
   const [rejectError, setRejectError] = useState("")
   const [error, setError] = useState<{ message: string; cause: unknown } | null>(null)
@@ -96,7 +96,7 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
   }
 
   async function decide(item: Participant, decision: "approve" | "reject") {
-    setBusyID(item.UserID)
+    setBusyIDs((ids) => [...ids, item.UserID])
     try {
       await apiPost(`/api/events/${encodeURIComponent(eventID)}/participants/${encodeURIComponent(item.UserID)}/${decision}`, {})
       setItems((current) => filter === "1"
@@ -108,7 +108,7 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
       if (decision === "reject") setRejectError(t("admin.events.participants.rejectError"))
       else toast.error(t("admin.events.participants.approveError"))
     } finally {
-      setBusyID("")
+      setBusyIDs((ids) => ids.filter((id) => id !== item.UserID))
     }
   }
 
@@ -118,15 +118,15 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
       const user = users[item.UserID]
       const name = nameOf(user, item.UserID)
       return <li key={item.UserID} className="flex flex-wrap items-center gap-3 py-3">
-        <div className="min-w-0 flex-1"><Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(item.UserID)}`}>{name}</Link>{user?.Email && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}</div>
+        <div className="min-w-0 flex-1"><Link className="break-words text-sm font-medium text-primary hover:underline" href={`/users/detail?id=${encodeURIComponent(item.UserID)}`}>{name}</Link>{user?.Email && user.Email !== name && <p className="break-all text-xs text-muted-foreground">{user.Email}</p>}</div>
         <span className="text-sm text-muted-foreground">{statusOf(item)}</span>
-        {editable && item.Status === 1 && !isInvitation(item) && <div className="flex gap-2"><Button type="button" size="sm" busy={busyID === item.UserID && !rejecting} disabled={!!busyID} onClick={() => void decide(item, "approve")} aria-label={t("admin.events.participants.approveName", { name })}>{t("admin.events.participants.approve")}</Button><Button type="button" size="sm" variant="outline" disabled={!!busyID} onClick={() => { setRejectError(""); setRejecting(item) }} aria-label={t("admin.events.participants.rejectName", { name })}>{t("admin.events.participants.reject")}</Button></div>}
+        {editable && item.Status === 1 && !isInvitation(item) && <div className="flex gap-2"><Button type="button" size="sm" busy={busyIDs.includes(item.UserID) && rejecting?.UserID !== item.UserID} disabled={busyIDs.includes(item.UserID)} onClick={() => void decide(item, "approve")} aria-label={t("admin.events.participants.approveName", { name })}>{t("admin.events.participants.approve")}</Button><Button type="button" size="sm" variant="outline" disabled={busyIDs.includes(item.UserID)} onClick={() => { setRejectError(""); setRejecting(item) }} aria-label={t("admin.events.participants.rejectName", { name })}>{t("admin.events.participants.reject")}</Button></div>}
       </li>
     })}</ul>}
     {error && items.length > 0 && !loading && <LoadError message={error.message} error={error.cause} compact onRetry={() => void loadMore()} />}
     {cursor && !loading && !error && <Button type="button" variant="outline" size="sm" className="mt-4" busy={loadingMore} onClick={() => void loadMore()}>{t("admin.events.participants.showMore")}</Button>}
-    <ConfirmDialog open={!!rejecting} onCancel={() => { if (!busyID) setRejecting(null) }} tone="danger"
-      busy={!!rejecting && busyID === rejecting.UserID} disabled={!!busyID} error={rejectError}
+    <ConfirmDialog open={!!rejecting} onCancel={() => { if (!rejecting || !busyIDs.includes(rejecting.UserID)) setRejecting(null) }} tone="danger"
+      busy={!!rejecting && busyIDs.includes(rejecting.UserID)} disabled={!!rejecting && busyIDs.includes(rejecting.UserID)} error={rejectError}
       title={t("admin.events.participants.rejectTitle")}
       description={rejecting ? t("admin.events.participants.rejectBody", { name: nameOf(users[rejecting.UserID], rejecting.UserID) }) : ""}
       cancelLabel={t("admin.events.dialog.cancel")} confirmLabel={t("admin.events.participants.rejectConfirm")}

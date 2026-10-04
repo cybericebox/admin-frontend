@@ -1,17 +1,18 @@
 "use client"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
-import { useRole } from "@/lib/useRole"
+import { useRole, type Role } from "@/lib/useRole"
+import { assignableRoles } from "@/lib/assignableRoles"
 import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
-import { EmptyState } from "@/components/ui/empty-state"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 
@@ -29,13 +30,6 @@ type UserDetail = {
   CreatedAt: string
 }
 
-// Roles assignable by the current caller (only a holder of "*" — super_admin — can grant super_admin).
-function assignableRoles(permissions: string[]): string[] {
-  return permissions.includes("*")
-    ? ["super_admin", "admin", "admin_viewer", "user"]
-    : ["admin", "admin_viewer", "user"]
-}
-
 function fullName(u: UserDetail): string {
   const n = `${u.FirstName ?? ""} ${u.LastName ?? ""}`.trim()
   return n || u.Email
@@ -49,31 +43,17 @@ function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
   const router = useRouter()
-  const { can, permissions, me } = useRole()
+  const { can, permissions, me, role: callerRole } = useRole()
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [busy, setBusy] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
 
-  async function load() {
-    if (!id) { setNotFound(true); setLoading(false); return }
-    setLoading(true)
-    setNotFound(false)
-    setLoadError(null)
-    try {
-      setUser(await apiGet<UserDetail>(`/api/users/${id}`))
-    } catch (error) {
-      setNotFound(isNotFound(error))
-      setLoadError(isNotFound(error) ? null : { cause: error })
-    } finally {
-      setLoading(false)
-    }
-  }
   useEffect(() => {
     if (!id) return
     let active = true
@@ -84,30 +64,31 @@ function Detail() {
     return () => { active = false }
   }, [id, reloadKey])
 
-  async function changeRole(role: string) {
-    setBusy(true)
-    try {
-      await apiPatch(`/api/users/${id}/role`, { Role: role })
-      await load()
-      toast.success(t("admin.userDetail.roleChanged"))
-    } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
+  // Role and status saves run one after another; the controls react at once and never wait or disable.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve())
+  function save(patch: Partial<Pick<UserDetail, "Role" | "Status">>, path: "role" | "status", body: Record<string, string>, successKey: string) {
+    setUser((current) => (current ? { ...current, ...patch } : current))
+    saveQueue.current = saveQueue.current.then(async () => {
+      try {
+        await apiPatch(`/api/users/${id}/${path}`, body)
+        toast.success(t(successKey))
+      } catch {
+        toast.error(t("admin.userDetail.actionError"))
+        // Roll back by re-reading the user silently: no loader, the page keeps its content.
+        try { setUser(await apiGet<UserDetail>(`/api/users/${id}`)) } catch { /* keep the shown value */ }
+      }
+    })
   }
-  async function setStatus(status: string) {
-    setBusy(true)
-    try {
-      await apiPatch(`/api/users/${id}/status`, { Status: status })
-      await load()
-      toast.success(t("admin.userDetail.statusChanged"))
-    } catch { toast.error(t("admin.userDetail.actionError")) } finally { setBusy(false) }
-  }
+  const changeRole = (role: string) => save({ Role: role }, "role", { Role: role }, "admin.userDetail.roleChanged")
+  const setStatus = (status: string) => save({ Status: status }, "status", { Status: status }, "admin.userDetail.statusChanged")
   async function remove() {
-    setBusy(true)
+    setDeleteBusy(true)
     setDeleteError(false)
     try {
       await apiDelete(`/api/users/${id}`)
       toast.success(t("admin.userDetail.deleted"))
       router.push("/users")
-    } catch { setDeleteError(true); setBusy(false) }
+    } catch { setDeleteError(true); setDeleteBusy(false) }
   }
 
   if (loading && id) {
@@ -124,8 +105,7 @@ function Detail() {
   if (notFound || !user) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-        <EmptyState className="flex-1" message={t("admin.userDetail.notFound")} />
+        <NotFoundScreen block title={t("admin.userDetail.notFound")} />
       </div>
     )
   }
@@ -184,8 +164,7 @@ function Detail() {
               <SelectMenu
                 value={user.Role}
                 onChange={changeRole}
-                options={Array.from(new Set([user.Role, ...assignableRoles(permissions)])).map((r) => ({ value: r, label: roleLabel(r) }))}
-                disabled={busy}
+                options={Array.from(new Set([user.Role, ...assignableRoles(can, callerRole, user.Role as Role)])).map((r) => ({ value: r, label: roleLabel(r) }))}
                 className="w-48"
               />
             </label>
@@ -193,16 +172,16 @@ function Detail() {
 
           {can("users.status.write") && (user.Status === "active" || user.Status === "blocked") && (
             user.Status === "blocked" ? (
-              <Button variant="outline" disabled={busy} onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
+              <Button variant="outline" onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
             ) : (
-              <Button variant="outline" disabled={busy} onClick={() => setStatus("blocked")}>{t("admin.userDetail.block")}</Button>
+              <Button variant="outline" onClick={() => setStatus("blocked")}>{t("admin.userDetail.block")}</Button>
             )
           )}
 
           {can("users.delete") && (
             <>
-              <Button variant="destructive" disabled={busy} onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
-              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={busy}
+              <Button variant="destructive" onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
+              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={deleteBusy}
                 title={t("admin.userDetail.deleteConfirmTitle")} description={t("admin.userDetail.deleteConfirmBody")}
                 cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.delete")}
                 error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />

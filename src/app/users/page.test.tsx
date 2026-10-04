@@ -14,7 +14,7 @@ describe("admin users page", () => {
     vi.clearAllMocks()
     mocks.get.mockReset()
     mocks.canInvite = true
-    mocks.get.mockResolvedValue({ Items: [{ ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", CreatedAt: "2026-09-01T00:00:00Z" }], Total: 1, Page: 1, PageSize: 50 })
+    mocks.get.mockResolvedValue({ Items: [{ ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", LastSeen: new Date(Date.now() - 5 * 60_000).toISOString(), CreatedAt: "2026-09-01T00:00:00Z" }], Total: 1, Page: 1, PageSize: 50 })
   })
 
   it("loads users and links to their detail", async () => {
@@ -23,6 +23,13 @@ describe("admin users page", () => {
     expect(screen.getByRole("link", { name: /Олена Коваль/ })).toHaveAttribute("href", "/users/detail?id=user-1")
     expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
     expect(mocks.get).toHaveBeenCalledWith("/api/users?page=1&pageSize=50&sortBy=created&sortDir=desc")
+  })
+
+  it("shows when the user was last online and sorts by it, newest first", async () => {
+    render(<Page />)
+    expect(await screen.findByText("5 хвилин тому")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /admin.users.col.lastSeen/ }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?page=1&pageSize=50&sortBy=lastSeen&sortDir=desc"))
   })
 
   it("keeps column headings above rows within the scrolling table", async () => {

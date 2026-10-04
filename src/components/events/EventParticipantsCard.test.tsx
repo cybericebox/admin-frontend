@@ -81,4 +81,22 @@ describe("EventParticipantsCard", () => {
     expect(screen.getByText("Марія Савчук")).toBeInTheDocument()
     expect(mocks.get).toHaveBeenCalledWith("/api/events/event-1/participants?pageSize=20&cursor=next")
   })
+
+  it("disables only the row being decided, not the other rows", async () => {
+    mocks.get.mockImplementation((path: string) => {
+      if (path.includes("/participants?")) return Promise.resolve({ Items: [
+        { UserID: "user-1", Status: 1, CreatedAt: "2026-09-24T09:00:00Z", DecidedAt: null },
+        { UserID: "user-2", Status: 1, CreatedAt: "2026-09-24T09:05:00Z", DecidedAt: null },
+      ], NextCursor: "" })
+      if (path === "/api/users/user-1") return Promise.resolve({ ID: "user-1", FirstName: "Марія", LastName: "Савчук", Email: "maria@example.com" })
+      if (path === "/api/users/user-2") return Promise.resolve({ ID: "user-2", FirstName: "Тарас", LastName: "Лев", Email: "taras@example.com" })
+      return Promise.reject(new Error(path))
+    })
+    mocks.post.mockReturnValueOnce(new Promise(() => {}))
+    render(<EventParticipantsCard eventID="event-1" editable />)
+    fireEvent.click(await screen.findByRole("button", { name: "Підтвердити Марія Савчук" }))
+    expect(screen.getByRole("button", { name: "Підтвердити Марія Савчук" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Підтвердити Тарас Лев" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Відхилити Тарас Лев" })).toBeEnabled()
+  })
 })

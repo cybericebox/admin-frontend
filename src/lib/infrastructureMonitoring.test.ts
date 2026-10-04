@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { capacityMetrics, formatBytes } from "./infrastructureMonitoring"
+import { agentDisplayName, capacityMetrics, formatBytes } from "./infrastructureMonitoring"
 
 describe("capacityMetrics", () => {
   it("reads omitted protojson request fields as zero when capacity data is present", () => {
@@ -24,5 +24,16 @@ describe("formatBytes", () => {
     expect(formatBytes(0)).toBe("0 Б")
     expect(formatBytes(4096)).toBe("4 КіБ")
     expect(formatBytes(1048576)).toBe("1 МіБ")
+  })
+})
+
+describe("agentDisplayName", () => {
+  it("shows the translated label for the configured primary agent regardless of stored name", () => {
+    expect(agentDisplayName({ Key: "configured-primary", Name: "" })).toBe("Основний агент")
+    expect(agentDisplayName({ Key: "configured-primary", Name: "Configured primary agent" })).toBe("Основний агент")
+  })
+  it("falls back from name to key for other agents", () => {
+    expect(agentDisplayName({ Key: "a", Name: "Lab A" })).toBe("Lab A")
+    expect(agentDisplayName({ Key: "a", Name: "" })).toBe("a")
   })
 })

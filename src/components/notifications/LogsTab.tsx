@@ -19,6 +19,7 @@ import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { smtpErrorView } from "@/utils/smtpError"
 
 // W7 journal fields (ScopeEventID … Targets) are optional so an older backend
 // without them still renders the list.
@@ -28,8 +29,11 @@ type Target = {
   Error: string
   Attempts: number
   Transport?: string
-  Recipient?: string
+  ErrorKind?: string
+  ErrorCode?: string
   FallbackError?: string
+  FallbackErrorKind?: string
+  FallbackErrorCode?: string
   UpdatedAt: string
 }
 type Dispatch = {
@@ -40,6 +44,8 @@ type Dispatch = {
   ScopeEventID?: string | null
   EventName?: string
   RecipientEmail?: string
+  RecipientName?: string
+  BroadcastID?: string | null
   Targets?: Target[]
   CreatedAt: string
   UpdatedAt: string
@@ -50,7 +56,7 @@ type ListResp = CursorPage<Dispatch>
 const PAGE_SIZES = [25, 50, 100]
 const STATUSES = ["pending", "started", "done"]
 const CHANNELS = ["email", "in_app"]
-const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }]
+const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }, { value: "deferred", label: "admin.notif.logs.resultDeferred" }]
 const TRANSPORTS = ["event", "platform", "env"]
 const EVENT_OPTIONS_LIMIT = 100
 
@@ -70,6 +76,48 @@ function useEventOptions(enabled: boolean): EventOption[] {
   return options
 }
 
+// A compact error line for the journal row: the human text, the raw error in the tooltip.
+function ErrorText({ view, prefix = "", className }: { view: ReturnType<typeof smtpErrorView>; prefix?: string; className: string }) {
+  if (!view) return null
+  const full = view.technical ? `${view.text}\n${view.technical}` : view.text
+  return <HoverTooltip text={full} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${className}`}>{prefix}{view.text}</span></HoverTooltip>
+}
+
+// The error of a detail card: the human line, with the raw text under «Технічні деталі».
+function DetailError({ label, view, tone }: { label: string; view: ReturnType<typeof smtpErrorView>; tone: string }) {
+  if (!view) return null
+  return (
+    <div className="mt-1 text-xs">
+      <div className={tone}>{label}: {view.text}</div>
+      {view.technical && (
+        <details className="mt-0.5 text-muted-foreground">
+          <summary className="cursor-pointer">{t("admin.notif.logs.technical")}</summary>
+          <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{view.technical}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
+const NIL_UUID = "00000000-0000-0000-0000-000000000000"
+
+// The dispatch recipient: «Name (email)», the email alone without a name, «—» with neither.
+// A link to the user page only for a real user id.
+export function RecipientRow({ userID, name, email }: { userID?: string; name?: string; email?: string }) {
+  const text = name && email ? `${name} (${email})` : name || email || "—"
+  const linkable = !!userID && userID !== NIL_UUID && text !== "—"
+  return (
+    <div className="mb-2 flex flex-wrap gap-1 text-sm">
+      <span className="text-muted-foreground">{t("admin.notif.logs.recipientUser")}:</span>
+      {linkable ? (
+        <Link href={`/users/detail?id=${userID}`} className="text-foreground hover:underline">{text}</Link>
+      ) : (
+        <span className="text-foreground">{text}</span>
+      )}
+    </div>
+  )
+}
+
 function TargetLine({ target }: { target: Target }) {
   const transport = mailTransportLabel(target.Transport)
   return (
@@ -80,8 +128,8 @@ function TargetLine({ target }: { target: Target }) {
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
         {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
       </div>
-      {target.FallbackError && <HoverTooltip text={target.FallbackError} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {target.FallbackError}</span></HoverTooltip>}
-      {target.Error && <HoverTooltip text={target.Error} truncated className="max-w-full self-start"><span className="max-w-72 truncate text-xs text-destructive">{target.Error}</span></HoverTooltip>}
+      {target.FallbackError && <ErrorText view={smtpErrorView(target.FallbackErrorKind, target.FallbackErrorCode, target.FallbackError)} prefix={`${t("admin.notif.logs.fallback")}: `} className="text-muted-foreground" />}
+      {target.Error && <ErrorText view={smtpErrorView(target.ErrorKind, target.ErrorCode, target.Error)} className={target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />}
     </div>
   )
 }
@@ -195,7 +243,7 @@ export function LogsTab() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
+                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{d.BroadcastID && <Link href={`/notifications/broadcasts/detail?id=${encodeURIComponent(d.BroadcastID)}`} onClick={(event) => event.stopPropagation()} className="ml-2 text-xs font-normal text-primary hover:underline">{t("admin.notif.logs.openBroadcast")}</Link>}{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       {names[d.RecipientUserID] ? (
@@ -207,7 +255,7 @@ export function LogsTab() {
                           {names[d.RecipientUserID].name}
                         </Link>
                       ) : (
-                        <span className="font-mono text-xs text-muted-foreground">
+                        d.RecipientName ? <span className="font-medium text-foreground">{d.RecipientName}</span> : <span className="font-mono text-xs text-muted-foreground">
                           {d.RecipientUserID.slice(0, 8)}
                         </span>
                       )}
@@ -265,6 +313,7 @@ export function LogsTab() {
             <EmptyState message={t("admin.notif.logs.noTargets")} compact />
           ) : (
             <div className="space-y-2">
+              <RecipientRow userID={detail.RecipientUserID} name={detail.RecipientName} email={detail.RecipientEmail} />
               {detail.Targets.map((tg, i) => (
                 <div key={`${tg.Channel}-${i}`} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex items-center justify-between">
@@ -274,10 +323,9 @@ export function LogsTab() {
                   <div className="mt-1 text-xs text-muted-foreground">
                     {t("admin.notif.logs.attempts")}: {tg.Attempts}
                     {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
-                    {tg.Recipient && <> · {tg.Recipient}</>}
                   </div>
-                  {tg.FallbackError && <div className="mt-1 text-xs text-muted-foreground">{t("admin.notif.logs.fallback")}: {tg.FallbackError}</div>}
-                  {tg.Error && <div className="mt-1 text-xs text-destructive">{t("admin.notif.logs.error")}: {tg.Error}</div>}
+                  <DetailError label={t("admin.notif.logs.fallback")} view={smtpErrorView(tg.FallbackErrorKind, tg.FallbackErrorCode, tg.FallbackError)} tone="text-muted-foreground" />
+                  <DetailError label={t(tg.Status === "deferred" ? "admin.notif.logs.reason" : "admin.notif.logs.error")} view={smtpErrorView(tg.ErrorKind, tg.ErrorCode, tg.Error)} tone={tg.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />
                 </div>
               ))}
             </div>

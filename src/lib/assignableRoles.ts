@@ -12,11 +12,22 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
 // Display order for role pickers (highest privilege first).
 const ROLE_ORDER: Role[] = ["super_admin", "admin", "admin_viewer", "user"]
 
-// assignableRoles returns the roles the current caller is permitted to assign,
-// mirroring backend CanAssignRole: a caller may assign role R only if they hold
-// every permission R grants. `can` is the dotted-prefix predicate from useRole.
-export function assignableRoles(can: (required: string) => boolean): Role[] {
-  return ROLE_ORDER.filter((role) =>
-    ROLE_PERMISSIONS[role].every((perm) => can(perm)),
-  )
+const ROLE_RANK: Record<Role, number> = { user: 0, admin_viewer: 1, admin: 2, super_admin: 3 }
+
+// assignableRoles returns the roles the caller may give an account whose current role is
+// `current` ("" for a new account or an invitation), mirroring backend CanSetRole: the caller
+// must hold every permission the role grants, and only a super_admin may RAISE anyone to
+// admin or above (an admin may lower an admin or keep one, never make one).
+// `can` is the dotted-prefix predicate from useRole.
+export function assignableRoles(
+  can: (required: string) => boolean,
+  callerRole: Role | null,
+  current: Role | "" = "",
+): Role[] {
+  return ROLE_ORDER.filter((role) => {
+    if (!ROLE_PERMISSIONS[role].every((perm) => can(perm))) return false
+    if (callerRole === "super_admin") return true
+    const currentRank = current === "" ? -1 : ROLE_RANK[current]
+    return !(ROLE_RANK[role] >= ROLE_RANK.admin && ROLE_RANK[role] > currentRank)
+  })
 }

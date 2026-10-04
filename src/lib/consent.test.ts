@@ -18,7 +18,7 @@ describe("consent", () => {
   })
   afterEach(() => {
     delete (window as GtagWindow).gtag
-    delete process.env.NEXT_PUBLIC_DOMAIN
+    process.env.NEXT_PUBLIC_DOMAIN = "localhost"
     clearCookies()
   })
 

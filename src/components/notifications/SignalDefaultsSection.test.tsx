@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import uk from "../../../messages/uk.json"
 import type { SignalDefault } from "@/api/notifications/signalDefaults"
 
@@ -134,5 +134,32 @@ describe("SignalDefaultsSection", () => {
     })
     expect(emailSwitch).toBeDisabled()
     expect(role.can).toHaveBeenCalledWith("notifications.settings.write")
+  })
+
+  it("shows the choice before the server answers and keeps every switch enabled while saving", async () => {
+    api.list.mockResolvedValue([enrolledEmail, enrolledInApp])
+    let finish: (value: SignalDefault) => void = () => {}
+    api.update.mockReturnValueOnce(new Promise<SignalDefault>((resolve) => { finish = resolve }))
+    render(<SignalDefaultsSection />)
+    const emailName = `${uk_["admin.notif.type.participant.enrolled"]} — ${uk_["admin.notif.channel.email"]}`
+    const inAppName = `${uk_["admin.notif.type.participant.enrolled"]} — ${uk_["admin.notif.channel.in_app"]}`
+    const emailSwitch = await screen.findByRole("switch", { name: emailName })
+    fireEvent.click(emailSwitch)
+    expect(screen.getByRole("switch", { name: emailName })).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByRole("switch", { name: emailName })).toBeEnabled()
+    expect(screen.getByRole("switch", { name: inAppName })).toBeEnabled()
+    finish({ ...enrolledEmail, Enabled: true })
+    await waitFor(() => expect(toastApi.success).toHaveBeenCalled())
+  })
+
+  it("queues quick changes and rolls a failed one back with a toast", async () => {
+    api.list.mockResolvedValue([enrolledEmail, enrolledInApp])
+    api.update.mockRejectedValueOnce(new Error("nope"))
+    render(<SignalDefaultsSection />)
+    const emailName = `${uk_["admin.notif.type.participant.enrolled"]} — ${uk_["admin.notif.channel.email"]}`
+    fireEvent.click(await screen.findByRole("switch", { name: emailName }))
+    expect(screen.getByRole("switch", { name: emailName })).toHaveAttribute("aria-checked", "true")
+    await waitFor(() => expect(toastApi.error).toHaveBeenCalled())
+    expect(screen.getByRole("switch", { name: emailName })).toHaveAttribute("aria-checked", "false")
   })
 })
