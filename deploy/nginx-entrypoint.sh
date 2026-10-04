@@ -7,11 +7,13 @@
 #
 #   HTTP_PORT            3000   plain HTTP listener; set but empty = off
 #   HTTPS_PORT           8443   TLS listener, on only when TLS_CERT_FILE and TLS_KEY_FILE are set
-#   TLS_CERT_FILE, TLS_KEY_FILE   PEM server certificate chain and key; both = TLS on, exactly one = error
+#   TLS_CERT_FILE, TLS_KEY_FILE   PEM server certificate chain and key; both = TLS on, exactly one = error.
+#                        Unset: /tls/tls.crt and /tls/tls.key are used when both exist (else TLS off); set empty = TLS off
 #   TLS_MIN_VERSION      1.2    1.2 or 1.3
-#   TLS_CLIENT_CA_FILE          PEM bundle of the CA(s) that signed the client certificates
-#   TLS_CLIENT_AUTH      off    off | optional (verify when presented) | require; optional/require need the CA file and TLS
-#   HEALTH_PORT                 when set: an extra plain listener on HEALTH_BIND (default 0.0.0.0) serving only /healthz
+#   TLS_CLIENT_CA_FILE          PEM bundle of the CA(s) that signed the client certificates. Unset: /aop/ca.crt when it exists
+#   TLS_CLIENT_AUTH      off    off | optional (verify when presented) | require; optional/require need the CA file and TLS.
+#                        Unset: require when TLS is on and the CA file exists, else off
+#   HEALTH_PORT          8081   an extra plain listener on HEALTH_BIND (default 0.0.0.0) serving only /healthz; set empty = off
 #   TLS_RELOAD_INTERVAL  60     seconds between checks of the certificate files; a change runs nginx -t and a reload
 set -e
 
@@ -23,15 +25,24 @@ die() { echo "[nginx] $*" >&2; exit 1; }
 is_port() { case "$1" in '' | *[!0-9]*) return 1 ;; esac; [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; }
 is_path() { printf '%s' "$1" | grep -Eq '^/[A-Za-z0-9._/+=@-]+$'; }
 
-# Unset means the default; set but empty means off (HTTP_PORT) or unset (the others).
+# Unset means the default; set but empty means off (HTTP_PORT, HEALTH_PORT, TLS files) or the default (the others).
 HTTP_PORT=${HTTP_PORT-3000}
 HTTPS_PORT=${HTTPS_PORT:-8443}
+# Baked paths: used only when unset and the files exist, so a deploy that mounts /tls (and /aop) passes nothing.
+if [ -z "${TLS_CERT_FILE+x}" ] && [ -z "${TLS_KEY_FILE+x}" ] && [ -r /tls/tls.crt ] && [ -r /tls/tls.key ]; then
+  TLS_CERT_FILE=/tls/tls.crt
+  TLS_KEY_FILE=/tls/tls.key
+fi
 TLS_CERT_FILE=${TLS_CERT_FILE:-}
 TLS_KEY_FILE=${TLS_KEY_FILE:-}
 TLS_MIN_VERSION=${TLS_MIN_VERSION:-1.2}
+if [ -z "${TLS_CLIENT_CA_FILE+x}" ] && [ -n "$TLS_CERT_FILE" ] && [ -r /aop/ca.crt ]; then
+  TLS_CLIENT_CA_FILE=/aop/ca.crt
+  : "${TLS_CLIENT_AUTH=require}"
+fi
 TLS_CLIENT_CA_FILE=${TLS_CLIENT_CA_FILE:-}
 TLS_CLIENT_AUTH=${TLS_CLIENT_AUTH:-off}
-HEALTH_PORT=${HEALTH_PORT:-}
+HEALTH_PORT=${HEALTH_PORT-8081}
 HEALTH_BIND=${HEALTH_BIND:-0.0.0.0}
 TLS_RELOAD_INTERVAL=${TLS_RELOAD_INTERVAL:-60}
 

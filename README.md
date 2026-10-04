@@ -42,20 +42,20 @@ All user-facing text lives in `messages/uk.json` and `messages/en.json` and is r
 
 ## Listeners and TLS (container)
 
-The nginx image serves plain HTTP by default, exactly as before (`HTTP_PORT` 3000, `/healthz`). TLS and client certificate validation are optional and switched on by env, read at container start by `deploy/nginx-entrypoint.sh`. The nginx config is in files under `deploy/nginx/` (`nginx.conf`, `server.conf`, and the snippets `listen-http.conf`, `listen-https.conf`, `client-auth.conf`, `health.conf`); the entrypoint only validates the env, renders the active snippets with `envsubst` into `/tmp/nginx-gen` (an empty file for each inactive one), and runs `nginx -t`, so a bad combination stops the container at start.
+The nginx image needs no listener settings: plain HTTP on `HTTP_PORT` 3000, a health listener on 8081 (`/healthz` only), TLS on 8443 when `/tls/tls.crt` and `/tls/tls.key` exist, and client certificates required when `/aop/ca.crt` exists (else off). Mount the files and nothing else is passed. Every default can be overridden by env, read at container start by `deploy/nginx-entrypoint.sh`. The nginx config is in files under `deploy/nginx/` (`nginx.conf`, `server.conf`, and the snippets `listen-http.conf`, `listen-https.conf`, `client-auth.conf`, `health.conf`); the entrypoint only validates the env, renders the active snippets with `envsubst` into `/tmp/nginx-gen` (an empty file for each inactive one), and runs `nginx -t`, so a bad combination stops the container at start.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `HTTP_PORT` | `3000` | Plain HTTP listener. Set but empty turns it off. |
 | `HTTPS_PORT` | `8443` | TLS listener (HTTP/2); on only when the certificate and key are set. |
-| `TLS_CERT_FILE`, `TLS_KEY_FILE` | empty | PEM server certificate chain and key. Both set = TLS on; exactly one set = start error. |
+| `TLS_CERT_FILE`, `TLS_KEY_FILE` | `/tls/tls.crt`, `/tls/tls.key` when both exist, else off | PEM server certificate chain and key. Both = TLS on; exactly one set = start error; set empty = TLS off. |
 | `TLS_MIN_VERSION` | `1.2` | `1.2` or `1.3`. |
-| `TLS_CLIENT_CA_FILE` | empty | PEM bundle of the root (and intermediate) CAs that signed the client certificates. |
-| `TLS_CLIENT_AUTH` | `off` | `off`, `optional` (verify when presented, the result is `$ssl_client_verify`) or `require`. `optional` and `require` need the CA file and TLS, else start error. A missing or invalid certificate gets the connection dropped (nginx 444). |
-| `HEALTH_PORT` | empty | When set: an extra plain-HTTP listener on `HEALTH_BIND` (default `0.0.0.0`) that serves only `/healthz` (everything else 404), for kubelet probes that cannot present a client certificate. When empty, probes use `HTTP_PORT`. |
+| `TLS_CLIENT_CA_FILE` | `/aop/ca.crt` when it exists and TLS is on | PEM bundle of the root (and intermediate) CAs that signed the client certificates. |
+| `TLS_CLIENT_AUTH` | `require` when the default CA file is used, else `off` | `off`, `optional` (verify when presented, the result is `$ssl_client_verify`) or `require`. `optional` and `require` need the CA file and TLS, else start error. A missing or invalid certificate gets the connection dropped (nginx 444). |
+| `HEALTH_PORT` | `8081` | An extra plain-HTTP listener on `HEALTH_BIND` (default `0.0.0.0`) that serves only `/healthz` (everything else 404), for kubelet probes that cannot present a client certificate. Set empty to turn it off. |
 | `TLS_RELOAD_INTERVAL` | `60` | Seconds between checksum checks of the certificate, key and CA files. A change runs `nginx -t` and `nginx -s reload`, no restart; a config that fails the test keeps the running one and logs it. It polls (no inotify) because Kubernetes swaps a Secret mount through the `..data` symlink. |
 
-`HTTP_PORT` empty with no TLS is a start error. With TLS on, the plain listener stays on unless `HTTP_PORT` is set empty; with `TLS_CLIENT_AUTH=require` the entrypoint warns about it, because the plain port is not protected by client certificates: set `HTTP_PORT=` and use `HEALTH_PORT` for probes. Removed (no aliases): `ORIGIN_TLS`, `ORIGIN_MTLS`, `ORIGIN_RELOAD_INTERVAL`, the fixed `/tls` and `/aop` paths and the fixed port 8081. `scripts/test-nginx-tls.sh` (Docker) tests the whole matrix, including a live certificate replacement.
+`HTTP_PORT` empty with no TLS is a start error. With TLS on, the plain listener stays on unless `HTTP_PORT` is set empty; with `TLS_CLIENT_AUTH=require` the entrypoint warns about it, because the plain port is not protected by client certificates: set `HTTP_PORT=` and use the health port for probes. `scripts/test-nginx-tls.sh` (Docker) tests the whole matrix, including a live certificate replacement.
 
 ## Content Security Policy
 
