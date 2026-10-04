@@ -8,6 +8,7 @@
 #   H start errors (one of cert/key, auth without CA / without TLS, no listener, cert/key mismatch, bad values)
 #   I live replacement of the server certificate, of the client CA, and of a broken pair, without a restart
 #   J hardening: uid 101, read-only root, no capabilities
+#   K baked defaults (files at /tls and /aop, nothing set)   L startup mode line (http, https, https+client-auth)
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -78,7 +79,7 @@ docker volume create "$VOL" >/dev/null
 docker run --rm --user 0:0 -v "$VOL:/seed" --entrypoint sh "$TAG" \
   -c 'cp -R /usr/share/nginx/html/. /seed/ && chown -R 101:101 /seed' || { echo "seed failed" >&2; exit 1; }
 
-PORTS=(-p 127.0.0.1::3000 -p 127.0.0.1::8443 -p 127.0.0.1::8081)
+PORTS=(-p 127.0.0.1::8080 -p 127.0.0.1::8443 -p 127.0.0.1::8081)
 start() { # start <name> <docker args...>; prints the container id, waits until nginx is up or dead
   local name=$1; shift
   local id
@@ -115,14 +116,14 @@ ROGUE=(--cert "$WORK/rogue.crt" --key "$WORK/rogue.key")
 
 echo "== A plain only (default)"
 C=$(start plain) || { bad "container did not start"; exit 1; }
-check "A1 /healthz on 3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
-hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 3000)/")
+check "A1 /healthz on 8080 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
+hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 8080)/")
 grep -qi '^content-security-policy:' <<<"$hdr" && ok "A2 CSP header present" || bad "A2 CSP header missing"
 refused "A3 nothing on 8443" -k "https://localhost:$(port "$C" 8443)/"
 check "A4 /healthz on the default health port 8081 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 stop "$C"
-C=$(start plain-port -e HTTP_PORT=3000) || bad "A5 explicit HTTP_PORT=3000 did not start"
-check "A5 HTTP_PORT=3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+C=$(start plain-port -e HTTP_PORT=8080) || bad "A5 explicit HTTP_PORT=8080 did not start"
+check "A5 HTTP_PORT=8080 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
 stop "$C"
 
 echo "== B TLS only on top of plain"
@@ -132,7 +133,7 @@ check "B1 TLS /healthz -> 200" 200 "$(code "${SERVER[@]}" "https://localhost:$P/
 hdr=$(curl -sS -D - -o /dev/null --max-time 10 --http2 "${SERVER[@]}" "https://localhost:$P/")
 grep -qi '^HTTP/2 200' <<<"$hdr" && ok "B2 HTTP/2 on /" || bad "B2 not HTTP/2 200 on /"
 grep -qi '^content-security-policy:' <<<"$hdr" && ok "B3 CSP header present" || bad "B3 CSP header missing"
-check "B4 plain 3000 still served" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+check "B4 plain 8080 still served" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
 check "B5 min version 1.2 accepts TLS 1.2" 200 "$(code --tls-max 1.2 "${SERVER[@]}" "https://localhost:$P/healthz")"
 check "B6 no client cert needed (auth off)" 200 "$(code "${SERVER[@]}" "https://localhost:$P/healthz")"
 stop "$C"
@@ -140,7 +141,7 @@ stop "$C"
 echo "== C TLS only (HTTP_PORT empty)"
 C=$(start tlsonly "${TLS[@]}" -e HTTP_PORT=) || { bad "container did not start"; exit 1; }
 check "C1 TLS -> 200" 200 "$(code "${SERVER[@]}" "https://localhost:$(port "$C" 8443)/healthz")"
-refused "C2 plain 3000 is off" "http://127.0.0.1:$(port "$C" 3000)/healthz"
+refused "C2 plain 8080 is off" "http://127.0.0.1:$(port "$C" 8080)/healthz"
 stop "$C"
 
 echo "== D TLS_CLIENT_AUTH=require"
@@ -183,14 +184,14 @@ stop "$C"
 C=$(start health-plain -e HEALTH_PORT=8081) || { bad "container did not start"; exit 1; }
 check "G6 plain mode: health port /healthz -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 check "G7 plain mode: health port / -> 404" 404 "$(code "http://127.0.0.1:$(port "$C" 8081)/")"
-check "G8 plain mode: 3000 serves the site" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+check "G8 plain mode: 8080 serves the site" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
 stop "$C"
 
 echo "== H start errors"
 fails "H1 certificate without key" "must be set together" -v "$WORK/tls:/tls:ro" -e TLS_CERT_FILE=/tls/tls.crt
 fails "H2 key without certificate" "must be set together" -v "$WORK/tls:/tls:ro" -e TLS_KEY_FILE=/tls/tls.key
-fails "H3 client auth without a CA file" "needs TLS_CLIENT_CA_FILE" "${TLS[@]}" -e TLS_CLIENT_AUTH=require
-fails "H4 client auth optional without a CA file" "needs TLS_CLIENT_CA_FILE" "${TLS[@]}" -e TLS_CLIENT_AUTH=optional
+fails "H3 client auth without a CA file" "needs the client CA file" "${TLS[@]}" -e TLS_CLIENT_AUTH=require
+fails "H4 client auth optional without a CA file" "needs the client CA file" "${TLS[@]}" -e TLS_CLIENT_AUTH=optional
 fails "H5 client auth without TLS" "needs TLS" "${CA[@]}" -e TLS_CLIENT_AUTH=require
 fails "H6 no listener at all" "no listener" -e HTTP_PORT=
 fails "H7 certificate and key do not match" "nginx -t failed" -v "$WORK/bad:/tls:ro" -e TLS_CERT_FILE=/tls/tls.crt -e TLS_KEY_FILE=/tls/tls.key
@@ -198,7 +199,11 @@ fails "H8 unreadable certificate" "not readable" -e TLS_CERT_FILE=/nope/tls.crt 
 fails "H9 bad TLS_MIN_VERSION" "TLS_MIN_VERSION" "${TLS[@]}" -e TLS_MIN_VERSION=1.1
 fails "H10 bad TLS_CLIENT_AUTH" "TLS_CLIENT_AUTH must be" -e TLS_CLIENT_AUTH=maybe
 fails "H11 bad HTTP_PORT" "HTTP_PORT must be" -e HTTP_PORT=abc
-fails "H12 health port equals the plain port" "HEALTH_PORT must differ" -e HEALTH_PORT=3000
+fails "H12 health port equals the plain port" "HEALTH_PORT must differ" -e HEALTH_PORT=8080
+fails "H13 explicit cert path that does not exist" "not readable" -v "$WORK/tls:/tls:ro" -e TLS_CERT_FILE=/tls/missing.crt -e TLS_KEY_FILE=/tls/tls.key
+fails "H14 explicit key path that does not exist" "not readable" -v "$WORK/tls:/tls:ro" -e TLS_CERT_FILE=/tls/tls.crt -e TLS_KEY_FILE=/tls/missing.key
+fails "H15 client auth require, default CA missing" "needs the client CA file" -v "$WORK/tls:/tls:ro" -e TLS_CLIENT_AUTH=require
+fails "H16 client auth optional, explicit CA missing" "needs the client CA file" -v "$WORK/tls:/tls:ro" -e TLS_CLIENT_CA_FILE=/ca/nope.crt -e TLS_CLIENT_AUTH=optional
 
 echo "== K baked defaults (/tls, /aop, 8081, nothing set)"
 C=$(start defaults-tls -v "$WORK/tls:/tls:ro" -e HTTP_PORT=) || { bad "K1 container did not start"; exit 1; }
@@ -210,7 +215,23 @@ refused "K3 /aop/ca.crt found: client auth is require" "${SERVER[@]}" "https://l
 check "K4 valid client cert -> 200" 200 "$(code "${SERVER[@]}" "${CLIENT[@]}" "https://localhost:$(port "$C" 8443)/healthz")"
 stop "$C"
 C=$(start defaults-aop-only -v "$WORK/ca:/aop:ro") || { bad "K5 CA without TLS did not start"; exit 1; }
-check "K5 /aop without /tls: plain, no error" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+check "K5 /aop without /tls: plain, no error" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
+stop "$C"
+
+echo "== L startup mode line"
+mode_of() { docker logs "$1" 2>&1 | grep -o 'mode: [a-z+-]*' | head -1; }
+C=$(start mode-http) || { bad "L1 container did not start"; exit 1; }
+check "L1 no files: plain HTTP only" "mode: http" "$(mode_of "$C")"
+refused "L1b nothing on 8443 without files" -k "https://localhost:$(port "$C" 8443)/"
+stop "$C"
+C=$(start mode-https -v "$WORK/tls:/tls:ro") || { bad "L2 container did not start"; exit 1; }
+check "L2 files at the defaults: https" "mode: https" "$(mode_of "$C")"
+stop "$C"
+C=$(start mode-mtls -v "$WORK/tls:/tls:ro" -v "$WORK/ca:/aop:ro") || { bad "L3 container did not start"; exit 1; }
+check "L3 files and default CA: https+client-auth" "mode: https+client-auth" "$(mode_of "$C")"
+stop "$C"
+C=$(start mode-given "${TLS[@]}") || { bad "L4 container did not start"; exit 1; }
+check "L4 explicit existing paths: https" "mode: https" "$(mode_of "$C")"
 stop "$C"
 
 echo "== I live replacement without a restart"

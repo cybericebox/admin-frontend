@@ -28,8 +28,8 @@ COPY deploy/base-domain.sh /usr/local/lib/base-domain.sh
 COPY deploy/csp.sh /docker-entrypoint.d/50-csp.sh
 # 60-nginx-config.sh renders the listener snippets from the TLS_* / HTTP_PORT / HEALTH_PORT env and runs nginx -t.
 COPY deploy/nginx-entrypoint.sh /docker-entrypoint.d/60-nginx-config.sh
-# Listener defaults (overridable): HTTP_PORT 3000, HTTPS_PORT 8443, HEALTH_PORT 8081, HEALTH_BIND 0.0.0.0. TLS_* default to /tls/tls.{crt,key}
+# Listener defaults (overridable): HTTP_PORT 8080, HTTPS_PORT 8443, HEALTH_PORT 8081, HEALTH_BIND 0.0.0.0. TLS_* default to /tls/tls.{crt,key}
 # and /aop/ca.crt when those files exist (see deploy/nginx-entrypoint.sh), so they are not ENV here.
-ENV HTTP_PORT=3000 HTTPS_PORT=8443 HEALTH_PORT=8081 HEALTH_BIND=0.0.0.0
+ENV HTTP_PORT=8080 HTTPS_PORT=8443 HEALTH_PORT=8081 HEALTH_BIND=0.0.0.0
 RUN chmod +x /docker-entrypoint.d/40-next-public-env.sh /docker-entrypoint.d/50-csp.sh /docker-entrypoint.d/60-nginx-config.sh
-EXPOSE 3000 8443
+EXPOSE 8080 8443 8081
