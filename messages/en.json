@@ -643,6 +643,7 @@
   "admin.events.err.exists": "This tag is already taken by another event for these dates",
   "admin.events.err.modified": "The data changed on the server — reload the page",
   "admin.events.err.tagInvalid": "Invalid tag: 3–64 chars, lowercase latin letters and digits only",
+  "admin.events.err.tagReserved": "This tag is reserved for a platform address. Choose another one",
   "admin.events.err.datesInvalid": "Archive date must be after the availability start",
   "admin.events.err.nameTooLong": "Name is too long (max 255 characters)",
   "admin.events.err.nameRequired": "Enter an event name",
