@@ -101,7 +101,7 @@ describe("infrastructure analytics page", () => {
     const rows = table.querySelectorAll("tbody tr")
     expect(rows[0]).toHaveTextContent("3,5 vCPU")
     expect(rows[0]).toHaveTextContent("8 ГіБ")
-    expect(rows[1]).toHaveTextContent(/250 mCPU\s*запрошено/)
+    expect(rows[1]).toHaveTextContent(/250 мілі-ядер\s*запрошено/)
     expect(rows[2].textContent).not.toMatch(/CPU/)
   })
 

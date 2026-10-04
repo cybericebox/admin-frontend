@@ -132,3 +132,10 @@ export function deleteEvent(id: string): Promise<void> {
 export function listEventManagers(id: string): Promise<EventManager[]> {
   return apiGet<EventManager[]>(`${BASE}/${encodeURIComponent(id)}/managers`)
 }
+
+/** The schedule part of GET /api/events/:id/manage/lifecycle: a configured event has a start, a finish is optional. */
+export type EventSchedule = { Configured: boolean; StartAt: string | null; FinishAt: string | null }
+
+export function getEventSchedule(id: string): Promise<EventSchedule> {
+  return apiGet<EventSchedule>(`${BASE}/${encodeURIComponent(id)}/manage/lifecycle`)
+}
