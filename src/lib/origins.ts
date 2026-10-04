@@ -1,16 +1,17 @@
-// Browser-facing origins. Every host comes from env (NEXT_PUBLIC_*_HOST, bare host, no scheme) and
-// is required: next.config.ts fails the build when one is missing and the container entrypoint
-// refuses to start. Process env is read by literal name so the bundler can inline it.
-const host = (value: string | undefined) => value?.trim() ?? ""
-const origin = (h: string) => (h ? `https://${h}` : "")
+// Browser-facing origins. Every host derives from the one base domain NEXT_PUBLIC_DOMAIN (src/lib/hosts.ts); a missing domain fails
+// the build (next.config.ts) and the container start (entrypoint).
+import { hosts } from "@/lib/hosts"
 
-export const mainHost = host(process.env.NEXT_PUBLIC_MAIN_HOST)
-export const apiHost = host(process.env.NEXT_PUBLIC_API_HOST)
-export const idHost = host(process.env.NEXT_PUBLIC_ID_HOST)
-export const adminHost = host(process.env.NEXT_PUBLIC_ADMIN_HOST)
-export const exercisesHost = host(process.env.NEXT_PUBLIC_EXERCISES_HOST)
+const h = hosts()
+const origin = (host: string) => `https://${host}`
+
+export const mainHost = h.main
+export const apiHost = h.api
+export const idHost = h.id
+export const adminHost = h.admin
+export const exercisesHost = h.exercises
 // Event sites are <tag>.<eventDomain>; the theme and consent cookies are shared on this domain.
-export const eventDomain = host(process.env.NEXT_PUBLIC_EVENT_DOMAIN)
+export const eventDomain = h.eventDomain
 
 export const apiOrigin = origin(apiHost)
 export const idOrigin = origin(idHost)

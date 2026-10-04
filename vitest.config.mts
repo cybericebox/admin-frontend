@@ -6,14 +6,8 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     globals: true,
     env: {
-      NEXT_PUBLIC_MAIN_HOST: "example.test",
-      // NEXT_PUBLIC_API_HOST stays unset: API calls are same-origin (relative) in tests.
-      NEXT_PUBLIC_ID_HOST: "id.example.test",
-      NEXT_PUBLIC_ADMIN_HOST: "admin.example.test",
-      NEXT_PUBLIC_EXERCISES_HOST: "exercises.example.test",
-      // localhost so the shared-domain cookies are accepted by jsdom.
-      NEXT_PUBLIC_EVENT_DOMAIN: "localhost",
-      NEXT_PUBLIC_COOKIE_DOMAIN: "localhost",
+      // The one base domain; every host derives from it. ("localhost" where jsdom must accept the shared-domain cookies.)
+      NEXT_PUBLIC_DOMAIN: "localhost",
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
     passWithNoTests: true,
