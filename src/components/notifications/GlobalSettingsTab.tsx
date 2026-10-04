@@ -25,20 +25,23 @@ export function GlobalSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // Saves run one after another; the switches react at once and are never disabled by a pending save.
+  // latest is set together with rows, so a click right after the load never sees an empty list.
+  const latest = useRef<Setting[]>([])
+  const queue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     let cancelled = false
     apiGet<Setting[]>("/api/notifications/settings/global")
-      .then((d) => { if (!cancelled) setRows(d ?? []) })
+      .then((d) => {
+        if (cancelled) return
+        latest.current = d ?? []
+        setRows(latest.current)
+      })
       .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [attempt])
-
-  // Saves run one after another; the switches react at once and are never disabled by a pending save.
-  const latest = useRef<Setting[]>([])
-  const queue = useRef<Promise<void>>(Promise.resolve())
-  useEffect(() => { latest.current = rows }, [rows])
 
   function patchRow(key: string, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
     const next = latest.current.map((r) => (rowKey(r) === key ? { ...r, [field]: value } : r))
