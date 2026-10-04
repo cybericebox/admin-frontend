@@ -17,6 +17,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   41102: 'admin.events.err.exists',
   71103: 'admin.events.err.modified',
   21104: 'admin.events.err.tagInvalid',
+  21142: 'admin.events.err.tagReserved',
   21105: 'admin.events.err.datesInvalid',
   21106: 'admin.events.err.nameTooLong',
   21114: 'admin.events.err.nameRequired',
