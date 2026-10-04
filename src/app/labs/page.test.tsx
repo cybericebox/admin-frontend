@@ -143,7 +143,7 @@ describe("infrastructure page", () => {
     fireEvent.click(await screen.findByText("Переглянути показники"))
     expect(screen.getByText("web-lab")).toBeInTheDocument()
     expect(screen.getByText("web")).toBeInTheDocument()
-    expect(screen.getByText("CPU: 250 mCPU")).toBeInTheDocument()
+    expect(screen.getByText("CPU: 250 мілі-ядер")).toBeInTheDocument()
     expect(screen.getByText("Отримано: 1 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Передано: 2 МіБ")).toBeInTheDocument()
     expect(screen.getByText("Заборонено")).toBeInTheDocument()
@@ -231,7 +231,7 @@ describe("infrastructure page", () => {
       expect(rows[0]).toHaveTextContent("1,5 vCPU")
       expect(rows[0]).toHaveTextContent("2 ГіБ")
       expect(rows[0]).not.toHaveTextContent("запрошено")
-      expect(rows[1]).toHaveTextContent(/500 mCPU\s*запрошено/)
+      expect(rows[1]).toHaveTextContent(/500 мілі-ядер\s*запрошено/)
       expect(rows[1]).toHaveTextContent(/512 МіБ\s*запрошено/)
       expect(rows[2].textContent).not.toMatch(/CPU/)
     })
@@ -240,7 +240,7 @@ describe("infrastructure page", () => {
       serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 7, MemoryBytes: 16 * 1024 ** 2, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
       render(<Page />)
       const row = (await screen.findByText("Вебуразливість")).closest("tr")!
-      expect(row).toHaveTextContent("7 mCPU")
+      expect(row).toHaveTextContent("7 мілі-ядер")
       expect(row).not.toHaveTextContent("0 vCPU")
     })
 
@@ -248,7 +248,7 @@ describe("infrastructure page", () => {
       serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 250, MemoryBytes: 1024 ** 3, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
       render(<Page />)
       const row = (await screen.findByText("Вебуразливість")).closest("tr")!
-      expect(row).toHaveTextContent("250 mCPU")
+      expect(row).toHaveTextContent("250 мілі-ядер")
       expect(row).toHaveTextContent("1 ГіБ")
     })
   })

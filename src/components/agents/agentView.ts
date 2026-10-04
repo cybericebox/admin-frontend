@@ -1,6 +1,7 @@
 import type { Agent } from "@/api/agents"
 import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { t } from "@/i18n/t"
+import { tPlural } from "@/i18n/plural"
 
 export const AGENT_NAME_MAX = 64
 export const AGENT_PRIORITY_MAX = 10000
@@ -40,7 +41,7 @@ export function featureChips(agent: Agent): string[] | null {
   const f = agent.Features
   if (!f) return null
   const chips = [t(f.PersistenceAvailable ? "admin.agents.feature.persistenceOn" : "admin.agents.feature.persistenceOff"), t(f.ImageCacheEnabled ? "admin.agents.feature.cacheOn" : "admin.agents.feature.cacheOff")]
-  if (f.SchedulerEnabled) chips.push(f.SchedulerMaxPods > 0 ? t("admin.agents.feature.limits", { count: f.SchedulerMaxPods }) : t("admin.agents.feature.scheduler"))
+  if (f.SchedulerEnabled) chips.push(f.SchedulerMaxPods > 0 ? tPlural("admin.agents.feature.limits", f.SchedulerMaxPods) : t("admin.agents.feature.scheduler"))
   return chips
 }
 

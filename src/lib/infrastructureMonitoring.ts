@@ -1,4 +1,5 @@
 import { t } from "@/i18n/t"
+import { tPlural } from "@/i18n/plural"
 import { formatNumber } from "@/lib/locale"
 
 type RecordValue = Record<string, unknown>
@@ -48,7 +49,7 @@ export function capacityMetrics(payload: unknown): CapacityMetrics | null {
 export function formatCpu(millicores: number | null): string {
   if (millicores === null) return "—"
   // Never round a real, small value to «0»: below one vCPU it reads in millicores.
-  if (millicores > 0 && millicores < 1000) return t("admin.labs.unit.mcpu", { value: formatNumber(millicores, { maximumFractionDigits: 0 }) })
+  if (millicores > 0 && millicores < 1000) return tPlural("admin.labs.unit.mcpu", Math.round(millicores), { value: formatNumber(millicores, { maximumFractionDigits: 0 }) })
   return t("admin.labs.unit.vcpu", { value: formatNumber(millicores / 1000, { maximumFractionDigits: 2 }) })
 }
 

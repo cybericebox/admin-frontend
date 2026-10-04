@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ApiError } from "@/api/client"
+import type { EventSchedule } from "@/api/events/catalog"
 import type { Reservation, ReservationResult } from "@/api/resourceCalendar"
 import { t } from "@/i18n/t"
-import { ReservationEditor, formFromResult, inputFromForm } from "./ReservationEditor"
+import { ReservationEditor, formFromResult, inputFromForm, needsWindow } from "./ReservationEditor"
 
 const apiGet = vi.fn()
 const apiPut = vi.fn()
@@ -31,6 +32,16 @@ function renderEditor(props: Partial<Parameters<typeof ReservationEditor>[0]> = 
 
 beforeEach(() => { apiGet.mockReset(); apiPut.mockReset() })
 
+const scheduled: EventSchedule = { Configured: true, StartAt: "2026-10-05T10:00:00Z", FinishAt: "2026-10-05T12:00:00Z" }
+const unscheduled: EventSchedule = { Configured: false, StartAt: null, FinishAt: null }
+/** The reservation answers (or fails with) its GET; the event schedule answers the lifecycle GET. */
+function serve(reservationOrError: ReservationResult | Error = result(), schedule: EventSchedule | Error = scheduled) {
+  apiGet.mockImplementation((url: string) => {
+    const answer = url.endsWith("/manage/lifecycle") ? schedule : reservationOrError
+    return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer)
+  })
+}
+
 describe("form mapping", () => {
   it("shows the saved window end without the tail gap and sends only the filled fields", () => {
     const form = formFromResult(result())
@@ -44,9 +55,46 @@ describe("form mapping", () => {
   })
 })
 
+describe("required window", () => {
+  const empty = { teams: "", perTeam: { cpu: "", memoryMiB: "" }, buffer: "", dynamic: { cpu: "", memoryMiB: "" }, tailGap: "", start: "", end: "" }
+
+  it("needs the window only for an event without a schedule", () => {
+    expect(needsWindow(scheduled)).toBe(false)
+    expect(needsWindow(unscheduled)).toBe(true)
+    expect(needsWindow({ Configured: true, FinishAt: null })).toBe(true)
+    expect(needsWindow(null)).toBe(false)
+  })
+
+  it("rejects an empty window only when it is required", () => {
+    expect(inputFromForm(empty)).toEqual({})
+    expect(inputFromForm(empty, true)).toBe("window")
+  })
+})
+
 describe("ReservationEditor", () => {
+  it("marks no window field as required when the event has a schedule", async () => {
+    serve(result(), scheduled)
+    renderEditor()
+    const start = await screen.findByRole("button", { name: t("admin.resources.editor.windowStart") })
+    expect(start.getAttribute("aria-required")).toBeNull()
+    expect(screen.getByRole("button", { name: t("admin.resources.editor.windowEnd") }).getAttribute("aria-required")).toBeNull()
+    expect(document.querySelectorAll('span[aria-hidden="true"].text-destructive')).toHaveLength(0)
+  })
+
+  it("marks both window fields as required when the event has no schedule and asks for them on save", async () => {
+    serve(apiError(404, 32513), unscheduled)
+    renderEditor()
+    const start = await screen.findByRole("button", { name: t("admin.resources.editor.windowStart") })
+    expect(start.getAttribute("aria-required")).toBe("true")
+    expect(screen.getByRole("button", { name: t("admin.resources.editor.windowEnd") }).getAttribute("aria-required")).toBe("true")
+    expect(document.querySelectorAll('span[aria-hidden="true"].text-destructive')).toHaveLength(2)
+    fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
+    expect(await screen.findByText(t("admin.resources.editor.windowRequired"))).toBeTruthy()
+    expect(apiPut).not.toHaveBeenCalled()
+  })
+
   it("previews with DryRun and shows the placement and the conflicts", async () => {
-    apiGet.mockResolvedValue(result())
+    serve()
     apiPut.mockResolvedValue(result({ Conflicts: [{ From: "2026-10-05T09:00:00Z", To: "2026-10-05T10:00:00Z", ReservationIDs: ["r2"], PoolShort: false, Unplaced: 1, Short: { CPUMillicores: 100, MemoryBytes: 0 } }] }))
     renderEditor()
     fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.preview") }))
@@ -58,7 +106,7 @@ describe("ReservationEditor", () => {
   })
 
   it("on 72504 asks to save anyway and repeats the save with AllowConflicts", async () => {
-    apiGet.mockResolvedValue(result())
+    serve()
     apiPut.mockRejectedValueOnce(apiError(409, 72504)).mockResolvedValueOnce(result({ Reservation: { ...reservation, Covered: false } }))
     const { onSaved } = renderEditor()
     fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.save") }))
@@ -72,7 +120,7 @@ describe("ReservationEditor", () => {
   })
 
   it("keeps the editor open and saves nothing when the conflict confirm is cancelled", async () => {
-    apiGet.mockResolvedValue(result())
+    serve()
     apiPut.mockRejectedValueOnce(apiError(409, 72504))
     const { onSaved } = renderEditor()
     fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.save") }))
@@ -85,21 +133,21 @@ describe("ReservationEditor", () => {
   })
 
   it("opens an empty form when the event has no reservation (32513)", async () => {
-    apiGet.mockRejectedValue(apiError(404, 32513))
+    serve(apiError(404, 32513))
     renderEditor()
     expect(await screen.findByText(t("admin.resources.editor.description"))).toBeTruthy()
     expect(screen.queryByRole("button", { name: t("admin.resources.editor.cancelReservation") })).toBeNull()
   })
 
   it("offers the cancel action for a saved reservation", async () => {
-    apiGet.mockResolvedValue(result())
+    serve()
     const { onCancelReservation } = renderEditor()
     fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.cancelReservation") }))
     expect(onCancelReservation).toHaveBeenCalledWith(target)
   })
 
   it("is read-only without infrastructure.write", async () => {
-    apiGet.mockResolvedValue(result())
+    serve()
     renderEditor({ canWrite: false })
     await screen.findByText(t("admin.resources.editor.descriptionSaved"))
     expect(screen.queryByRole("button", { name: t("admin.resources.editor.save") })).toBeNull()
