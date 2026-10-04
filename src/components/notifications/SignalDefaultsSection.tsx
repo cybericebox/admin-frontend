@@ -54,20 +54,23 @@ export function SignalDefaultsSection() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // Saves run one after another; the switches react at once and are never disabled by a pending save.
+  // latest is set together with items, so a click right after the load never sees an empty list.
+  const latest = useRef<SignalDefault[]>([])
+  const queue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     let cancelled = false
     listSignalDefaults()
-      .then((d) => { if (!cancelled) setItems(d ?? []) })
+      .then((d) => {
+        if (cancelled) return
+        latest.current = d ?? []
+        setItems(latest.current)
+      })
       .catch((cause) => { if (!cancelled) setError({ cause }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [attempt])
-
-  // Saves run one after another; the switches react at once and are never disabled by a pending save.
-  const latest = useRef<SignalDefault[]>([])
-  const queue = useRef<Promise<void>>(Promise.resolve())
-  useEffect(() => { latest.current = items }, [items])
 
   function setEnabled(key: string, enabled: boolean) {
     const next = latest.current.map((i) => (rowKey(i) === key ? { ...i, Enabled: enabled } : i))
