@@ -1,26 +1,14 @@
 import type { NextConfig } from "next"
 
 // Static export for the admin portal.
-// One base domain: every host that is not set is derived from NEXT_PUBLIC_DOMAIN (the rule of deploy/base-domain.sh, the same file in every
-// frontend). The Docker build bakes placeholders for the hosts and has no DOMAIN, so nothing is derived there.
-const HOSTS = [
-  ["NEXT_PUBLIC_MAIN_HOST", ""],
-  ["NEXT_PUBLIC_API_HOST", "api."],
-  ["NEXT_PUBLIC_ID_HOST", "id."],
-  ["NEXT_PUBLIC_ADMIN_HOST", "admin."],
-  ["NEXT_PUBLIC_EXERCISES_HOST", "exercises."],
-  ["NEXT_PUBLIC_EVENT_DOMAIN", ""],
-  ["NEXT_PUBLIC_COOKIE_DOMAIN", ""],
-] as const
-const domain = process.env.NEXT_PUBLIC_DOMAIN ?? ""
-if (domain && (domain.length > 253 || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(domain))) {
-  throw new Error(`NEXT_PUBLIC_DOMAIN must be a bare lower case host name (no scheme, port or path), got: ${domain}`)
+// One base domain: NEXT_PUBLIC_DOMAIN is the only host input and every host derives from it (src/**/hosts.ts, deploy/base-domain.sh; the daemon and
+// the infrastructure renderer share the rule and tests/base-domain-vectors.json). The Docker build bakes a placeholder for it.
+const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN ?? ""
+if (!DOMAIN) throw new Error("NEXT_PUBLIC_DOMAIN is required")
+if (DOMAIN !== "__NEXT_PUBLIC_DOMAIN__" && (DOMAIN.length > 253 || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(DOMAIN))) {
+  throw new Error(`NEXT_PUBLIC_DOMAIN must be a bare lowercase host name (no scheme, port or path), got: ${DOMAIN}`)
 }
-for (const [name, prefix] of HOSTS) {
-  if (process.env[name]?.trim()) continue
-  if (!domain) throw new Error(`${name} is required (set it, or set NEXT_PUBLIC_DOMAIN and it is derived)`)
-  process.env[name] = prefix + domain
-}
+const PLATFORM_HOSTS = [DOMAIN, `api.${DOMAIN}`, `id.${DOMAIN}`, `admin.${DOMAIN}`, `exercises.${DOMAIN}`]
 
 // Every host comes from env; a missing one fails the build (and `next dev`).
 const REQUIRED = [
@@ -33,9 +21,8 @@ if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}
 const devOrigins = process.env.DEV_ALLOWED_ORIGINS
   ? process.env.DEV_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
   : [
-      ...HOSTS.map(([name]) => name).filter((name) => name.endsWith("_HOST")).map((name) => process.env[name]!.trim()),
-      process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim(),
-      `*.${process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim()}`,
+      ...PLATFORM_HOSTS,
+      `*.${DOMAIN}`,
     ]
 
 // Dev-only Content-Security-Policy (`next dev` serves real headers; the export gets its CSP from
@@ -44,7 +31,7 @@ const devOrigins = process.env.DEV_ALLOWED_ORIGINS
 // stack, HMR) and cannot use hashes, and connect-src also allows the HMR websocket.
 // Hosts and vendor toggles come from the same env as production.
 function devContentSecurityPolicy(): string {
-  const api = `https://${process.env.NEXT_PUBLIC_API_HOST!.trim()}`
+  const api = `https://api.${DOMAIN}`
   const script = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
   const connect = ["'self'", api, "ws:", "wss:"]
   if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID?.trim()) {
