@@ -68,7 +68,8 @@ export type DeviceScheduling = {
   Failure: DeviceFailure | null
 }
 export type DeviceSnapshot = { LastSnapshotAt: string | null; RestoredAt: string | null; SizeBytes: number; Warning: string; Rescue: boolean }
-export type LabDevice = { Name: string; Ready: boolean; Reason: string; Scheduling: DeviceScheduling | null; Snapshot: DeviceSnapshot | null }
+/** Type is the topology device type (container, unmanaged-switch, hub) or a reserved gateway (vpn, internet); LogicalName is its name in the exercise topology. Both are absent when unknown. */
+export type LabDevice = { Name: string; Type?: string; LogicalName?: string; Ready: boolean; Reason: string; Scheduling: DeviceScheduling | null; Snapshot: DeviceSnapshot | null }
 export type LabLive = {
   Phase: string
   Ready: boolean

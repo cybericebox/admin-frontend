@@ -37,6 +37,38 @@ describe("test lab detail", () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2))
   })
 
+  it("names each device by its topology name and type, and states the started pods positively", async () => {
+    apiGet.mockResolvedValue({
+      ID: "lab-1", GroupName: "t-1", Status: "ready",
+      Live: {
+        Phase: "Ready", Ready: true, Queue: { Position: 0, Length: 1, Reason: "", Message: "", Pods: 3, Pending: 0 }, ImageWarning: "", GroupImageWarning: "",
+        Devices: [
+          { Name: "web", LogicalName: "web", Type: "container", Ready: true, Reason: "", Scheduling: null, Snapshot: null },
+          { Name: "sw-1f15b9e9bb8d5c1d84c6b7a8547cdd98", LogicalName: "lan", Type: "unmanaged-switch", Ready: true, Reason: "", Scheduling: null, Snapshot: null },
+          { Name: "vpn", Type: "vpn", Ready: true, Reason: "", Scheduling: null, Snapshot: null },
+        ],
+      },
+    })
+    render(<TestLabDetailDialog lab={lab} canWrite={false} onClose={() => {}} />)
+    expect(await screen.findByText("Запущено подів: 3 з 3")).toBeInTheDocument()
+    expect(screen.queryByText(/Не запущено подів/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/У черзі/)).not.toBeInTheDocument()
+    expect(screen.getByText("Контейнер")).toBeInTheDocument()
+    expect(screen.getByText("Комутатор")).toBeInTheDocument()
+    expect(screen.getByText("VPN-шлюз")).toBeInTheDocument()
+    expect(screen.getByText("lan")).toBeInTheDocument()
+    expect(screen.queryByText(/sw-1f15b9e9/)).not.toBeInTheDocument()
+  })
+
+  it("counts the pods that already started when some still wait", async () => {
+    apiGet.mockResolvedValue({
+      ID: "lab-1", GroupName: "t-1", Status: "creating",
+      Live: { Phase: "Provisioning", Ready: false, Queue: { Position: 1, Length: 2, Reason: "WaitingForTurn", Message: "", Pods: 3, Pending: 2 }, ImageWarning: "", GroupImageWarning: "", Devices: [] },
+    })
+    render(<TestLabDetailDialog lab={lab} canWrite={false} onClose={() => {}} />)
+    expect(await screen.findByText("Запущено подів: 1 з 3")).toBeInTheDocument()
+  })
+
   it("is read-only without write access", async () => {
     render(<TestLabDetailDialog lab={lab} canWrite={false} onClose={() => {}} />)
     expect(await screen.findByText("pull denied")).toBeInTheDocument()
