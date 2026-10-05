@@ -139,6 +139,7 @@ export default function Page() {
       } else {
         await deleteEvent(confirming.event.ID)
         setRows((prev) => prev.filter((r) => r.ID !== confirming.event.ID))
+        setTotal((prev) => Math.max(0, prev - 1))
         toast.success(t("admin.events.deleted"))
       }
       setConfirming(null)
