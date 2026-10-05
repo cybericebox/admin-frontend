@@ -311,6 +311,7 @@ describe('events catalog page', () => {
     fireEvent.click(within(dialog).getByText('admin.events.delete.confirm'))
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith(EV_ID))
     await waitFor(() => expect(screen.queryByRole('link', { name: /admin.events.action.openSite/ })).not.toBeInTheDocument())
+    expect(screen.getByText('admin.table.total: 0')).toBeInTheDocument()
   })
 
   it('keeps the confirmation open while an archive request is pending', async () => {
