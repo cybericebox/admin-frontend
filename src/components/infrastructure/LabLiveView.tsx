@@ -13,6 +13,7 @@ import { t } from "@/i18n/t"
 
 const PHASES = ["Pending", "Provisioning", "Ready", "Failed", "Queued"] as const
 const POD_STATES = ["Queued", "Starting", "Started", "Failed"] as const
+const DEVICE_TYPES = ["container", "unmanaged-switch", "hub", "vpn", "internet"] as const
 const FAILURE_REASONS = ["ImagePull", "CrashLoop", "Unschedulable", "StartupTimeout", "DoesNotFit"] as const
 
 const known = (list: readonly string[], value: string) => list.includes(value) ? value : "unknown"
@@ -43,21 +44,23 @@ function DeviceRow({ device, canWrite, onReset, onRescue }: { device: LabDevice;
   const scheduling = device.Scheduling
   const snapshot = device.Snapshot
   const state = scheduling ? known(POD_STATES, scheduling.State) : null
+  const label = device.LogicalName || device.Name
   return <li className="space-y-3 rounded-lg border border-border p-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <span className="break-all font-medium text-foreground">{device.Name}</span>
+        <span className="break-all font-medium text-foreground">{label}</span>
+        {device.Type && <Chip className="bg-secondary/40 text-muted-foreground">{t(`admin.labs.detail.deviceType.${known(DEVICE_TYPES, device.Type)}`)}</Chip>}
         <Chip className={device.Ready ? PHASE_STYLE.Ready : undefined}>{t(device.Ready ? "admin.labs.detail.device.ready" : "admin.labs.detail.device.notReady")}</Chip>
         {state && <Chip className={podStateStyle(state)}>{t(`admin.labs.detail.pod.${state}`)}</Chip>}
         {snapshot?.Rescue && <Chip>{t("admin.labs.detail.rescue.active")}</Chip>}
       </div>
       {canWrite && snapshot && <div className="flex items-center gap-3">
         <label className="inline-flex items-center gap-2 text-sm">
-          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={`${t("admin.labs.detail.rescue.toggle")}: ${device.Name}`} />
+          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={`${t("admin.labs.detail.rescue.toggle")}: ${label}`} />
           {t("admin.labs.detail.rescue.toggle")}
         </label>
         <HoverTooltip text={t("admin.labs.detail.reset")}>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.detail.reset")}: ${device.Name}`} onClick={() => onReset(device.Name)}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.detail.reset")}: ${label}`} onClick={() => onReset(device.Name)}>
             <RotateCcw aria-hidden="true" className="h-4 w-4" />
           </Button>
         </HoverTooltip>
@@ -98,7 +101,7 @@ export function LabLiveView({ live, unavailable = false, canWrite, onReset, onRe
     <div className="flex flex-wrap items-center gap-2">
       <Chip className={PHASE_STYLE[phase] ?? undefined}>{t(`admin.labs.detail.phase.${phase}`)}</Chip>
       {live.Queue && live.Queue.Position > 0 && <QueueBadge position={live.Queue.Position} length={live.Queue.Length} reason={live.Queue.Reason} />}
-      {live.Queue && live.Queue.Pods > 0 && <span className="text-xs text-muted-foreground">{t("admin.labs.detail.queue.pods", { pending: live.Queue.Pending, pods: live.Queue.Pods })}</span>}
+      {live.Queue && live.Queue.Pods > 0 && <span className="text-xs text-muted-foreground">{t("admin.labs.detail.queue.pods", { started: live.Queue.Pods - live.Queue.Pending, pods: live.Queue.Pods })}</span>}
       {live.Queue?.Message && <span className="break-words text-xs text-muted-foreground">{live.Queue.Message}</span>}
       {warning && <ImageWarningIcon detail={warning} />}
     </div>
