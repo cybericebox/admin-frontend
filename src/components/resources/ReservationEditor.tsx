@@ -194,7 +194,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
         {phase === "failed" && <LoadError className="min-h-56" message={t("admin.resources.editor.loadError")} error={loadError} onRetry={() => setAttempt((n) => n + 1)} />}
         {phase === "ready" && <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("admin.resources.editor.teams")}>
+            <Field label={t("admin.resources.editor.teams")} help={t("admin.resources.editor.teamsHelp")}>
               <NumberInput value={form.teams} onChange={(teams) => set({ teams })} placeholder={t("admin.resources.editor.byPlan")} disabled={disabled} />
             </Field>
             <Field label={t("admin.resources.editor.buffer")} help={t("admin.resources.editor.bufferHelp")}>
@@ -209,7 +209,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
             <Field label={t("admin.resources.editor.windowStart")} help={t("admin.resources.editor.windowHelp")} required={windowRequired}>
               <DateTimePicker value={form.start} onChange={(start) => set({ start })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowStart")} aria-required={windowRequired || undefined} />
             </Field>
-            <Field label={t("admin.resources.editor.windowEnd")} required={windowRequired}>
+            <Field label={t("admin.resources.editor.windowEnd")} help={t("admin.resources.editor.windowEndHelp")} required={windowRequired}>
               <DateTimePicker value={form.end} onChange={(end) => set({ end })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowEnd")} aria-required={windowRequired || undefined} />
             </Field>
             <Field label={t("admin.resources.editor.tailGap")} help={t("admin.resources.editor.tailGapHelp")}>
