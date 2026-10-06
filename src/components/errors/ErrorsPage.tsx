@@ -2,7 +2,7 @@
 import { Suspense, useSyncExternalStore } from "react"
 import { usePathname } from "next/navigation"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { PageHeader } from "@/components/ui/page-header"
 import { LoadingArea } from "@/components/ui/spinner"
 import { useUrlState } from "@/lib/useUrlState"

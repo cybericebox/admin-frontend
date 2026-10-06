@@ -3,7 +3,7 @@
 import { Suspense } from "react"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { AuditLogPage } from "@/components/audit/AuditLogPage"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 

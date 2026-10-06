@@ -3,7 +3,7 @@
 import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { ELEVATION_READ_PERM } from "@/api/elevations"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { ElevationDetail } from "@/components/elevations/ElevationDetail"
 import { LoadingArea } from "@/components/ui/spinner"

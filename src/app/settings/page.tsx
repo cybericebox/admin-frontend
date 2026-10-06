@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { useRole } from "@/lib/useRole"
 import { formatListDateTime, formatNumber } from "@/lib/locale"

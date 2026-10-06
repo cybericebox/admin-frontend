@@ -1,6 +1,6 @@
 "use client"
 
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { InfrastructureAnalytics } from "@/components/analytics/infrastructure/InfrastructureAnalytics"
 

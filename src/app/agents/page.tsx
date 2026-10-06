@@ -1,7 +1,7 @@
 "use client"
 
 import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { AgentsPage } from "@/components/agents/AgentsPage"
 import { t } from "@/i18n/t"
 

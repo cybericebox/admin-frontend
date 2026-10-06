@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/components/ui/toast"
 import {

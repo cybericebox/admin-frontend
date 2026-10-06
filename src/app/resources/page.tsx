@@ -2,7 +2,7 @@
 
 import { Suspense } from "react"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { NoAccess } from "@/components/common/NoAccess"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { ResourcesPage } from "@/components/resources/ResourcesPage"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
