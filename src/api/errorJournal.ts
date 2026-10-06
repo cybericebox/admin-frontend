@@ -49,9 +49,20 @@ export type ErrorFilters = {
   kinds: ErrorKind[]
   status: ErrorStatus | ""
   q: string
+  /** Request-id prefix (8+ hex), from the reference number of a 500 page: groups with a sample of that request. */
+  request?: string
   /** RFC 3339, on last seen. */
   from?: string
   to?: string
+}
+
+/**
+ * The request id out of what a user quotes: «50310-a1b2c3d4» or «a1b2c3d4» (the part after the last dash), lower case.
+ * Undefined when it is not 8 or more hex digits.
+ */
+export function parseReference(input: string): string | undefined {
+  const rid = input.trim().split("-").pop()?.toLowerCase() ?? ""
+  return /^[0-9a-f]{8,}$/.test(rid) ? rid : undefined
 }
 
 export function groupListPath(filters: ErrorFilters, limit: number, offset: number): string {
@@ -59,6 +70,7 @@ export function groupListPath(filters: ErrorFilters, limit: number, offset: numb
   if (filters.kinds.length) params.set("kind", filters.kinds.join(","))
   if (filters.status) params.set("status", filters.status)
   if (filters.q) params.set("q", filters.q)
+  if (filters.request) params.set("request", filters.request)
   if (filters.from) params.set("from", filters.from)
   if (filters.to) params.set("to", filters.to)
   params.set("limit", String(limit))

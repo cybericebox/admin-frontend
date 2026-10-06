@@ -17,7 +17,7 @@ afterEach(() => {
 })
 
 describe("ServiceStatusGate", () => {
-  it("shows the modal only after two failed probes, about 30 s after the first failure", async () => {
+  it("shows the modal after one failed probe, about 15 s after the first failure", async () => {
     vi.useFakeTimers()
     const fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
     vi.stubGlobal("fetch", fetch)
@@ -28,11 +28,6 @@ describe("ServiceStatusGate", () => {
     expect(fetch).not.toHaveBeenCalled()
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
     expect(fetch).toHaveBeenCalledOnce()
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    await act(async () => { await vi.advanceTimersByTimeAsync(14_999) })
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-    expect(fetch).toHaveBeenCalledTimes(2)
     expect(screen.getByRole("alertdialog")).toBeInTheDocument()
     expect(screen.getByText("serviceGate.title")).toBeInTheDocument()
     expect(screen.getByText("serviceGate.nextTry 3")).toBeInTheDocument()
@@ -48,21 +43,6 @@ describe("ServiceStatusGate", () => {
     act(() => { reportServiceUnavailable() })
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
     expect(fetch).toHaveBeenCalledOnce()
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    expect(getServiceStatus()).toBe("up")
-  })
-
-  it("shows nothing when the first probe fails but the API is back for the second (20 s)", async () => {
-    vi.useFakeTimers()
-    const fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
-    vi.stubGlobal("fetch", fetch)
-    render(<ServiceStatusGate />)
-    act(() => { reportServiceUnavailable() })
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000) })
-    expect(getServiceStatus()).toBe("suspect")
-    fetch.mockResolvedValue(new Response("{}", { status: 200 }))
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000) })
-    expect(fetch).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     expect(getServiceStatus()).toBe("up")
   })
@@ -110,5 +90,22 @@ describe("ServiceStatusGate", () => {
     expect(fetch).toHaveBeenCalledOnce()
     await act(async () => { await vi.advanceTimersByTimeAsync(30000) })
     expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it("dims and inerts the app root behind the card, Esc does nothing, and the root is released after", () => {
+    reportServiceUnavailable()
+    confirmServiceUnavailable()
+    const { unmount } = render(<div id="app-root"><button>behind</button></div>)
+    const root = document.getElementById("app-root")!
+    const gate = render(<ServiceStatusGate />)
+    expect(root).toHaveAttribute("inert")
+    expect(root).toHaveClass("ib-service-down-behind")
+    expect(screen.getByRole("button", { name: "serviceGate.retryNow" })).toHaveFocus()
+    expect(fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" })).toBe(false)
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument()
+    gate.unmount()
+    expect(root).not.toHaveAttribute("inert")
+    expect(root).not.toHaveClass("ib-service-down-behind")
+    unmount()
   })
 })

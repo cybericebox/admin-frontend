@@ -166,7 +166,7 @@ function UsersList() {
         onClosed={() => { goToPage(1); setError(null); setReloadKey((k) => k + 1) }}
       />
 
-      <div ref={tableScrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto" aria-busy={loading}>
+      <div ref={tableScrollRef} className="min-h-0 overflow-auto" aria-busy={loading}>
         <TableWrap label={t("admin.users.title")} rows={8} className="min-h-0">
           <table className={`ib-table${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.users.title")}>
             <thead>

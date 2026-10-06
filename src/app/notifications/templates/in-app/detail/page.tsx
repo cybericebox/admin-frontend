@@ -26,7 +26,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { ApiError } from "@/api/client"
 import { errorOr } from "@/i18n/apiError"
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { NotFoundBlock } from "@/components/ErrorPage"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
@@ -301,7 +301,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (notFound) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <NotFoundScreen block title={t("admin.notif.tpl.notFound")} />
+        <NotFoundBlock title={t("admin.notif.tpl.notFound")} />
       </div>
     )
   }

@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn"
 export const kindLabel = (kind: string) => t(`admin.errors.kind.${kind}`)
 export const statusLabel = (status: string) => t(`admin.errors.status.${status}`)
 
-export const errorGroupHref = (id: string) => `/errors/${encodeURIComponent(id)}`
+export const errorGroupHref = (id: string, ref?: string) => `/errors/${encodeURIComponent(id)}${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`
 
 export const STATUS_TONE: Record<ErrorStatus, string> = {
   open: "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]",

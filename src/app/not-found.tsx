@@ -1,6 +1,6 @@
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { NotFoundBlock } from "@/components/ErrorPage"
 
-// Next answers with a real 404 for this file (static export: 404.html).
+// Rendered inside the shell, so the block mode. Next answers with a real 404 for this file (static export: 404.html).
 export default function NotFound() {
-  return <NotFoundScreen />
+  return <NotFoundBlock />
 }

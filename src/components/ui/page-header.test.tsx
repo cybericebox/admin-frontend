@@ -9,21 +9,28 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
 
 describe("PageHeader", () => {
-  it("owns the page's only h1 with count, sub line, actions and crumbs", () => {
-    render(<PageHeader title="Заходи" count={12} sub="Усі заходи платформи" actions={<button>Створити</button>} crumbs={[{ label: "Панель", href: "/dashboard" }, { label: "Заходи" }]} />)
+  it("owns the page's only h1 with count, sub line and actions", () => {
+    render(<PageHeader title="Заходи" count={12} sub="Усі заходи платформи" actions={<button>Створити</button>} />)
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Заходи12")
     expect(screen.getByText("Усі заходи платформи")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Створити" })).toBeInTheDocument()
-    expect(screen.getByRole("navigation", { name: "ui.breadcrumbs" })).toBeInTheDocument()
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument()
   })
 
   it("reports a string title to the shell for the document title and clears it on unmount", () => {
     const set = vi.fn()
     const { unmount } = render(<PageTitleContext.Provider value={set}><PageHeader title="Spring CTF" /></PageTitleContext.Provider>)
-    expect(set).toHaveBeenLastCalledWith("Spring CTF")
+    expect(set).toHaveBeenLastCalledWith({ title: "Spring CTF", crumbs: null })
     unmount()
     expect(set).toHaveBeenLastCalledWith(null)
+  })
+
+  it("hands its crumbs to the shell instead of drawing them", () => {
+    const set = vi.fn()
+    render(<PageTitleContext.Provider value={set}><PageHeader title="Spring CTF" crumbs={[{ label: "Заходи", href: "/events" }, { label: "Spring CTF" }]} /></PageTitleContext.Provider>)
+    expect(set).toHaveBeenLastCalledWith({ title: "Spring CTF", crumbs: [{ label: "Заходи", href: "/events" }, { label: "Spring CTF" }] })
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument()
   })
 })
 

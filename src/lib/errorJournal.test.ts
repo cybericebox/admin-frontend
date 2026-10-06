@@ -31,6 +31,16 @@ describe("applyStreamEvent", () => {
     expect(next.total).toBe(2)
   })
 
+  it("with a request filter a live event joins only when its own sample is that request", () => {
+    const filters = { ...none, request: "a1b2c3d4" }
+    const page = { items: [group({ ID: "a" })], total: 1 }
+    const other = applyStreamEvent(page, { Group: group({ ID: "n" }), Sample: { RequestID: "ffffffff-0000" } as ErrorStreamEvent["Sample"], New: true }, filters, 50, 0)
+    expect(other.items.map((g) => g.ID)).toEqual(["a"])
+    const hit = applyStreamEvent(page, { Group: group({ ID: "n", LastSeenAt: "2026-10-02T00:00:00Z" }), Sample: { RequestID: "A1B2C3D4-0000" } as ErrorStreamEvent["Sample"], New: true }, filters, 50, 0)
+    expect(hit.items.map((g) => g.ID)).toEqual(["n", "a"])
+    expect(applyStreamEvent(page, event(group({ ID: "a", Occurrences: 3 })), filters, 50, 0).items[0].Occurrences).toBe(3)
+  })
+
   it("adds a new group on the first page and counts it", () => {
     const next = applyStreamEvent({ items: [group({ ID: "a" })], total: 1 }, event(group({ ID: "n", LastSeenAt: "2026-10-02T00:00:00Z" }), true), filters, 50, 0)
     expect(next.items.map((g) => g.ID)).toEqual(["n", "a"])

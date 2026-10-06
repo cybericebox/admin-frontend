@@ -1,7 +1,6 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/utils/cn"
 import { t } from "@/i18n/t"
 
 const TABS = [
@@ -13,23 +12,10 @@ const TABS = [
 export function SettingsTabs() {
   const pathname = (usePathname() ?? "").replace(/\/$/, "") || "/"
   return (
-    <nav aria-label={t("admin.settings.tabsLabel")} className="inline-flex h-9 w-fit items-center rounded-lg bg-muted p-1 text-muted-foreground">
-      {TABS.map((tab) => {
-        const active = pathname === tab.href
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "inline-flex items-center rounded-md px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-              active ? "bg-background text-foreground" : "hover:text-foreground",
-            )}
-          >
-            {t(tab.labelKey)}
-          </Link>
-        )
-      })}
+    <nav aria-label={t("admin.settings.tabsLabel")} className="ib-tabs ib-tabs--page">
+      {TABS.map((tab) => (
+        <Link key={tab.href} href={tab.href} aria-current={pathname === tab.href ? "page" : undefined}>{t(tab.labelKey)}</Link>
+      ))}
     </nav>
   )
 }

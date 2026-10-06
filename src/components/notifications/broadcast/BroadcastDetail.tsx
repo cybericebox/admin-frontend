@@ -1,12 +1,12 @@
 "use client"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { t } from "@/i18n/t"
 import { ApiError } from "@/api/client"
 import { BROADCAST_VARIABLES, getBroadcast, listBroadcastDeliveries, type Broadcast, type BroadcastDelivery } from "@/api/notifications/broadcasts"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { NotFoundBlock } from "@/components/ErrorPage"
+import { PageHeader } from "@/components/ui/page-header"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -105,14 +105,17 @@ export function BroadcastDetail({ id }: { id: string }) {
   }, [sending])
 
   const previewValues = useMemo(() => Object.fromEntries(BROADCAST_VARIABLES.map((name) => [name, broadcastSample(name)])), [])
-  const back = <Link href="/notifications/broadcasts" className="text-sm text-primary hover:underline">{t("admin.notif.back.broadcasts")}</Link>
+  const crumbs = (label: string) => [{ label: t("admin.notif.broadcast.title"), href: "/notifications/broadcasts" }, { label }]
 
   if (error && !broadcast) {
     const missing = error.cause instanceof ApiError && error.cause.status === 404
     return (
-      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        {missing ? <NotFoundScreen block title={t("admin.notif.broadcast.notFound")} />
-          : <>{back}<LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} className="flex-1" onRetry={() => { setError(null); setReload((n) => n + 1) }} /></>}
+      <div className="flex h-full flex-col gap-4">
+        <PageHeader title={t("admin.notif.broadcast.title")} />
+        <div className="frost-panel frost-in flex flex-1 flex-col rounded-lg p-8">
+          {missing ? <NotFoundBlock title={t("admin.notif.broadcast.notFound")} />
+            : <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} className="flex-1" onRetry={() => { setError(null); setReload((n) => n + 1) }} />}
+        </div>
       </div>
     )
   }
@@ -123,12 +126,10 @@ export function BroadcastDetail({ id }: { id: string }) {
   const fact = (label: string, value: React.ReactNode) => <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="text-sm text-foreground">{value}</dd></div>
 
   return (
+    <div className="flex flex-col gap-4">
+    <PageHeader title={broadcastHeading(broadcast)} crumbs={crumbs(broadcastHeading(broadcast))}
+      actions={<StatusPill status={broadcastPillStatus(broadcast.Status)} label={broadcastStatusLabel(broadcast.Status)} />} />
     <div className="frost-panel frost-in rounded-lg p-6">
-      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
-        {back}
-        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold text-foreground">{broadcastHeading(broadcast)}</h1>
-        <StatusPill status={broadcastPillStatus(broadcast.Status)} label={broadcastStatusLabel(broadcast.Status)} />
-      </div>
 
       <dl className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {fact(t("admin.notif.broadcast.channels"), broadcast.Channels.map(broadcastChannelLabel).join(", "))}
@@ -156,6 +157,7 @@ export function BroadcastDetail({ id }: { id: string }) {
       </div>
 
       <Deliveries id={id} sending={sending} />
+    </div>
     </div>
   )
 }

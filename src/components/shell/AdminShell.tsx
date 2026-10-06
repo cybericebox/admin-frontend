@@ -1,42 +1,31 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
+import { ErrorPage } from "@/components/ErrorPage"
 import { SiteBannerBar } from "./SiteBanner"
 import { NoAccessScreen } from "./NoAccessScreen"
 import { SignInRedirect } from "./SignInRedirect"
 import { MobileDrawer } from "./MobileDrawer"
-import { PageTitleContext } from "./PageTitle"
+import { PageTitleContext, type PageMeta } from "./PageTitle"
+import type { Crumb } from "@/components/ui/breadcrumbs"
 import { routeTitleKey } from "./routeTitles"
 import { useMediaQuery } from "./useMediaQuery"
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { role, isLoading } = useRole()
+  const { role, isLoading, error, retry } = useRole()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  // One h1 per page: the page's own h1 when it has one, otherwise the top bar title takes the role.
-  const mainRef = useRef<HTMLElement>(null)
-  const [pageHasH1, setPageHasH1] = useState(false)
   const desktop = useMediaQuery("(min-width: 768px)")
-  // A page that knows its own title (PageHeader with an event name) reports it; otherwise the route's section title is used.
-  const [pageTitle, setPageTitle] = useState<string | null>(null)
+  // A page that knows its own title and trail (PageHeader with an event name) reports them; otherwise the route's section title is used.
+  const [pageMeta, setPageMeta] = useState<PageMeta | null>(null)
+  const pageTitle = pageMeta?.title ?? null
   const sectionKey = routeTitleKey(pathname)
   const sectionTitle = sectionKey ? t(sectionKey) : null
-  const ready = !isLoading && role !== null && role !== "user"
-  useEffect(() => {
-    const main = mainRef.current
-    if (!main) return
-    const check = () => setPageHasH1(main.querySelector("h1") !== null)
-    check()
-    const observer = new MutationObserver(check)
-    observer.observe(main, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [ready])
-
   useEffect(() => {
     const page = pageTitle ?? sectionTitle
     document.title = page ? t("admin.title.template", { page }) : t("meta.title")
@@ -48,8 +37,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (desktop) setMenuOpen(false)
   }, [desktop])
 
+  // Top bar trail: the page's own crumbs, else just the section as plain text (a top-level page never links to itself).
+  const crumbs: readonly Crumb[] = pageMeta?.crumbs ?? [{ label: sectionTitle ?? t("admin.shell.title") }]
+
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
+  }
+
+  // The session check failed (5xx / network error): never the endless loader, the 500 page with a retry.
+  if (error) {
+    return <ErrorPage mode="page" status={500} title={t("error.page.title")} text={t("error.page.body")} error={error} report onRetry={retry} />
   }
 
   // Not authenticated (401) → straight to the id sign-in with return_to, behind the loader.
@@ -63,15 +60,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <PageTitleContext.Provider value={setPageTitle}>
+    <PageTitleContext.Provider value={setPageMeta}>
       <div className="flex h-dvh overflow-hidden bg-background">
         <a className="ib-skip" href="#main">{t("admin.shell.skip")}</a>
         {desktop && <Sidebar />}
         {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} />}
         <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
-          <TopBar title={sectionTitle ?? t("admin.shell.title")} heading={!pageHasH1} onMenuClick={() => setMenuOpen(true)} />
+          <TopBar crumbs={crumbs} onMenuClick={() => setMenuOpen(true)} />
           <SiteBannerBar />
-          <main ref={mainRef} id="main" tabIndex={-1} data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
+          <main id="main" tabIndex={-1} data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
         </div>
       </div>
     </PageTitleContext.Provider>

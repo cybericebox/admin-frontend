@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { NotFoundBlock } from "@/components/ErrorPage"
 import { LoadError } from "@/components/ui/load-error"
 import { PageHeader } from "@/components/ui/page-header"
 import { formatListDate, formatListDateTime } from "@/lib/locale"
@@ -109,7 +109,7 @@ function Detail() {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
         <PageHeader title={t("admin.nav.users")} crumbs={[usersCrumb()]} />
-        <NotFoundScreen block title={t("admin.userDetail.notFound")} />
+        <NotFoundBlock title={t("admin.userDetail.notFound")} />
       </div>
     )
   }
