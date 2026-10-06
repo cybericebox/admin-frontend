@@ -64,15 +64,16 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    // Three blocks split by thin dividers: resources, logs, settings.
     id: "platform", href: "", label: "admin.nav.section.platform", icon: Layers,
     children: [
       { href: "/labs", label: "admin.nav.labs", icon: Server, perm: "infrastructure.read" },
       { href: "/agents", label: "admin.nav.agents", icon: Cable, perm: "infrastructure.read" },
       { href: "/resources", label: "admin.nav.resources", icon: CalendarClock, perm: "infrastructure.read" },
       { href: "/elevations", label: "admin.nav.elevations", icon: Cpu, perm: ELEVATION_READ_PERM },
-      { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read" },
-      { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read" },
+      { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read", divider: true },
       { href: "/errors", label: "admin.nav.errors", icon: Bug, perm: "platform.errors.read" },
+      { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read", divider: true },
     ],
   },
 ]
