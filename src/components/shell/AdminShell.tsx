@@ -6,6 +6,7 @@ import { TopBar } from "./TopBar"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
+import { ErrorPage } from "@/components/ErrorPage"
 import { SiteBannerBar } from "./SiteBanner"
 import { NoAccessScreen } from "./NoAccessScreen"
 import { SignInRedirect } from "./SignInRedirect"
@@ -16,7 +17,7 @@ import { routeTitleKey } from "./routeTitles"
 import { useMediaQuery } from "./useMediaQuery"
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { role, isLoading } = useRole()
+  const { role, isLoading, error, retry } = useRole()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const desktop = useMediaQuery("(min-width: 768px)")
@@ -41,6 +42,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
+  }
+
+  // The session check failed (5xx / network error): never the endless loader, the 500 page with a retry.
+  if (error) {
+    return <ErrorPage mode="page" status={500} title={t("error.page.title")} text={t("error.page.body")} error={error} report onRetry={retry} />
   }
 
   // Not authenticated (401) → straight to the id sign-in with return_to, behind the loader.
