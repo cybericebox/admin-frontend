@@ -158,7 +158,7 @@ export function AuditLogPage() {
         filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-end gap-x-3 gap-y-3">{filterControls}</div>} />
       {badRange && <p role="alert" className="text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}
 
-      <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0 flex-1" >
+      <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0">
         <table aria-label={t("admin.audit.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">
           <thead><tr>{COLUMNS.map(sortHeader)}</tr></thead>
           {state ? <TableState colSpan={COLUMNS.length} kind={state}

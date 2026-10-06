@@ -16,7 +16,7 @@ export function TablePagination({ page, pageSize, total, busy, onPage, onPageSiz
   onPageSize: (pageSize: number) => void
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize))
-  return <div className="mt-auto grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
+  return <div className="grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span>{t("admin.table.totalCount", { total })}</span>
       <span className="whitespace-nowrap">{t("admin.table.pageOf", { page, pages })}</span>

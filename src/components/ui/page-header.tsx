@@ -1,11 +1,11 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs"
-import { usePageTitle } from "@/components/shell/PageTitle"
+import type { Crumb } from "@/components/ui/breadcrumbs"
+import { usePageMeta } from "@/components/shell/PageTitle"
 
-// The one page header (DS page-header.css): breadcrumbs, the page's only h1, count, one sub line, actions, then a filters row.
-// A string title also becomes the document title.
+// The one page header (DS page-header.css): the page's only h1, count, one sub line, actions, then a filters row.
+// A string title also becomes the document title; crumbs are shown in the top bar, not here.
 export function PageHeader({ title, count, sub, actions, crumbs, filters }: {
   title: ReactNode
   count?: number | string
@@ -14,10 +14,9 @@ export function PageHeader({ title, count, sub, actions, crumbs, filters }: {
   crumbs?: readonly Crumb[]
   filters?: ReactNode
 }) {
-  usePageTitle(typeof title === "string" ? title : null)
+  usePageMeta(typeof title === "string" ? title : null, crumbs)
   return (
     <header className="ib-page-header">
-      {crumbs && crumbs.length > 0 && <Breadcrumbs items={crumbs} />}
       <div className="ib-page-header__top">
         <div className="ib-page-header__heading">
           <h1 className="ib-page-header__title">{title}{count !== undefined && <span className="ib-page-header__count">{count}</span>}</h1>

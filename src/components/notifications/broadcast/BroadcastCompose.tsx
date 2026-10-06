@@ -1,10 +1,10 @@
 "use client"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert } from "@/components/ui/alert"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -133,12 +133,11 @@ export function BroadcastCompose() {
 
   const label = "mb-1 block text-sm font-medium text-foreground"
   return (
+    <div className="flex flex-col gap-4">
+    <PageHeader title={t("admin.notif.broadcast.new")}
+      crumbs={[{ label: t("admin.notif.broadcast.title"), href: "/notifications/broadcasts" }, { label: t("admin.notif.broadcast.new") }]}
+      actions={<Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>} />
     <div className="frost-panel frost-in rounded-lg p-6">
-      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
-        <Link href="/notifications/broadcasts" className="shrink-0 text-sm text-primary hover:underline">{t("admin.notif.back.broadcasts")}</Link>
-        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold text-foreground">{t("admin.notif.broadcast.new")}</h1>
-        <Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,45%)]">
         <div className="min-w-0 space-y-6">
@@ -248,6 +247,7 @@ export function BroadcastCompose() {
         error={sendError}
         onConfirm={() => void send()}
       />
+    </div>
     </div>
   )
 }

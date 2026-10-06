@@ -14,7 +14,7 @@ vi.mock("@/components/FeedbackMenuItem", () => ({ FeedbackMenuItem: () => null }
 describe("top bar", () => {
   it("keeps the theme switch and the view-only badge in the bar from md up, and offers both in the account menu on narrow screens", () => {
     role.value = "admin_viewer"
-    const { container } = render(<TopBar title="Заходи" />)
+    const { container } = render(<TopBar crumbs={[{ label: "Заходи" }]} />)
     // In the bar: hidden below md through a utility class.
     const barSwitch = screen.getByRole("radiogroup", { name: "theme.label" })
     expect(barSwitch.parentElement).toHaveClass("max-md:hidden")
@@ -27,11 +27,18 @@ describe("top bar", () => {
     expect(document.documentElement.dataset.theme).toBe("dark")
   })
 
-  it("the title is the page h1 unless the page has its own", () => {
+  it("shows the trail only: no h1, links on every crumb but the last", () => {
     role.value = "admin"
-    const { rerender } = render(<TopBar title="Заходи" />)
-    expect(screen.getByRole("heading", { level: 1, name: "Заходи" })).toBeInTheDocument()
-    rerender(<TopBar title="Заходи" heading={false} />)
+    render(<TopBar crumbs={[{ label: "Заходи", href: "/events" }, { label: "Новий захід" }]} />)
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Заходи" })).toHaveAttribute("href", "/events")
+    expect(screen.getByText("Новий захід")).toHaveAttribute("aria-current", "page")
+  })
+
+  it("a top-level page shows its section as plain text, not a link to itself", () => {
+    role.value = "admin"
+    render(<TopBar crumbs={[{ label: "Головна" }]} />)
+    expect(screen.getByText("Головна")).toHaveAttribute("aria-current", "page")
+    expect(screen.queryByRole("link", { name: "Головна" })).not.toBeInTheDocument()
   })
 })

@@ -6,6 +6,7 @@ import { t } from "@/i18n/t"
 import { listBroadcasts, type Broadcast } from "@/api/notifications/broadcasts"
 import type { CursorPage } from "@/api/pagination"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea, Spinner } from "@/components/ui/spinner"
@@ -48,19 +49,18 @@ export function BroadcastsList() {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
   return (
-    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-foreground">{t("admin.notif.broadcast.title")}</h1>
-        {canSend && <Button asChild><Link href="/notifications/broadcasts/new">{t("admin.notif.broadcast.send")}</Link></Button>}
-      </div>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <PageHeader title={t("admin.notif.broadcast.title")}
+        actions={canSend ? <Button asChild><Link href="/notifications/broadcasts/new">{t("admin.notif.broadcast.send")}</Link></Button> : undefined} />
+    <div className="frost-panel frost-in flex min-h-0 flex-col overflow-hidden rounded-lg p-6">
 
-      <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
+      <div className="relative min-h-0 overflow-auto [--ib-state-h:400px]" aria-busy={loading}>
         {failure ? (
-          <LoadError message={t("admin.notif.broadcast.loadError")} error={failure.cause} onRetry={() => setReload((value) => value + 1)} className="h-full" />
+          <LoadError message={t("admin.notif.broadcast.loadError")} error={failure.cause} onRetry={() => setReload((value) => value + 1)} className="h-[var(--ib-state-h)]" />
         ) : loading ? (
-          <LoadingArea className="h-full" label={t("admin.loading")} />
+          <LoadingArea className="h-[var(--ib-state-h)]" label={t("admin.loading")} />
         ) : rows.length === 0 ? (
-          <EmptyState message={t("admin.notif.broadcast.empty")} className="h-full" />
+          <EmptyState message={t("admin.notif.broadcast.empty")} className="h-[var(--ib-state-h)]" />
         ) : (
           <div className="min-w-[960px]">
             <table className="w-full text-sm">
@@ -99,7 +99,7 @@ export function BroadcastsList() {
         )}
       </div>
 
-      <div className="mt-auto grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
+      <div className="grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
         <div className="flex items-center gap-3"><span>{t("admin.table.totalCount", { total })}</span><span>{t("admin.table.pageOf", { page, pages: pageCount })}</span>{loading && data && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
         <div className="flex gap-2 sm:justify-center">
           <Button variant="outline" size="sm" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
@@ -107,6 +107,7 @@ export function BroadcastsList() {
         </div>
         <div className="flex items-center gap-2 sm:justify-end"><span>{t("admin.table.perPage")}</span><SelectMenu value={String(pageSize)} onChange={(value) => { setPage(1); setCursors([null]); setPageSize(Number(value)) }} ariaLabel={t("admin.table.perPage")} options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))} className="w-20" disabled={loading} /></div>
       </div>
+    </div>
     </div>
   )
 }

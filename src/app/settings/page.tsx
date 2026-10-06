@@ -121,7 +121,7 @@ export default function Page() {
         <PageHeader title={t("admin.settings.title")} sub={t("admin.settings.description")} />
         <SettingsTabs />
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-        {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : loadFailed ? <LoadError message={t("admin.settings.loadError")} error={loadFailed.cause} onRetry={() => void load()} className="flex-1" /> : items.length === 0 ? <EmptyState message={t("admin.settings.empty")} className="flex-1" /> : (
+        {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : loadFailed ? <LoadError message={t("admin.settings.loadError")} error={loadFailed.cause} onRetry={() => void load()} className="flex-1" /> : items.length === 0 ? <EmptyState message={t("admin.settings.emptyExplained", { tab: t("admin.settings.tab.mail") })} className="flex-1" /> : (
           <Card><CardContent className="divide-y divide-border pt-5">
             {items.map((item) => {
               const kind = kindOf(item.Value)
