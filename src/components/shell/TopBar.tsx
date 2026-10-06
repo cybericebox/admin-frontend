@@ -1,4 +1,5 @@
 "use client"
+import { Fragment } from "react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -13,6 +14,7 @@ import { exercisesOrigin, idOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
 import { CookieSettingsMenuItem } from "@/components/consent/CookieSettingsMenuItem"
+import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 
 // Unified account menu (lib/accountMenu): same entries, labels and icons in every app.
 const ICON_CLASS = "shrink-0 text-muted-foreground group-focus:text-accent-foreground"
@@ -85,7 +87,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
             <DropdownMenuSeparator />
             {entries.map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
-              if (entry.kind === "cookies") return <CookieSettingsMenuItem key={i} />
+              if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>
               if (entry.kind === "signOut") {
                 const Icon = ACCOUNT_MENU_ICONS.signOut
                 return (
