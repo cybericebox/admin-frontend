@@ -1,51 +1,56 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { useMemo, useSyncExternalStore } from "react"
+import "@/styles/ds/chart-theme"
 
-// ECharts needs concrete colours, not CSS variables, so the admin light and dark
-// themes (html[data-theme]) each get a palette. The look follows the event
-// analytics charts: slate axes and grid, the same series hues.
+// ECharts needs concrete colours, not CSS variables. The design system helper (src/styles/ds/chart-theme.js, copied from
+// docs/design-system) reads the --ib-chart-* and --ib-s* tokens from the page at render time, so both themes follow the
+// tokens and no colour is written here.
 export type ChartTheme = {
   mode: "light" | "dark"
+  /** Series colours --ib-s1..s10. */
   palette: string[]
   axisText: string
   axisLine: string
   splitLine: string
+  legendText: string
   tooltipBg: string
   tooltipBorder: string
   tooltipText: string
   surface: string
+  font: string
+  /** Axis label size (12) and legend size (13), px. */
+  fsAxis: number
+  fsLegend: number
+  lineWidth: number
+  reducedMotion: boolean
 }
-
-const light: ChartTheme = {
-  mode: "light",
-  palette: ["#0091EA", "#1E2A6B", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#14B8A6", "#EC4899"],
-  axisText: "#64748b",
-  axisLine: "#cbd5e1",
-  splitLine: "#e2e8f0",
-  tooltipBg: "#ffffff",
-  tooltipBorder: "#e4e4ec",
-  tooltipText: "#2C2B42",
-  surface: "#ffffff",
-}
-
-const dark: ChartTheme = {
-  mode: "dark",
-  palette: ["#38BDF8", "#818CF8", "#4ADE80", "#FBBF24", "#F87171", "#A78BFA", "#2DD4BF", "#F472B6"],
-  axisText: "#BBB9CB",
-  axisLine: "#646363",
-  splitLine: "rgba(255,255,255,0.12)",
-  tooltipBg: "#58575A",
-  tooltipBorder: "#646363",
-  tooltipText: "#DAD9E5",
-  surface: "#4C4B4D",
-}
-
-export const chartThemes = { light, dark }
 
 function currentMode(): "light" | "dark" {
   if (typeof document === "undefined") return "light"
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"
+}
+
+/** The chart theme the page shows now, read from the design tokens. */
+export function readChartTheme(el?: Element): ChartTheme {
+  const tokens = window.IB.ChartTheme.tokens(el)
+  return {
+    mode: currentMode(),
+    palette: tokens.series,
+    axisText: tokens.axis,
+    axisLine: tokens.line,
+    splitLine: tokens.grid,
+    legendText: tokens.legend,
+    tooltipBg: tokens.raised,
+    tooltipBorder: tokens.tipLine,
+    tooltipText: tokens.ink,
+    surface: tokens.surface,
+    font: tokens.font,
+    fsAxis: tokens.fsAxis,
+    fsLegend: tokens.fsLegend,
+    lineWidth: tokens.lineWidth,
+    reducedMotion: tokens.reducedMotion,
+  }
 }
 
 function subscribe(onChange: () => void): () => void {
@@ -55,8 +60,9 @@ function subscribe(onChange: () => void): () => void {
   return () => observer.disconnect()
 }
 
-/** The chart palette of the theme the admin shows now; follows theme switches. */
+/** The chart theme of the admin theme shown now; follows theme switches. */
 export function useChartTheme(): ChartTheme {
   const mode = useSyncExternalStore(subscribe, currentMode, () => "light" as const)
-  return chartThemes[mode]
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the tokens change with the mode only
+  return useMemo(() => readChartTheme(), [mode])
 }

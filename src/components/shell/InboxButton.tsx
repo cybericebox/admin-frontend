@@ -50,7 +50,7 @@ export type InboxButtonProps = {
 
 function EventLabel({ name }: { name?: string | null }) {
   if (!name) return null
-  return <span className="max-w-[60%] shrink-0 truncate rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{name}</span>
+  return <span className="max-w-[60%] shrink-0 truncate rounded bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">{name}</span>
 }
 
 function safeHref(value: string): string | null {
@@ -360,7 +360,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     <Popover.Trigger asChild>
       <button type="button" aria-label={label} className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         <Bell aria-hidden="true" className="h-4 w-4" />
-        {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
+        {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-2xs font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
       </button>
     </Popover.Trigger>
     <Popover.Portal>

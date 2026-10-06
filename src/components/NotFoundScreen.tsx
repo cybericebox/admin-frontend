@@ -18,8 +18,9 @@ const HOME = "/dashboard"
  * center it in its own block instead.
  */
 export function NotFoundScreen({ title = t("error.notFound"), body = t("error.notFoundDescription"), block = false }: { title?: string; body?: string; block?: boolean }) {
+  const Root = block ? "div" : "main"
   return (
-    <main className={cn("flex flex-col items-center justify-center gap-4 px-4 py-12 text-center", block ? "min-h-64 flex-1" : "min-h-screen")}>
+    <Root {...(block ? {} : { id: "main", tabIndex: -1 })} className={cn("flex flex-col items-center justify-center gap-4 px-4 py-12 text-center", block ? "min-h-64 flex-1" : "min-h-screen")}>
       <Wordmark size="lg" href={null} />
       <SearchX size={32} className="text-muted-foreground" aria-hidden />
       <h1 className="max-w-md text-balance text-2xl font-semibold tracking-tight">{title}</h1>
@@ -28,6 +29,6 @@ export function NotFoundScreen({ title = t("error.notFound"), body = t("error.no
         <Button asChild><Link href={HOME}>{t("error.goHome")}</Link></Button>
         <Button variant="outline" onClick={goBack}>{t("error.page.back")}</Button>
       </div>
-    </main>
+    </Root>
   )
 }

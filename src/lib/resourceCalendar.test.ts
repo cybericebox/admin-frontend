@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Reservation, Timeline } from "@/api/resourceCalendar"
-import { chartThemes } from "@/components/analytics/chartTheme"
 import { timelineOption } from "@/components/resources/timelineOption"
+import { testChartTheme } from "@/test/chartTheme"
 import { MIB, amountToText, attentionIDs, buildMaintenanceTracks, buildTimelineModel, rangeFrom, textToAmount } from "./resourceCalendar"
 
 const amount = (cpu: number, mem = 0) => ({ CPUMillicores: cpu, MemoryBytes: mem * MIB })
@@ -97,7 +97,7 @@ describe("timelineOption", () => {
       Reservations: [reservation({}), reservation({ ID: "x", Covered: false, From: at(14), To: at(16) })],
       Conflicts: [{ From: at(9), To: at(10), ReservationIDs: null, PoolShort: false, Unplaced: 0, Short: amount(1) }],
     }), "cpu")
-    const option = timelineOption(model, "cpu", chartThemes.light, { capacity: "Cap", pool: "Pool", conflict: "Conf", format: String, tooltip: (bar) => bar.label }) as { series: { name: string; data: unknown[]; markLine?: { data: { yAxis: number }[] } }[] }
+    const option = timelineOption(model, "cpu", testChartTheme, { capacity: "Cap", pool: "Pool", conflict: "Conf", format: String, tooltip: (bar) => bar.label }) as { series: { name: string; data: unknown[]; markLine?: { data: { yAxis: number }[] } }[] }
     const byName = Object.fromEntries(option.series.map((series) => [series.name, series]))
     expect(byName.Pool.data).toHaveLength(1)
     expect(byName.Conf.data).toHaveLength(1)

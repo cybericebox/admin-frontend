@@ -815,6 +815,7 @@
   "admin.shell.closeNav": "Закрити навігацію",
   "admin.shell.closeMenu": "Закрити меню",
   "admin.shell.openMenu": "Відкрити меню",
+  "admin.shell.skip": "Перейти до вмісту",
   "admin.shell.navLabel": "Розділи панелі платформи",
   "admin.shell.banner.more": "Докладніше",
   "admin.shell.banner.dismissError": "Не вдалося закрити банер. Спробуйте ще раз.",

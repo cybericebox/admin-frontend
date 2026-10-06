@@ -1,0 +1,36 @@
+/* App-level additions to the design system copies in src/styles/ds (those are never edited by hand). */
+
+/* The app loads Geist through next/font. */
+:root {
+  --ib-font: var(--font-geist-sans), "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ib-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Wordmark accent on the light and the brand surfaces. */
+:root, [data-theme="light"] { --ib-ice: #1070A0; }
+[data-theme="dark"] { --ib-ice: #7FD0FA; }
+:root { --ib-ice-on-brand: #7FD0FA; }
+
+/* Focus and #anchors are never hidden under the sticky top bar (DS base.css). */
+html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
+
+/* Skip link: first focusable element of the shell, the target is <main id="main" tabindex="-1"> (DS base.css). */
+.ib-skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ib-skip {
+  position: fixed; top: var(--ib-2); left: var(--ib-2); z-index: 2000; display: inline-flex; align-items: center;
+  height: var(--ib-control-h-lg); padding: 0 var(--ib-4); border: 1px solid var(--ib-line); border-radius: var(--ib-r);
+  background: var(--ib-raised); color: var(--ib-ink); font: var(--ib-w-medium) var(--ib-fs-14)/1 var(--ib-font); text-decoration: none;
+}
+[tabindex="-1"]:focus { outline: none; }
+
+/* iOS zooms the page into a text field under 16px; on touch the fields are 16px (DS input.css). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select { font-size: var(--ib-fs-16); }
+}
+
+/* Tables (DS table.css): header 13/500, rows 40px, cells 14. Base layer, so a utility class on one table still wins. */
+@layer base {
+  th { font-size: var(--ib-fs-13); font-weight: var(--ib-w-medium); }
+  td { font-size: var(--ib-fs-14); }
+  tbody tr { height: var(--ib-row-h); }
+}

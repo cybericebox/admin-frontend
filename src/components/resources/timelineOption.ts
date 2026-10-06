@@ -23,18 +23,19 @@ export function timelineOption(model: TimelineModel, resource: Resource, theme: 
   const capacityLine = model.capacity === null ? [] : [{ name: labels.capacity, yAxis: model.capacity }]
   return {
     color: theme.palette,
-    textStyle: { color: theme.axisText },
+    animation: !theme.reducedMotion,
+    textStyle: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font },
     grid: { left: 64, right: 16, top: 16, bottom: 64 },
     tooltip: {
-      trigger: "item", backgroundColor: theme.tooltipBg, borderColor: theme.tooltipBorder, textStyle: { color: theme.tooltipText }, extraCssText: "box-shadow:none;",
+      trigger: "item", backgroundColor: theme.tooltipBg, borderColor: theme.tooltipBorder, borderWidth: 1, textStyle: { color: theme.tooltipText, fontSize: 13, fontFamily: theme.font }, extraCssText: "box-shadow:none;border-radius:6px;",
       formatter: (params: { data?: { bar?: TimelineModel["bars"][number] } }) => (params.data?.bar ? labels.tooltip(params.data.bar) : ""),
     },
-    xAxis: { type: "time", min: model.from, max: model.to, axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: { color: theme.axisText }, splitLine: { show: false } },
+    xAxis: { type: "time", min: model.from, max: model.to, axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font, hideOverlap: true }, splitLine: { show: false } },
     yAxis: {
-      type: "value", min: 0, max: yMax, axisLabel: { color: theme.axisText, formatter: (value: number) => labels.format(value) },
+      type: "value", min: 0, max: yMax, axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font, formatter: (value: number) => labels.format(value) },
       splitLine: { lineStyle: { color: theme.splitLine } },
     },
-    dataZoom: [{ type: "inside", filterMode: "none", xAxisIndex: 0 }, { type: "slider", height: 18, bottom: 8, filterMode: "none", xAxisIndex: 0, textStyle: { color: theme.axisText } }],
+    dataZoom: [{ type: "inside", filterMode: "none", xAxisIndex: 0, zoomOnMouseWheel: "ctrl", moveOnMouseMove: true }, { type: "slider", height: 18, bottom: 8, filterMode: "none", xAxisIndex: 0, textStyle: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font } }],
     series: [
       {
         name: labels.pool, type: "custom", silent: true, z: 1,
@@ -74,7 +75,7 @@ export function timelineOption(model: TimelineModel, resource: Resource, theme: 
         name: labels.capacity, type: "line", symbol: "none", silent: true, z: 3, data: [],
         markLine: {
           silent: true, symbol: "none", lineStyle: { type: "solid", color: theme.axisText, width: 2 },
-          label: { formatter: () => labels.capacity, color: theme.axisText, position: "insideEndTop" },
+          label: { formatter: () => labels.capacity, color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font, position: "insideEndTop" },
           data: capacityLine,
         },
       },

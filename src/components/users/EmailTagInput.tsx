@@ -70,7 +70,7 @@ function ChipLabel({ chip }: { chip: EmailChip }) {
   const label = <span className="inline-flex items-center gap-1">
     {chip.email}
     {STATUS_OUTCOME_KEY[chip.status] && (
-      <span className="text-[10px] uppercase tracking-wide opacity-70">{t(STATUS_OUTCOME_KEY[chip.status]!)}</span>
+      <span className="text-2xs uppercase tracking-wide opacity-70">{t(STATUS_OUTCOME_KEY[chip.status]!)}</span>
     )}
   </span>
   const hint = chipTitle(chip)
