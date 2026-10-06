@@ -1,6 +1,5 @@
 import { ApiError } from "@/api/client"
 import { t } from "@/i18n/t"
-import { errorCode } from "@/components/ui/load-error"
 import { feedbackHref } from "@/lib/feedback"
 
 /** A 5xx the backend answered (and journaled): the only failure that gets a reference number. */
@@ -12,8 +11,8 @@ export function isServerError(error: unknown): error is ApiError {
 export function reference(error: unknown): string | undefined {
   if (!isServerError(error) || !error.requestId) return undefined
   const rid = error.requestId.replace(/-/g, "").slice(0, 8).toLowerCase()
-  const code = errorCode(error)
-  return code === undefined ? rid : `${code}-${rid}`
+  // No platform code (absent or 0): the request id alone. The HTTP status is not a platform code.
+  return error.code ? `${error.code}-${rid}` : rid
 }
 
 /** The prefilled «Повідомити деталі» mail. A server error carries the reference; a crash the trimmed message, app and build. */
