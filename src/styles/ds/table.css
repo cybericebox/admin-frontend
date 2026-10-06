@@ -1,0 +1,113 @@
+/* Table — the one table for every app (T7). 40px rows (--ib-row-h), cells 14px, header 13px / 500 sentence case,
+   sticky header, sortable headers, selectable rows + bulk bar,
+   row actions, numeric mono right-aligned, own-row fill, new-row fill (tr.is-new), clickable rows (tr.is-click), empty / loading.
+   Text statuses in cells: components/status-text (.ib-status--warn «Запрошено»), never a coloured dot.
+
+   Contract:
+   - <thead> is ALWAYS rendered: in loading, empty and error states too. The state is one full-width body cell:
+       <tbody class="ib-table__state"><tr><td colspan="N"><div class="ib-empty ib-empty--loading">…crest…</div></td></tr></tbody>
+     (empty = tray + message, error = LoadError, see components/empty-state). The block keeps its size: set --ib-state-h on
+     .ib-table-wrap to rows × --ib-row-h, so loading → empty → data does not jump.
+   - every <th> has scope="col" (row headers scope="row"); the table has a caption (.ib-sr is fine) or aria-label.
+   - sort header: <th aria-sort="ascending|descending|none"><button class="ib-table__sort">Назва <svg…/></button></th>.
+   - date cells use <time datetime="…">; number columns get .ib-table__num (mono, tabular, right-aligned) incl. their <th>.
+   - row hover = --ib-hover; selected / own rows keep their fill. Clickable rows: tr.is-click with tabindex="0" + Enter.
+   - narrow screens: wrap in .ib-table-wrap tabindex="0" role="region" aria-label="…" so the scroll area is focusable. */
+
+/* component-scoped tokens (missing from tokens.css) */
+:root,[data-theme="light"]{
+  --ib-table-head:#F7F7F9;      /* sticky header fill */
+  --ib-table-hover:var(--ib-hover);   /* row hover (alpha ink over the row fill) */
+  --ib-table-own:var(--ib-soft); /* own row / selected row */
+  --ib-table-own-hover:#E4E4EC; /* own row hovered */
+  --ib-table-own-dim:#5A5A70;   /* secondary text inside own/selected row (≥4.5) */
+  --ib-table-skel:#E4E4EC;      /* loading bars */
+}
+[data-theme="dark"]{
+  --ib-table-head:color-mix(in srgb,#454546,var(--ev-brand) 25%);
+  --ib-table-hover:var(--ib-hover);
+  --ib-table-own:var(--ib-soft);
+  --ib-table-own-hover:color-mix(in srgb,#706F6F,var(--ev-brand) 25%);
+  --ib-table-own-dim:#DAD9E5;   /* dim #BBB9CB on #555361 is only 3.9:1 → body */
+  --ib-table-skel:var(--ib-line);
+}
+
+.ib-table-wrap{position:relative;overflow:auto;max-width:100%}
+.ib-table-wrap--scroll{max-height:var(--ib-table-max-h,420px)}
+.ib-table-wrap:focus-visible{outline:2px solid var(--ib-action);outline-offset:-2px}
+
+.ib-table{width:100%;border-collapse:separate;border-spacing:0;font-size:var(--ib-fs-14);color:var(--ib-body);font-variant-numeric:tabular-nums}
+.ib-table th{position:sticky;top:0;z-index:1;height:36px;padding:0 var(--ib-3);text-align:left;white-space:nowrap;
+  font-size:var(--ib-fs-13);font-weight:var(--ib-w-medium);color:var(--ib-dim);background:var(--ib-table-head);
+  border-top:1px solid var(--ib-line);border-bottom:1px solid var(--ib-line)}
+.ib-table td{height:var(--ib-row-h);padding:0 var(--ib-3);border-bottom:1px solid var(--ib-line);white-space:nowrap;
+  transition:background-color var(--ib-dur-fast) var(--ib-ease)}
+.ib-table tbody tr:hover td{background:var(--ib-table-hover)}
+
+/* cell kinds */
+.ib-table .ib-table__num{text-align:right;font-family:var(--ib-mono);font-size:var(--ib-fs-13)}
+.ib-table th.ib-table__num{font-family:var(--ib-font);font-size:var(--ib-fs-13)}
+.ib-table__name{font-weight:var(--ib-w-medium);color:var(--ib-ink)}
+.ib-table__dim{color:var(--ib-dim)}
+.ib-table__mono{font-family:var(--ib-mono);font-size:var(--ib-fs-13)}
+.ib-table__trunc{max-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* sortable header: the whole header is a button */
+.ib-table__sort{display:inline-flex;align-items:center;gap:var(--ib-1);height:28px;margin:0 calc(var(--ib-1) * -1);padding:0 var(--ib-1);
+  border:0;border-radius:var(--ib-r-sm);background:none;font:inherit;color:inherit;cursor:pointer}
+.ib-table__sort:hover{color:var(--ib-ink)}
+.ib-table__sort svg{width:12px;height:12px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.45}
+.ib-table th.ib-table__num .ib-table__sort{flex-direction:row-reverse}
+.ib-table th[aria-sort="ascending"],.ib-table th[aria-sort="descending"]{color:var(--ib-ink)}
+.ib-table th[aria-sort="ascending"] .ib-table__sort svg,.ib-table th[aria-sort="descending"] .ib-table__sort svg{opacity:1}
+.ib-table th[aria-sort="ascending"] .ib-table__sort svg{transform:rotate(180deg)}
+
+/* selection */
+.ib-table__check{width:36px;padding-right:0!important}
+.ib-table__check input{width:16px;height:16px;margin:0;vertical-align:middle;accent-color:var(--ib-action);cursor:pointer}
+.ib-table tr.is-selected td{background:var(--ib-table-own)}
+.ib-table tr.is-selected .ib-table__dim{color:var(--ib-table-own-dim)}
+
+/* own row (your team / you) */
+.ib-table tr.is-own td{background:var(--ib-table-own);font-weight:var(--ib-w-semibold);color:var(--ib-ink)}
+.ib-table tr.is-own:hover td{background:var(--ib-table-own-hover)}
+.ib-table tr.is-own .ib-table__dim{color:var(--ib-table-own-dim)}
+
+/* new rows (just invited / imported): same fill as own, the page removes .is-new after ~6 s */
+.ib-table tr.is-new td{background:var(--ib-table-own)}
+.ib-table tr.is-new .ib-table__dim{color:var(--ib-table-own-dim)}
+/* whole row opens something (template, event): pointer + Enter on a focusable row (tabindex="0") */
+.ib-table tr.is-click{cursor:pointer}
+.ib-table tr.is-click:focus-visible{outline:2px solid var(--ib-action);outline-offset:-2px}
+
+/* row actions */
+.ib-table__actions{width:1%;text-align:right}
+.ib-table td.ib-table__actions{overflow:visible}   /* row dropdown menus escape the cell */
+.ib-table__actions .ib-menu{min-width:220px;text-align:left}
+.ib-table__act{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:var(--ib-r);
+  background:none;color:var(--ib-dim);cursor:pointer}
+.ib-table__act:hover{background:var(--ib-soft);color:var(--ib-ink)}
+.ib-table__act svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ib-table__act[disabled]{opacity:.4;cursor:default}
+.ib-table__act[disabled]:hover{background:none;color:var(--ib-dim)}
+
+/* bulk bar — replaces the toolbar while rows are selected */
+.ib-table-bulk{display:flex;align-items:center;gap:var(--ib-2);min-height:40px;padding:var(--ib-1) var(--ib-1) var(--ib-1) var(--ib-3);
+  background:var(--ib-soft);border-radius:var(--ib-r);font-size:var(--ib-fs-14);color:var(--ib-ink)}
+.ib-table-bulk__count{font-weight:var(--ib-w-semibold);margin-right:var(--ib-2)}
+.ib-table-bulk__end{margin-left:auto}
+.ib-table-bulk .ib-btn{background:var(--ib-surface)}   /* bulk actions use .ib-btn .ib-btn--sm from components/button */
+.ib-table-bulk .ib-btn--ghost{background:none}
+
+/* state row: loading / empty / error / no access — one full-width cell under the header, centred (components/empty-state) */
+.ib-table__state td{height:auto;padding:0;border-bottom:0;white-space:normal;text-align:center}
+.ib-table__state .ib-empty{min-height:var(--ib-state-h,240px)}
+.ib-table tbody.ib-table__state tr:hover td{background:none}
+
+/* empty + loading (legacy markup; new pages use .ib-table__state) */
+.ib-table__empty td{height:auto;padding:var(--ib-10) var(--ib-3);text-align:center;color:var(--ib-dim);white-space:normal}
+.ib-table__empty tr:hover td,.ib-table tbody.ib-table__empty tr:hover td{background:none}
+.ib-table__empty b{display:block;color:var(--ib-ink);font-weight:var(--ib-w-semibold);margin-bottom:var(--ib-1)}
+.ib-table__skel{display:block;height:10px;border-radius:var(--ib-r-sm);background:var(--ib-table-skel);max-width:100%}
+.ib-table[aria-busy="true"] tbody tr:hover td{background:none}
+.ib-table.is-refreshing tbody{opacity:.5;transition:opacity var(--ib-dur) var(--ib-ease)}

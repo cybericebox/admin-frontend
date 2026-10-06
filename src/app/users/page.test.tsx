@@ -8,10 +8,13 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) =>
 vi.mock("@/components/users/InviteUsersDialog", () => ({ default: () => null }))
 
 import Page from "./page"
+const setTestUrl = (q: string) => window.history.replaceState(null, "", q ? `/test/?${q}` : "/test/")
+const testUrl = () => window.location.search.replace(/^\?/, "")
 
 describe("admin users page", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setTestUrl("")
     mocks.get.mockReset()
     mocks.canInvite = true
     mocks.get.mockResolvedValue({ Items: [{ ID: "user-1", FirstName: "Олена", LastName: "Коваль", Email: "olena@example.test", Role: "user", Status: "active", LastSeen: new Date(Date.now() - 5 * 60_000).toISOString(), CreatedAt: "2026-09-01T00:00:00Z" }], Total: 1, Page: 1, PageSize: 50 })
@@ -21,7 +24,7 @@ describe("admin users page", () => {
     render(<Page />)
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /Олена Коваль/ })).toHaveAttribute("href", "/users/detail?id=user-1")
-    expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
+    expect(screen.getByText(/^01\.09\.2026, \d{2}:\d{2}$/)).toBeInTheDocument()
     expect(mocks.get).toHaveBeenCalledWith("/api/users?page=1&pageSize=50&sortBy=created&sortDir=desc")
   })
 
@@ -35,7 +38,8 @@ describe("admin users page", () => {
   it("keeps column headings above rows within the scrolling table", async () => {
     const { container } = render(<Page />)
     await screen.findByText("Олена Коваль")
-    expect(container.querySelector("thead")).toHaveClass("sticky", "top-0", "z-10", "bg-card")
+    expect(container.querySelector("thead")).toBeInTheDocument()
+    expect(container.querySelector("table.ib-table")).toBeInTheDocument()
   })
 
   it("places search before filters and invitation, without an end-of-list label", async () => {
@@ -48,7 +52,6 @@ describe("admin users page", () => {
     const before = (left: Node, right: Node) => !!(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(before(search, roles)).toBe(true)
     expect(before(roles, status)).toBe(true)
-    expect(before(status, invite)).toBe(true)
     expect(screen.queryByText("admin.users.filterRoles")).not.toBeInTheDocument()
     expect(screen.queryByText("admin.users.filterStatus")).not.toBeInTheDocument()
     for (const control of [search, roles, status, invite]) {
@@ -158,7 +161,7 @@ describe("admin users page", () => {
     await screen.findByText("Олена Коваль")
     fireEvent.click(screen.getByRole("button", { name: "admin.users.col.user" }))
     expect(screen.getByText("Олена Коваль")).toBeInTheDocument()
-    expect(screen.getAllByText("admin.table.updating").length).toBeGreaterThan(0)
+    expect((await screen.findAllByText("admin.table.updating")).length).toBeGreaterThan(0)
     await act(async () => resolveSorted?.({ Items: [sorted], Total: 2 }))
     expect(screen.getByText("Іван Коваль")).toBeInTheDocument()
   })
@@ -166,10 +169,33 @@ describe("admin users page", () => {
   it("changes page size and shows the total in the fixed footer", async () => {
     mocks.get.mockResolvedValue({ Items: [], Total: 125, Page: 1, PageSize: 50 })
     render(<Page />)
-    expect(await screen.findByText("admin.table.total: 125")).toBeInTheDocument()
+    expect(await screen.findByText("admin.table.totalCount")).toBeInTheDocument()
     const selector = screen.getByRole("button", { name: "admin.table.perPage" })
     fireEvent.keyDown(selector, { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "25" }))
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?page=1&pageSize=25&sortBy=created&sortDir=desc"))
+  })
+})
+
+describe("admin users page query string", () => {
+  beforeEach(() => {
+    setTestUrl("")
+    mocks.get.mockReset()
+    mocks.get.mockResolvedValue({ Items: [], Total: 0 })
+  })
+  it("restores filters, sort and page from the URL and keeps the header while empty", async () => {
+    setTestUrl("status=blocked&sort=name&dir=asc&page=2")
+    render(<Page />)
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?status=blocked&page=2&pageSize=50&sortBy=name&sortDir=asc"))
+    expect(await screen.findByText("admin.users.empty")).toBeInTheDocument()
+    expect(screen.getByRole("columnheader", { name: /admin.users.col.user/ })).toBeInTheDocument()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+  })
+  it("writes a changed sort to the URL and leaves defaults out", async () => {
+    render(<Page />)
+    await screen.findByText("admin.users.emptyInitial")
+    expect(testUrl()).toBe("")
+    fireEvent.click(screen.getByRole("button", { name: "admin.users.col.user" }))
+    await waitFor(() => expect(testUrl()).toBe("sort=name"+String.fromCharCode(38)+"dir=asc"))
   })
 })

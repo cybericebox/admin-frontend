@@ -29,7 +29,7 @@ type Item = {
   // A thin line after the item (Огляд stands apart, like «Підготовка заходу» in the event sidebar).
   dividerAfter?: boolean
 }
-type Group = { id: string; label: string; icon: LucideIcon; href: string; children: Child[] }
+type Group = { id: string; label: string; icon: LucideIcon; children: Child[] }
 
 // Same shape as the event /manage sidebar: rows of one style, then collapsible groups.
 const ITEMS: Item[] = [
@@ -41,7 +41,7 @@ const ITEMS: Item[] = [
 
 const GROUPS: Group[] = [
   {
-    id: "analytics", href: "/analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
+    id: "analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
     children: [
       { href: "/analytics", label: "admin.nav.analyticsOverview", icon: Gauge, perm: "analytics.read", exact: true },
       { href: "/analytics/users", label: "admin.nav.analyticsUsers", icon: UserSearch, perm: ["analytics.read", "users.read"] },
@@ -53,7 +53,7 @@ const GROUPS: Group[] = [
   },
   {
     // Three blocks split by thin dividers: actions, settings (templates + notification settings), log.
-    id: "notifications", href: "/notifications", label: "admin.nav.notifications", icon: Bell,
+    id: "notifications", label: "admin.nav.notifications", icon: Bell,
     children: [
       { href: "/notifications/broadcasts", label: "admin.nav.notif.broadcasts", icon: Send, perm: "notifications.broadcast" },
       { href: "/notifications/banners", label: "admin.nav.notif.banners", icon: Megaphone, perm: "notifications.banners.read" },
@@ -64,20 +64,25 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    id: "platform", href: "", label: "admin.nav.section.platform", icon: Layers,
+    // Three blocks split by thin dividers: resources, logs, settings.
+    id: "platform", label: "admin.nav.section.platform", icon: Layers,
     children: [
       { href: "/labs", label: "admin.nav.labs", icon: Server, perm: "infrastructure.read" },
       { href: "/agents", label: "admin.nav.agents", icon: Cable, perm: "infrastructure.read" },
       { href: "/resources", label: "admin.nav.resources", icon: CalendarClock, perm: "infrastructure.read" },
       { href: "/elevations", label: "admin.nav.elevations", icon: Cpu, perm: ELEVATION_READ_PERM },
-      { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read" },
-      { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read" },
+      { href: "/audit", label: "admin.nav.audit", icon: ShieldCheck, perm: "platform.audit.read", divider: true },
       { href: "/errors", label: "admin.nav.errors", icon: Bug, perm: "platform.errors.read" },
+      { href: "/settings", label: "admin.nav.settings", icon: Settings, perm: "platform.settings.read", divider: true },
     ],
   },
 ]
 
-const isActive = (pathname: string, href: string, exact?: boolean) => pathname === href || (!exact && pathname.startsWith(href + "/"))
+// usePathname ends with a slash (trailingSlash export), the hrefs do not.
+const isActive = (pathname: string, href: string, exact?: boolean) => {
+  const here = pathname.replace(/\/$/, "") || "/"
+  return here === href || (!exact && here.startsWith(href + "/"))
+}
 
 export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
   const pathname = usePathname()
@@ -89,8 +94,15 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
     .map((group) => ({ ...group, children: group.children.filter((child) => allowed(child.perm)) }))
     .filter((group) => group.children.length > 0)
 
-  // A group opens on its own when the current page is inside it; the reader can open others.
-  const [openGroupID, setOpenGroupID] = useState<string | null>(() => groups.find((group) => group.children.some((child) => isActive(pathname, child.href, child.exact)))?.id ?? null)
+  // The group that holds the current page opens on its own, at mount and on every navigation (a link elsewhere in the app can
+  // change the page without a click here); the reader can still open or close any group by hand.
+  const activeGroupID = groups.find((group) => group.children.some((child) => isActive(pathname, child.href, child.exact)))?.id ?? null
+  const [openGroupID, setOpenGroupID] = useState<string | null>(activeGroupID)
+  const [seenPathname, setSeenPathname] = useState(pathname)
+  if (seenPathname !== pathname) {
+    setSeenPathname(pathname)
+    if (activeGroupID) setOpenGroupID(activeGroupID)
+  }
 
   // Set when the user came from an event's /manage (a validated `?from=`, kept for the session).
   const [origin, setOrigin] = useState<EventReturn | null>(null)
@@ -103,13 +115,13 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
 
   return (
     <aside className="ib-admin-side h-full w-[var(--ib-admin-side-w)] shrink-0 bg-[var(--ib-brand)] text-[var(--ib-on-brand)]" aria-label={t("admin.shell.title")}>
-      <div className="flex min-h-[64px] items-center gap-3 border-b border-[var(--ib-brand-line)] px-4">
+      <div className="ib-admin-side__head">
         <Logo size={32} />
-        <div className="min-w-0 leading-tight">
-          <span className="block truncate text-sm font-semibold">{BRAND_HEAD}<span className="text-[var(--ib-ice-on-brand)]">ICE</span>{BRAND_TAIL}</span>
-          <span className="block text-xs text-[var(--ib-on-brand-3)]">{t("admin.shell.title")}</span>
+        <div className="ib-admin-side__title">
+          <b className="truncate">{BRAND_HEAD}<span className="text-[var(--ib-ice-on-brand)]">ICE</span>{BRAND_TAIL}</b>
+          <small>{t("admin.shell.title")}</small>
         </div>
-        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
       <nav className="ib-admin-side__nav" aria-label={t("admin.shell.navLabel")}>
         {items.map((item) => <Fragment key={item.href}>
@@ -123,14 +135,14 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
         {groups.map((group) => {
           const isOpen = openGroupID === group.id
           return (
-            <section className="event-manage-sidebar__group" key={group.id} aria-label={t(group.label)}>
-              <button className="ib-admin-side__item event-manage-sidebar__heading" type="button" aria-expanded={isOpen} aria-controls={`admin-group-${group.id}`} onClick={() => setOpenGroupID((current) => current === group.id ? null : group.id)}>
-                <group.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(group.label)}</span><ChevronDown size={15} aria-hidden="true" />
+            <section className="ib-admin-side__section" key={group.id} aria-label={t(group.label)}>
+              <button className="ib-admin-side__item ib-admin-side__heading" type="button" aria-expanded={isOpen} aria-controls={`admin-group-${group.id}`} onClick={() => setOpenGroupID((current) => current === group.id ? null : group.id)}>
+                <group.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(group.label)}</span><ChevronDown aria-hidden="true" />
               </button>
-              <div id={`admin-group-${group.id}`} className="event-manage-sidebar__items" hidden={!isOpen}>
+              <div id={`admin-group-${group.id}`} className="ib-admin-side__items" hidden={!isOpen}>
                 {group.children.map((child, index) => (
                   <Fragment key={child.href}>
-                    {child.divider && index > 0 && <hr className="event-manage-sidebar__divider" />}
+                    {child.divider && index > 0 && <hr className="ib-admin-side__divider" />}
                     <Link className="ib-admin-side__item" href={child.href} aria-current={isActive(pathname, child.href, child.exact) ? "page" : undefined} onClick={onNavigate}>
                       <child.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(child.label)}</span>
                     </Link>

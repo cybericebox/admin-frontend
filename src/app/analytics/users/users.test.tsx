@@ -56,9 +56,9 @@ describe("analytics users page", () => {
   it("shows the stats bound to the period, activity, methods, retention and roles", async () => {
     serve(() => Promise.resolve(report()))
     render(<Page />)
-    const total = await screen.findByRole("link", { name: "Усього акаунтів" })
+    const total = await screen.findByRole("link", { name: "Усього облікових записів" })
     expect(total).toHaveAttribute("href", "/users")
-    expect(within(total.parentElement as HTMLElement).getByText("1 200")).toBeInTheDocument()
+    expect(within(total.closest("div.relative") as HTMLElement).getByText("1 200")).toBeInTheDocument()
     expect(screen.getByText("+20%")).toBeInTheDocument()
     expect(screen.getByText("−25%")).toBeInTheDocument()
     expect(screen.getByText("12,5")).toBeInTheDocument()
@@ -72,7 +72,7 @@ describe("analytics users page", () => {
   it("hides the people table and never asks for it without analytics.users.read", async () => {
     serve(() => Promise.resolve(report()))
     render(<Page />)
-    await screen.findByRole("link", { name: "Усього акаунтів" })
+    await screen.findByRole("link", { name: "Усього облікових записів" })
     expect(screen.queryByText("Найактивніші користувачі")).toBeNull()
     expect(mocks.apiGet.mock.calls.some(([path]) => String(path).includes("/people"))).toBe(false)
   })
@@ -93,7 +93,7 @@ describe("analytics users page", () => {
       Methods: [], Retention: { One: 0, Two: 0, ThreePlus: 0, Never: 0 }, ByRole: [],
     })))
     const { container } = render(<Page />)
-    await screen.findByRole("link", { name: "Усього акаунтів" })
+    await screen.findByRole("link", { name: "Усього облікових записів" })
     await waitFor(() => expect(container.querySelectorAll("[data-empty-state]")).toHaveLength(5))
     expect(screen.queryByTestId("echart")).toBeNull()
   })

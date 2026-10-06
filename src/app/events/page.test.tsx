@@ -23,6 +23,7 @@ vi.mock('@/api/events/catalog', () => ({
 }))
 import { listEventsPage, archiveEvent, deleteEvent, type Event } from '@/api/events/catalog'
 import Page from './page'
+const setTestUrl = (q: string) => window.history.replaceState(null, "", q ? `/test/?${q}` : "/test/")
 
 const mockList = vi.mocked(listEventsPage)
 const mockArchive = vi.mocked(archiveEvent)
@@ -43,6 +44,7 @@ const activeEvent = {
 
 describe('events catalog page', () => {
   beforeEach(() => {
+    setTestUrl('')
     vi.clearAllMocks()
     mockList.mockReset()
     mockArchive.mockReset()
@@ -70,13 +72,13 @@ describe('events catalog page', () => {
     expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('Spring CTF')
     expect(within(row).getAllByRole('cell')[1]).toHaveTextContent('springctf.cybericebox-dev.pp.ua')
     expect(within(row).getAllByRole('cell')[1]).not.toHaveTextContent('https://')
-    expect(within(row).getAllByRole('cell')[5]).toHaveTextContent(/02 січня 2026 р\. о \d{2}:\d{2}:\d{2}/)
-    const statusHelp = screen.getByRole('button', { name: 'admin.events.col.statusHelp' })
+    expect(within(row).getAllByRole('cell')[5]).toHaveTextContent(/^02\.01\.2026, \d{2}:\d{2}$/)
+    const statusHelp = screen.getByRole('button', { description: 'admin.events.col.statusHelp' })
     fireEvent.mouseEnter(statusHelp)
     expect(await screen.findByRole('tooltip')).toHaveClass('z-[100]')
     fireEvent.click(statusHelp)
     expect(screen.getByRole('tooltip')).toBeInTheDocument()
-    fireEvent.mouseLeave(statusHelp)
+    fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
   })
 
@@ -90,7 +92,8 @@ describe('events catalog page', () => {
   it('keeps column headings above rows within the scrolling table', async () => {
     const { container } = render(<Page />)
     await screen.findByText('Spring CTF')
-    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+    expect(container.querySelector('thead')).toBeInTheDocument()
+    expect(container.querySelector('table.ib-table')).toBeInTheDocument()
   })
 
   it('uses the same empty icon with a different message after search', async () => {
@@ -191,6 +194,17 @@ describe('events catalog page', () => {
     await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'started', page: 1 })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.events.col.name' }))
     await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'started', sortBy: 'name', sortDir: 'asc' })))
+  })
+
+  it('keeps the event link clickable after re-choosing the current filter', async () => {
+    render(<Page />)
+    const link = await screen.findByRole('link', { name: 'Spring CTF' })
+    const filter = screen.getByRole('button', { name: 'admin.events.filterStatus' })
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.events.filterAll' }))
+    // No request follows an unchanged filter, so nothing may stay marked as loading.
+    expect(link.closest('.pointer-events-none')).toBeNull()
+    expect(link.closest('[aria-busy="true"]')).toBeNull()
   })
 
   it('keeps toolbar controls at the same height', async () => {
@@ -311,7 +325,7 @@ describe('events catalog page', () => {
     fireEvent.click(within(dialog).getByText('admin.events.delete.confirm'))
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith(EV_ID))
     await waitFor(() => expect(screen.queryByRole('link', { name: /admin.events.action.openSite/ })).not.toBeInTheDocument())
-    expect(screen.getByText('admin.table.total: 0')).toBeInTheDocument()
+    expect(screen.getByText('admin.table.totalCount')).toBeInTheDocument()
   })
 
   it('keeps the confirmation open while an archive request is pending', async () => {
@@ -327,5 +341,17 @@ describe('events catalog page', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     await act(async () => finishArchive?.({ ...activeEvent, Status: 'archived' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+describe('events catalog query string', () => {
+  beforeEach(() => { setTestUrl('') })
+  it('restores filter, sort and page from the URL and has one h1', async () => {
+    setTestUrl('status=published'+String.fromCharCode(38)+'sort=name'+String.fromCharCode(38)+'dir=asc'+String.fromCharCode(38)+'page=2')
+    mockList.mockResolvedValue({ Items: [], Total: 0, Page: 2, PageSize: 50 } as never)
+    render(<Page />)
+    await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'published', sortBy: 'name', sortDir: 'asc', page: 2 })))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('columnheader', { name: /admin.events.col.name/ })).toBeInTheDocument()
   })
 })

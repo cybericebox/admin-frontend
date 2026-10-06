@@ -2,10 +2,7 @@
 
 import Link from "next/link"
 import { Fragment, useMemo, useState, type ReactNode } from "react"
-import { EmptyState } from "@/components/ui/empty-state"
-import { LoadError } from "@/components/ui/load-error"
-import { SortableHeader } from "@/components/ui/sortable-header"
-import { LoadingArea } from "@/components/ui/spinner"
+import { SortTh, TableState, TableWrap, Th } from "@/components/common/DsTable"
 import { t } from "@/i18n/t"
 
 export type Column<Row> = {
@@ -20,10 +17,10 @@ export type Column<Row> = {
 }
 
 /**
- * Table of a section: typed columns, sortable headers (client-side, or controlled with
- * `sort` / `onSort`), optional whole-row link. Loading (crest), error (LoadError) and empty
- * (EmptyState) are centred inside the same block, which keeps `minHeight`, so the block does
- * not jump. Wide tables scroll horizontally inside the block.
+ * Table of a section (DS ib-table): typed columns, sortable headers (client-side, or controlled with
+ * `sort` / `onSort`), optional whole-row link. The header stays in every state; loading (crest), error
+ * (LoadError) and empty (EmptyState) are one centred body cell, and the block keeps `minHeight`, so it
+ * does not jump. Wide tables scroll inside a focusable region.
  */
 export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false, error, onRetry, emptyMessage, errorMessage, minHeight = 320, ariaLabel, defaultSort, sort, onSort, renderDetail }: {
   columns: Column<Row>[]
@@ -66,34 +63,32 @@ export function DataTable<Row>({ columns, rows, rowKey, rowHref, loading = false
   }, [rows, columns, active.field, active.direction, onSort])
 
   const state = loading ? "loading" : failed ? "error" : !rows || rows.length === 0 ? "empty" : "ready"
-  return <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card" style={{ minHeight }} aria-busy={loading}>
-    {state === "loading" && <div className="flex flex-1"><LoadingArea className="h-full w-full flex-1" label={t("admin.loading")} /></div>}
-    {state === "error" && <div className="flex flex-1"><LoadError className="flex-1" message={errorMessage ?? t("admin.platformAnalytics.table.error")} error={error} onRetry={onRetry} /></div>}
-    {state === "empty" && <div className="flex flex-1"><EmptyState className="flex-1" message={emptyMessage ?? t("admin.platformAnalytics.table.empty")} /></div>}
-    {state === "ready" && <div className="overflow-x-auto">
-      <table aria-label={ariaLabel} className="w-full min-w-max border-collapse text-sm">
-        <thead className="border-b border-border text-muted-foreground">
-          <tr>{columns.map((column) => column.sortValue
-            ? <SortableHeader key={column.key} label={column.header} field={column.key} activeField={active.field} direction={active.direction} onSort={toggle} />
-            : <th key={column.key} scope="col" className="px-3 py-2 text-left font-medium">{column.header}</th>)}</tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {sorted.map((row) => {
-            const href = rowHref?.(row)
-            const detail = renderDetail?.(row)
-            return <Fragment key={rowKey(row)}>
-              <tr className={`${href ? "relative hover:bg-accent" : ""}`}>
-                {columns.map((column, index) => <td key={column.key} className={`px-3 py-2 text-left ${column.numeric ? "tabular-nums" : ""} ${column.className ?? ""}`}>
-                  {href && index === 0
-                    ? <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary">{column.cell(row)}</Link>
-                    : column.cell(row)}
-                </td>)}
-              </tr>
-              {detail && <tr><td colSpan={columns.length} className="p-0">{detail}</td></tr>}
-            </Fragment>
-          })}
-        </tbody>
-      </table>
-    </div>}
-  </div>
+  return <TableWrap label={ariaLabel} minHeight={minHeight}>
+    <table aria-label={ariaLabel} aria-busy={loading} className="ib-table">
+      <thead>
+        <tr>{columns.map((column) => column.sortValue
+          ? <SortTh key={column.key} label={column.header} field={column.key} activeField={active.field} direction={active.direction} onSort={toggle} num={column.numeric} />
+          : <Th key={column.key} num={column.numeric}>{column.header}</Th>)}</tr>
+      </thead>
+      {state !== "ready" && <TableState colSpan={columns.length} kind={state}
+        message={state === "error" ? errorMessage ?? t("admin.platformAnalytics.table.error") : emptyMessage ?? t("admin.platformAnalytics.table.empty")}
+        error={error} onRetry={onRetry} />}
+      {state === "ready" && <tbody>
+        {sorted.map((row) => {
+          const href = rowHref?.(row)
+          const detail = renderDetail?.(row)
+          return <Fragment key={rowKey(row)}>
+            <tr className={href ? "relative" : undefined}>
+              {columns.map((column, index) => <td key={column.key} className={`${column.numeric ? "ib-table__num" : ""} ${column.className ?? ""}`}>
+                {href && index === 0
+                  ? <Link href={href} className="after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary">{column.cell(row)}</Link>
+                  : column.cell(row)}
+              </td>)}
+            </tr>
+            {detail && <tr><td colSpan={columns.length} className="!h-auto !whitespace-normal !p-0">{detail}</td></tr>}
+          </Fragment>
+        })}
+      </tbody>}
+    </table>
+  </TableWrap>
 }

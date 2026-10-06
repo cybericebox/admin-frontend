@@ -1,7 +1,7 @@
 import { AlertTriangle, Bell, CalendarDays, CheckCircle2, CircleHelp, Info, Mail, ShieldCheck, Trophy, UserRound, XCircle } from "lucide-react"
 import type { ComponentType } from "react"
 import type { LucideProps } from "lucide-react"
-import { accentOf } from "./editor/inAppOptions"
+import { accentCss } from "./editor/inAppOptions"
 
 const ICONS: Record<string, ComponentType<LucideProps>> = {
   info: Info,
@@ -18,7 +18,7 @@ const ICONS: Record<string, ComponentType<LucideProps>> = {
 }
 
 export function NotificationIcon({ icon, tone, accentColor, size = "md" }: { icon: string; tone: string; accentColor: string; size?: "sm" | "md" }) {
-  const accent = accentOf({ Tone: tone, AccentColor: accentColor })
+  const accent = accentCss({ Tone: tone, AccentColor: accentColor })
   const Icon = ICONS[icon] ?? Bell
   return <span
     aria-hidden="true"

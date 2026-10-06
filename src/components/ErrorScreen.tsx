@@ -22,8 +22,9 @@ export function goBack() {
  */
 export function ErrorScreen({ onRetry, fullPage = false, error, title = t("error.page.title") }: { onRetry: () => void; fullPage?: boolean; error?: unknown; title?: string }) {
   const code = errorCode(error)
+  const Root = fullPage ? "main" : "div"
   return (
-    <div className={fullPage ? "flex min-h-screen items-center justify-center p-4" : "flex min-h-full items-center justify-center py-12"}>
+    <Root {...(fullPage ? { id: "main", tabIndex: -1 } : {})} className={fullPage ? "flex min-h-screen items-center justify-center p-4" : "flex min-h-full items-center justify-center py-12"}>
       <div className="flex w-full max-w-md flex-col">
         {fullPage && <div className="mb-6 flex justify-center"><Wordmark size="lg" /></div>}
         <div role="alert" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
@@ -37,6 +38,6 @@ export function ErrorScreen({ onRetry, fullPage = false, error, title = t("error
           </div>
         </div>
       </div>
-    </div>
+    </Root>
   )
 }

@@ -4,20 +4,17 @@ import { useMemo, useState } from "react"
 import { decideChangeRequest, listChangeRequests, type ChangeRequest, type ChangeStatus } from "@/api/resourceCalendar"
 import { ApiError } from "@/api/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { TableState, TableWrap, TimeText } from "@/components/common/DsTable"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { LoadError } from "@/components/ui/load-error"
 import { SelectMenu } from "@/components/ui/select-menu"
-import { LoadingArea } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
 import { CODE_ALREADY_DECIDED, isAmountEmpty, isDoesNotFit } from "@/lib/resourceCalendar"
-import { AllowConflictsDialog, Badge, BLOCK, THEAD, TROW, Th, formatAmount, formatWindow, useCalendarResource, type Tone } from "./resourceView"
+import { AllowConflictsDialog, Badge, Th, formatAmount, formatWindow, useCalendarResource, type Tone } from "./resourceView"
 
 const STATUSES: ("all" | ChangeStatus)[] = ["all", "pending", "approved", "rejected"]
 const STATUS_TONE: Record<ChangeStatus, Tone> = { pending: "warn", approved: "ok", rejected: "muted" }
@@ -82,23 +79,24 @@ export function ChangeRequestsTab({ canWrite, version, onDecided }: { canWrite: 
         options={STATUSES.map((value) => ({ value, label: t(`admin.resources.requests.status.${value}`) }))} />
       <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("admin.resources.requests.search")} aria-label={t("admin.resources.requests.search")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
     </div>
-    <Card><CardContent className="p-4">
-      {error && data === null ? <LoadError className={BLOCK} message={t("admin.resources.requests.loadError")} error={error} onRetry={() => void refresh(true)} />
-        : data === null ? <LoadingArea className={BLOCK} label={t("admin.loading")} />
-        : rows.length === 0 ? <EmptyState className={BLOCK} message={t(query || status !== "all" ? "admin.resources.requests.emptyFiltered" : "admin.resources.requests.empty")} />
-        : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-          <thead className={THEAD}><tr><Th>{t("admin.resources.col.event")}</Th><Th>{t("admin.resources.requests.asked")}</Th><Th>{t("admin.resources.requests.reason")}</Th><Th>{t("admin.resources.col.state")}</Th><Th className="w-44"><span className="sr-only">{t("admin.resources.col.actions")}</span></Th></tr></thead>
-          <tbody>{rows.map((request) => <tr key={request.ID} className={TROW} data-testid={`request-${request.ID}`}>
-            <td className="px-3 py-2"><span className="block font-medium">{request.EventName || request.EventTag}</span><span className="text-xs text-muted-foreground tabular-nums">{formatDateTime(request.RequestedAt, { dateStyle: "short", timeStyle: "short" })}</span></td>
-            <td className="px-3 py-2"><Asked request={request} /></td>
-            <td className="max-w-xs break-words px-3 py-2 text-muted-foreground">{request.Reason}</td>
-            <td className="px-3 py-2"><span className="block"><Badge tone={STATUS_TONE[request.Status]}>{t(`admin.resources.requests.status.${request.Status}`)}</Badge></span>{request.DecisionNote && <span className="mt-1 block text-xs text-muted-foreground">{request.DecisionNote}</span>}</td>
-            <td className="px-3 py-2">{canWrite && request.Status === "pending" && <span className="inline-flex gap-2">
+    <TableWrap label={t("admin.resources.tabs.requests")} rows={6}>
+      <table aria-label={t("admin.resources.tabs.requests")} className="ib-table">
+        <thead><tr><Th>{t("admin.resources.col.event")}</Th><Th>{t("admin.resources.requests.asked")}</Th><Th>{t("admin.resources.requests.reason")}</Th><Th>{t("admin.resources.col.state")}</Th><Th className="w-44"><span className="sr-only">{t("admin.resources.col.actions")}</span></Th></tr></thead>
+        {error && data === null ? <TableState colSpan={5} kind="error" message={t("admin.resources.requests.loadError")} error={error} onRetry={() => void refresh(true)} />
+          : data === null ? <TableState colSpan={5} kind="loading" />
+          : rows.length === 0 ? <TableState colSpan={5} kind="empty" message={t(query || status !== "all" ? "admin.resources.requests.emptyFiltered" : "admin.resources.requests.empty")} />
+          : <tbody>{rows.map((request) => <tr key={request.ID} data-testid={`request-${request.ID}`}>
+            <td><span className="block font-medium leading-tight">{request.EventName || request.EventTag}</span><span className="text-xs text-muted-foreground"><TimeText iso={request.RequestedAt}>{formatDateTime(request.RequestedAt, { dateStyle: "short", timeStyle: "short" })}</TimeText></span></td>
+            <td className="!whitespace-normal py-1"><Asked request={request} /></td>
+            <td className="ib-table__dim max-w-xs !whitespace-normal break-words">{request.Reason}</td>
+            <td className="!whitespace-normal py-1"><span className="block"><Badge tone={STATUS_TONE[request.Status]}>{t(`admin.resources.requests.status.${request.Status}`)}</Badge></span>{request.DecisionNote && <span className="mt-1 block text-xs text-muted-foreground">{request.DecisionNote}</span>}</td>
+            <td className="ib-table__actions">{canWrite && request.Status === "pending" && <span className="inline-flex gap-2">
               <Button type="button" size="sm" onClick={() => open({ request, approve: true })}>{t("admin.resources.requests.approve")}</Button>
               <Button type="button" size="sm" variant="outline" onClick={() => open({ request, approve: false })}>{t("admin.resources.requests.reject")}</Button>
             </span>}</td>
-          </tr>)}</tbody></table></div>}
-    </CardContent></Card>
+          </tr>)}</tbody>}
+      </table>
+    </TableWrap>
     <ConfirmDialog open={decision !== null && !needsConflicts} onCancel={close} onConfirm={() => void decide(false)} busy={busy} error={dialogError}
       tone={decision?.approve ? "default" : "danger"}
       title={t(decision?.approve ? "admin.resources.requests.approveTitle" : "admin.resources.requests.rejectTitle", { name })}

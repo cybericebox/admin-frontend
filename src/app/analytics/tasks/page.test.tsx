@@ -55,7 +55,7 @@ describe("platform analytics: task catalog", () => {
     expect(within(usage).getByText("25 хв")).toBeInTheDocument()
     expect(within(usage).getByText("25%")).toBeInTheDocument()
     expect(within(usage).getByText("Надто складне")).toBeInTheDocument()
-    const unsolved = screen.getByRole("table", { name: "Ніколи не розв'язані завдання" })
+    const unsolved = screen.getByRole("table", { name: "Ніколи не розвʼязані завдання" })
     expect(within(unsolved).getByText("Broken RSA")).toBeInTheDocument()
     expect(within(unsolved).queryByText("Login bypass")).toBeNull()
     expect((await screen.findAllByTestId("echart")).length).toBe(2)
@@ -78,7 +78,7 @@ describe("platform analytics: task catalog", () => {
     mocks.apiGet.mockResolvedValue(empty)
     const { container } = render(<Page />)
     await screen.findByText("Немає використаних завдань за цей період")
-    expect(screen.getByText("Усі використані завдання хтось розв'язав")).toBeInTheDocument()
+    expect(screen.getByText("Усі використані завдання хтось розвʼязав")).toBeInTheDocument()
     expect(container.querySelectorAll("[data-empty-state]").length).toBeGreaterThanOrEqual(4)
   })
 

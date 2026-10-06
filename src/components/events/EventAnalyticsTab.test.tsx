@@ -61,6 +61,7 @@ describe("EventAnalyticsTab", () => {
 
   it("lists every flagged solve with all signals, evidence and the review", async () => {
     setup()
+    await screen.findByText("Red Team")
     const table = await screen.findByRole("table", { name: "admin.events.analytics.integrity.tableLabel" })
     const rows = within(table).getAllByRole("row")
     expect(rows).toHaveLength(3)
@@ -108,7 +109,7 @@ describe("EventAnalyticsTab", () => {
 
   it("links an assigned write moderator to the attempts journal on the event site", async () => {
     setup({ canOpenJournal: true })
-    await screen.findByRole("table")
+    await screen.findAllByRole("link", { name: "admin.events.analytics.integrity.openJournal" })
     const links = screen.getAllByRole("link", { name: "admin.events.analytics.integrity.openJournal" })
     expect(links).toHaveLength(2)
     const href = new URL(links[0].getAttribute("href") ?? "")

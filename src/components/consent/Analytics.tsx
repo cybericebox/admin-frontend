@@ -6,7 +6,9 @@ import { COOKIE_POLICY_HREF } from "./CookieSettingsMenuItem"
 // Google Analytics (gtag) under Consent Mode v2. The inline boot sets the denied defaults and the
 // stored choice before gtag.js runs (see lib/consent). The cookie policy lives on the main site.
 // Without a GA id only the consent panel is mounted, so «Налаштування файлів cookie» still works.
-export function Analytics({ gaId }: { gaId?: string }) {
+export function Analytics({ gaId: rawId }: { gaId?: string }) {
+  // A blank or whitespace id (an unset build variable) is no id: no gtag script is rendered.
+  const gaId = rawId?.trim()
   if (!gaId) return <ConsentBanner policyHref={COOKIE_POLICY_HREF} />
   return (
     <>

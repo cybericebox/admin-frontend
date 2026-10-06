@@ -4,7 +4,7 @@ import { NotificationPopIn } from "./NotificationPopIn"
 
 afterEach(() => vi.useRealTimers())
 
-it("shows the configured action and closes after the template duration", () => {
+it("keeps a pop-in with an action until the user decides", () => {
   vi.useFakeTimers()
   const onClose = vi.fn()
   const onAction = vi.fn()
@@ -12,6 +12,14 @@ it("shows the configured action and closes after the template duration", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Перейти" }))
   expect(onAction).toHaveBeenCalledWith("/events")
+  act(() => vi.advanceTimersByTime(60000))
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+it("closes a plain pop-in after the template duration", () => {
+  vi.useFakeTimers()
+  const onClose = vi.fn()
+  render(<NotificationPopIn message={{ ID: "3", Title: "Нове", Body: "Текст", AutoDismissMs: 5000 }} onClose={onClose} onAction={vi.fn()} />)
   act(() => vi.advanceTimersByTime(4999))
   expect(onClose).not.toHaveBeenCalled()
   act(() => vi.advanceTimersByTime(1))

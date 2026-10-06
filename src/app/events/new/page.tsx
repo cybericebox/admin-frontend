@@ -6,6 +6,8 @@ import { createEvent, getInfrastructureAvailable, listEventManagers, type Event,
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { Button } from "@/components/ui/button"
 import { LoadError } from "@/components/ui/load-error"
+import { PageHeader } from "@/components/ui/page-header"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -81,23 +83,20 @@ export default function NewEventPage() {
     }
   }
 
-  if (!can("events.write")) return <p role="alert" className="text-sm text-destructive">{t("admin.events.create.forbidden")}</p>
+  if (!can("events.write")) return <NoAccess message={t("admin.events.create.forbidden")} />
 
   return <div className="w-full space-y-5">
-    <div>
-      <Link href="/events" className="text-sm text-primary hover:underline">← {t("admin.events.back")}</Link>
-      <h1 className="mt-2 text-2xl font-semibold text-foreground">{t("admin.events.create.title")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t(created ? "admin.events.create.createdNext" : "admin.events.create.description")}</p>
-    </div>
+    <PageHeader title={t("admin.events.create.title")} sub={t(created ? "admin.events.create.createdNext" : "admin.events.create.description")}
+      crumbs={[{ label: t("admin.nav.events"), href: "/events" }, { label: t("admin.events.create.title") }]} />
     {!created ? <Card><CardContent className="pt-5">
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
-        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><Input id="new-event-name" value={draft.Name} onChange={(event) => setDraft({ ...draft, Name: event.target.value })} required disabled={busy} /></div>
-        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><div className="flex h-10 min-w-0 items-center overflow-hidden rounded-md border border-border bg-card text-sm text-foreground focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40"><span className="shrink-0 pl-3 text-muted-foreground">https://</span><Input id="new-event-tag" value={draft.Tag} onChange={(event) => setDraft({ ...draft, Tag: event.target.value })} autoComplete="off" spellCheck={false} placeholder="tag" required disabled={busy} className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-1 font-mono shadow-none focus-visible:border-0 focus-visible:ring-0" />{domain && <span className="shrink-0 pr-3 font-mono text-muted-foreground">.{domain}</span>}</div></div>
+        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><Input id="new-event-name" value={draft.Name} onChange={(event) => setDraft({ ...draft, Name: event.target.value })} required /></div>
+        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><div className="flex h-10 min-w-0 items-center overflow-hidden rounded-md border border-border bg-card text-sm text-foreground focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40"><span className="shrink-0 pl-3 text-muted-foreground">https://</span><Input id="new-event-tag" value={draft.Tag} onChange={(event) => setDraft({ ...draft, Tag: event.target.value })} autoComplete="off" spellCheck={false} placeholder="tag" required className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-1 font-mono shadow-none focus-visible:border-0 focus-visible:ring-0" />{domain && <span className="shrink-0 pr-3 font-mono text-muted-foreground">.{domain}</span>}</div></div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={busy} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={busy} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear /></div>
         </div>
-        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><div className="flex items-center gap-2"><Switch id="new-event-infrastructure" checked={infrastructure} onCheckedChange={setInfrastructure} disabled={busy || infrastructureAvailable === false} /><label htmlFor="new-event-infrastructure" className="text-sm leading-snug cursor-pointer select-none">{t("admin.events.field.infrastructure")}</label></div><FieldHelp text={t("admin.events.field.infrastructureHelp")} /></div>{infrastructureAvailable === false && <p className="text-xs text-muted-foreground">{t("admin.events.field.infrastructureUnavailable")}</p>}</div>
+        <div className="space-y-1.5"><div className="flex items-center gap-1.5"><div className="flex items-center gap-2"><Switch id="new-event-infrastructure" checked={infrastructure} onCheckedChange={setInfrastructure} disabled={infrastructureAvailable === false} /><label htmlFor="new-event-infrastructure" className="text-sm leading-snug cursor-pointer select-none">{t("admin.events.field.infrastructure")}</label></div><FieldHelp text={t("admin.events.field.infrastructureHelp")} /></div>{infrastructureAvailable === false && <p className="text-xs text-muted-foreground">{t("admin.events.field.infrastructureUnavailable")}</p>}</div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2"><Button asChild type="button" variant="outline"><Link href="/events">{t("admin.events.dialog.cancel")}</Link></Button><Button type="submit" busy={busy} disabled={!draft.Name.trim() || !draft.Tag.trim() || !draft.AvailableFrom}>{t("admin.events.dialog.submit")}</Button></div>
       </form>

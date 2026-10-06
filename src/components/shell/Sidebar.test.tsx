@@ -4,14 +4,14 @@ import { Sidebar } from "./Sidebar"
 
 const nav = vi.hoisted(() => ({ path: "/events" }))
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
-const rights = vi.hoisted(() => ({ infrastructure: true, denied: new Set<string>() }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission !== "platform.settings.read" && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
+const rights = vi.hoisted(() => ({ infrastructure: true, settings: false, denied: new Set<string>() }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => (permission !== "platform.settings.read" || rights.settings) && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span> }))
 vi.mock("@/lib/origins", () => ({ exercisesOrigin: "https://exercises.cybericebox.local", eventDomain: "example.org", platformHosts: ["example.org", "api.example.org", "id.example.org", "admin.example.org", "exercises.example.org"] }))
 
 describe("admin sidebar", () => {
-  beforeEach(() => { rights.infrastructure = true; rights.denied = new Set(); nav.path = "/events" })
+  beforeEach(() => { rights.infrastructure = true; rights.settings = false; rights.denied = new Set(); nav.path = "/events" })
   it("links to available administration sections and respects permissions", () => {
     render(<Sidebar />)
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("href", "/events")
@@ -30,6 +30,23 @@ describe("admin sidebar", () => {
     }
     expect(screen.queryByRole("link", { name: "admin.nav.settings" })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("aria-current", "page")
+  })
+
+  it("opens the group of the current page at mount and follows navigation, keeping a group the reader opened", () => {
+    nav.path = "/audit/"
+    const { rerender } = render(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.section.platform" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "admin.nav.analytics" })).toHaveAttribute("aria-expanded", "false")
+
+    nav.path = "/analytics/users/"
+    rerender(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.analytics" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("aria-current", "page")
+    // The group the reader opened by hand stays; a page outside any group does not close it.
+    fireEvent.click(screen.getByRole("button", { name: "admin.nav.notifications" }))
+    nav.path = "/users/"
+    rerender(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.notifications" })).toHaveAttribute("aria-expanded", "true")
   })
 
   it("has no collapse control", () => {
@@ -59,7 +76,7 @@ describe("admin sidebar", () => {
     const { container } = render(<Sidebar />)
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.analytics" }))
     const items = container.querySelector("#admin-group-analytics")!
-    expect(items.className).toBe("event-manage-sidebar__items")
+    expect(items.className).toBe("ib-admin-side__items")
     expect(items.className).not.toMatch(/\b(ml-|pl-|border-l)/)
     expect(items.querySelector("a")!.className).toBe("ib-admin-side__item")
   })
@@ -113,6 +130,29 @@ describe("admin sidebar", () => {
         render(<Sidebar />)
         expect(screen.queryByRole("link", { name: /admin.nav.returnToEvent/ }), url).not.toBeInTheDocument()
       }
+    })
+  })
+  describe("platform blocks", () => {
+    // Children of the platform group in order, "|" where a divider stands.
+    const layout = (container: HTMLElement) => Array.from(container.querySelectorAll("#admin-group-platform > a, #admin-group-platform > hr")).map((el) => el.tagName === "HR" ? "|" : el.textContent).join(",")
+    const open = () => {
+      const view = render(<Sidebar />)
+      fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
+      return view.container
+    }
+    it("splits resources, logs and settings by dividers", () => {
+      rights.settings = true
+      expect(layout(open())).toBe("admin.nav.labs,admin.nav.agents,admin.nav.resources,admin.nav.elevations,|,admin.nav.audit,admin.nav.errors,|,admin.nav.settings")
+    })
+    it("draws no divider for an empty block", () => {
+      rights.settings = true
+      rights.denied = new Set(["platform.audit.read", "platform.errors.read"])
+      expect(layout(open())).toBe("admin.nav.labs,admin.nav.agents,admin.nav.resources,admin.nav.elevations,|,admin.nav.settings")
+    })
+    it("draws no leading divider when the first block is empty", () => {
+      rights.infrastructure = false
+      rights.denied = new Set(["exercises.elevations.read"])
+      expect(layout(open())).toBe("admin.nav.audit,admin.nav.errors")
     })
   })
   it("shows the audit log only with platform.audit.read", () => {

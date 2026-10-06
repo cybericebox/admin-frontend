@@ -123,6 +123,7 @@ import {
   createEmailTemplate,
   updateEmailTemplate,
   rollbackEmailTemplate,
+  publishEmailTemplate,
   listBlockPresets,
   listEmailTemplates,
 } from '@/api/notifications/emailTemplates'
@@ -250,6 +251,25 @@ describe('Email template editor page', () => {
         screen.queryByRole('button', { name: 'admin.notif.tpl.rollback' }),
       ).not.toBeInTheDocument()
     })
+  })
+
+  it('asks for confirmation before publishing and only then publishes', async () => {
+    vi.mocked(publishEmailTemplate).mockResolvedValue(makeDraftTemplate({ Status: 'published' }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.publish' }))
+    expect(publishEmailTemplate).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('admin.notif.tpl.publishTitle')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.notif.tpl.publish' }))
+    await waitFor(() => expect(publishEmailTemplate).toHaveBeenCalledTimes(1))
+  })
+
+  it('cancelling the publish confirmation publishes nothing', async () => {
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.publish' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'confirm.cancel' }))
+    expect(publishEmailTemplate).not.toHaveBeenCalled()
   })
 
   // ── Published state ───────────────────────────────────────────────────────

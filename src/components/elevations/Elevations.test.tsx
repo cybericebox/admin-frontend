@@ -38,6 +38,7 @@ const request = (over: Partial<ElevationRequest> = {}): ElevationRequest => ({
 beforeEach(() => {
   apiGet.mockReset(); apiPost.mockReset()
   permissions = [ELEVATION_READ_PERM, ELEVATION_WRITE_PERM]
+  window.history.replaceState(null, "", "/elevations/")
 })
 
 describe("elevations list", () => {
@@ -57,10 +58,10 @@ describe("elevations list", () => {
     apiGet.mockResolvedValue([])
     render(<ElevationsPage />)
     expect(await screen.findByText("Немає запитів, що очікують рішення")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("tab", { name: "Відхилені" }))
+    fireEvent.click(screen.getByRole("radio", { name: "Відхилені" }))
     expect(await screen.findByText("Відхилених запитів ще немає")).toBeInTheDocument()
     expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations?status=rejected")
-    fireEvent.click(screen.getByRole("tab", { name: "Усі" }))
+    fireEvent.click(screen.getByRole("radio", { name: "Усі" }))
     expect(await screen.findByText("Запитів ще немає")).toBeInTheDocument()
     expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations")
   })

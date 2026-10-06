@@ -1,17 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ECharts options are read loosely in assertions */
 import { describe, expect, it } from "vitest"
 import { barOption, donutOption, hBarOption, lineOption } from "./chartOptions"
-import { chartThemes } from "./chartTheme"
+import { testChartTheme } from "@/test/chartTheme"
 
 describe("chart options", () => {
   it("draws smooth time lines with an axis tooltip and zoom, in the theme colours", () => {
-    const option = lineOption([{ name: "a", data: [["2026-01-01T00:00:00Z", 3]] }, { name: "b", data: [], hidden: true }], { theme: chartThemes.dark }) as any
+    const option = lineOption([{ name: "a", data: [["2026-01-01T00:00:00Z", 3]] }, { name: "b", data: [], hidden: true }], { theme: testChartTheme }) as any
     expect(option.series[0]).toMatchObject({ type: "line", smooth: true, data: [[Date.parse("2026-01-01T00:00:00Z"), 3]] })
     expect(option.tooltip.trigger).toBe("axis")
     expect(option.dataZoom).toHaveLength(2)
     expect(option.legend.selected).toEqual({ b: false })
-    expect(option.color).toEqual(chartThemes.dark.palette)
-    expect(option.yAxis.axisLabel.color).toBe(chartThemes.dark.axisText)
+    expect(option.color).toEqual(testChartTheme.palette)
+    expect(option.yAxis.axisLabel.color).toBe(testChartTheme.axisText)
+  })
+  it("follows the design system chart theme: monotone 2px lines, axis 12 and legend 13, Ctrl+wheel zoom", () => {
+    const option = lineOption([{ name: "a", data: [["2026-01-01T00:00:00Z", 3], ["2026-01-02T00:00:00Z", 4]] }, { name: "b", data: [["2026-01-01T00:00:00Z", 1]] }], { theme: testChartTheme }) as any
+    expect(option.series[0]).toMatchObject({ smooth: true, smoothMonotone: "x", showSymbol: false, lineStyle: { width: 2 } })
+    expect(option.series[1].showSymbol).toBe(true)
+    expect(option.xAxis.axisLabel.fontSize).toBe(12)
+    expect(option.legend.textStyle.fontSize).toBe(13)
+    expect(option.dataZoom[0].zoomOnMouseWheel).toBe("ctrl")
+    expect(option.animation).toBe(true)
   })
   it("stacks or groups bars", () => {
     const stacked = barOption(["x"], [{ name: "a", data: [1] }, { name: "b", data: [2] }], { stacked: true }) as any

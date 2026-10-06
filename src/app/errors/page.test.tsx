@@ -45,6 +45,16 @@ describe("errors page", () => {
     expect(screen.getByText("database is down")).toBeInTheDocument() // the rows stay while the next answer loads
   })
 
+  it("keeps the tab and the sort in the address", async () => {
+    render(<Page />)
+    await screen.findByText("database is down")
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.col.occurrences" }))
+    await waitFor(() => expect(window.location.search).toBe("?sort=occurrences&dir=asc"))
+    expect(screen.getByRole("columnheader", { name: /admin.errors.col.occurrences/ })).toHaveAttribute("aria-sort", "ascending")
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.errors.tab.notFound" }))
+    await waitFor(() => expect(window.location.search).toContain("tab=notFound"))
+  })
+
   it("shows nothing without platform.errors.read", () => {
     mocks.denied = new Set(["platform.errors.read"])
     render(<Page />)
@@ -102,7 +112,7 @@ describe("errors page", () => {
     expect(container.querySelector("img")).toBeNull()
     expect(container.querySelector("pre b")).toBeNull()
     expect(screen.getByText(/<b>frame<\/b>/)).toBeInTheDocument()
-    expect(await screen.findByRole("link", { name: "Олена Коваль" })).toHaveAttribute("href", `/users/detail?id=${user}`)
+    expect(await screen.findByRole("link", { name: "Олена Коваль" })).toHaveAttribute("href", `/users/detail/?id=${user}`)
     expect(screen.getByText("req-1", { exact: false })).toBeInTheDocument()
   })
 })

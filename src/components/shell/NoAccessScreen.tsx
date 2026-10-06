@@ -34,7 +34,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
   // The session ended meanwhile: that is a 401 after all.
   if (!me) return <SignInRedirect />
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <main id="main" tabIndex={-1} className="flex min-h-screen items-center justify-center p-4">
       <div className="flex w-full max-w-md flex-col">
         <div className="mb-6 flex justify-center"><Wordmark size="lg" /></div>
         <div role="alert" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
@@ -48,6 +48,6 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
           </div>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

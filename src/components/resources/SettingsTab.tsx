@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getCapacity, getSettings, putSettings, type Conflict } from "@/api/resourceCalendar"
+import { TableWrap } from "@/components/common/DsTable"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -11,8 +12,9 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { amountToText, isDoesNotFit, textToAmount, type AmountText } from "@/lib/resourceCalendar"
-import { AllowConflictsDialog, BLOCK, Badge, THEAD, TROW, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
+import { AllowConflictsDialog, BLOCK, Badge, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
 
 const NONE: Conflict[] = []
 
@@ -84,19 +86,19 @@ export function SettingsTab({ canWrite, onSaved }: { canWrite: boolean; onSaved:
         {capacity.error && capacity.data === null ? <LoadError className={BLOCK} message={t("admin.resources.settings.capacityError")} error={capacity.error} onRetry={() => void capacity.refresh(true)} />
           : capacity.data === null ? <LoadingArea className={BLOCK} label={t("admin.loading")} />
           : <>
-            <p className="text-sm">{t("admin.resources.settings.total")}: <span className="font-medium tabular-nums">{formatAmount(capacity.data.Total)}</span></p>
+            <p className="text-sm">{tRich("admin.resources.settings.totalLine", { amount: <span className="font-medium tabular-nums">{formatAmount(capacity.data.Total)}</span> })}</p>
             {(capacity.data.CPUUnlimited || capacity.data.MemoryUnlimited) && <p className="text-sm text-muted-foreground">{t("admin.resources.settings.unlimited")}</p>}
-            {agents.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-              <thead className={THEAD}><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.settings.deviceMax")}</Th><Th>{t("admin.resources.col.state")}</Th></tr></thead>
-              <tbody>{agents.map((agent) => <tr key={agent.ID} className={TROW}>
-                <td className="px-3 py-2 font-medium">{agent.Name}</td>
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums">{agent.CPUUnlimited && agent.MemoryUnlimited ? t("admin.resources.settings.agentUnlimited") : formatAmount(agent.Capacity)}</td>
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">{formatAmount(agent.DeviceMax)}</td>
-                <td className="px-3 py-2"><span className="inline-flex flex-wrap gap-1.5">
+            {agents.length > 0 && <TableWrap label={t("admin.resources.settings.capacity")} rows={3}><table aria-label={t("admin.resources.settings.capacity")} className="ib-table">
+              <thead><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.settings.deviceMax")}</Th><Th>{t("admin.resources.col.state")}</Th></tr></thead>
+              <tbody>{agents.map((agent) => <tr key={agent.ID}>
+                <td className="font-medium">{agent.Name}</td>
+                <td>{agent.CPUUnlimited && agent.MemoryUnlimited ? t("admin.resources.settings.agentUnlimited") : formatAmount(agent.Capacity)}</td>
+                <td className="ib-table__dim">{formatAmount(agent.DeviceMax)}</td>
+                <td><span className="inline-flex flex-wrap gap-1.5">
                   {agent.Used ? <Badge tone="ok">{t("admin.resources.settings.used")}</Badge> : <Badge>{t(`admin.resources.settings.why.${agent.Why || "disabled"}`)}</Badge>}
                   {!agent.Connected && <Badge tone="warn">{t("admin.resources.stats.offline")}</Badge>}
                 </span></td>
-              </tr>)}</tbody></table></div>}
+              </tr>)}</tbody></table></TableWrap>}
           </>}
       </CardContent>
     </Card>

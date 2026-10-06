@@ -1,16 +1,22 @@
-import { useEffect, useRef, useState } from "react"
+"use client"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { listAuditLog, type AuditFilters, type AuditRecord } from "@/api/auditLog"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Input } from "@/components/ui/input"
-import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
-import { LoadingArea, Spinner } from "@/components/ui/spinner"
+import { Spinner } from "@/components/ui/spinner"
+import { Badge, type BadgeTone } from "@/components/ui/badge"
+import { PageHeader } from "@/components/ui/page-header"
+import { FilterField } from "@/components/common/FilterField"
+import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
+import { useUrlState } from "@/lib/useUrlState"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
 import { parseAuditTarget } from "@/lib/auditTarget"
+import { useDebounced } from "@/lib/useDebounced"
 import { useUserNames } from "@/lib/userNames"
 import { useRole } from "@/lib/useRole"
 import { AuditUserFilter, type PickedUser } from "./AuditUserFilter"
@@ -20,21 +26,7 @@ const STATUS_FILTERS = ["2xx", "3xx", "4xx", "5xx", "403", "409"] as const
 // Kind tokens the daemon handlers set explicitly; route-param kinds (userID, id, ...) are typed by hand.
 const TARGET_KINDS = ["event", "team", "user", "agent", "test-lab", "exercise", "challenge", "device"]
 
-const statusTone = (status: number) =>
-  status >= 500 ? "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]"
-  : status >= 400 ? "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]"
-  : "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]"
-
-// A debounced copy of a text filter: the field stays responsive, the request waits.
-function useDebounced(value: string, delay = 300): string {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    if (value === debounced) return
-    const id = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(id)
-  }, [value, debounced, delay])
-  return debounced
-}
+const statusTone = (status: number): BadgeTone => status >= 500 ? "danger" : status >= 400 ? "warn" : "ok"
 
 // «YYYY-MM-DDTHH:mm» wall clock of the picker -> RFC3339 instant. «to» is inclusive, so it covers its whole minute.
 const toInstant = (local: string, endOfMinute = false) => {
@@ -46,22 +38,25 @@ const toInstant = (local: string, endOfMinute = false) => {
 }
 
 type Shown = { key: string; rows: AuditRecord[]; next: string }
+type SortField = "time" | "actor" | "permission" | "method" | "status"
+
+const COLUMNS = ["time", "actor", "permission", "method", "route", "status", "target"] as const
 
 export function AuditLogPage() {
   const { can } = useRole()
-  const [user, setUser] = useState<PickedUser | null>(null)
-  const [permissionInput, setPermissionInput] = useState("")
-  const [routeInput, setRouteInput] = useState("")
-  const [kindInput, setKindInput] = useState("")
-  const [targetIDInput, setTargetIDInput] = useState("")
-  const [method, setMethod] = useState("")
-  const [status, setStatus] = useState("")
-  const [fromLocal, setFromLocal] = useState("")
-  const [toLocal, setToLocal] = useState("")
+  const [url, setUrl] = useUrlState({ actor: "", actorName: "", permission: "", route: "", method: "", status: "", kind: "", targetID: "", from: "", to: "", sort: "time", dir: "desc" })
+  // Text fields stay responsive: the field shows its own value, the URL and the request follow.
+  const [permissionInput, setPermissionInput] = useState(url.permission)
+  const [routeInput, setRouteInput] = useState(url.route)
+  const [targetIDInput, setTargetIDInput] = useState(url.targetID)
   const permission = useDebounced(permissionInput.trim())
   const route = useDebounced(routeInput.trim())
-  const targetKind = useDebounced(kindInput.trim())
   const targetID = useDebounced(targetIDInput.trim())
+  useEffect(() => { setUrl({ permission, route, targetID }) }, [permission, route, targetID, setUrl])
+  const user: PickedUser | null = url.actor ? { id: url.actor, name: url.actorName || url.actor.slice(0, 8) } : null
+  const { method, status, from: fromLocal, to: toLocal, kind: targetKind } = url
+  const sortField = url.sort as SortField
+  const sortDir = url.dir === "asc" ? "asc" : "desc"
   const [reload, setReload] = useState(0)
   // The shown rows stay on screen while a changed filter loads, so the table never flashes empty.
   const [data, setData] = useState<Shown | null>(null)
@@ -103,55 +98,85 @@ export function AuditLogPage() {
   const failed = failure?.key === key ? failure : null
   const refreshing = !badRange && !failed && data?.key !== key
   const moreState = more?.key === key ? more : null
-  const rows = data?.rows ?? []
+  const loaded = data?.rows
   const filtered = Object.values(filters).some(Boolean)
-  const names = useUserNames(rows.map((row) => row.ActorID))
+  const names = useUserNames((loaded ?? []).map((row) => row.ActorID))
+  // The log is paged by cursor from the server (newest first): sorting reorders the rows loaded so far.
+  const rows = useMemo(() => {
+    const list = loaded ?? []
+    if (sortField === "time" && sortDir === "desc") return list
+    const factor = sortDir === "asc" ? 1 : -1
+    const pick = (row: AuditRecord): string | number =>
+      sortField === "time" ? row.CreatedAt : sortField === "actor" ? (names[row.ActorID]?.name ?? row.ActorID) : sortField === "permission" ? row.Permission : sortField === "method" ? row.Method : row.ResponseStatus
+    return [...list].sort((a, b) => {
+      const x = pick(a), y = pick(b)
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * factor
+    })
+  }, [loaded, sortField, sortDir, names])
+  const sort = (field: string) => setUrl({ sort: field, dir: sortField === field && sortDir === "asc" ? "desc" : "asc" })
+  const sortHeader = (column: (typeof COLUMNS)[number]) => ["time", "actor", "permission", "method", "status"].includes(column)
+    ? <SortTh key={column} label={t(`admin.audit.col.${column}`)} field={column} activeField={sortField} direction={sortDir} onSort={sort} />
+    : <th key={column} scope="col">{t(`admin.audit.col.${column}`)}</th>
+  const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
+
+  const filterControls = <>
+    {can("users.read") && <FilterField label={t("admin.audit.filter.user")} className="min-w-[min(100%,16rem)] flex-1 lg:max-w-xs">
+      <AuditUserFilter value={user} onChange={(picked) => setUrl({ actor: picked?.id ?? "", actorName: picked?.name ?? "" })} />
+    </FilterField>}
+    <FilterField label={t("admin.audit.col.permission")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
+      <Input value={permissionInput} onChange={(event) => setPermissionInput(event.target.value)} placeholder={t("admin.audit.filter.permission")} aria-label={t("admin.audit.col.permission")} />
+    </FilterField>
+    <FilterField label={t("admin.audit.col.route")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
+      <Input value={routeInput} onChange={(event) => setRouteInput(event.target.value)} placeholder={t("admin.audit.filter.route")} aria-label={t("admin.audit.col.route")} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.method")} className="min-w-40">
+      <SelectMenu value={method} onChange={(value) => setUrl({ method: value })} ariaLabel={t("admin.audit.filter.method")}
+        options={[{ value: "", label: t("admin.audit.filter.methodAll") }, ...METHODS.map((value) => ({ value, label: value === "GET" ? t("admin.audit.filter.methodGet") : value }))]} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.status")} className="min-w-44">
+      <SelectMenu value={status} onChange={(value) => setUrl({ status: value })} ariaLabel={t("admin.audit.filter.status")}
+        options={[{ value: "", label: t("admin.audit.filter.statusAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status_${value}`) }))]} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.kindLabel")} className="min-w-44">
+      <SelectMenu value={targetKind} onChange={(value) => setUrl({ kind: value })} ariaLabel={t("admin.audit.filter.kindLabel")}
+        options={[{ value: "", label: t("admin.audit.filter.kindAll") }, ...TARGET_KINDS.map((kind) => ({ value: kind, label: t(`admin.audit.target.${kind}`) }))]} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.targetIDLabel")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
+      <Input value={targetIDInput} onChange={(event) => setTargetIDInput(event.target.value)} placeholder={t("admin.audit.filter.targetID")} aria-label={t("admin.audit.filter.targetIDLabel")} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.from")}>
+      <DateTimePicker value={fromLocal} onChange={(value) => setUrl({ from: value })} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} />
+    </FilterField>
+    <FilterField label={t("admin.audit.filter.to")}>
+      <DateTimePicker value={toLocal} onChange={(value) => setUrl({ to: value })} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} />
+    </FilterField>
+  </>
 
   return (
-    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-3">
-        {can("users.read") && <AuditUserFilter value={user} onChange={setUser} />}
-        <Input value={permissionInput} onChange={(event) => setPermissionInput(event.target.value)} placeholder={t("admin.audit.filter.permission")} aria-label={t("admin.audit.col.permission")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
-        <Input value={routeInput} onChange={(event) => setRouteInput(event.target.value)} placeholder={t("admin.audit.filter.route")} aria-label={t("admin.audit.col.route")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
-        <SelectMenu value={method} onChange={setMethod} ariaLabel={t("admin.audit.filter.method")} className="min-w-40"
-          options={[{ value: "", label: t("admin.audit.filter.methodAll") }, ...METHODS.map((value) => ({ value, label: value === "GET" ? t("admin.audit.filter.methodGet") : value }))]} />
-        <SelectMenu value={status} onChange={setStatus} ariaLabel={t("admin.audit.filter.status")} className="min-w-44"
-          options={[{ value: "", label: t("admin.audit.filter.statusAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status_${value}`) }))]} />
-        <Input value={kindInput} onChange={(event) => setKindInput(event.target.value)} list="audit-target-kinds" placeholder={t("admin.audit.filter.targetKind")} aria-label={t("admin.audit.filter.targetKind")} className="min-w-[min(100%,12rem)] flex-1 lg:max-w-[14rem]" />
-        <datalist id="audit-target-kinds">{TARGET_KINDS.map((kind) => <option key={kind} value={kind} />)}</datalist>
-        <Input value={targetIDInput} onChange={(event) => setTargetIDInput(event.target.value)} placeholder={t("admin.audit.filter.targetID")} aria-label={t("admin.audit.filter.targetID")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
-        <DateTimePicker value={fromLocal} onChange={setFromLocal} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} />
-        <DateTimePicker value={toLocal} onChange={setToLocal} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} />
-      </div>
-      {badRange && <p role="alert" className="mb-3 text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")}
+        filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-end gap-x-3 gap-y-3">{filterControls}</div>} />
+      {badRange && <p role="alert" className="text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}
 
-      <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={refreshing}>
-        {failed ? (
-          <LoadError message={t("admin.audit.loadError")} error={failed.cause} onRetry={() => setReload((value) => value + 1)} className="h-full" />
-        ) : !data ? (
-          <LoadingArea className="h-full" label={t("admin.loading")} />
-        ) : rows.length === 0 ? (
-          <EmptyState message={t(filtered ? "admin.audit.emptyFiltered" : "admin.audit.empty")} className="h-full" />
-        ) : (
-          <table className="w-full min-w-[960px] text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                {["time", "actor", "permission", "method", "route", "status", "target"].map((column) => <th key={column} className="px-3 py-2 font-medium">{t(`admin.audit.col.${column}`)}</th>)}
-              </tr>
-            </thead>
+      <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0 flex-1" >
+        <table aria-label={t("admin.audit.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">
+          <thead><tr>{COLUMNS.map(sortHeader)}</tr></thead>
+          {state ? <TableState colSpan={COLUMNS.length} kind={state}
+            message={state === "error" ? t("admin.audit.loadError") : t(filtered ? "admin.audit.emptyFiltered" : "admin.audit.empty")}
+            error={failed?.cause} onRetry={() => setReload((value) => value + 1)} /> : (
             <tbody>
               {rows.map((row) => {
                 const actor = names[row.ActorID]
                 return (
-                  <tr key={row.ID} className="border-b border-border/50">
-                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatDateTime(row.CreatedAt)}</td>
-                    <td className="px-3 py-2"><Link href={`/users/detail?id=${encodeURIComponent(row.ActorID)}`} className="font-medium text-primary hover:underline">{actor?.name ?? row.ActorID.slice(0, 8)}</Link></td>
-                    <td className="px-3 py-2 font-mono text-xs text-foreground">{row.Permission}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-foreground">{row.Method}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{row.Route}</td>
-                    <td className="px-3 py-2"><span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${statusTone(row.ResponseStatus)}`}>{row.ResponseStatus}</span></td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col gap-0.5">
+                  <tr key={row.ID}>
+                    <td className="ib-table__dim"><TimeText iso={row.CreatedAt}>{formatDateTime(row.CreatedAt)}</TimeText></td>
+                    <td><Link href={`/users/detail?id=${encodeURIComponent(row.ActorID)}`} className="font-medium text-primary hover:underline">{actor?.name ?? row.ActorID.slice(0, 8)}</Link></td>
+                    <td className="ib-table__mono">{row.Permission}</td>
+                    <td className="ib-table__mono">{row.Method}</td>
+                    <td className="ib-table__mono ib-table__dim">{row.Route}</td>
+                    <td><Badge tone={statusTone(row.ResponseStatus)} size="sm">{row.ResponseStatus}</Badge></td>
+                    <td>
+                      <div className="flex flex-col gap-0.5 py-1">
                         {parseAuditTarget(row.Target).map((part) => {
                           const kind = TARGET_KINDS.includes(part.kind) ? t(`admin.audit.target.${part.kind}`) : part.kind
                           const label = `${kind} ${part.id.length > 12 ? part.id.slice(0, 8) : part.id}`.trim()
@@ -168,11 +193,11 @@ export function AuditLogPage() {
                 )
               })}
             </tbody>
-          </table>
-        )}
-      </div>
+          )}
+        </table>
+      </TableWrap>
 
-      <div className="mt-auto flex shrink-0 items-center justify-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-center gap-3 text-sm text-muted-foreground">
         {moreState?.error ? <LoadError compact message={t("admin.audit.loadMoreError")} error={moreState.error} onRetry={loadMore} className="min-h-0 w-auto py-0" /> : null}
         {data?.next && !moreState?.error ? (
           <Button type="button" variant="outline" onClick={loadMore} busy={!!moreState?.loading}>{t("admin.audit.showMore")}</Button>

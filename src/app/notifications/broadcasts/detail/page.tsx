@@ -2,6 +2,7 @@
 import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { BroadcastDetail } from "@/components/notifications/broadcast/BroadcastDetail"
@@ -14,7 +15,7 @@ function RouteDetail() {
 
 export default function Page() {
   return (
-    <RequirePermission perm="notifications.broadcast" fallback={<div className="frost-panel frost-in rounded-lg p-8 text-center text-sm text-muted-foreground">{t("admin.notif.noAccess")}</div>}>
+    <RequirePermission perm="notifications.broadcast" fallback={<NoAccess />}>
       <Suspense fallback={<LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />}>
         <RouteDetail />
       </Suspense>

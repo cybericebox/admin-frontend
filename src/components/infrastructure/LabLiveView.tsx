@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
 import type { LabDevice, LabLive } from "@/api/infrastructure"
 import { formatBytes } from "@/lib/infrastructureMonitoring"
-import { formatDateTime } from "@/lib/locale"
+import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 
 const PHASES = ["Pending", "Provisioning", "Ready", "Failed", "Queued"] as const
@@ -37,7 +37,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function never(value: string | null | undefined): string {
-  return value ? formatDateTime(value) : t("admin.labs.detail.never")
+  return value ? formatListDateTime(value) : t("admin.labs.detail.never")
 }
 
 function DeviceRow({ device, canWrite, onReset, onRescue }: { device: LabDevice; canWrite: boolean; onReset: (device: string) => void; onRescue: (device: string, enable: boolean) => void }) {
@@ -56,11 +56,11 @@ function DeviceRow({ device, canWrite, onReset, onRescue }: { device: LabDevice;
       </div>
       {canWrite && snapshot && <div className="flex items-center gap-3">
         <label className="inline-flex items-center gap-2 text-sm">
-          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={`${t("admin.labs.detail.rescue.toggle")}: ${label}`} />
+          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={t("admin.labs.actionNamed", { action: t("admin.labs.detail.rescue.toggle"), name: label })} />
           {t("admin.labs.detail.rescue.toggle")}
         </label>
         <HoverTooltip text={t("admin.labs.detail.reset")}>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.detail.reset")}: ${label}`} onClick={() => onReset(device.Name)}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={t("admin.labs.actionNamed", { action: t("admin.labs.detail.reset"), name: label })} onClick={() => onReset(device.Name)}>
             <RotateCcw aria-hidden="true" className="h-4 w-4" />
           </Button>
         </HoverTooltip>
@@ -70,12 +70,12 @@ function DeviceRow({ device, canWrite, onReset, onRescue }: { device: LabDevice;
     {scheduling?.Failure && <div role="alert" className="space-y-1 rounded-md bg-[var(--ib-danger-bg)] px-3 py-2 text-sm text-[var(--ib-danger)]">
       <p className="font-medium">{t(`admin.labs.detail.failure.${known(FAILURE_REASONS, scheduling.Failure.Reason)}`)}</p>
       {scheduling.Failure.Message && <p className="break-words">{scheduling.Failure.Message}</p>}
-      <p className="text-xs">{t("admin.labs.detail.failure.meta", { restarts: scheduling.Failure.RestartCount, at: formatDateTime(scheduling.Failure.At) })}</p>
+      <p className="text-xs">{t("admin.labs.detail.failure.meta", { restarts: scheduling.Failure.RestartCount, at: formatListDateTime(scheduling.Failure.At) })}</p>
     </div>}
     {scheduling && <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Fact label={t("admin.labs.detail.queuedAt")}>{formatDateTime(scheduling.QueuedAt)}</Fact>
-      <Fact label={t("admin.labs.detail.dispatchedAt")}>{formatDateTime(scheduling.DispatchedAt)}</Fact>
-      <Fact label={t("admin.labs.detail.startedAt")}>{formatDateTime(scheduling.StartedAt)}</Fact>
+      <Fact label={t("admin.labs.detail.queuedAt")}>{formatListDateTime(scheduling.QueuedAt)}</Fact>
+      <Fact label={t("admin.labs.detail.dispatchedAt")}>{formatListDateTime(scheduling.DispatchedAt)}</Fact>
+      <Fact label={t("admin.labs.detail.startedAt")}>{formatListDateTime(scheduling.StartedAt)}</Fact>
     </dl>}
     {snapshot && <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Fact label={t("admin.labs.detail.snapshot.last")}>{never(snapshot.LastSnapshotAt)}</Fact>

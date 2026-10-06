@@ -20,6 +20,6 @@ describe("KpiTile", () => {
   it("links the whole tile to its section", () => {
     render(<KpiTile label="Users" value={1} href="/analytics/users" hint="What is counted" />)
     expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute("href", "/analytics/users")
-    expect(screen.getByRole("button", { name: "What is counted" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: "What is counted" })).toBeInTheDocument()
   })
 })

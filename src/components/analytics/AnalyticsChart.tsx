@@ -12,6 +12,19 @@ import type { ChartOption } from "./chartOptions"
 // echarts is heavy: load it on the first chart only.
 const ReactECharts = lazy(() => import("echarts-for-react"))
 
+// A chart whose every value is zero says «no data» instead of drawing flat lines.
+function allZero(option: ChartOption | undefined): boolean {
+  const series = option?.series
+  if (!Array.isArray(series) || series.length === 0) return false
+  const values = series.flatMap((item) => Array.isArray(item?.data) ? item.data as unknown[] : [])
+  if (values.length === 0) return false
+  return values.every((point) => {
+    const raw = Array.isArray(point) ? point[point.length - 1] : point && typeof point === "object" ? (point as { value?: unknown }).value : point
+    const value = Array.isArray(raw) ? raw[raw.length - 1] : raw
+    return typeof value === "number" && value === 0
+  })
+}
+
 /**
  * The chart block every analytics section uses. Constant height; loading (crest),
  * error (LoadError) and empty (EmptyState) are centred inside that same block, so
@@ -35,9 +48,10 @@ export function AnalyticsChart({ option, loading = false, error, empty = false, 
 }) {
   const theme = useChartTheme()
   const failed = error !== undefined && error !== null && error !== false
-  const state = loading ? "loading" : failed ? "error" : empty || !option ? "empty" : "ready"
   const resolved = typeof option === "function" ? option(theme) : option
-  return <div className={className} style={{ height, "--analytics-block-h": `${height}px` } as CSSProperties} role="img" aria-label={ariaLabel} aria-busy={loading}>
+  const state = loading ? "loading" : failed ? "error" : empty || !option || allZero(resolved) ? "empty" : "ready"
+  // Only the canvas is an image: the state components keep their own roles (a retry button inside role=img is unreachable).
+  return <div className={className} style={{ height, "--analytics-block-h": `${height}px` } as CSSProperties} role={state === "ready" ? "img" : undefined} aria-label={state === "ready" ? ariaLabel : undefined} aria-busy={loading}>
     {state === "loading" && <LoadingArea className="h-full w-full" label={t("admin.loading")} />}
     {state === "error" && <LoadError className="h-full" message={errorMessage ?? t("admin.platformAnalytics.chart.error")} error={error} onRetry={onRetry} />}
     {state === "empty" && <EmptyState className="h-full" message={emptyMessage ?? t("admin.platformAnalytics.chart.empty")} />}

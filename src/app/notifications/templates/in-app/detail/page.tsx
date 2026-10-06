@@ -30,6 +30,7 @@ import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
 import { TemplateVersions } from "@/components/notifications/editor/TemplateVersions"
 import {
@@ -53,6 +54,8 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
 import { sameTemplateValue } from "@/lib/templateEditorState"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { PageHeader } from "@/components/ui/page-header"
 import { FieldHelp } from "@/components/ui/field-help"
 import { toast } from "@/components/ui/toast"
 
@@ -71,6 +74,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const busy = busyAction !== ""
   const [formError, setFormError] = useState(false)
   const [versionRevision, setVersionRevision] = useState(0)
+  const [publishOpen, setPublishOpen] = useState(false)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText) to remount
@@ -288,7 +292,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (loadError) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link href="/notifications/templates/in-app" className="text-sm text-primary hover:underline">← {t("admin.notif.tpl.inapp")}</Link>
+        <Link href="/notifications/templates/in-app" className="text-sm text-primary hover:underline">{t("admin.notif.back.inappTemplates")}</Link>
         <LoadError error={loadError.cause} className="flex-1" onRetry={() => { setLoadError(null); setLoading(true); load() }} />
       </div>
     )
@@ -317,27 +321,18 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
 
-      {/* ── Header ── */}
-      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
-        <Link
-          href="/notifications/templates/in-app"
-          className="text-sm text-primary hover:underline shrink-0"
-        >
-          ← {t("admin.notif.tpl.inapp")}
-        </Link>
-
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-          <h1 className="text-xl font-semibold text-foreground truncate">
-            {notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose")}
-          </h1>
-          {template && <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} />}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+      <PageHeader
+        crumbs={[
+          { label: t("admin.notif.tpl.inapp"), href: "/notifications/templates/in-app" },
+          { label: notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose") },
+        ]}
+        title={notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose")}
+        sub={template ? <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} /> : undefined}
+        actions={<>
           {/* Send test: shown when a template is loaded */}
           {template !== null && canWrite && (
             <Button variant="outline" onClick={() => setTestOpen(true)}>
-              <Send className="h-4 w-4 mr-1" />
+              <Send aria-hidden className="h-4 w-4" />
               {t("admin.notif.test.button")}
             </Button>
           )}
@@ -349,7 +344,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (
-            <Button variant="outline" onClick={() => void handlePublish()} busy={busyAction === "publish"} disabled={busy}>
+            <Button onClick={() => setPublishOpen(true)} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
@@ -360,8 +355,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             </Button>
           )}
           {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* ── Read-only notice: one orange warning under the header ── */}
       {template && isReadOnly && (
@@ -453,7 +448,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             <NotificationAppearancePicker icon={icon} tone={tone} accentColor={accentColor}
               onChange={(next) => { setIcon(next.icon); setTone(next.tone); setAccentColor(next.accentColor) }} />
 
-            {surface !== "inbox" && <p className="text-xs text-amber-700 dark:text-amber-400">{t("admin.notif.inapp.legacySurface")}</p>}
+            {surface !== "inbox" && <p className="text-xs text-[var(--ib-warn)]">{t("admin.notif.inapp.legacySurface")}</p>}
 
             {surface === "inbox" && <div>
               <div className="mb-1 flex items-center gap-1.5">
@@ -505,7 +500,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       value={action.label}
                       onChange={(e) => updateAction(i, "label", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionLabel")}
-                      aria-label={`${t("admin.notif.inapp.actionLabel")} ${i + 1}`}
+                      aria-label={t("admin.notif.inapp.actionLabelN", { n: i + 1 })}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <input
@@ -513,7 +508,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       value={action.href}
                       onChange={(e) => updateAction(i, "href", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionHref")}
-                      aria-label={`${t("admin.notif.inapp.actionHref")} ${i + 1}`}
+                      aria-label={t("admin.notif.inapp.actionHrefN", { n: i + 1 })}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <Button
@@ -555,6 +550,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
       </div>
 
+      <ConfirmDialog open={publishOpen} onCancel={() => setPublishOpen(false)}
+        busy={busyAction === "publish"}
+        title={t("admin.notif.tpl.publishTitle")}
+        description={t("admin.notif.tpl.publishDescription")}
+        confirmLabel={t("admin.notif.tpl.publish")}
+        onConfirm={() => void handlePublish().finally(() => setPublishOpen(false))} />
+
       {/* ── Test notification modal ── */}
       {template !== null && (
         <TestNotificationModal
@@ -582,11 +584,7 @@ export default function Page() {
   return (
     <RequirePermission
       perm="notifications.templates.read"
-      fallback={
-        <div className="frost-panel frost-in rounded-lg p-8 text-center text-sm text-muted-foreground">
-          {t("admin.notif.noAccess")}
-        </div>
-      }
+      fallback={<NoAccess />}
     >
       <Suspense
         fallback={

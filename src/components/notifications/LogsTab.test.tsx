@@ -167,7 +167,7 @@ describe('LogsTab', () => {
 
     // A "filtered by" chip must be visible
     await waitFor(() => {
-      expect(document.body.textContent).toContain('admin.notif.logs.filteredBy')
+      expect(document.body.textContent).toContain('admin.notif.logs.filteredByName')
       expect(document.body.textContent).toContain('Ann Lee')
     })
   })
@@ -240,7 +240,7 @@ describe('LogsTab', () => {
 
     // Wait for chip to appear and data to settle
     await waitFor(() => {
-      expect(document.body.textContent).toContain('admin.notif.logs.filteredBy')
+      expect(document.body.textContent).toContain('admin.notif.logs.filteredByName')
     })
 
     // Clear calls accumulated so far, then dismiss chip
@@ -248,7 +248,7 @@ describe('LogsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '✕' }))
 
     // Chip must disappear immediately
-    expect(document.body.textContent).not.toContain('admin.notif.logs.filteredBy')
+    expect(document.body.textContent).not.toContain('admin.notif.logs.filteredByName')
 
     // Subsequent fetch must NOT include user=
     await waitFor(() => {
@@ -268,7 +268,7 @@ describe('LogsTab', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'admin.table.next' })).not.toBeDisabled())
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('cursor=next-id')))
-    expect(screen.getByText('admin.table.page 2 admin.table.of 2')).toBeInTheDocument()
+    expect(screen.getByText('admin.table.pageOf')).toBeInTheDocument()
   })
 
   it('renders journal columns: email, event name, transport, fallback and error', async () => {
@@ -282,7 +282,7 @@ describe('LogsTab', () => {
     const rows = screen.getAllByRole('row')
     expect(rows[1].textContent).toContain('Kyiv CTF')
     expect(rows[1].textContent).toContain('platform')
-    expect(rows[1].textContent).toContain('admin.notif.logs.fallback: dial tcp: timeout')
+    expect(rows[1].textContent).toContain('admin.notif.logs.fallbackPrefix')
     expect(rows[2].querySelectorAll('td')[2].textContent).toBe('—')
     expect(rows[2].textContent).toContain('env')
     expect(rows[2].textContent).toContain('mail is not configured')

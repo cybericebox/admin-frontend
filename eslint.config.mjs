@@ -15,6 +15,7 @@ const eslintConfig = tseslint.config(
       "node_modules/**",
       ".claude/worktrees/**",
       ".worktrees/**",
+      "src/styles/ds/**",
       "next-env.d.ts",
     ],
   },

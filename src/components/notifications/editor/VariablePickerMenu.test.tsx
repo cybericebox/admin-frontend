@@ -34,7 +34,7 @@ describe('VariablePickerMenu', () => {
     const first = items()[0]
     expect(first).toHaveTextContent(t('admin.notif.var.event_name'))
     expect(first.querySelector('code')?.textContent).toBe('event_name')
-    expect(first).toHaveTextContent(`${t('admin.notif.editor.variableExample')}: CyberICEBox CTF`)
+    expect(first).toHaveTextContent(t('admin.notif.editor.variableExampleLine', { example: 'CyberICEBox CTF' }))
     expect(first).not.toHaveTextContent('{{')
   })
 
@@ -50,7 +50,7 @@ describe('VariablePickerMenu', () => {
     expect(custom.querySelector('strong')?.textContent).toBe('Custom description')
     const bare = items()[3]
     expect(bare.querySelector('strong')?.textContent).toBe('no_description_var')
-    expect(bare).not.toHaveTextContent(t('admin.notif.editor.variableExample'))
+    expect(bare).not.toHaveTextContent(t('admin.notif.editor.variableExampleLine', { example: '' }).trim())
   })
 
   it('filters by label, key and description case-insensitively', () => {

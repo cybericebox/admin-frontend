@@ -48,6 +48,8 @@ describe("no shadows", () => {
         const open = text.lastIndexOf("{", match.index)
         const selector = text.slice(Math.max(text.lastIndexOf("}", open), text.lastIndexOf("{", open - 1)) + 1, open)
         if (prop === "box-shadow" && /:focus/.test(selector)) continue
+        // The one allowed shadow: the design system's overlay token (modal, menu, select, toast, tooltip, drawer).
+        if (prop === "--ib-shadow-overlay" || (prop === "box-shadow" && value.trim() === "var(--ib-shadow-overlay)")) continue
         hits.push(`${path.relative(SRC, file)}:${lineOf(text, match.index)} ${prop}`)
       }
     }

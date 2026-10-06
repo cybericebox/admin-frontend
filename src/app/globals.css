@@ -1,6 +1,16 @@
 @import 'tailwindcss';
-@import '../styles/ds-tokens.css';
-@import '../styles/admin-sidebar.css';
+@import '../styles/ds/tokens.css';
+@import '../styles/ds/admin-sidebar.css';
+@import '../styles/ds/tooltip.css';
+@import '../styles/ds/tabs.css';
+@import '../styles/ds/segmented.css';
+@import '../styles/ds/tag.css';
+@import '../styles/ds/table.css';
+@import '../styles/ds/empty-state.css';
+@import '../styles/ds/pagination.css';
+@import '../styles/ds/page-header.css';
+@import '../styles/app.css';
+@import '../styles/motion.css';
 
 .exercise-editor-toolbar button:not(.bg-primary):hover,
 .exercise-editor-toolbar button:not(.bg-primary):focus-visible {
@@ -57,6 +67,16 @@
 
 	--font-sans: var(--font-geist-sans);
 	--font-mono: var(--font-geist-mono);
+
+	/* Type scale 12/13/14/15/16 (docs/design-system, wave 1): nothing under 12px. */
+	--text-2xs: 0.75rem;
+	--text-2xs--line-height: calc(16 / 12);
+	--text-xs: 0.8125rem;
+	--text-xs--line-height: calc(18 / 13);
+	--text-sm: 0.875rem;
+	--text-sm--line-height: calc(20 / 14);
+	--text-base: 0.9375rem;
+	--text-base--line-height: 1.6;
 }
 
 @layer base {

@@ -78,8 +78,8 @@ function Field({ label, help, required, children }: { label: string; help?: stri
 
 function AmountFields({ value, onChange, label, disabled }: { value: AmountText; onChange: (next: AmountText) => void; label: string; disabled: boolean }) {
   return <div className="grid grid-cols-2 gap-2">
-    <NumberInput value={value.cpu} onChange={(cpu) => onChange({ ...value, cpu })} placeholder={t("admin.resources.editor.cpuMillicores")} aria-label={`${label}: ${t("admin.resources.editor.cpuMillicores")}`} disabled={disabled} />
-    <NumberInput value={value.memoryMiB} onChange={(memoryMiB) => onChange({ ...value, memoryMiB })} placeholder={t("admin.resources.editor.memoryMiB")} aria-label={`${label}: ${t("admin.resources.editor.memoryMiB")}`} disabled={disabled} />
+    <NumberInput value={value.cpu} onChange={(cpu) => onChange({ ...value, cpu })} placeholder={t("admin.resources.editor.cpuMillicores")} aria-label={t("admin.common.labelValue", { label: label, value: t("admin.resources.editor.cpuMillicores") })} disabled={disabled} />
+    <NumberInput value={value.memoryMiB} onChange={(memoryMiB) => onChange({ ...value, memoryMiB })} placeholder={t("admin.resources.editor.memoryMiB")} aria-label={t("admin.common.labelValue", { label: label, value: t("admin.resources.editor.memoryMiB") })} disabled={disabled} />
   </div>
 }
 

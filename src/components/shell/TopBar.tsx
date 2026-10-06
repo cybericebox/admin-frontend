@@ -1,18 +1,21 @@
 "use client"
+import { Fragment } from "react"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Menu } from "lucide-react"
-import { ThemeSwitch } from "./ThemeSwitch"
+import { THEME_OPTIONS, ThemeSwitch, useThemeChoice } from "./ThemeSwitch"
+import type { ThemeChoice } from "@/lib/theme"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
 import { CookieSettingsMenuItem } from "@/components/consent/CookieSettingsMenuItem"
+import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 
 // Unified account menu (lib/accountMenu): same entries, labels and icons in every app.
 const ICON_CLASS = "shrink-0 text-muted-foreground group-focus:text-accent-foreground"
@@ -30,11 +33,14 @@ async function signOutAndRedirect(): Promise<void> {
     // Even if the call fails, fall through to sign-in — the cookie is httpOnly
     // and short-lived; the worst case is a stale token that expires on its own.
   }
-  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
+  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
-export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
+// heading: the title is the page h1 (the page has none of its own); otherwise it is plain text, so a page has one h1.
+export function TopBar({ title, heading = true, onMenuClick }: { title: string; heading?: boolean; onMenuClick?: () => void }) {
+  const Title = heading ? "h1" : "p"
   const { me, role } = useRole()
+  const [themeChoice, selectTheme] = useThemeChoice()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
   const adminTier = role !== null && role !== "user"
@@ -46,24 +52,27 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
+    <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
-        <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
+        <Title className="ib-topbar__title">{title}</Title>
       </div>
       <div className="flex items-center gap-3">
-        <ThemeSwitch />
-        <span className="h-5 w-px bg-border" aria-hidden="true" />
+        {/* On narrow screens the theme switch and the view-only badge live in the account menu. */}
+        <div className="flex items-center gap-3 max-md:hidden">
+          <ThemeSwitch />
+          <span className="h-5 w-px bg-border" aria-hidden="true" />
+        </div>
         <InboxButton defaultTab="requestsIfOpen" />
         {role === "admin_viewer" && (
-          <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground max-md:hidden">
             {t("admin.role.viewOnlyBadge")}
           </span>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-xs font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images
@@ -83,9 +92,19 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <div className="md:hidden">
+              {role === "admin_viewer" && <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("admin.role.viewOnlyBadge")}</DropdownMenuLabel>}
+              <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("theme.label")}</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={themeChoice} onValueChange={(value) => selectTheme(value as ThemeChoice)}>
+                {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
+                  <DropdownMenuRadioItem key={value} value={value} className="gap-2"><Icon aria-hidden="true" className="h-4 w-4" />{t(label)}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+            </div>
             {entries.map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
-              if (entry.kind === "cookies") return <CookieSettingsMenuItem key={i} />
+              if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>
               if (entry.kind === "signOut") {
                 const Icon = ACCOUNT_MENU_ICONS.signOut
                 return (

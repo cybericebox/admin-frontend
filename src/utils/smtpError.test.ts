@@ -6,7 +6,7 @@ describe("smtpErrorView", () => {
     ["smtp_auth", "SMTP-сервер відхилив вхід: перевірте логін і пароль SMTP"],
     ["smtp_rcpt", "Адресу одержувача відхилено"],
     ["smtp_rejected", "Лист відхилено сервером (можливо, адресу не підтверджено в SES)"],
-    ["smtp_connect", "Не вдалося з'єднатися з SMTP-сервером"],
+    ["smtp_connect", "Не вдалося зʼєднатися з SMTP-сервером"],
   ])("maps %s to a human line and keeps the raw text as details", (kind, text) => {
     expect(smtpErrorView(kind, "535", "535 raw")).toEqual({ text, technical: "535 raw" })
   })

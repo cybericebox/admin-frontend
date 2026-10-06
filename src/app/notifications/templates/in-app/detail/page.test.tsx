@@ -262,8 +262,10 @@ describe('In-app template editor page', () => {
   it('shows field descriptions only through the question icon', async () => {
     render(<Page />)
     await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
-    expect(screen.queryByText('admin.notif.inapp.linkHelp')).not.toBeInTheDocument()
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'admin.notif.inapp.linkHelp' }))
+    // The text reaches screen readers through aria-describedby, the bubble itself stays hidden until the icon is used.
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    const help = screen.getByRole('button', { description: 'admin.notif.inapp.linkHelp' })
+    fireEvent.click(help)
     expect(screen.getByRole('tooltip')).toHaveTextContent('admin.notif.inapp.linkHelp')
   })
 

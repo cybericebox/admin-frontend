@@ -1,6 +1,7 @@
 "use client"
 
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, DataTable, KpiTile, barOption, donutOption, lineOption, useAnalyticsResource, type ChartTheme, type Column } from "@/components/analytics"
+import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
 import { roleLabel } from "@/lib/roles"
 import { useRole } from "@/lib/useRole"
@@ -52,7 +53,7 @@ export function UsersAnalytics() {
       <KpiTile label={t("admin.platformAnalytics.users.kpi.active")} hint={t("admin.platformAnalytics.users.kpi.activeHint")}
         value={formatCount(data?.Active.Value)} delta={deltaOf(data?.Active)} sub={previousLine(data?.Active)} loading={loading} empty={failed} />
       <KpiTile label={t("admin.platformAnalytics.users.kpi.avgDaily")} hint={t("admin.platformAnalytics.users.kpi.avgDailyHint")}
-        value={data ? data.AvgDailyActive.toLocaleString("uk-UA", { maximumFractionDigits: 1 }) : undefined} loading={loading} empty={failed} />
+        value={data ? formatNumber(data.AvgDailyActive, { maximumFractionDigits: 1 }) : undefined} loading={loading} empty={failed} />
     </div>
     <div className="grid gap-4 xl:grid-cols-2">
       <AnalyticsBlock title={t("admin.platformAnalytics.users.series.registrationsTitle")}

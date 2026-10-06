@@ -105,7 +105,7 @@ export function BroadcastDetail({ id }: { id: string }) {
   }, [sending])
 
   const previewValues = useMemo(() => Object.fromEntries(BROADCAST_VARIABLES.map((name) => [name, broadcastSample(name)])), [])
-  const back = <Link href="/notifications/broadcasts" className="text-sm text-primary hover:underline">← {t("admin.notif.broadcast.title")}</Link>
+  const back = <Link href="/notifications/broadcasts" className="text-sm text-primary hover:underline">{t("admin.notif.back.broadcasts")}</Link>
 
   if (error && !broadcast) {
     const missing = error.cause instanceof ApiError && error.cause.status === 404
