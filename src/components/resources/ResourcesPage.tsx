@@ -53,7 +53,7 @@ export function ResourcesPage() {
       <TabsContent value="timeline" className="mt-5"><TimelineTab canWrite={canWrite} version={version} onEdit={setEditing} onReplan={setReplanning} onCancel={setCancelling} /></TabsContent>
       <TabsContent value="stats" className="mt-5"><StatsTab stats={stats.data} error={stats.error} onRetry={() => void stats.refresh(true)} /></TabsContent>
       <TabsContent value="needs" className="mt-5"><NeedsReservationTab events={needing} error={allEvents.error ?? stats.error} onRetry={() => { void allEvents.refresh(true); void stats.refresh(true) }}
-        canRead={can("infrastructure.read")} canWrite={canWrite} onEdit={setEditing} /></TabsContent>
+        canRead={can("infrastructure.read")} onEdit={setEditing} /></TabsContent>
       <TabsContent value="requests" className="mt-5"><ChangeRequestsTab canWrite={canWrite} version={version} onDecided={changed} /></TabsContent>
       <TabsContent value="alarms" className="mt-5"><AlarmsTab canWrite={canWrite} version={version} onChanged={changed} /></TabsContent>
       <TabsContent value="settings" className="mt-5"><SettingsTab canWrite={canWrite} onSaved={changed} /></TabsContent>
