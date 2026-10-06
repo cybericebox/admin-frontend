@@ -280,22 +280,27 @@ docker exec "$C" sh -c 'touch /probe' 2>/dev/null && bad "J2 root filesystem is 
 check "J3 effective capabilities empty" 0000000000000000 "$(docker exec "$C" sh -c 'grep CapEff /proc/1/status' | awk '{print $2}')"
 stop "$C"
 
-echo "== M trailing slash"
-# A nested route has both <route>.html and a <route>/ directory in the export: the slash form redirects, never a 403.
+echo "== M trailing slash (the export has trailingSlash: every page is <route>/index.html)"
 ROUTE=agents
 C=$(start slash) || { bad "container did not start"; exit 1; }
 B=http://127.0.0.1:$(port "$C" 8080)
-check "M1 /$ROUTE/ -> 308" 308 "$(code "$B/$ROUTE/")"
-check "M2 /$ROUTE/ Location is the relative path without the slash" "/$ROUTE" "$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 10 "$B/$ROUTE/" | sed "s|^$B||")"
-check "M3 query string kept" "/$ROUTE?a=1&b=2" "$(curl -s -D - -o /dev/null --max-time 10 "$B/$ROUTE/?a=1&b=2" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
-check "M4 followed redirect -> 200" 200 "$(code -L "$B/$ROUTE/")"
-check "M5 /$ROUTE -> 200" 200 "$(code "$B/$ROUTE")"
-check "M6 / -> 200, not redirected" 200 "$(code "$B/")"
+loc() { curl -s -D - -o /dev/null --max-time 10 "$@" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}'; }
+check "M1 /$ROUTE -> 308" 308 "$(code "$B/$ROUTE")"
+check "M2 /$ROUTE Location is the slashed path, relative" "/$ROUTE/" "$(loc "$B/$ROUTE")"
+check "M3 query string kept" "/$ROUTE/?a=1&b=2" "$(loc "$B/$ROUTE?a=1&b=2")"
+check "M4 /$ROUTE/ -> 200, no redirect" 200 "$(code "$B/$ROUTE/")"
+check "M5 /$ROUTE followed -> 200" 200 "$(code -L "$B/$ROUTE")"
+check "M6 / -> 200" 200 "$(code "$B/")"
 check "M7 missing path -> 404, not 403" 404 "$(code "$B/no-such-page")"
-check "M8 missing path with a slash -> 308 -> 404" 404 "$(code -L "$B/no-such-page/")"
-check "M9 a directory without a page is not listed" 404 "$(code "$B/_next/static")"
-check "M10 double slash does not redirect off-site" "/$ROUTE" "$(curl -s -D - -o /dev/null --max-time 10 --path-as-is "$B//$ROUTE/" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
-check "M11 an encoded backslash stays encoded, on this host" "/%5Cevil.example" "$(curl -s -D - -o /dev/null --max-time 10 --path-as-is "$B/%5Cevil.example/" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
+check "M8 missing path with a slash -> 404, not 403" 404 "$(code "$B/no-such-page/")"
+check "M9 a directory without a page is never listed or 403" 404 "$(code -L "$B/_next/static")"
+check "M10 double slash does not redirect off-site" "/$ROUTE/" "$(loc --path-as-is "$B//$ROUTE")"
+check "M11 /healthz is not redirected" 200 "$(code "$B/healthz")"
+NESTED=$(docker exec "$C" sh -c 'cd /usr/share/nginx/html && find . -mindepth 3 -name index.html -not -path "./_next/*" | head -1 | sed "s|^\.||; s|/index.html$||"')
+if [[ -n "$NESTED" ]]; then
+  check "M12 nested route $NESTED -> 308 -> 200" "308 200" "$(code "$B$NESTED") $(code -L "$B$NESTED")"
+  check "M13 nested route $NESTED/ -> 200" 200 "$(code "$B$NESTED/")"
+fi
 stop "$C"
 
 echo

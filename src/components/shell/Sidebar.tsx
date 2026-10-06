@@ -78,7 +78,11 @@ const GROUPS: Group[] = [
   },
 ]
 
-const isActive = (pathname: string, href: string, exact?: boolean) => pathname === href || (!exact && pathname.startsWith(href + "/"))
+// usePathname ends with a slash (trailingSlash export), the hrefs do not.
+const isActive = (pathname: string, href: string, exact?: boolean) => {
+  const here = pathname.replace(/\/$/, "") || "/"
+  return here === href || (!exact && here.startsWith(href + "/"))
+}
 
 export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
   const pathname = usePathname()

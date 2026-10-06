@@ -30,7 +30,7 @@ async function signOutAndRedirect(): Promise<void> {
     // Even if the call fails, fall through to sign-in — the cookie is httpOnly
     // and short-lived; the worst case is a stale token that expires on its own.
   }
-  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
+  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
 export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
