@@ -30,7 +30,7 @@ it("pauses the countdown while the card is hovered", () => {
   vi.useFakeTimers()
   const onClose = vi.fn()
   render(<NotificationPopIn message={{ ID: "2", Title: "Нове", Body: "Текст", AutoDismissMs: 5000 }} onClose={onClose} onAction={vi.fn()} />)
-  const card = screen.getByRole("group", { name: "Нове повідомлення" })
+  const card = screen.getByRole("status", { name: "Нове повідомлення" })
 
   act(() => vi.advanceTimersByTime(3000))
   fireEvent.mouseEnter(card)
