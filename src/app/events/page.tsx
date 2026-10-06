@@ -1,21 +1,23 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import {
-  listEventsPage, archiveEvent, deleteEvent, type Event, type EventLifecycleStatus,
+  listEventsPage, archiveEvent, deleteEvent, type Event,
 } from "@/api/events/catalog"
 import { eventErrorMessage } from "@/lib/eventErrors"
 import { Input } from "@/components/ui/input"
-import { EmptyState } from "@/components/ui/empty-state"
-import { LoadError } from "@/components/ui/load-error"
+import { PageHeader } from "@/components/ui/page-header"
+import { EventStatusBadge, type DisplayStatus } from "@/components/events/EventStatusBadge"
+import { SortTh, TableState, TableWrap, Th, TimeText } from "@/components/common/DsTable"
+import { useUrlState } from "@/lib/useUrlState"
+import { formatListDateTime } from "@/lib/locale"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toast"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
-import { SortableHeader } from "@/components/ui/sortable-header"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -24,33 +26,7 @@ import { isUnsetEventDate } from "@/lib/eventDates"
 import { Archive, Trash2, TriangleAlert } from "lucide-react"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
-type DisplayStatus = EventLifecycleStatus | "not_available" | "archived"
 const STATUS_FILTERS: DisplayStatus[] = ["not_available", "not_published", "published", "started", "finished", "withdrawn", "archived"]
-
-const STATUS_STYLE: Record<DisplayStatus, string> = {
-  not_available: "bg-secondary/40 text-muted-foreground",
-  not_published: "bg-secondary/40 text-muted-foreground",
-  published: "bg-primary/15 text-primary",
-  started: "bg-primary/15 text-primary",
-  finished: "bg-secondary/40 text-muted-foreground",
-  withdrawn: "bg-secondary/40 text-muted-foreground",
-  archived: "bg-secondary/40 text-muted-foreground",
-}
-
-function StatusBadge({ event }: { event: Event }) {
-  const status: DisplayStatus = event.Status === "archived" ? "archived" : event.Status === "pending" ? "not_available" : event.LifecycleStatus ?? "not_published"
-  return (
-    <HoverTooltip text={t(`admin.events.lifecycle.help.${status}`)}>
-      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`} tabIndex={0} aria-label={`${t(`admin.events.lifecycle.${status}`)}: ${t(`admin.events.lifecycle.help.${status}`)}`}>{t(`admin.events.lifecycle.${status}`)}</span>
-    </HoverTooltip>
-  )
-}
-
-function fmt(iso: string | null): string {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })
-}
 
 type Confirming = { kind: "archive" | "delete"; event: Event }
 
@@ -60,19 +36,22 @@ function archiveWarning(event: Event | undefined): "moderators" | "public" | nul
   return "public"
 }
 
-export default function Page() {
+const DEFAULTS = { q: "", status: "all", page: "1", size: "50", sort: "updated", dir: "desc" }
+
+function EventsList() {
   const { can } = useRole()
   const writable = can("events.write")
 
-  const [search, setSearch] = useState("")
-  const [debounced, setDebounced] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [query, setQuery] = useUrlState(DEFAULTS)
+  const debounced = query.q
+  const statusFilter = query.status
+  const page = Math.max(1, Number(query.page) || 1)
+  const pageSize = Number(query.size) || 50
+  const sortBy = query.sort
+  const sortDir: "asc" | "desc" = query.dir === "asc" ? "asc" : "desc"
+  const [search, setSearch] = useState(query.q)
   const [rows, setRows] = useState<Event[]>([])
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
   const [total, setTotal] = useState(0)
-  const [sortBy, setSortBy] = useState("updated")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -87,9 +66,9 @@ export default function Page() {
     const next = search.trim()
     // An unchanged query must not reset the page the user already moved to.
     if (next === debounced) return
-    const id = setTimeout(() => { setDebounced(next); setPage(1) }, 300)
+    const id = setTimeout(() => setQuery({ q: next, page: "1" }), 300)
     return () => clearTimeout(id)
-  }, [search, debounced])
+  }, [search, debounced, setQuery])
 
   const filter = { search: debounced, status: statusFilter === "all" ? "" : statusFilter, page, pageSize, sortBy, sortDir }
 
@@ -112,15 +91,13 @@ export default function Page() {
     if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
     // The request effect raises `loading` itself; raising it here left it stuck (rows unclickable)
     // whenever nothing changed and so no request followed.
-    setPage(next)
+    setQuery({ page: String(next) })
   }
 
   function sort(field: string) {
     const nextDir = field === sortBy ? sortDir === "asc" ? "desc" : "asc"
       : ["availableFrom", "archiveAt", "updated"].includes(field) ? "desc" : "asc"
-    setSortBy(field)
-    setSortDir(nextDir)
-    goToPage(1)
+    setQuery({ sort: field, dir: nextDir, page: "1" })
   }
 
 
@@ -153,56 +130,56 @@ export default function Page() {
 
   const earlyArchiveWarning = confirming?.kind === "archive" ? archiveWarning(confirming.event) : null
 
-  return (
-    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("admin.events.search")} aria-label={t("admin.events.search")}
-          className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
-        <SelectMenu value={statusFilter} onChange={(value) => { setStatusFilter(value); goToPage(1) }}
-          options={[{ value: "all", label: t("admin.events.filterAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.events.lifecycle.${value}`) }))]}
-          ariaLabel={t("admin.events.filterStatus")} className="h-10 min-w-44 text-sm" />
-        {writable && (
-          <Button className="ml-auto h-10 shrink-0 text-sm" asChild><Link href="/events/new">{t("admin.events.create.button")}</Link></Button>
-        )}
-      </div>
+  const filtered = !!(debounced || statusFilter !== "all")
+  const firstLoad = loading && rows.length === 0
+  const stateKind = error ? "error" : firstLoad ? "loading" : rows.length === 0 ? "empty" : null
+  const colCount = writable ? 7 : 6
 
-      <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error ? (
-        <LoadError message={t("admin.events.loadError")} error={error.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((value) => value + 1) }} className="h-full" />
-      ) : loading && rows.length === 0 ? (
-        <LoadingArea className="h-full" label={t("admin.loading")} />
-      ) : rows.length === 0 ? (
-        <EmptyState message={t(debounced || statusFilter !== "all" ? "admin.events.empty" : "admin.events.emptyInitial")} className="h-full" />
-      ) : (
-        <div className={loading ? "pointer-events-none" : undefined}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-                <SortableHeader label={t("admin.events.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.nameHelp")} /></SortableHeader>
-                <SortableHeader label={t("admin.events.col.tag")} field="tag" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.tagHelp")} /></SortableHeader>
-                <SortableHeader label={t("admin.events.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.statusHelp")} /></SortableHeader>
-                <SortableHeader label={t("admin.events.col.availableFrom")} field="availableFrom" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.availableFromHelp")} /></SortableHeader>
-                <SortableHeader label={t("admin.events.col.archiveAt")} field="archiveAt" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.archiveAtHelp")} /></SortableHeader>
-                <SortableHeader label={t("admin.events.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.updatedHelp")} /></SortableHeader>
-                {writable && <th scope="col" className="sticky top-0 z-10 w-24 bg-card px-3 py-2" />}
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <PageHeader title={t("admin.nav.events")} count={firstLoad ? undefined : total}
+        actions={writable ? <Button className="h-10 shrink-0 text-sm" asChild><Link href="/events/new">{t("admin.events.create.button")}</Link></Button> : undefined}
+        filters={<>
+          <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("admin.events.search")} aria-label={t("admin.events.search")}
+            className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
+          <SelectMenu value={statusFilter} onChange={(value) => setQuery({ status: value, page: "1" })}
+            options={[{ value: "all", label: t("admin.events.filterAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.events.lifecycle.${value}`) }))]}
+            ariaLabel={t("admin.events.filterStatus")} className="h-10 min-w-44 text-sm" />
+        </>} />
+
+      <div ref={tableScrollRef} className="flex min-h-0 flex-1 flex-col overflow-auto" aria-busy={loading}>
+        <TableWrap label={t("admin.nav.events")} rows={8} className="min-h-0">
+          <table className={`ib-table${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.nav.events")}>
+            <thead>
+              <tr>
+                <SortTh label={t("admin.events.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.nameHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.tag")} field="tag" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.tagHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.statusHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.availableFrom")} field="availableFrom" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.availableFromHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.archiveAt")} field="archiveAt" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.archiveAtHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.updatedHelp")} /></SortTh>
+                {writable && <Th className="ib-table__actions"><span className="sr-only">{t("admin.events.col.actions")}</span></Th>}
               </tr>
             </thead>
-            <tbody>
-              {rows.map((ev) => (
-                <tr key={ev.ID} className="group border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2">
-                    <Link className="font-medium text-primary hover:underline" href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{ev.Name || ev.Tag}</Link>
-                  </td>
-                  <td className="px-3 py-2"><EventSiteLink tag={ev.Tag} /></td>
-                  <td className="px-3 py-2"><StatusBadge event={ev} /></td>
-                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{fmt(ev.AvailableFrom)}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : fmt(ev.ArchiveAt)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {ev.UpdatedAt ? new Date(ev.UpdatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
-                  </td>
-                  {writable && <td className="w-24 px-3 py-2">
-                    <span className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 motion-reduce:transition-none">
+            {stateKind ? (
+              <TableState colSpan={colCount} kind={stateKind}
+                message={error ? t("admin.events.loadError") : t(filtered ? "admin.events.empty" : "admin.events.emptyInitial")}
+                error={error?.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((value) => value + 1) }} />
+            ) : (
+              <tbody className={loading ? "pointer-events-none" : undefined}>
+                {rows.map((ev) => (
+                  <tr key={ev.ID} className="group">
+                    <td>
+                      <Link className="ib-table__name hover:underline" href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{ev.Name || ev.Tag}</Link>
+                    </td>
+                    <td><EventSiteLink tag={ev.Tag} /></td>
+                    <td><EventStatusBadge event={ev} /></td>
+                    <td className="ib-table__dim"><TimeText iso={ev.AvailableFrom}>{formatListDateTime(ev.AvailableFrom)}</TimeText></td>
+                    <td className="ib-table__dim">{isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : <TimeText iso={ev.ArchiveAt}>{formatListDateTime(ev.ArchiveAt)}</TimeText>}</td>
+                    <td className="ib-table__dim"><TimeText iso={ev.UpdatedAt}>{formatListDateTime(ev.UpdatedAt)}</TimeText></td>
+                    {writable && <td className="ib-table__actions">
+                      <span className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 motion-reduce:transition-none">
                         {ev.Status !== "archived" && (
                           <HoverTooltip text={t("admin.events.action.archive")}>
                             <Button type="button" variant="ghost" size="icon" aria-label={t("admin.events.action.archive")}
@@ -219,17 +196,17 @@ export default function Page() {
                             <Trash2 aria-hidden="true" className="h-4 w-4" />
                           </Button>
                         </HoverTooltip>
-                    </span>
-                  </td>}
-                </tr>
-              ))}
-            </tbody>
+                      </span>
+                    </td>}
+                  </tr>
+                ))}
+              </tbody>
+            )}
           </table>
-        </div>
-      )}
+        </TableWrap>
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
-        onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
+        onPage={goToPage} onPageSize={(size) => setQuery({ size: String(size), page: "1" })} />
 
       <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} error={confirmError}
         title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
@@ -248,5 +225,13 @@ export default function Page() {
         )}
       </ConfirmDialog>
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}>
+      <EventsList />
+    </Suspense>
   )
 }

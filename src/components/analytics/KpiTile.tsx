@@ -28,7 +28,10 @@ export function KpiTile({ label, value, sub, delta, hint, href, loading = false,
     ? <div className="flex h-8 items-center"><Spinner size="md" label={t("admin.loading")} /></div>
     : <p className="flex h-8 items-center text-2xl font-semibold tabular-nums text-foreground">{empty || value === undefined || value === null ? "–" : value}</p>
   const tile = <div className="flex min-h-[7rem] flex-col gap-2 p-4">
-    <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><span>{label}</span>{hint && <FieldHelp text={hint} />}</div>
+    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">{href
+      // Stretched link: its own text is the accessible name; the tile is the click area (the hint button sits above it).
+      ? <Link href={href} className="after:absolute after:inset-0 after:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{label}</Link>
+      : <span>{label}</span>}{hint && <span className="relative z-10"><FieldHelp text={hint} /></span>}</div>
     {body}
     <div className="mt-auto flex min-h-5 items-center gap-2 text-xs">
       {!loading && delta && <span className={`font-medium tabular-nums ${tone}`}>{delta.text}</span>}
@@ -36,9 +39,5 @@ export function KpiTile({ label, value, sub, delta, hint, href, loading = false,
     </div>
   </div>
   if (!href) return <div className="min-w-0 rounded-lg border border-border bg-card">{tile}</div>
-  // The (?) hint is a button, so it cannot sit inside the link: the link covers the tile behind it.
-  return <div className="relative min-w-0 rounded-lg border border-border bg-card transition-colors hover:bg-accent">
-    <Link href={href} aria-label={label} className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
-    <div className="pointer-events-none [&_button]:pointer-events-auto">{tile}</div>
-  </div>
+  return <div className="relative min-w-0 rounded-lg border border-border bg-card transition-colors hover:bg-accent">{tile}</div>
 }

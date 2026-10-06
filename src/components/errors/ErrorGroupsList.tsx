@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { listErrorGroups, setErrorGroupStatus, ERROR_KINDS, ERROR_STATUSES, type ErrorFilters, type ErrorKind, type ErrorStatus } from "@/api/errorJournal"
 import { Input } from "@/components/ui/input"
-import { EmptyState } from "@/components/ui/empty-state"
-import { LoadError } from "@/components/ui/load-error"
-import { LoadingArea } from "@/components/ui/spinner"
+import { FilterField } from "@/components/common/FilterField"
+import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
+import { useUrlState } from "@/lib/useUrlState"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -28,13 +28,17 @@ const cap = (value: string) => value[0].toUpperCase() + value.slice(1)
 export function ErrorGroupsList() {
   const { can } = useRole()
   const canWrite = can("platform.errors.write")
-  const [kinds, setKinds] = useState<ErrorKind[]>([])
-  const [status, setStatus] = useState<ErrorStatus | "">("")
-  const [period, setPeriod] = useState("")
-  const [qInput, setQInput] = useState("")
+  const [url, setUrl] = useUrlState({ q: "", kind: "", status: "", period: "", page: "1", size: "50", sort: "lastSeen", dir: "desc" })
+  const kinds = useMemo(() => url.kind.split(",").filter((value): value is ErrorKind => (ERROR_KINDS as readonly string[]).includes(value)), [url.kind])
+  const status = (ERROR_STATUSES as readonly string[]).includes(url.status) ? url.status as ErrorStatus : ""
+  const period = url.period in PERIODS ? url.period : ""
+  const [qInput, setQInput] = useState(url.q)
   const q = useDebounced(qInput.trim())
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  useEffect(() => { setUrl({ q }) }, [q, setUrl])
+  const page = Math.max(1, Number(url.page) || 1)
+  const pageSize = [25, 50, 100].includes(Number(url.size)) ? Number(url.size) : 50
+  const sortField = url.sort
+  const sortDir = url.dir === "asc" ? "asc" : "desc"
   const [reload, setReload] = useState(0)
   // The last answer stays on screen while the next loads (and while live events change it).
   const [data, setData] = useState<{ key: string; filterKey: string; page: GroupPage } | null>(null)
@@ -82,77 +86,95 @@ export function ErrorGroupsList() {
   const stale = data?.filterKey !== filterKey
   const failed = failure?.key === key && stale ? failure : null
   const refreshing = !failed && stale
-  const rows = useMemo(() => data?.page.items ?? [], [data])
+  const items = useMemo(() => data?.page.items ?? [], [data])
+  // The server pages by last seen; a sort reorders the page that is shown.
+  const rows = useMemo(() => {
+    if (sortField === "lastSeen" && sortDir === "desc") return items
+    const factor = sortDir === "asc" ? 1 : -1
+    const pick = (g: (typeof items)[number]): string | number =>
+      sortField === "kind" ? kindLabel(g.Kind) : sortField === "title" ? g.Title : sortField === "status" ? g.Status : sortField === "occurrences" ? g.Occurrences : sortField === "firstSeen" ? g.FirstSeenAt : g.LastSeenAt
+    return [...items].sort((a, b) => {
+      const x = pick(a), y = pick(b)
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * factor
+    })
+  }, [items, sortField, sortDir])
+  const sort = (field: string) => setUrl({ sort: field, dir: sortField === field && sortDir === "asc" ? "desc" : "asc" })
+  const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
   const filtered = !!(kinds.length || status || period || q)
-  const resetPage = () => setPage(1)
+  const setPage = (value: number) => setUrl({ page: String(value) })
+  const resetPage = () => setUrl({ page: "1" })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-3">
-        <Input value={qInput} onChange={(event) => { setQInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.search")} aria-label={t("admin.errors.filter.search")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs" />
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" className="h-10 min-w-44 justify-between font-normal" aria-label={t("admin.errors.filter.kind")}>
-              <span className="truncate">{kinds.length === 0 ? t("admin.errors.filter.kindAll") : kinds.length === 1 ? kindLabel(kinds[0]) : t("admin.errors.filter.kindCount", { count: kinds.length })}</span>
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-80 overflow-auto">
-            {ERROR_KINDS.map((kind) => (
-              <DropdownMenuCheckboxItem key={kind} checked={kinds.includes(kind)} onSelect={(event) => event.preventDefault()}
-                onCheckedChange={(checked) => { setKinds((current) => checked ? [...current, kind] : current.filter((value) => value !== kind)); resetPage() }}>
-                {kindLabel(kind)}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <SelectMenu value={status} onChange={(value) => { setStatus(value as ErrorStatus | ""); resetPage() }} ariaLabel={t("admin.errors.filter.status")} className="min-w-44"
-          options={[{ value: "", label: t("admin.errors.filter.statusAll") }, ...ERROR_STATUSES.map((value) => ({ value, label: t(`admin.errors.status.${value}`) }))]} />
-        <SelectMenu value={period} onChange={(value) => { setPeriod(value); resetPage() }} ariaLabel={t("admin.errors.filter.period")} className="min-w-44"
-          options={[{ value: "", label: t("admin.errors.filter.periodAll") }, ...PERIOD_KEYS.map((value) => ({ value, label: t(`admin.errors.filter.period${cap(value)}`) }))]} />
-        <span className="ml-auto text-xs text-muted-foreground" data-stream-mode={mode}>{t(`admin.errors.stream.${mode}`)}</span>
+      <div className="mb-4 flex flex-wrap items-end gap-x-3 gap-y-3">
+        <FilterField label={t("admin.errors.filter.searchLabel")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
+          <Input value={qInput} onChange={(event) => { setQInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.search")} aria-label={t("admin.errors.filter.search")} />
+        </FilterField>
+        <FilterField label={t("admin.errors.filter.kindLabel")} className="min-w-44">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" className="h-10 min-w-44 justify-between font-normal" aria-label={t("admin.errors.filter.kind")}>
+                <span className="truncate">{kinds.length === 0 ? t("admin.errors.filter.kindAll") : kinds.length === 1 ? kindLabel(kinds[0]) : t("admin.errors.filter.kindCount", { count: kinds.length })}</span>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-80 overflow-auto">
+              {ERROR_KINDS.map((kind) => (
+                <DropdownMenuCheckboxItem key={kind} checked={kinds.includes(kind)} onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(checked) => { setUrl({ kind: (checked ? [...kinds, kind] : kinds.filter((value) => value !== kind)).join(","), page: "1" }) }}>
+                  {kindLabel(kind)}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </FilterField>
+        <FilterField label={t("admin.errors.filter.statusLabel")} className="min-w-44">
+          <SelectMenu value={status} onChange={(value) => setUrl({ status: value, page: "1" })} ariaLabel={t("admin.errors.filter.status")}
+            options={[{ value: "", label: t("admin.errors.filter.statusAll") }, ...ERROR_STATUSES.map((value) => ({ value, label: t(`admin.errors.status.${value}`) }))]} />
+        </FilterField>
+        <FilterField label={t("admin.errors.filter.periodLabel")} className="min-w-44">
+          <SelectMenu value={period} onChange={(value) => setUrl({ period: value, page: "1" })} ariaLabel={t("admin.errors.filter.period")}
+            options={[{ value: "", label: t("admin.errors.filter.periodAll") }, ...PERIOD_KEYS.map((value) => ({ value, label: t(`admin.errors.filter.period${cap(value)}`) }))]} />
+        </FilterField>
+        <span className="ml-auto pb-2 text-xs text-muted-foreground" data-stream-mode={mode}>{t(`admin.errors.stream.${mode}`)}</span>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={refreshing}>
-        {failed ? (
-          <LoadError message={t("admin.errors.loadError")} error={failed.cause} onRetry={resync} className="h-full" />
-        ) : !data ? (
-          <LoadingArea className="h-full" label={t("admin.loading")} />
-        ) : rows.length === 0 ? (
-          <EmptyState message={t(filtered ? "admin.errors.emptyFiltered" : "admin.errors.empty")} className="h-full" />
-        ) : (
-          <table className="w-full min-w-[960px] text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="py-2 pr-3 font-medium">{t("admin.errors.col.kind")}</th>
-                <th className="py-2 pr-3 font-medium">{t("admin.errors.col.title")}</th>
-                <th className="py-2 pr-3 font-medium">{t("admin.errors.col.status")}</th>
-                <th className="py-2 pr-3 font-medium">{t("admin.errors.col.occurrences")}</th>
-                <th className="py-2 pr-3 font-medium">{t("admin.errors.col.lastSeen")}</th>
-                <th className="py-2 font-medium">{t("admin.errors.col.firstSeen")}</th>
-              </tr>
-            </thead>
+      <TableWrap label={t("admin.errors.table")} rows={10} className="min-h-0 flex-1">
+        <table aria-label={t("admin.errors.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">
+          <thead>
+            <tr>
+              <SortTh label={t("admin.errors.col.kind")} field="kind" activeField={sortField} direction={sortDir} onSort={sort} />
+              <SortTh label={t("admin.errors.col.title")} field="title" activeField={sortField} direction={sortDir} onSort={sort} />
+              <SortTh label={t("admin.errors.col.status")} field="status" activeField={sortField} direction={sortDir} onSort={sort} />
+              <SortTh label={t("admin.errors.col.occurrences")} field="occurrences" activeField={sortField} direction={sortDir} onSort={sort} num />
+              <SortTh label={t("admin.errors.col.lastSeen")} field="lastSeen" activeField={sortField} direction={sortDir} onSort={sort} />
+              <SortTh label={t("admin.errors.col.firstSeen")} field="firstSeen" activeField={sortField} direction={sortDir} onSort={sort} />
+            </tr>
+          </thead>
+          {state ? <TableState colSpan={6} kind={state}
+            message={state === "error" ? t("admin.errors.loadError") : t(filtered ? "admin.errors.emptyFiltered" : "admin.errors.empty")}
+            error={failed?.cause} onRetry={resync} /> : (
             <tbody>
               {rows.map((group) => (
-                <tr key={group.ID} className="border-b border-border align-top">
-                  <td className="py-2.5 pr-3"><KindBadge kind={group.Kind} /></td>
-                  <td className="max-w-xl py-2.5 pr-3">
+                <tr key={group.ID}>
+                  <td><KindBadge kind={group.Kind} /></td>
+                  <td className="max-w-xl !whitespace-normal py-1">
                     <a href={errorGroupHref(group.ID)} className="break-words font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{group.Title}</a>
-                    {group.Source && <div className="mt-0.5 break-all font-mono text-xs text-muted-foreground">{group.Source}</div>}
+                    {group.Source && <div className="break-all font-mono text-xs text-muted-foreground">{group.Source}</div>}
                   </td>
-                  <td className="py-2.5 pr-3">
+                  <td>
                     <StatusSwitch status={group.Status} readOnly={!canWrite} label={t("admin.errors.statusFor", { title: group.Title })} onChange={(next) => queue.set(group.ID, group.Status, next)} />
                   </td>
-                  <td className="py-2.5 pr-3 tabular-nums">{formatNumber(group.Occurrences)}</td>
-                  <td className="whitespace-nowrap py-2.5 pr-3 text-muted-foreground">{formatDateTime(group.LastSeenAt)}</td>
-                  <td className="whitespace-nowrap py-2.5 text-muted-foreground">{formatDateTime(group.FirstSeenAt)}</td>
+                  <td className="ib-table__num">{formatNumber(group.Occurrences)}</td>
+                  <td className="ib-table__dim"><TimeText iso={group.LastSeenAt}>{formatDateTime(group.LastSeenAt)}</TimeText></td>
+                  <td className="ib-table__dim"><TimeText iso={group.FirstSeenAt}>{formatDateTime(group.FirstSeenAt)}</TimeText></td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
-      </div>
-      {data && !failed && <TablePagination page={page} pageSize={pageSize} total={data.page.total} busy={refreshing} onPage={setPage} onPageSize={(size) => { setPageSize(size); setPage(1) }} />}
+          )}
+        </table>
+      </TableWrap>
+      {data && !failed && <TablePagination page={page} pageSize={pageSize} total={data.page.total} busy={refreshing} onPage={setPage} onPageSize={(size) => setUrl({ size: String(size), page: "1" })} />}
     </div>
   )
 }

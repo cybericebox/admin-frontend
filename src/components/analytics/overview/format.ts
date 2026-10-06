@@ -1,7 +1,8 @@
+import { UI_LOCALE } from "@/lib/locale"
 import type { Metric } from "@/api/platformAnalyticsOverview"
 import { t } from "@/i18n/t"
 
-const number = new Intl.NumberFormat("uk-UA")
+const number = new Intl.NumberFormat(UI_LOCALE)
 
 export function formatCount(value: number | null | undefined): string {
   return value === null || value === undefined ? "–" : number.format(value)

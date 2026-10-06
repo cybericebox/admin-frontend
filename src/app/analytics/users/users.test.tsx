@@ -58,7 +58,7 @@ describe("analytics users page", () => {
     render(<Page />)
     const total = await screen.findByRole("link", { name: "Усього акаунтів" })
     expect(total).toHaveAttribute("href", "/users")
-    expect(within(total.parentElement as HTMLElement).getByText("1 200")).toBeInTheDocument()
+    expect(within(total.closest("div.relative") as HTMLElement).getByText("1 200")).toBeInTheDocument()
     expect(screen.getByText("+20%")).toBeInTheDocument()
     expect(screen.getByText("−25%")).toBeInTheDocument()
     expect(screen.getByText("12,5")).toBeInTheDocument()

@@ -23,6 +23,7 @@ vi.mock('@/api/events/catalog', () => ({
 }))
 import { listEventsPage, archiveEvent, deleteEvent, type Event } from '@/api/events/catalog'
 import Page from './page'
+const setTestUrl = (q: string) => window.history.replaceState(null, "", q ? `/test/?${q}` : "/test/")
 
 const mockList = vi.mocked(listEventsPage)
 const mockArchive = vi.mocked(archiveEvent)
@@ -43,6 +44,7 @@ const activeEvent = {
 
 describe('events catalog page', () => {
   beforeEach(() => {
+    setTestUrl('')
     vi.clearAllMocks()
     mockList.mockReset()
     mockArchive.mockReset()
@@ -70,7 +72,7 @@ describe('events catalog page', () => {
     expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('Spring CTF')
     expect(within(row).getAllByRole('cell')[1]).toHaveTextContent('springctf.cybericebox-dev.pp.ua')
     expect(within(row).getAllByRole('cell')[1]).not.toHaveTextContent('https://')
-    expect(within(row).getAllByRole('cell')[5]).toHaveTextContent(/02 січня 2026 р\. о \d{2}:\d{2}:\d{2}/)
+    expect(within(row).getAllByRole('cell')[5]).toHaveTextContent(/^02\.01\.2026, \d{2}:\d{2}$/)
     const statusHelp = screen.getByRole('button', { description: 'admin.events.col.statusHelp' })
     fireEvent.mouseEnter(statusHelp)
     expect(await screen.findByRole('tooltip')).toHaveClass('z-[100]')
@@ -90,7 +92,8 @@ describe('events catalog page', () => {
   it('keeps column headings above rows within the scrolling table', async () => {
     const { container } = render(<Page />)
     await screen.findByText('Spring CTF')
-    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+    expect(container.querySelector('thead')).toBeInTheDocument()
+    expect(container.querySelector('table.ib-table')).toBeInTheDocument()
   })
 
   it('uses the same empty icon with a different message after search', async () => {
@@ -338,5 +341,17 @@ describe('events catalog page', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     await act(async () => finishArchive?.({ ...activeEvent, Status: 'archived' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+describe('events catalog query string', () => {
+  beforeEach(() => { setTestUrl('') })
+  it('restores filter, sort and page from the URL and has one h1', async () => {
+    setTestUrl('status=published'+String.fromCharCode(38)+'sort=name'+String.fromCharCode(38)+'dir=asc'+String.fromCharCode(38)+'page=2')
+    mockList.mockResolvedValue({ Items: [], Total: 0, Page: 2, PageSize: 50 } as never)
+    render(<Page />)
+    await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'published', sortBy: 'name', sortDir: 'asc', page: 2 })))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('columnheader', { name: /admin.events.col.name/ })).toBeInTheDocument()
   })
 })

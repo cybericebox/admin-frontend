@@ -7,7 +7,7 @@ import { t } from "@/i18n/t"
 import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { formatDateTime } from "@/lib/locale"
 import { usePolling } from "@/lib/usePolling"
-import { cn } from "@/utils/cn"
+import { Badge as UiBadge } from "@/components/ui/badge"
 
 /** Same height for loading, empty and error, so a block never jumps between them. */
 export const BLOCK = "min-h-56"
@@ -18,23 +18,12 @@ export const formatWindow = (from: string | null | undefined, to: string | null 
 
 export type Tone = "ok" | "warn" | "danger" | "muted"
 
-const TONE: Record<Tone, string> = {
-  ok: "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
-  warn: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
-  danger: "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]",
-  muted: "bg-secondary text-muted-foreground",
-}
-
+// The panel Badge (ui/badge.tsx); «muted» is its neutral tone.
 export function Badge({ tone = "muted", children, ...rest }: { tone?: Tone; children: ReactNode; "data-testid"?: string }) {
-  return <span {...rest} className={cn("inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium", TONE[tone])}>{children}</span>
+  return <UiBadge {...rest} tone={tone === "muted" ? "neutral" : tone} size="sm">{children}</UiBadge>
 }
 
-export function Th({ children, className }: { children?: ReactNode; className?: string }) {
-  return <th scope="col" className={cn("px-3 py-2 font-medium", className)}>{children}</th>
-}
-
-export const THEAD = "border-b border-border text-xs uppercase tracking-wider text-muted-foreground"
-export const TROW = "border-b border-border/50 transition-colors hover:bg-accent/10"
+export { Th } from "@/components/common/DsTable"
 
 /**
  * One calendar read kept fresh by polling. The first load shows the loader; later refreshes

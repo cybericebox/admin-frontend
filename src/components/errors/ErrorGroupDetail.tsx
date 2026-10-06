@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { ArrowLeft } from "lucide-react"
 import { getErrorGroup, setErrorGroupStatus, type ErrorGroupDetail, type ErrorSample } from "@/api/errorJournal"
+import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -97,17 +97,14 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <a href="/errors" className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
-        <ArrowLeft aria-hidden="true" className="h-4 w-4" />{t("admin.errors.back")}
-      </a>
+      <PageHeader title={group?.Title ?? t("admin.nav.errors")} crumbs={[{ label: t("admin.nav.errors"), href: "/errors" }, { label: group?.Title ?? t("admin.loading") }]} />
       {missing ? <EmptyState message={t("admin.errors.notFound")} className="flex-1" />
         : failure && !detail ? <LoadError message={t("admin.errors.detailLoadError")} error={failure} onRetry={resync} className="flex-1" />
         : !detail || !group ? <LoadingArea className="flex-1" label={t("admin.loading")} />
         : <>
           <header className="rounded-lg border border-border bg-card p-4">
             <div className="flex flex-wrap items-center gap-2"><KindBadge kind={group.Kind} />{group.Source && <span className="break-all font-mono text-xs text-muted-foreground">{group.Source}</span>}</div>
-            <h2 className="mt-2 break-words text-lg font-semibold text-foreground">{group.Title}</h2>
-            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
               <Field label={t("admin.errors.col.occurrences")}>{formatNumber(group.Occurrences)}</Field>
               <Field label={t("admin.errors.col.firstSeen")}>{formatDateTime(group.FirstSeenAt)}</Field>
               <Field label={t("admin.errors.col.lastSeen")}>{formatDateTime(group.LastSeenAt)}</Field>

@@ -5,23 +5,29 @@ import Link from "next/link"
 import { RefreshCw } from "lucide-react"
 import { listElevations, type ElevationFilter, type ElevationRequest } from "@/api/elevations"
 import { Button } from "@/components/ui/button"
+import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/ui/page-header"
+import { Segmented } from "@/components/ui/segmented"
+import { useUrlState } from "@/lib/useUrlState"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
-import { cn } from "@/utils/cn"
-import { STATUS_STYLE } from "./elevationView"
 
 const FILTERS: ElevationFilter[] = ["pending", "approved", "rejected", ""]
 
+const STATUS_TONE: Record<ElevationRequest["Status"], BadgeTone> = { pending: "info", approved: "ok", rejected: "danger" }
+
 export function StatusBadge({ status }: { status: ElevationRequest["Status"] }) {
-  return <span data-status={status} className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", STATUS_STYLE[status])}>{t(`admin.elevations.status.${status}`)}</span>
+  return <Badge data-status={status} tone={STATUS_TONE[status]}>{t(`admin.elevations.status.${status}`)}</Badge>
 }
 
 export function ElevationsPage() {
-  const [filter, setFilter] = useState<ElevationFilter>("pending")
+  const [url, setUrl] = useUrlState({ status: "pending" })
+  const filter: ElevationFilter = url.status === "all" ? "" : (FILTERS as string[]).includes(url.status) ? url.status as ElevationFilter : "pending"
+  const setFilter = (value: ElevationFilter) => setUrl({ status: value === "" ? "all" : value })
   const [state, setState] = useState<{ filter: ElevationFilter; items: ElevationRequest[] | null; error: unknown }>({ filter: "pending", items: null, error: null })
   const [attempt, setAttempt] = useState(0)
 
@@ -38,18 +44,10 @@ export function ElevationsPage() {
   const loading = items === null && (state.filter !== filter || state.error === null)
 
   return <div className="flex min-h-full flex-col gap-5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-xl font-semibold text-foreground">{t("admin.elevations.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.elevations.subtitle")}</p></div>
-      <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label={t("admin.elevations.filter")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
-          {FILTERS.map((value) => <button key={value || "all"} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)}
-            className={cn("h-7 rounded px-3 text-sm", filter === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            {t(`admin.elevations.filter.${value || "all"}`)}
-          </button>)}
-        </div>
-        <Button variant="outline" onClick={retry}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
-      </div>
-    </div>
+    <PageHeader title={t("admin.nav.elevations")} sub={t("admin.elevations.subtitle")}
+      actions={<Button variant="outline" onClick={retry}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>}
+      filters={<Segmented value={filter || "all"} onChange={(value) => setFilter(value === "all" ? "" : value as ElevationFilter)} label={t("admin.elevations.filter")}
+        options={FILTERS.map((value) => ({ value: value || "all", label: t(`admin.elevations.filter.${value || "all"}`) }))} />} />
 
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} />
       : !items ? <LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="flex-1" />

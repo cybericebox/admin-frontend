@@ -2,11 +2,11 @@
 
 import type { Stats } from "@/api/resourceCalendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { EmptyState } from "@/components/ui/empty-state"
+import { TableState, TableWrap } from "@/components/common/DsTable"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
-import { Badge, BLOCK, THEAD, TROW, Th, formatAmount, formatWindow } from "./resourceView"
+import { Badge, BLOCK, Th, formatAmount, formatWindow } from "./resourceView"
 
 export function StatsTab({ stats, error, onRetry }: { stats: Stats | null; error: unknown; onRetry: () => void }) {
   if (error && stats === null) return <LoadError className={BLOCK} message={t("admin.resources.stats.loadError")} error={error} onRetry={onRetry} />
@@ -21,30 +21,30 @@ export function StatsTab({ stats, error, onRetry }: { stats: Stats | null; error
     <Card>
       <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.stats.agents")}</CardTitle></CardHeader>
       <CardContent className="pt-3">
-        {agents.length === 0 ? <EmptyState compact message={t("admin.resources.stats.noAgents")} /> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-          <thead className={THEAD}><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.col.allocated")}</Th><Th>{t("admin.resources.col.inUse")}</Th><Th>{t("admin.resources.col.free")}</Th></tr></thead>
-          <tbody>{agents.map((agent) => <tr key={agent.ID} className={TROW} data-testid={`agent-stat-${agent.ID}`}>
-            <td className="px-3 py-2"><span className="block font-medium">{agent.Name}</span>
+        <TableWrap label={t("admin.resources.stats.agents")} rows={3} className="border-0"><table aria-label={t("admin.resources.stats.agents")} className="ib-table">
+          <thead><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.col.allocated")}</Th><Th>{t("admin.resources.col.inUse")}</Th><Th>{t("admin.resources.col.free")}</Th></tr></thead>
+          {agents.length === 0 ? <TableState colSpan={5} kind="empty" message={t("admin.resources.stats.noAgents")} /> : <tbody>{agents.map((agent) => <tr key={agent.ID} data-testid={`agent-stat-${agent.ID}`}>
+            <td><span className="block font-medium leading-tight">{agent.Name}</span>
               <span className="inline-flex gap-1.5">{!agent.Used && <Badge>{t("admin.resources.stats.notUsed")}</Badge>}{!agent.Connected && <Badge tone="warn">{t("admin.resources.stats.offline")}</Badge>}</span></td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(agent.Capacity)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(agent.Allocated)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(agent.InUse)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(agent.Free)}</td>
-          </tr>)}</tbody></table></div>}
+            <td >{formatAmount(agent.Capacity)}</td>
+            <td >{formatAmount(agent.Allocated)}</td>
+            <td >{formatAmount(agent.InUse)}</td>
+            <td >{formatAmount(agent.Free)}</td>
+          </tr>)}</tbody>}</table></TableWrap>
       </CardContent>
     </Card>
     <Card>
       <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.stats.events")}</CardTitle></CardHeader>
       <CardContent className="pt-3">
-        {events.length === 0 ? <EmptyState compact message={t("admin.resources.stats.noEvents")} /> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-          <thead className={THEAD}><tr><Th>{t("admin.resources.col.event")}</Th><Th>{t("admin.resources.col.window")}</Th><Th>{t("admin.resources.col.allocated")}</Th><Th>{t("admin.resources.col.inUse")}</Th><Th>{t("admin.resources.col.free")}</Th></tr></thead>
-          <tbody>{events.map((event) => <tr key={event.ReservationID} className={TROW} data-testid={`event-stat-${event.ReservationID}`}>
-            <td className="px-3 py-2"><span className="block font-medium">{event.EventName || event.EventTag}</span>{!event.Covered && <Badge tone="warn">{t("admin.resources.uncovered")}</Badge>}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">{formatWindow(event.From, event.To)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(event.Allocated)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(event.InUse)}</td>
-            <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(event.Free)}</td>
-          </tr>)}</tbody></table></div>}
+        <TableWrap label={t("admin.resources.stats.events")} rows={3} className="border-0"><table aria-label={t("admin.resources.stats.events")} className="ib-table">
+          <thead><tr><Th>{t("admin.resources.col.event")}</Th><Th>{t("admin.resources.col.window")}</Th><Th>{t("admin.resources.col.allocated")}</Th><Th>{t("admin.resources.col.inUse")}</Th><Th>{t("admin.resources.col.free")}</Th></tr></thead>
+          {events.length === 0 ? <TableState colSpan={5} kind="empty" message={t("admin.resources.stats.noEvents")} /> : <tbody>{events.map((event) => <tr key={event.ReservationID} data-testid={`event-stat-${event.ReservationID}`}>
+            <td><span className="block font-medium leading-tight">{event.EventName || event.EventTag}</span>{!event.Covered && <Badge tone="warn">{t("admin.resources.uncovered")}</Badge>}</td>
+            <td className="ib-table__dim">{formatWindow(event.From, event.To)}</td>
+            <td >{formatAmount(event.Allocated)}</td>
+            <td >{formatAmount(event.InUse)}</td>
+            <td >{formatAmount(event.Free)}</td>
+          </tr>)}</tbody>}</table></TableWrap>
       </CardContent>
     </Card>
   </div>

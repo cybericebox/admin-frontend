@@ -24,7 +24,7 @@ function answer(rows: object[], next = "") {
 }
 
 describe("admin audit log page", () => {
-  beforeEach(() => { mocks.get.mockReset(); mocks.allowed = true; answer([row()]) })
+  beforeEach(() => { window.history.replaceState(null, "", "/audit/"); mocks.get.mockReset(); mocks.allowed = true; answer([row()]) })
   afterEach(() => { cleanup(); vi.useRealTimers() })
 
   it("lists records with the actor and the target as links", async () => {
@@ -34,6 +34,17 @@ describe("admin audit log page", () => {
     expect(screen.getByRole("link", { name: /admin.audit.target.event 22222222/ })).toHaveAttribute("href", `/events/detail?id=${EVENT}`)
     expect(screen.getByText("events.write")).toBeInTheDocument()
     expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log")
+  })
+
+  it("keeps the filters in the address and starts from them", async () => {
+    render(<Page />)
+    await screen.findByText("events.write")
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
+    await waitFor(() => expect(window.location.search).toBe("?status=5xx"))
+    cleanup()
+    render(<Page />)
+    await waitFor(() => expect(mocks.get).toHaveBeenLastCalledWith("/api/admin/audit-log?status=5xx"))
   })
 
   it("shows nothing without platform.audit.read", () => {
@@ -67,7 +78,8 @@ describe("admin audit log page", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.method" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "DELETE" }))
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx"))
-    fireEvent.change(screen.getByLabelText("admin.audit.filter.targetKind"), { target: { value: "team" } })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.kindLabel" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.target.team" }))
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx&targetKind=team"))
   })
 

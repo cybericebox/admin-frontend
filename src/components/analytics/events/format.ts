@@ -1,6 +1,7 @@
 import { t } from "@/i18n/t"
+import { UI_LOCALE, formatListDateTime } from "@/lib/locale"
 
-const number = new Intl.NumberFormat("uk-UA")
+const number = new Intl.NumberFormat(UI_LOCALE)
 
 export function formatCount(value: number | null | undefined): string {
   return value === null || value === undefined ? "–" : number.format(value)
@@ -13,8 +14,7 @@ export function formatPercent(rate: number | null | undefined): string {
 
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "–"
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? "–" : date.toLocaleString("uk-UA", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  return formatListDateTime(iso)
 }
 
 /** A span of seconds as «2 дн 3 год», «3 год 20 хв» or «45 хв». */

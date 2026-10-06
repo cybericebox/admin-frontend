@@ -1,13 +1,12 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { EmptyState } from "@/components/ui/empty-state"
-import { LoadError } from "@/components/ui/load-error"
+import { TableState, TableWrap, Th, TimeText } from "@/components/common/DsTable"
 import { Switch } from "@/components/ui/switch"
 import { FieldHelp } from "@/components/ui/field-help"
 import type { CurrentLab } from "@/api/infrastructure"
 import { MonitoringFacts } from "@/components/infrastructure/MonitoringFacts"
-import { formatDateTime } from "@/lib/locale"
+import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 
 // The full merged current state of every lab group of the shown events.
@@ -29,21 +28,21 @@ export function CurrentState({ rows, includeRecent, onIncludeRecent, loadError, 
       </span>
     </CardHeader>
     <CardContent>
-      {loadError ? <LoadError message={loadError} error={errorCause} compact onRetry={onRetry} /> : rows.length === 0 ? <EmptyState message={t("admin.labs.obs.empty")} compact /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.event")}</th><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.team")}</th><th className="py-2 pr-4 font-medium">{t("admin.labs.obs.observed")}</th><th className="py-2 font-medium">{t("admin.labs.obs.data")}</th></tr></thead>
-            <tbody className="divide-y divide-border">
+      <TableWrap label={t("admin.labs.obs.title")} rows={4}>
+        <table aria-label={t("admin.labs.obs.title")} className="ib-table">
+          <thead><tr><Th>{t("admin.labs.obs.event")}</Th><Th>{t("admin.labs.obs.team")}</Th><Th>{t("admin.labs.obs.observed")}</Th><Th>{t("admin.labs.obs.data")}</Th></tr></thead>
+          {loadError ? <TableState colSpan={4} kind="error" message={loadError} error={errorCause} onRetry={onRetry} />
+            : rows.length === 0 ? <TableState colSpan={4} kind="empty" message={t("admin.labs.obs.empty")} />
+            : <tbody>
               {rows.map((row) => <tr key={`${row.EventID}:${row.EventTeamID}:${row.LabGroupName}`}>
-                <td className="py-2 pr-4 font-medium">{row.EventName}</td>
-                <td className="py-2 pr-4">{row.TeamName || t("admin.labs.moderatorsTeam")}<span className="block text-xs text-muted-foreground">{row.LabGroupName}</span></td>
-                <td className="whitespace-nowrap py-2 pr-4 text-muted-foreground">{formatDateTime(row.UpdatedAt)}</td>
-                <td className="py-2"><details><summary className="cursor-pointer text-primary">{t("admin.labs.obs.viewMetrics")}</summary><MonitoringFacts payload={row.Payload} /></details></td>
+                <td className="ib-table__name">{row.EventName}</td>
+                <td>{row.TeamName || t("admin.labs.moderatorsTeam")}<span className="block text-xs text-muted-foreground">{row.LabGroupName}</span></td>
+                <td className="ib-table__dim"><TimeText iso={row.UpdatedAt}>{formatListDateTime(row.UpdatedAt)}</TimeText></td>
+                <td className="!whitespace-normal"><details><summary className="cursor-pointer text-primary">{t("admin.labs.obs.viewMetrics")}</summary><MonitoringFacts payload={row.Payload} /></details></td>
               </tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </tbody>}
+        </table>
+      </TableWrap>
     </CardContent>
   </Card>
 }

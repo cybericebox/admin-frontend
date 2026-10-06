@@ -12,6 +12,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
+import { Badge } from "@/components/ui/badge"
+import { NoAccess } from "@/components/common/NoAccess"
+import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/components/ui/toast"
 import {
   getCurrentCapacity, getCurrentLabs, getInfrastructureStatus, listStandEvents, listStands, listTestLabs, recreateStand, terminateTestLab,
@@ -34,7 +37,7 @@ function warningLabel(status: InfrastructureStatus): string | null {
 }
 
 function StateBadge({ good, children }: { good: boolean; children: React.ReactNode }) {
-  return <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${good ? "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]" : "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]"}`}>{children}</span>
+  return <Badge tone={good ? "ok" : "warn"}>{children}</Badge>
 }
 
 function LabsPage() {
@@ -159,16 +162,13 @@ function LabsPage() {
   const connected = status?.Available === true
   const retry = () => void refresh(true)
 
-  return <RequirePermission perm="infrastructure.read" fallback={<p className="text-sm text-muted-foreground">{t("admin.labs.noAccess")}</p>}>
+  return <RequirePermission perm="infrastructure.read" fallback={<NoAccess message={t("admin.labs.noAccess")} />}>
     <div className="flex min-h-full flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-xl font-semibold text-foreground">{t("admin.labs.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.labs.subtitle")}</p></div>
-        {/* Nothing to refresh while the laboratory is not connected: the page keeps polling quietly and switches on its own. */}
-        {connected && <div className="flex items-center gap-3">
-          <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
-          <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
-        </div>}
-      </div>
+      {/* Nothing to refresh while the laboratory is not connected: the page keeps polling quietly and switches on its own. */}
+      <PageHeader title={t("admin.labs.title")} sub={t("admin.labs.subtitle")} actions={connected ? <>
+        <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
+        <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
+      </> : undefined} />
       {error && status && <LoadError message={error} error={causes.status} compact onRetry={retry} />}
       {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : !status ? error && <LoadError message={error} error={causes.status} onRetry={retry} className="flex-1" /> : !connected ? <EmptyState className="flex-1" message={t("admin.labs.notConnected")} /> : <>
         <Card><CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.connection")}<FieldHelp text={t("admin.labs.connectionHelp")} /></CardTitle></CardHeader><CardContent className="space-y-3">

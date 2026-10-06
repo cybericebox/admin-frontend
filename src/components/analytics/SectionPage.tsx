@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react"
 import { ErrorScreen } from "@/components/ErrorScreen"
+import { PageHeader } from "@/components/ui/page-header"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { AutoRefresh } from "./AutoRefresh"
@@ -34,14 +35,11 @@ function Inner({ title, subtitle, showPeriod = true, autoRefresh, actions, child
   const value = useMemo<SectionContextValue>(() => ({ period, autoRefresh: auto, reportUpdated, reportBusy, reportForbidden: setForbidden }), [period, auto, reportUpdated, reportBusy])
   return <SectionContext.Provider value={value}>
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0"><h2 className="text-xl font-semibold text-foreground">{title}</h2>{subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}</div>
-        <div className="flex flex-wrap items-center gap-3">
-          {autoRefresh && <AutoRefresh enabled={auto} onChange={setAuto} updatedAt={updatedAt} refreshing={busy > 0} />}
-          {actions}
-          {showPeriod && <PeriodFilter preset={period.preset} onChange={period.setPreset} />}
-        </div>
-      </div>
+      <PageHeader title={title} sub={subtitle} actions={<>
+        {autoRefresh && <AutoRefresh enabled={auto} onChange={setAuto} updatedAt={updatedAt} refreshing={busy > 0} />}
+        {actions}
+        {showPeriod && <PeriodFilter preset={period.preset} onChange={period.setPreset} />}
+      </>} />
       {forbidden
         ? <ErrorScreen title={t("admin.platformAnalytics.forbidden")} onRetry={() => { setForbidden(false); setAttempt((n) => n + 1) }} />
         : <div key={attempt}>{typeof children === "function" ? children(period) : children}</div>}

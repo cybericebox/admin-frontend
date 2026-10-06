@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react"
 import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, saveMailIdentity, type MailFieldSource, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
+import { NoAccess } from "@/components/common/NoAccess"
+import { PageHeader } from "@/components/ui/page-header"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { MailFooterCard } from "@/components/settings/MailFooterCard"
 import { MailProvidersCard } from "@/components/settings/MailProvidersCard"
@@ -94,14 +96,11 @@ export default function Page() {
   return (
     <RequirePermission
       perm="platform.settings.read"
-      fallback={<div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">{t("admin.settings.noAccess")}</div>}
+      fallback={<NoAccess message={t("admin.settings.noAccess")} />}
     >
       <div className="flex min-h-full flex-col gap-5">
+        <PageHeader title={t("admin.mail.title")} sub={t("admin.mail.description")} />
         <SettingsTabs />
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">{t("admin.mail.title")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t("admin.mail.description")}</p>
-        </div>
 
         {loadError ? (
           <LoadError message={t("admin.mail.loadError")} error={loadError.cause} onRetry={() => void load()} className="flex-1" />
