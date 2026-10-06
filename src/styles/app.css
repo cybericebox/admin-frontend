@@ -34,3 +34,21 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
   td { font-size: var(--ib-fs-14); }
   tbody tr { height: var(--ib-row-h); }
 }
+
+/* Tabs: the selected tab must stand out from the others in both themes (DS tabs.css keeps ink on dim, which is
+   too close in the dark theme). Tokens: selected text and underline are the strongest ink; the underline is 3px. */
+:root, [data-theme="light"] { --ib-tab-on: var(--ib-ink); --ib-tab-on-line: var(--ib-action); }
+[data-theme="dark"] { --ib-tab-on: #FFFFFF; --ib-tab-on-line: #FFFFFF; }
+.ib-tabs > [role="tab"][aria-selected="true"],
+.ib-tabs > a[aria-current="page"] { color: var(--ib-tab-on); border-bottom-color: var(--ib-tab-on-line); border-bottom-width: 3px; }
+
+/* Route tabs: links that look like the DS tabs (settings sub-pages). */
+.ib-tabs > a {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 44px; padding: 0; margin-bottom: -1px;
+  border-bottom: 2px solid transparent; color: var(--ib-dim); font: var(--ib-w-medium) var(--ib-fs-14)/var(--ib-lh-ui) var(--ib-font);
+  white-space: nowrap; text-decoration: none;
+  transition: color var(--ib-dur-fast) var(--ib-ease), border-color var(--ib-dur-fast) var(--ib-ease);
+}
+.ib-tabs > a:hover { color: var(--ib-ink); border-bottom-color: var(--ib-line); }
+.ib-tabs > a[aria-current="page"] { font-weight: var(--ib-w-semibold); }
+.ib-tabs > a:focus-visible { outline: 2px solid var(--ib-action); outline-offset: 2px; border-radius: var(--ib-r-sm); }

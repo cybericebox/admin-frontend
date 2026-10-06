@@ -8,6 +8,7 @@ import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Menu } from "lucide-react"
+import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs"
 import { THEME_OPTIONS, ThemeSwitch, useThemeChoice } from "./ThemeSwitch"
 import type { ThemeChoice } from "@/lib/theme"
 import { InboxButton } from "./InboxButton"
@@ -36,9 +37,8 @@ async function signOutAndRedirect(): Promise<void> {
   if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
-// heading: the title is the page h1 (the page has none of its own); otherwise it is plain text, so a page has one h1.
-export function TopBar({ title, heading = true, onMenuClick }: { title: string; heading?: boolean; onMenuClick?: () => void }) {
-  const Title = heading ? "h1" : "p"
+// The top bar shows the trail only; the page's one h1 lives in PageHeader.
+export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMenuClick?: () => void }) {
   const { me, role } = useRole()
   const [themeChoice, selectTheme] = useThemeChoice()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
@@ -55,7 +55,7 @@ export function TopBar({ title, heading = true, onMenuClick }: { title: string; 
     <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
-        <Title className="ib-topbar__title">{title}</Title>
+        <Breadcrumbs items={crumbs} className="min-w-0" />
       </div>
       <div className="flex items-center gap-3">
         {/* On narrow screens the theme switch and the view-only badge live in the account menu. */}

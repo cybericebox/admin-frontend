@@ -814,6 +814,7 @@
   "admin.settings.title": "Налаштування платформи",
   "admin.settings.description": "Загальні параметри, доступні адміністратору платформи.",
   "admin.settings.empty": "Налаштувань поки немає.",
+  "admin.settings.emptyExplained": "Окремих параметрів платформи поки немає. Тут відображатимуться значення, які платформа збереже. Пошту налаштовано на вкладці «{tab}».",
   "admin.settings.editNamed": "Редагувати {key}",
   "admin.settings.edit": "Редагувати",
   "admin.settings.value": "Значення",

@@ -4,6 +4,7 @@ import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
 import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel } from "@/api/notifications/banners"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -195,19 +196,18 @@ export function BannersAdmin() {
   }
 
   return (
-    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-foreground">{t("admin.notif.banners.title")}</h1>
-        {canWrite && <Button onClick={() => setEditing("new")}>{t("admin.notif.banners.create")}</Button>}
-      </div>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <PageHeader title={t("admin.notif.banners.title")}
+        actions={canWrite ? <Button onClick={() => setEditing("new")}>{t("admin.notif.banners.create")}</Button> : undefined} />
+    <div className="frost-panel frost-in flex min-h-0 flex-col overflow-hidden rounded-lg p-6">
       {actionError && <p role="alert" className="mb-2 text-sm text-destructive">{actionError}</p>}
-      <div className="relative min-h-0 flex-1 overflow-auto" aria-busy={banners === null && !error}>
+      <div className="relative min-h-0 overflow-auto [--ib-state-h:400px]" aria-busy={banners === null && !error}>
         {error && !banners ? (
-          <LoadError message={t("admin.notif.banners.loadError")} error={error.cause} className="h-full" onRetry={() => { setError(null); load() }} />
+          <LoadError message={t("admin.notif.banners.loadError")} error={error.cause} className="h-[var(--ib-state-h)]" onRetry={() => { setError(null); load() }} />
         ) : banners === null ? (
-          <LoadingArea className="h-full" label={t("admin.loading")} />
+          <LoadingArea className="h-[var(--ib-state-h)]" label={t("admin.loading")} />
         ) : banners.length === 0 ? (
-          <EmptyState message={t("admin.notif.banners.empty")} className="h-full" />
+          <EmptyState message={t("admin.notif.banners.empty")} className="h-[var(--ib-state-h)]" />
         ) : (
           <table className="w-full min-w-[820px] text-sm">
             <thead>
@@ -245,6 +245,7 @@ export function BannersAdmin() {
           </table>
         )}
       </div>
+    </div>
       {editing && <BannerDialog banner={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
       <ConfirmDialog
         open={removing !== null}

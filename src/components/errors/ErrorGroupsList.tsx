@@ -139,7 +139,7 @@ export function ErrorGroupsList() {
         <span className="ml-auto pb-2 text-xs text-muted-foreground" data-stream-mode={mode}>{t(`admin.errors.stream.${mode}`)}</span>
       </div>
 
-      <TableWrap label={t("admin.errors.table")} rows={10} className="min-h-0 flex-1">
+      <TableWrap label={t("admin.errors.table")} rows={10} className="min-h-0">
         <table aria-label={t("admin.errors.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">
           <thead>
             <tr>

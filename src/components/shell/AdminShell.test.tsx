@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { AdminShell } from "./AdminShell"
+import { usePageMeta } from "./PageTitle"
 
 const path = vi.hoisted(() => ({ value: "/dashboard" }))
 vi.mock("next/navigation", () => ({ usePathname: () => path.value }))
@@ -10,7 +11,7 @@ vi.mock("@/lib/origins", async (importOriginal) => ({ ...(await importOriginal<t
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span>, CREST_SRC: "/crest.png" }))
-vi.mock("./TopBar", () => ({ TopBar: ({ title, onMenuClick }: { title: string; onMenuClick: () => void }) => <><button onClick={onMenuClick}>menu</button><p data-testid="bar-title">{title}</p></> }))
+vi.mock("./TopBar", () => ({ TopBar: ({ crumbs, onMenuClick }: { crumbs: { label: string }[]; onMenuClick: () => void }) => <><button onClick={onMenuClick}>menu</button><p data-testid="bar-title">{crumbs.map((crumb) => crumb.label).join(" > ")}</p></> }))
 vi.mock("./Sidebar", () => ({ Sidebar: ({ onClose }: { onClose?: () => void }) => <aside aria-label="sidebar">{onClose && <button onClick={onClose}>admin.shell.closeMenu</button>}</aside> }))
 vi.mock("./SiteBanner", () => ({ SiteBannerBar: () => null }))
 
@@ -85,6 +86,17 @@ describe("admin shell", () => {
     render(<AdminShell><span>content</span></AdminShell>)
     expect(screen.getByTestId("bar-title")).toHaveTextContent("admin.nav.resources")
     expect(document.title).toBe("admin.title.template")
+  })
+
+  it("shows the crumbs a page reports instead of the bare section, and no h1 of its own", () => {
+    function Page() {
+      usePageMeta("Новий захід", [{ label: "Заходи", href: "/events" }, { label: "Новий захід" }])
+      return <span>content</span>
+    }
+    path.value = "/events/new/"
+    render(<AdminShell><Page /></AdminShell>)
+    expect(screen.getByTestId("bar-title")).toHaveTextContent("Заходи > Новий захід")
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 
   it("uses the section-less title on an unknown route", () => {

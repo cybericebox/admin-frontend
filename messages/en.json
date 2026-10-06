@@ -814,6 +814,7 @@
   "admin.settings.title": "Platform settings",
   "admin.settings.description": "General parameters available to the platform administrator.",
   "admin.settings.empty": "No settings yet.",
+  "admin.settings.emptyExplained": "There are no individual platform parameters yet. Values the platform stores will appear here. Mail is set up on the “{tab}” tab.",
   "admin.settings.editNamed": "Edit {key}",
   "admin.settings.edit": "Edit",
   "admin.settings.value": "Value",

@@ -32,4 +32,10 @@ describe("platform settings page", () => {
     fail(new Error("x"))
     await waitFor(() => expect(sw).toHaveAttribute("aria-checked", "false"))
   })
+  it("explains an empty list instead of a bare notice, pointing to the mail tab", async () => {
+    apiGet.mockResolvedValue([])
+    render(<Page />)
+    expect(await screen.findByText(/Окремих параметрів платформи поки немає/)).toHaveTextContent("«Пошта»")
+    expect(screen.getByRole("link", { name: "Пошта" })).toHaveAttribute("href", "/settings/mail")
+  })
 })
