@@ -25,8 +25,8 @@ export function audienceComplete(state: AudienceState): boolean {
 
 /** Human label of a stored audience (history list and details). */
 export function audienceLabel(audience: BroadcastAudience): string {
-  if (audience.Kind === "roles") return `${t("admin.notif.broadcast.audience.roles")}: ${(audience.Roles ?? []).map(roleLabel).join(", ")}`
-  if (audience.Kind === "users") return `${t("admin.notif.broadcast.audience.users")}: ${(audience.UserIDs ?? []).length}`
+  if (audience.Kind === "roles") return t("admin.notif.broadcast.audience.rolesLine", { roles: (audience.Roles ?? []).map(roleLabel).join(", ") })
+  if (audience.Kind === "users") return t("admin.notif.broadcast.audience.usersLine", { count: (audience.UserIDs ?? []).length })
   if (audience.Kind === "all") return t("admin.notif.broadcast.audience.all")
   const key = `admin.notif.broadcast.audience.${audience.Kind}`
   const label = t(key)

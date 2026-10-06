@@ -135,7 +135,7 @@ export function BroadcastCompose() {
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
-        <Link href="/notifications/broadcasts" className="shrink-0 text-sm text-primary hover:underline">← {t("admin.notif.broadcast.title")}</Link>
+        <Link href="/notifications/broadcasts" className="shrink-0 text-sm text-primary hover:underline">{t("admin.notif.back.broadcasts")}</Link>
         <h1 className="min-w-0 flex-1 truncate text-xl font-semibold text-foreground">{t("admin.notif.broadcast.new")}</h1>
         <Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>
       </div>

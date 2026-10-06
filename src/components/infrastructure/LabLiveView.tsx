@@ -56,11 +56,11 @@ function DeviceRow({ device, canWrite, onReset, onRescue }: { device: LabDevice;
       </div>
       {canWrite && snapshot && <div className="flex items-center gap-3">
         <label className="inline-flex items-center gap-2 text-sm">
-          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={`${t("admin.labs.detail.rescue.toggle")}: ${label}`} />
+          <Switch checked={snapshot.Rescue} onCheckedChange={(enable) => onRescue(device.Name, enable)} aria-label={t("admin.labs.actionNamed", { action: t("admin.labs.detail.rescue.toggle"), name: label })} />
           {t("admin.labs.detail.rescue.toggle")}
         </label>
         <HoverTooltip text={t("admin.labs.detail.reset")}>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.detail.reset")}: ${label}`} onClick={() => onReset(device.Name)}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={t("admin.labs.actionNamed", { action: t("admin.labs.detail.reset"), name: label })} onClick={() => onReset(device.Name)}>
             <RotateCcw aria-hidden="true" className="h-4 w-4" />
           </Button>
         </HoverTooltip>

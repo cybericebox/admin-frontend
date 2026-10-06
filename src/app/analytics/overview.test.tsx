@@ -52,14 +52,14 @@ describe("analytics overview page", () => {
   it("shows the tiles with their change against the previous period, each linking to its section", async () => {
     mocks.apiGet.mockResolvedValue(report())
     render(<Page />)
-    const users = await screen.findByRole("link", { name: "Нові акаунти" })
+    const users = await screen.findByRole("link", { name: "Нові облікові записи" })
     expect(users).toHaveAttribute("href", "/analytics/users")
     expect(within(users.closest("div.relative") as HTMLElement).getByText("+20%")).toBeInTheDocument()
     expect(within(users.closest("div.relative") as HTMLElement).getByText("було 50")).toBeInTheDocument()
     // a fall of a good metric is red-toned text, a rise of failures too (inverse)
     const failed = screen.getByRole("link", { name: "Листи з помилкою" }).closest("div.relative") as HTMLElement
     expect(within(failed).getByText("+200%")).toHaveClass("text-destructive")
-    const active = screen.getByRole("link", { name: "Активні акаунти" }).closest("div.relative") as HTMLElement
+    const active = screen.getByRole("link", { name: "Активні облікові записи" }).closest("div.relative") as HTMLElement
     expect(within(active).getByText("−25%")).toHaveClass("text-destructive")
     // no base: the step is absolute
     expect(within(screen.getByRole("link", { name: "Збої стендів" }).closest("div.relative") as HTMLElement).getByText("+5")).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe("analytics overview page", () => {
     mocks.period = "all"
     mocks.apiGet.mockResolvedValue(report({}, false))
     render(<Page />)
-    await screen.findByRole("link", { name: "Нові акаунти" })
+    await screen.findByRole("link", { name: "Нові облікові записи" })
     expect(screen.queryByText("+20%")).toBeNull()
     expect(screen.queryByText(/^було/)).toBeNull()
     expect(mocks.apiGet.mock.calls[0][0]).toBe("/api/analytics/overview")
@@ -85,7 +85,7 @@ describe("analytics overview page", () => {
   it("shows the empty state in each chart when the period has no activity", async () => {
     mocks.apiGet.mockResolvedValue(report({ Series: { NewUsers: [{ Day: day(1), New: 0 }], Activity: [{ Day: day(1), Attempts: 0, Solves: 0 }], Mail: [] } }))
     const { container } = render(<Page />)
-    await screen.findByRole("link", { name: "Нові акаунти" })
+    await screen.findByRole("link", { name: "Нові облікові записи" })
     await waitFor(() => expect(container.querySelectorAll("[data-empty-state]")).toHaveLength(3))
     expect(screen.queryByTestId("echart")).toBeNull()
   })

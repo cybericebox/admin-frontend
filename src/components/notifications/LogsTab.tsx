@@ -126,9 +126,9 @@ function TargetLine({ target }: { target: Target }) {
         <span className="text-foreground">{notifChannelLabel(target.Channel)}</span>
         <StatusPill status={target.Status} label={t(statusLabelKey(target.Status))} />
         {transport && <span className="text-xs text-muted-foreground">{transport}</span>}
-        {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attempts")}: {target.Attempts}</span>}
+        {target.Attempts > 1 && <span className="text-xs text-muted-foreground">· {t("admin.notif.logs.attemptsLine", { count: target.Attempts })}</span>}
       </div>
-      {target.FallbackError && <ErrorText view={smtpErrorView(target.FallbackErrorKind, target.FallbackErrorCode, target.FallbackError)} prefix={`${t("admin.notif.logs.fallback")}: `} className="text-muted-foreground" />}
+      {target.FallbackError && <ErrorText view={smtpErrorView(target.FallbackErrorKind, target.FallbackErrorCode, target.FallbackError)} prefix={t("admin.notif.logs.fallbackPrefix")} className="text-muted-foreground" />}
       {target.Error && <ErrorText view={smtpErrorView(target.ErrorKind, target.ErrorCode, target.Error)} className={target.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />}
     </div>
   )
@@ -209,7 +209,7 @@ export function LogsTab() {
 
       {userFilter && (
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-accent/10 px-3 py-1 text-sm text-foreground">
-          <span>{t("admin.notif.logs.filteredBy")}: {userFilter.name}</span>
+          <span>{t("admin.notif.logs.filteredByName", { name: userFilter.name })}</span>
           <button
             onClick={() => { resetPage(); setUserFilter(null) }}
             className="text-muted-foreground hover:text-foreground"
@@ -294,7 +294,7 @@ export function LogsTab() {
       </div>
 
       <div className="mt-auto grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
-        <div className="flex items-center gap-3"><span>{t("admin.table.total")}: {total}</span><span>{t("admin.table.page")} {page} {t("admin.table.of")} {pageCount}</span>{loading && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
+        <div className="flex items-center gap-3"><span>{t("admin.table.totalCount", { total })}</span><span>{t("admin.table.pageOf", { page, pages: pageCount })}</span>{loading && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
         <div className="flex gap-2 sm:justify-center">
           <Button variant="outline" size="sm" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
           <Button variant="outline" size="sm" disabled={loading || !nextCursor} onClick={() => { if (nextCursor) { setCursors((current) => [...current.slice(0, page), nextCursor]); setPage(page + 1) } }}>{t("admin.table.next")}</Button>
@@ -321,8 +321,8 @@ export function LogsTab() {
                     <StatusPill status={tg.Status} label={t(statusLabelKey(tg.Status))} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {t("admin.notif.logs.attempts")}: {tg.Attempts}
-                    {tg.Transport && <> · {t("admin.notif.logs.transport")}: {mailTransportLabel(tg.Transport)}</>}
+                    {t("admin.notif.logs.attemptsLine", { count: tg.Attempts })}
+                    {tg.Transport && <> · {t("admin.notif.logs.transportLine", { transport: mailTransportLabel(tg.Transport) })}</>}
                   </div>
                   <DetailError label={t("admin.notif.logs.fallback")} view={smtpErrorView(tg.FallbackErrorKind, tg.FallbackErrorCode, tg.FallbackError)} tone="text-muted-foreground" />
                   <DetailError label={t(tg.Status === "deferred" ? "admin.notif.logs.reason" : "admin.notif.logs.error")} view={smtpErrorView(tg.ErrorKind, tg.ErrorCode, tg.Error)} tone={tg.Status === "deferred" ? "text-muted-foreground" : "text-destructive"} />

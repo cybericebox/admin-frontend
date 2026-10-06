@@ -43,7 +43,7 @@ export function eventErrorMessage(e: unknown): string {
     const key = CODE_TO_KEY[code]
     if (key) return t(key)
     const message = ((e as ApiError).body as EnvelopeBody | null | undefined)?.Status?.Message
-    if (message) return `${t('admin.events.err.generic')}: ${message}`
+    if (message) return t('admin.events.err.genericWith', { message })
   }
   return t('admin.events.err.generic')
 }

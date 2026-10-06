@@ -162,7 +162,7 @@ export function ElevationDetail({ id }: { id: string }) {
       </TableWrap>
       {editing && <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground" data-testid="elevation-edit-hint">{t("admin.elevations.edit.hint")}</p>}
       {item.Approved.length > 0 && <p data-testid="elevation-approved" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-        {t("admin.elevations.approvedValues")} {item.Approved.map((device) => `${device.Name || device.DeviceID}: ${presetName(device.Blocks, presets)} · ${sizeText(device)}`).join("; ")}
+        {t("admin.elevations.approvedLine", { values: item.Approved.map((device) => t("admin.elevations.approvedItem", { name: device.Name || device.DeviceID, preset: presetName(device.Blocks, presets), size: sizeText(device) })).join("; ") })}
       </p>}
     </Card>
 

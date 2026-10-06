@@ -18,6 +18,7 @@ import { ChevronUp, ChevronDown, Trash2, Save, Upload } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
+import { tPlural } from "@/i18n/plural";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
@@ -250,7 +251,7 @@ export function BlockEditor({
       {showPresetSave && selectedIdxs.size > 0 && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-foreground text-background px-4 py-2.5">
           <span className="text-sm font-medium flex-1">
-            {t("admin.notif.editor.blocksSelected")}: {selectedIdxs.size}
+            {t("admin.notif.editor.blocksSelectedN", { count: selectedIdxs.size })}
           </span>
           <button
             type="button"
@@ -574,7 +575,7 @@ export function BlockEditor({
                     });
                   }}
                   ariaLabel={t("admin.notif.editor.selectPreset")}
-                  options={[{ value: "", label: t("admin.notif.editor.selectPreset") }, ...presets.map((p) => ({ value: p.ID, label: `${p.Name} · ${p.Blocks.length} ${t("admin.notif.editor.blocksCount")}` }))]}
+                  options={[{ value: "", label: t("admin.notif.editor.selectPreset") }, ...presets.map((p) => ({ value: p.ID, label: t("admin.notif.editor.presetOption", { name: p.Name, blocks: tPlural("admin.notif.editor.blocksCountN", p.Blocks.length) }) }))]}
                   className="w-full"
                 />
               </div>
@@ -615,7 +616,7 @@ export function BlockEditor({
                   onClick={() => addPresetBlock(preset)}
                   className="rounded-md border border-border bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  {preset.Name} · {preset.Blocks.length} {t("admin.notif.editor.blocksCount")}
+                  {t("admin.notif.editor.presetOption", { name: preset.Name, blocks: tPlural("admin.notif.editor.blocksCountN", preset.Blocks.length) })}
                 </button>
               ))}
             </div>
