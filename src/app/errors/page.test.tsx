@@ -102,7 +102,7 @@ describe("errors page", () => {
     expect(container.querySelector("img")).toBeNull()
     expect(container.querySelector("pre b")).toBeNull()
     expect(screen.getByText(/<b>frame<\/b>/)).toBeInTheDocument()
-    expect(await screen.findByRole("link", { name: "Олена Коваль" })).toHaveAttribute("href", `/users/detail?id=${user}`)
+    expect(await screen.findByRole("link", { name: "Олена Коваль" })).toHaveAttribute("href", `/users/detail/?id=${user}`)
     expect(screen.getByText("req-1", { exact: false })).toBeInTheDocument()
   })
 })

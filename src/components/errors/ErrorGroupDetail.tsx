@@ -36,7 +36,7 @@ function SampleCard({ sample, userName }: { sample: ErrorSample; userName?: { na
         {sample.Method && <Field label={t("admin.errors.sample.method")}>{sample.Method}</Field>}
         {sample.Route && <Field label={t("admin.errors.sample.route")}><span className="font-mono">{sample.Route}</span></Field>}
         {sample.HTTPStatus != null && <Field label={t("admin.errors.sample.status")}>{sample.HTTPStatus}</Field>}
-        {sample.UserID && <Field label={t("admin.errors.sample.user")}><a href={`/users/detail?id=${encodeURIComponent(sample.UserID)}`} className="underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{userName?.name ?? sample.UserID.slice(0, 8)}</a></Field>}
+        {sample.UserID && <Field label={t("admin.errors.sample.user")}><a href={`/users/detail/?id=${encodeURIComponent(sample.UserID)}`} className="underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{userName?.name ?? sample.UserID.slice(0, 8)}</a></Field>}
         {sample.Role && <Field label={t("admin.errors.sample.role")}>{sample.Role}</Field>}
         {sample.Permission && <Field label={t("admin.errors.sample.permission")}><span className="font-mono">{sample.Permission}</span></Field>}
         {sample.Limiter && <Field label={t("admin.errors.sample.limiter")}><span className="font-mono">{sample.Limiter}</span></Field>}
