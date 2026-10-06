@@ -1,6 +1,6 @@
 "use client"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { listErrorGroups, setErrorGroupStatus, ERROR_KINDS, ERROR_STATUSES, type ErrorFilters, type ErrorKind, type ErrorStatus } from "@/api/errorJournal"
+import { listErrorGroups, parseReference, setErrorGroupStatus, ERROR_KINDS, ERROR_STATUSES, type ErrorFilters, type ErrorKind, type ErrorStatus } from "@/api/errorJournal"
 import { Input } from "@/components/ui/input"
 import { FilterField } from "@/components/common/FilterField"
 import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
@@ -28,13 +28,19 @@ const cap = (value: string) => value[0].toUpperCase() + value.slice(1)
 export function ErrorGroupsList() {
   const { can } = useRole()
   const canWrite = can("platform.errors.write")
-  const [url, setUrl] = useUrlState({ q: "", kind: "", status: "", period: "", page: "1", size: "50", sort: "lastSeen", dir: "desc" })
+  const [url, setUrl] = useUrlState({ q: "", ref: "", kind: "", status: "", period: "", page: "1", size: "50", sort: "lastSeen", dir: "desc" })
   const kinds = useMemo(() => url.kind.split(",").filter((value): value is ErrorKind => (ERROR_KINDS as readonly string[]).includes(value)), [url.kind])
   const status = (ERROR_STATUSES as readonly string[]).includes(url.status) ? url.status as ErrorStatus : ""
   const period = url.period in PERIODS ? url.period : ""
   const [qInput, setQInput] = useState(url.q)
   const q = useDebounced(qInput.trim())
   useEffect(() => { setUrl({ q }) }, [q, setUrl])
+  // «Номер звернення» from a 500 page; an unreadable value filters nothing and is flagged.
+  const [refInput, setRefInput] = useState(url.ref)
+  const refText = useDebounced(refInput.trim())
+  useEffect(() => { setUrl({ ref: refText }) }, [refText, setUrl])
+  const request = parseReference(refText)
+  const refInvalid = refText !== "" && !request
   const page = Math.max(1, Number(url.page) || 1)
   const pageSize = [25, 50, 100].includes(Number(url.size)) ? Number(url.size) : 50
   const sortField = url.sort
@@ -45,14 +51,14 @@ export function ErrorGroupsList() {
   const [failure, setFailure] = useState<{ key: string; cause: unknown } | null>(null)
 
   const kindsKey = kinds.join(",")
-  const filterKey = `${kindsKey}|${status}|${period}|${q}|${pageSize}|${page}`
+  const filterKey = `${kindsKey}|${status}|${period}|${q}|${request ?? ""}|${pageSize}|${page}`
   const key = `${filterKey}|${reload}`
   const offset = (page - 1) * pageSize
 
   const currentFilters = useCallback((): ErrorFilters => ({
-    kinds, status, q,
+    kinds, status, q, request,
     from: period ? new Date(Date.now() - PERIODS[period as keyof typeof PERIODS]).toISOString() : undefined,
-  }), [kinds, status, q, period])
+  }), [kinds, status, q, request, period])
   const live = useRef({ currentFilters, pageSize, offset })
   useEffect(() => { live.current = { currentFilters, pageSize, offset } })
 
@@ -100,7 +106,7 @@ export function ErrorGroupsList() {
   }, [items, sortField, sortDir])
   const sort = (field: string) => setUrl({ sort: field, dir: sortField === field && sortDir === "asc" ? "desc" : "asc" })
   const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
-  const filtered = !!(kinds.length || status || period || q)
+  const filtered = !!(kinds.length || status || period || q || request)
   const setPage = (value: number) => setUrl({ page: String(value) })
   const resetPage = () => setUrl({ page: "1" })
 
@@ -109,6 +115,9 @@ export function ErrorGroupsList() {
       <div className="mb-4 flex flex-wrap items-end gap-x-3 gap-y-3">
         <FilterField label={t("admin.errors.filter.searchLabel")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
           <Input value={qInput} onChange={(event) => { setQInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.search")} aria-label={t("admin.errors.filter.search")} />
+        </FilterField>
+        <FilterField label={t("admin.errors.filter.refLabel")} className="min-w-[min(100%,12rem)] flex-1 lg:max-w-[14rem]">
+          <Input value={refInput} onChange={(event) => { setRefInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.refPlaceholder")} aria-label={t("admin.errors.filter.refLabel")} aria-invalid={refInvalid || undefined} className="font-mono" />
         </FilterField>
         <FilterField label={t("admin.errors.filter.kindLabel")} className="min-w-44">
           <DropdownMenu modal={false}>
@@ -159,7 +168,7 @@ export function ErrorGroupsList() {
                 <tr key={group.ID}>
                   <td><KindBadge kind={group.Kind} /></td>
                   <td className="max-w-xl !whitespace-normal py-1">
-                    <a href={errorGroupHref(group.ID)} className="break-words font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{group.Title}</a>
+                    <a href={errorGroupHref(group.ID, request)} className="break-words font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{group.Title}</a>
                     {group.Source && <div className="break-all font-mono text-xs text-muted-foreground">{group.Source}</div>}
                   </td>
                   <td>

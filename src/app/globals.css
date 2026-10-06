@@ -9,6 +9,8 @@
 @import '../styles/ds/empty-state.css';
 @import '../styles/ds/pagination.css';
 @import '../styles/ds/page-header.css';
+@import '../styles/ds/error-page.css';
+@import '../styles/ds/service-down.css';
 @import '../styles/app.css';
 @import '../styles/motion.css';
 

@@ -31,7 +31,8 @@ const byLastSeen = (a: ErrorGroup, b: ErrorGroup) => Date.parse(b.LastSeenAt) - 
 export function applyStreamEvent(page: GroupPage, event: ErrorStreamEvent, filters: ErrorFilters, limit: number, offset: number): GroupPage {
   const group = event.Group
   const index = page.items.findIndex((item) => item.ID === group.ID)
-  const fits = groupMatches(group, filters)
+  // A request filter is decided by the server: a live event only joins the list when its own sample is that request.
+  const fits = groupMatches(group, filters) && (!filters.request || index >= 0 || !!event.Sample?.RequestID?.toLowerCase().replaceAll("-", "").startsWith(filters.request))
   if (index >= 0) {
     if (!fits) return { items: page.items.filter((item) => item.ID !== group.ID), total: Math.max(0, page.total - 1) }
     const items = page.items.slice()

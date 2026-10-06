@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react"
-import { ErrorScreen } from "@/components/ErrorScreen"
+import { ErrorPage } from "@/components/ErrorPage"
 import { PageHeader } from "@/components/ui/page-header"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
@@ -41,7 +41,7 @@ function Inner({ title, subtitle, showPeriod = true, autoRefresh, actions, child
         {showPeriod && <PeriodFilter preset={period.preset} onChange={period.setPreset} />}
       </>} />
       {forbidden
-        ? <ErrorScreen title={t("admin.platformAnalytics.forbidden")} onRetry={() => { setForbidden(false); setAttempt((n) => n + 1) }} />
+        ? <ErrorPage mode="block" status={403} title={t("admin.platformAnalytics.forbidden")} text={t("error.page.body")} onRetry={() => { setForbidden(false); setAttempt((n) => n + 1) }} />
         : <div key={attempt}>{typeof children === "function" ? children(period) : children}</div>}
     </div>
   </SectionContext.Provider>

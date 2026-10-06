@@ -15,10 +15,10 @@ export function errorCode(error: unknown): number | undefined {
 }
 
 /**
- * The only load-error state inside a page or block: the ErrorScreen warning mark at block
+ * The only load-error state inside a page or block: the warning mark at block
  * scale, a title (the context message), one line of help and «Спробувати ще раз». Same
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
- * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
+ * error code shows when `error` carries one. A dead route uses ErrorPage instead.
  */
 export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className }: {
   message?: string

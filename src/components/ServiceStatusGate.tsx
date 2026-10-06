@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { t } from "@/i18n/t"
 import { apiOrigin } from "@/lib/origins"
 import { getServiceStatus, probeService, reportServiceAvailable, startOutageGrace, subscribeServiceStatus } from "@/lib/serviceStatus"
-import "./ServiceStatusGate.css"
+import { APP_ROOT_ID } from "@/lib/appRoot"
 
 // A failed call is confirmed by two probes 15 s apart (see startOutageGrace), so
 // a short backend restart never flashes the modal.
@@ -19,8 +19,9 @@ function backoff(attempt: number): number {
 }
 
 function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
-  const ref = useRef<HTMLDialogElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
+  const descId = useId()
   const attemptRef = useRef(0)
   const [deadline, setDeadline] = useState(() => Date.now() + backoff(0))
   const [now, setNow] = useState(() => Date.now())
@@ -43,12 +44,16 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
     }
   }, [onCheck])
 
+  // The page behind stays rendered, dimmed and inert; focus starts on the retry button.
   useEffect(() => {
-    const dialog = ref.current
-    if (!dialog || dialog.open) return
-    // The top layer makes the page underneath inert while the outage lasts.
-    if (typeof dialog.showModal === "function") dialog.showModal()
-    else dialog.setAttribute("open", "")
+    const root = document.getElementById(APP_ROOT_ID)
+    root?.classList.add("ib-service-down-behind")
+    root?.setAttribute("inert", "")
+    buttonRef.current?.focus()
+    return () => {
+      root?.classList.remove("ib-service-down-behind")
+      root?.removeAttribute("inert")
+    }
   }, [])
 
   useEffect(() => {
@@ -62,19 +67,17 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
   }, [checking, deadline, check])
 
   const seconds = Math.max(1, Math.ceil((deadline - now) / 1000))
-  return <dialog ref={ref} className="service-gate" role="alertdialog" aria-modal="true" aria-labelledby={titleId}
-    onCancel={(event) => event.preventDefault()}>
-    <div className="service-gate__body">
+  return <div className="ib-service-down">
+    <div className="ib-service-down__card" role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}
+      onKeyDown={(event) => { if (event.key === "Escape") event.preventDefault() }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="service-gate__logo" src={CREST_SRC} alt="" width={48} height={48} />
-      <h2 className="service-gate__title" id={titleId}>{t("serviceGate.title")}</h2>
-      <p className="service-gate__desc">{t("serviceGate.body")}</p>
-      <p className="service-gate__hint" aria-live="polite">{checking ? t("serviceGate.checking") : t("serviceGate.nextTry", { seconds })}</p>
+      <img className="ib-service-down__crest" src={CREST_SRC} alt="" width={36} height={36} />
+      <h2 className="ib-service-down__title" id={titleId}>{t("serviceGate.title")}</h2>
+      <p className="ib-service-down__text" id={descId}>{t("serviceGate.body")}</p>
+      <p className="ib-service-down__status" role="status" aria-live="polite">{checking ? t("serviceGate.checking") : t("serviceGate.nextTry", { seconds })}</p>
+      <Button ref={buttonRef} type="button" variant="outline" className="w-full" busy={checking} onClick={() => { void check() }}>{t("serviceGate.retryNow")}</Button>
     </div>
-    <footer className="service-gate__foot">
-      <Button type="button" variant="outline" busy={checking} onClick={() => { void check() }}>{t("serviceGate.retryNow")}</Button>
-    </footer>
-  </dialog>
+  </div>
 }
 
 /**

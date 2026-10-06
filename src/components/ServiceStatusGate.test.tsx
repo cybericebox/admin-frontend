@@ -111,4 +111,21 @@ describe("ServiceStatusGate", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(30000) })
     expect(fetch).toHaveBeenCalledOnce()
   })
+
+  it("dims and inerts the app root behind the card, Esc does nothing, and the root is released after", () => {
+    reportServiceUnavailable()
+    confirmServiceUnavailable()
+    const { unmount } = render(<div id="app-root"><button>behind</button></div>)
+    const root = document.getElementById("app-root")!
+    const gate = render(<ServiceStatusGate />)
+    expect(root).toHaveAttribute("inert")
+    expect(root).toHaveClass("ib-service-down-behind")
+    expect(screen.getByRole("button", { name: "serviceGate.retryNow" })).toHaveFocus()
+    expect(fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" })).toBe(false)
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument()
+    gate.unmount()
+    expect(root).not.toHaveAttribute("inert")
+    expect(root).not.toHaveClass("ib-service-down-behind")
+    unmount()
+  })
 })
