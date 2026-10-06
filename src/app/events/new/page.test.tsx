@@ -22,10 +22,10 @@ describe("new event page", () => {
     vi.mocked(listEventManagers).mockResolvedValue([])
     render(<NewEventPage />)
 
-    expect(screen.getByRole("button", { name: "admin.events.field.nameHelp" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.events.field.tagHelp" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.events.field.availableFromHelp" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.events.field.archiveAtHelp" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: "admin.events.field.nameHelp" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: "admin.events.field.tagHelp" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: "admin.events.field.availableFromHelp" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: "admin.events.field.archiveAtHelp" })).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Internal" } })
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.tag/ }), { target: { value: "winter" } })

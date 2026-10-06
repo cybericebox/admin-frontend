@@ -32,6 +32,23 @@ describe("admin sidebar", () => {
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("aria-current", "page")
   })
 
+  it("opens the group of the current page at mount and follows navigation, keeping a group the reader opened", () => {
+    nav.path = "/audit/"
+    const { rerender } = render(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.section.platform" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "admin.nav.analytics" })).toHaveAttribute("aria-expanded", "false")
+
+    nav.path = "/analytics/users/"
+    rerender(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.analytics" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("aria-current", "page")
+    // The group the reader opened by hand stays; a page outside any group does not close it.
+    fireEvent.click(screen.getByRole("button", { name: "admin.nav.notifications" }))
+    nav.path = "/users/"
+    rerender(<Sidebar />)
+    expect(screen.getByRole("button", { name: "admin.nav.notifications" })).toHaveAttribute("aria-expanded", "true")
+  })
+
   it("has no collapse control", () => {
     render(<Sidebar />)
     expect(screen.queryByRole("button", { name: "admin.shell.collapsePanel" })).not.toBeInTheDocument()

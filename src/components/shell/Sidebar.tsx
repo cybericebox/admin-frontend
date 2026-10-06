@@ -29,7 +29,7 @@ type Item = {
   // A thin line after the item (Огляд stands apart, like «Підготовка заходу» in the event sidebar).
   dividerAfter?: boolean
 }
-type Group = { id: string; label: string; icon: LucideIcon; href: string; children: Child[] }
+type Group = { id: string; label: string; icon: LucideIcon; children: Child[] }
 
 // Same shape as the event /manage sidebar: rows of one style, then collapsible groups.
 const ITEMS: Item[] = [
@@ -41,7 +41,7 @@ const ITEMS: Item[] = [
 
 const GROUPS: Group[] = [
   {
-    id: "analytics", href: "/analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
+    id: "analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
     children: [
       { href: "/analytics", label: "admin.nav.analyticsOverview", icon: Gauge, perm: "analytics.read", exact: true },
       { href: "/analytics/users", label: "admin.nav.analyticsUsers", icon: UserSearch, perm: ["analytics.read", "users.read"] },
@@ -53,7 +53,7 @@ const GROUPS: Group[] = [
   },
   {
     // Three blocks split by thin dividers: actions, settings (templates + notification settings), log.
-    id: "notifications", href: "/notifications", label: "admin.nav.notifications", icon: Bell,
+    id: "notifications", label: "admin.nav.notifications", icon: Bell,
     children: [
       { href: "/notifications/broadcasts", label: "admin.nav.notif.broadcasts", icon: Send, perm: "notifications.broadcast" },
       { href: "/notifications/banners", label: "admin.nav.notif.banners", icon: Megaphone, perm: "notifications.banners.read" },
@@ -65,7 +65,7 @@ const GROUPS: Group[] = [
   },
   {
     // Three blocks split by thin dividers: resources, logs, settings.
-    id: "platform", href: "", label: "admin.nav.section.platform", icon: Layers,
+    id: "platform", label: "admin.nav.section.platform", icon: Layers,
     children: [
       { href: "/labs", label: "admin.nav.labs", icon: Server, perm: "infrastructure.read" },
       { href: "/agents", label: "admin.nav.agents", icon: Cable, perm: "infrastructure.read" },
@@ -94,8 +94,15 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
     .map((group) => ({ ...group, children: group.children.filter((child) => allowed(child.perm)) }))
     .filter((group) => group.children.length > 0)
 
-  // A group opens on its own when the current page is inside it; the reader can open others.
-  const [openGroupID, setOpenGroupID] = useState<string | null>(() => groups.find((group) => group.children.some((child) => isActive(pathname, child.href, child.exact)))?.id ?? null)
+  // The group that holds the current page opens on its own, at mount and on every navigation (a link elsewhere in the app can
+  // change the page without a click here); the reader can still open or close any group by hand.
+  const activeGroupID = groups.find((group) => group.children.some((child) => isActive(pathname, child.href, child.exact)))?.id ?? null
+  const [openGroupID, setOpenGroupID] = useState<string | null>(activeGroupID)
+  const [seenPathname, setSeenPathname] = useState(pathname)
+  if (seenPathname !== pathname) {
+    setSeenPathname(pathname)
+    if (activeGroupID) setOpenGroupID(activeGroupID)
+  }
 
   // Set when the user came from an event's /manage (a validated `?from=`, kept for the session).
   const [origin, setOrigin] = useState<EventReturn | null>(null)
