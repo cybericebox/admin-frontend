@@ -35,7 +35,9 @@ async function signOutAndRedirect(): Promise<void> {
   if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
-export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: () => void }) {
+// heading: the title is the page h1 (the page has none of its own); otherwise it is plain text, so a page has one h1.
+export function TopBar({ title, heading = true, onMenuClick }: { title: string; heading?: boolean; onMenuClick?: () => void }) {
+  const Title = heading ? "h1" : "p"
   const { me, role } = useRole()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
@@ -48,10 +50,10 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
+    <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
-        <h1 className="truncate text-sm font-semibold text-foreground">{title}</h1>
+        <Title className="ib-topbar__title">{title}</Title>
       </div>
       <div className="flex items-center gap-3">
         <ThemeSwitch />
@@ -65,7 +67,7 @@ export function TopBar({ title, onMenuClick }: { title: string; onMenuClick?: ()
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-xs font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images

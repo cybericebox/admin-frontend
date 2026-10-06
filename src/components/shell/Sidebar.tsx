@@ -108,13 +108,13 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
 
   return (
     <aside className="ib-admin-side h-full w-[var(--ib-admin-side-w)] shrink-0 bg-[var(--ib-brand)] text-[var(--ib-on-brand)]" aria-label={t("admin.shell.title")}>
-      <div className="flex min-h-[64px] items-center gap-3 border-b border-[var(--ib-brand-line)] px-4">
+      <div className="ib-admin-side__head">
         <Logo size={32} />
-        <div className="min-w-0 leading-tight">
-          <span className="block truncate text-sm font-semibold">{BRAND_HEAD}<span className="text-[var(--ib-ice-on-brand)]">ICE</span>{BRAND_TAIL}</span>
-          <span className="block text-xs text-[var(--ib-on-brand-3)]">{t("admin.shell.title")}</span>
+        <div className="ib-admin-side__title">
+          <b className="truncate">{BRAND_HEAD}<span className="text-[var(--ib-ice-on-brand)]">ICE</span>{BRAND_TAIL}</b>
+          <small>{t("admin.shell.title")}</small>
         </div>
-        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="ml-auto rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label={t("admin.shell.closeMenu")} className="rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
       <nav className="ib-admin-side__nav" aria-label={t("admin.shell.navLabel")}>
         {items.map((item) => <Fragment key={item.href}>
@@ -128,14 +128,14 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
         {groups.map((group) => {
           const isOpen = openGroupID === group.id
           return (
-            <section className="event-manage-sidebar__group" key={group.id} aria-label={t(group.label)}>
-              <button className="ib-admin-side__item event-manage-sidebar__heading" type="button" aria-expanded={isOpen} aria-controls={`admin-group-${group.id}`} onClick={() => setOpenGroupID((current) => current === group.id ? null : group.id)}>
-                <group.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(group.label)}</span><ChevronDown size={15} aria-hidden="true" />
+            <section className="ib-admin-side__section" key={group.id} aria-label={t(group.label)}>
+              <button className="ib-admin-side__item ib-admin-side__heading" type="button" aria-expanded={isOpen} aria-controls={`admin-group-${group.id}`} onClick={() => setOpenGroupID((current) => current === group.id ? null : group.id)}>
+                <group.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(group.label)}</span><ChevronDown aria-hidden="true" />
               </button>
-              <div id={`admin-group-${group.id}`} className="event-manage-sidebar__items" hidden={!isOpen}>
+              <div id={`admin-group-${group.id}`} className="ib-admin-side__items" hidden={!isOpen}>
                 {group.children.map((child, index) => (
                   <Fragment key={child.href}>
-                    {child.divider && index > 0 && <hr className="event-manage-sidebar__divider" />}
+                    {child.divider && index > 0 && <hr className="ib-admin-side__divider" />}
                     <Link className="ib-admin-side__item" href={child.href} aria-current={isActive(pathname, child.href, child.exact) ? "page" : undefined} onClick={onNavigate}>
                       <child.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(child.label)}</span>
                     </Link>

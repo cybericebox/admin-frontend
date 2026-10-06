@@ -815,6 +815,7 @@
   "admin.shell.closeNav": "Close navigation",
   "admin.shell.closeMenu": "Close menu",
   "admin.shell.openMenu": "Open menu",
+  "admin.shell.skip": "Skip to content",
   "admin.shell.navLabel": "Platform panel sections",
   "admin.shell.banner.more": "Learn more",
   "admin.shell.banner.dismissError": "Could not close the banner. Try again.",

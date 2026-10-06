@@ -12,6 +12,7 @@
     "start": "next start -p 3002",
     "lint": "eslint .",
     "sync:errors": "node scripts/sync-error-catalog.mjs",
+    "sync:ds": "node scripts/sync-ds.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

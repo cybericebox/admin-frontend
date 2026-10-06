@@ -59,7 +59,7 @@ describe("admin sidebar", () => {
     const { container } = render(<Sidebar />)
     fireEvent.click(screen.getByRole("button", { name: "admin.nav.analytics" }))
     const items = container.querySelector("#admin-group-analytics")!
-    expect(items.className).toBe("event-manage-sidebar__items")
+    expect(items.className).toBe("ib-admin-side__items")
     expect(items.className).not.toMatch(/\b(ml-|pl-|border-l)/)
     expect(items.querySelector("a")!.className).toBe("ib-admin-side__item")
   })

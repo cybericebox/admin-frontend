@@ -585,7 +585,7 @@ export function BlockEditor({
 
       {/* ── Add block tray ── */}
       <div className="mt-4 rounded-xl border border-dashed border-border p-4">
-        <div className="text-[10px] font-bold tracking-[0.08em] uppercase text-muted-foreground mb-3">
+        <div className="text-2xs font-bold tracking-[0.08em] uppercase text-muted-foreground mb-3">
           {t("admin.notif.editor.addBlock")}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -604,7 +604,7 @@ export function BlockEditor({
 
         {presets.length > 0 && (
           <div className="border-t border-border pt-3">
-            <div className="text-[10px] font-bold tracking-[0.08em] uppercase text-muted-foreground mb-2">
+            <div className="text-2xs font-bold tracking-[0.08em] uppercase text-muted-foreground mb-2">
               {t("admin.notif.editor.sharedPresets")}
             </div>
             <div className="flex flex-wrap gap-2">

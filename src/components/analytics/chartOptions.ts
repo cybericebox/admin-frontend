@@ -1,8 +1,8 @@
-import { chartThemes, type ChartTheme } from "./chartTheme"
+import { readChartTheme, type ChartTheme } from "./chartTheme"
 
-// Shared ECharts options for every analytics chart: smooth lines, axis tooltip,
-// wheel / slider zoom, slate axes. Pass `theme` from useChartTheme() so the
-// colours fit the light or dark admin theme.
+// Shared ECharts options for every analytics chart (design system chart theme): smooth monotone lines, axis tooltip,
+// Ctrl+wheel / slider zoom, axis labels 12px, legend 13px. Pass `theme` from useChartTheme() so the colours
+// follow the tokens of the light or dark admin theme.
 export type ChartOption = Record<string, unknown>
 
 export type Point = [x: number | string | Date, y: number]
@@ -24,17 +24,25 @@ export type LineOptions = {
 const toX = (x: number | string | Date, type: "time" | "category") =>
   type === "time" ? (x instanceof Date ? x.getTime() : typeof x === "string" ? Date.parse(x) : x) : x
 
+const axisLabel = (theme: ChartTheme, extra: Record<string, unknown> = {}) => ({ color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font, hideOverlap: true, ...extra })
+const legendOf = (theme: ChartTheme, extra: Record<string, unknown> = {}) => ({
+  type: "plain", top: 0, left: 0, itemWidth: 16, itemHeight: 2,
+  textStyle: { color: theme.legendText, fontSize: theme.fsLegend, fontFamily: theme.font }, ...extra,
+})
+
 function base(theme: ChartTheme, legend: boolean, valueFormatter?: (value: number) => string, trigger: "axis" | "item" = "axis"): ChartOption {
   return {
     color: theme.palette,
-    textStyle: { color: theme.axisText },
-    legend: legend ? { type: "scroll", top: 0, textStyle: { color: theme.axisText }, pageTextStyle: { color: theme.axisText } } : { show: false },
+    animation: !theme.reducedMotion,
+    textStyle: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font },
+    legend: legend ? legendOf(theme) : { show: false },
     tooltip: {
       trigger,
       backgroundColor: theme.tooltipBg,
       borderColor: theme.tooltipBorder,
-      textStyle: { color: theme.tooltipText },
-      extraCssText: "box-shadow:none;",
+      borderWidth: 1,
+      textStyle: { color: theme.tooltipText, fontSize: 13, fontFamily: theme.font },
+      extraCssText: "box-shadow:none;border-radius:6px;",
       ...(valueFormatter ? { valueFormatter: (value: unknown) => valueFormatter(Number(value)) } : {}),
     },
   }
@@ -42,12 +50,13 @@ function base(theme: ChartTheme, legend: boolean, valueFormatter?: (value: numbe
 
 const valueAxis = (theme: ChartTheme, minInterval?: number, formatter?: (value: number) => string) => ({
   type: "value", min: 0, ...(minInterval ? { minInterval } : {}),
-  axisLabel: { color: theme.axisText, ...(formatter ? { formatter: (value: number) => formatter(value) } : {}) },
+  axisLine: { lineStyle: { color: theme.axisLine } }, axisTick: { lineStyle: { color: theme.axisLine } },
+  axisLabel: axisLabel(theme, formatter ? { formatter: (value: number) => formatter(value) } : {}),
   splitLine: { lineStyle: { color: theme.splitLine } },
 })
 
 export function lineOption(series: LineSeries[], opts: LineOptions = {}): ChartOption {
-  const theme = opts.theme ?? chartThemes.light
+  const theme = opts.theme ?? readChartTheme()
   const xType = opts.xType ?? "time"
   const legend = opts.legend ?? series.length > 1
   const zoom = opts.zoom ?? xType === "time"
@@ -55,24 +64,25 @@ export function lineOption(series: LineSeries[], opts: LineOptions = {}): ChartO
   return {
     ...base(theme, legend, opts.valueFormatter),
     grid: { left: 44, right: 16, top: legend ? 36 : 16, bottom: zoom ? 64 : 28, containLabel: false },
-    ...(legend ? { legend: { type: "scroll", top: 0, textStyle: { color: theme.axisText }, pageTextStyle: { color: theme.axisText }, selected: legendSelected } } : {}),
+    ...(legend ? { legend: legendOf(theme, { selected: legendSelected }) } : {}),
     xAxis: {
       type: xType,
       axisLine: { lineStyle: { color: theme.axisLine } },
-      axisLabel: { color: theme.axisText },
+      axisTick: { lineStyle: { color: theme.axisLine } },
+      axisLabel: axisLabel(theme),
       splitLine: { show: false },
     },
     yAxis: valueAxis(theme, opts.minInterval ?? 1, opts.valueFormatter),
-    ...(zoom ? { dataZoom: [{ type: "inside", filterMode: "none" }, { type: "slider", height: 18, bottom: 8, filterMode: "none", textStyle: { color: theme.axisText } }] } : {}),
+    ...(zoom ? { dataZoom: [{ type: "inside", filterMode: "none", zoomOnMouseWheel: "ctrl", moveOnMouseMove: true }, { type: "slider", height: 18, bottom: 8, filterMode: "none", textStyle: { color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font } }] } : {}),
     series: series.map((s, index) => ({
-      name: s.name, type: "line", smooth: opts.smooth ?? true, showSymbol: false,
-      color: s.color, lineStyle: { width: 2 }, emphasis: { focus: "series" },
+      name: s.name, type: "line", smooth: opts.smooth ?? true, smoothMonotone: "x", showSymbol: s.data.length === 1, symbolSize: 8,
+      color: s.color, lineStyle: { width: theme.lineWidth }, emphasis: { focus: "series" },
       ...(s.area ? { areaStyle: { opacity: 0.12 } } : {}),
       ...(s.stack ? { stack: s.stack } : {}),
       data: s.data.map(([x, y]) => [toX(x, xType), y]),
       ...(index === 0 && opts.markers?.length ? {
         markLine: {
-          silent: true, symbol: "none", lineStyle: { type: "dashed", color: theme.axisText }, label: { formatter: "{b}", color: theme.axisText },
+          silent: true, symbol: "none", lineStyle: { type: "dashed", color: theme.axisText }, label: { formatter: "{b}", color: theme.axisText, fontSize: theme.fsAxis, fontFamily: theme.font },
           data: opts.markers.map((m) => ({ name: m.name, xAxis: toX(m.at, xType) })),
         },
       } : {}),
@@ -85,12 +95,12 @@ export type BarOptions = { theme?: ChartTheme; stacked?: boolean; legend?: boole
 
 /** Vertical bars over categories; `stacked` stacks the series, otherwise they are grouped. */
 export function barOption(categories: string[], series: BarSeries[], opts: BarOptions = {}): ChartOption {
-  const theme = opts.theme ?? chartThemes.light
+  const theme = opts.theme ?? readChartTheme()
   const legend = opts.legend ?? series.length > 1
   return {
     ...base(theme, legend, opts.valueFormatter),
     grid: { left: 44, right: 16, top: legend ? 36 : 16, bottom: 28 },
-    xAxis: { type: "category", data: categories, axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: { color: theme.axisText } },
+    xAxis: { type: "category", data: categories, axisLine: { lineStyle: { color: theme.axisLine } }, axisTick: { lineStyle: { color: theme.axisLine } }, axisLabel: axisLabel(theme) },
     yAxis: valueAxis(theme, opts.minInterval ?? 1, opts.valueFormatter),
     series: series.map((s) => ({
       name: s.name, type: "bar", color: s.color, data: s.data, emphasis: { focus: "series" },
@@ -103,13 +113,13 @@ export type Slice = { name: string; value: number; color?: string }
 
 /** Ranked horizontal bars (largest on top) for a distribution. */
 export function hBarOption(items: Slice[], opts: { theme?: ChartTheme; valueFormatter?: (value: number) => string; name?: string } = {}): ChartOption {
-  const theme = opts.theme ?? chartThemes.light
+  const theme = opts.theme ?? readChartTheme()
   const sorted = [...items].sort((a, b) => b.value - a.value)
   return {
     ...base(theme, false, opts.valueFormatter),
     grid: { left: 8, right: 24, top: 8, bottom: 8, containLabel: true },
-    xAxis: { type: "value", min: 0, axisLabel: { color: theme.axisText }, splitLine: { lineStyle: { color: theme.splitLine } } },
-    yAxis: { type: "category", inverse: true, data: sorted.map((item) => item.name), axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: { color: theme.axisText, width: 140, overflow: "truncate" } },
+    xAxis: { type: "value", min: 0, axisLabel: axisLabel(theme), splitLine: { lineStyle: { color: theme.splitLine } } },
+    yAxis: { type: "category", inverse: true, data: sorted.map((item) => item.name), axisLine: { lineStyle: { color: theme.axisLine } }, axisLabel: axisLabel(theme, { width: 140, overflow: "truncate" }) },
     series: [{
       name: opts.name, type: "bar", barMaxWidth: 22, itemStyle: { borderRadius: [0, 3, 3, 0] },
       data: sorted.map((item, index) => ({ value: item.value, itemStyle: { color: item.color ?? theme.palette[index % theme.palette.length] } })),
@@ -119,10 +129,10 @@ export function hBarOption(items: Slice[], opts: { theme?: ChartTheme; valueForm
 
 /** Donut of shares with the legend below. */
 export function donutOption(items: Slice[], opts: { theme?: ChartTheme; valueFormatter?: (value: number) => string; name?: string } = {}): ChartOption {
-  const theme = opts.theme ?? chartThemes.light
+  const theme = opts.theme ?? readChartTheme()
   return {
     ...base(theme, true, opts.valueFormatter, "item"),
-    legend: { type: "scroll", bottom: 0, textStyle: { color: theme.axisText }, pageTextStyle: { color: theme.axisText } },
+    legend: legendOf(theme, { top: undefined, bottom: 0, left: "center" }),
     series: [{
       name: opts.name, type: "pie", radius: ["50%", "72%"], center: ["50%", "44%"], avoidLabelOverlap: true,
       label: { show: false }, labelLine: { show: false },
