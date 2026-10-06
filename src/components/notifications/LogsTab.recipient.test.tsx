@@ -49,7 +49,7 @@ describe("LogsTab recipient and error lines", () => {
 
     expect(within(dialog).getByText(/SMTP-сервер відхилив вхід/)).toBeInTheDocument()
     expect(within(dialog).getByText("535 5.7.8 bad creds")).toBeInTheDocument()
-    expect(within(dialog).getByText(/Не вдалося з'єднатися з SMTP-сервером/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Не вдалося зʼєднатися з SMTP-сервером/)).toBeInTheDocument()
     expect(within(dialog).getAllByText("Технічні деталі")).toHaveLength(2)
     expect(within(dialog).getByText(/Відкладено: ліміт/)).toBeInTheDocument()
   })

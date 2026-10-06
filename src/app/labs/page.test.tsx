@@ -88,7 +88,7 @@ describe("infrastructure page", () => {
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
     expect(cpu).toHaveAttribute("aria-valuenow", "1500")
     expect(cpu).toHaveAttribute("aria-valuemax", "4000")
-    const memory = screen.getByRole("progressbar", { name: "Пам’ять агента Primary" })
+    const memory = screen.getByRole("progressbar", { name: "Памʼять агента Primary" })
     expect(memory).toHaveAttribute("aria-valuenow", "3221225472")
     expect(memory).toHaveAttribute("aria-valuemax", "8589934592")
     expect(screen.getByText("node-a")).toBeInTheDocument()
