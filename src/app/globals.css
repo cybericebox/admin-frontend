@@ -5,6 +5,9 @@
 @import '../styles/ds/tabs.css';
 @import '../styles/ds/segmented.css';
 @import '../styles/ds/tag.css';
+@import '../styles/ds/table.css';
+@import '../styles/ds/empty-state.css';
+@import '../styles/ds/pagination.css';
 @import '../styles/ds/page-header.css';
 @import '../styles/app.css';
 @import '../styles/motion.css';

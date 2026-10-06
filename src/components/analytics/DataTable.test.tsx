@@ -29,6 +29,8 @@ describe("DataTable", () => {
     const block = container.firstChild as HTMLElement
     expect(block.style.minHeight).toBe("280px")
     expect(screen.getByRole("status")).toBeInTheDocument()
+    // the header stays in every state
+    expect(screen.getByRole("columnheader", { name: "Count" })).toBeInTheDocument()
     const onRetry = vi.fn()
     rerender(<DataTable columns={columns} rows={undefined} rowKey={(r) => r.id} ariaLabel="t" error={new Error("x")} onRetry={onRetry} minHeight={280} />)
     fireEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }))
