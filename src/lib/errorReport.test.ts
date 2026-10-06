@@ -12,6 +12,14 @@ describe("errorReport", () => {
     expect(reference(new Error("x"))).toBeUndefined()
   })
 
+  it("reference is the request id alone when there is no platform code", () => {
+    expect(reference(err("01A112DA-5678", 0))).toBe("01a112da")
+    expect(reference(new ApiError(500, {}, "m", undefined, undefined, undefined, "01a112da"))).toBe("01a112da")
+    const url = decodeURIComponent(reportHref(err("01a112da", 0)))
+    expect(url).toContain("subject=Помилка 01a112da")
+    expect(url).toContain("Номер звернення: 01a112da")
+  })
+
   it("the mail of a server error carries the reference, no error text", () => {
     const url = decodeURIComponent(reportHref(err("ab12cd34ef"), new Date("2026-10-06T10:00:00Z")))
     expect(url).toContain("subject=Помилка 50310-ab12cd34")

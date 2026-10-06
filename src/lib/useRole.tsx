@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
-import { onServiceRestored } from "@/lib/serviceStatus"
+import { isBackendUnreachable, onServiceRestored, reportServiceUnavailable } from "@/lib/serviceStatus"
 
 export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
@@ -45,9 +45,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const load = useCallback(() => {
     const run = ++runRef.current
     void fetchMe()
-      .then((m) => { if (run === runRef.current) { setMe(m); setError(null) } })
-      .catch((err: unknown) => { if (run === runRef.current) { setMe(null); setError(err ?? new Error("session check failed")) } })
-      .finally(() => { if (run === runRef.current) setIsLoading(false) })
+      .then((m) => { if (run === runRef.current) { setMe(m); setError(null); setIsLoading(false) } })
+      .catch((err: unknown) => {
+        if (run !== runRef.current) return
+        setMe(null)
+        // The backend cannot be reached: the service gate probes and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
+        if (isBackendUnreachable(err)) { setError(null); reportServiceUnavailable(); return }
+        setError(err ?? new Error("session check failed"))
+        setIsLoading(false)
+      })
   }, [])
 
   // «Спробувати ще раз»: back to the loader while the check runs again.
