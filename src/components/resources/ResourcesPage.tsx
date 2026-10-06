@@ -3,6 +3,9 @@
 import { useCallback, useMemo, useState } from "react"
 import { listEventsPage } from "@/api/events/catalog"
 import { getStats, type Reservation } from "@/api/resourceCalendar"
+import { PageHeader } from "@/components/ui/page-header"
+import { useUrlState } from "@/lib/useUrlState"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
@@ -16,16 +19,20 @@ import { StatsTab } from "./StatsTab"
 import { TimelineTab } from "./TimelineTab"
 import { useCalendarResource } from "./resourceView"
 
+const TABS = ["timeline", "stats", "needs", "requests", "alarms", "settings"]
+
 type Target = { eventID: string; name: string }
 
 function Count({ value }: { value: number }) {
-  return value > 0 ? <span className="ml-1.5 rounded-md bg-[var(--ib-warn-bg)] px-1.5 text-xs text-[var(--ib-warn)] tabular-nums">{value}</span> : null
+  return value > 0 ? <Badge tone="warn" size="sm" className="ml-1.5 tabular-nums">{value}</Badge> : null
 }
 
 export function ResourcesPage() {
   const { can } = useRole()
   const canWrite = can("infrastructure.write")
-  const [tab, setTab] = useState("timeline")
+  const [url, setUrl] = useUrlState({ tab: "timeline" })
+  const tab = TABS.includes(url.tab) ? url.tab : "timeline"
+  const setTab = (value: string) => setUrl({ tab: value })
   // Bumped after any change, so every open tab reloads.
   const [version, setVersion] = useState(0)
   const stats = useCalendarResource(getStats, true, String(version))
@@ -40,9 +47,9 @@ export function ResourcesPage() {
   const changed = useCallback(() => setVersion((value) => value + 1), [])
 
   return <div className="space-y-5">
-    <div><h2 className="text-xl font-semibold text-foreground">{t("admin.resources.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.resources.subtitle")}</p></div>
+    <PageHeader title={t("admin.nav.resources")} sub={t("admin.resources.subtitle")} />
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className="h-auto flex-wrap justify-start">
+      <TabsList className="h-auto flex-wrap justify-start" aria-label={t("admin.resources.tabsLabel")}>
         <TabsTrigger value="timeline">{t("admin.resources.tabs.timeline")}</TabsTrigger>
         <TabsTrigger value="stats">{t("admin.resources.tabs.stats")}</TabsTrigger>
         <TabsTrigger value="needs">{t("admin.resources.tabs.needs")}<Count value={needing?.length ?? 0} /></TabsTrigger>

@@ -12,13 +12,17 @@ type Labels = {
   tooltip: (bar: TimelineModel["bars"][number]) => string
 }
 
+// Semantic colours come from the tokens at render time (both themes); the series palette is the fallback.
+const token = (name: string, fallback: string) =>
+  typeof document === "undefined" ? fallback : getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+
 // Rectangles only: no shadows, no left accents. A reservation that is not covered by
 // resources is drawn dashed in the warning hue; a conflict range is a danger-tinted band.
 export function timelineOption(model: TimelineModel, resource: Resource, theme: ChartTheme, labels: Labels): ChartOption {
   const eventColor = theme.palette[0]
   const bookingColor = theme.palette[2]
-  const warnColor = theme.palette[3]
-  const dangerColor = theme.palette[4]
+  const warnColor = token("--ib-warn", theme.palette[3])
+  const dangerColor = token("--ib-danger", theme.palette[4])
   const yMax = model.top > 0 ? model.top * 1.1 : resource === "cpu" ? 1000 : 1024 * MIB
   const capacityLine = model.capacity === null ? [] : [{ name: labels.capacity, yAxis: model.capacity }]
   return {

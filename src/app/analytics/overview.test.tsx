@@ -54,16 +54,16 @@ describe("analytics overview page", () => {
     render(<Page />)
     const users = await screen.findByRole("link", { name: "Нові акаунти" })
     expect(users).toHaveAttribute("href", "/analytics/users")
-    expect(within(users.parentElement as HTMLElement).getByText("+20%")).toBeInTheDocument()
-    expect(within(users.parentElement as HTMLElement).getByText("було 50")).toBeInTheDocument()
+    expect(within(users.closest("div.relative") as HTMLElement).getByText("+20%")).toBeInTheDocument()
+    expect(within(users.closest("div.relative") as HTMLElement).getByText("було 50")).toBeInTheDocument()
     // a fall of a good metric is red-toned text, a rise of failures too (inverse)
-    const failed = screen.getByRole("link", { name: "Листи з помилкою" }).parentElement as HTMLElement
+    const failed = screen.getByRole("link", { name: "Листи з помилкою" }).closest("div.relative") as HTMLElement
     expect(within(failed).getByText("+200%")).toHaveClass("text-destructive")
-    const active = screen.getByRole("link", { name: "Активні акаунти" }).parentElement as HTMLElement
+    const active = screen.getByRole("link", { name: "Активні акаунти" }).closest("div.relative") as HTMLElement
     expect(within(active).getByText("−25%")).toHaveClass("text-destructive")
     // no base: the step is absolute
-    expect(within(screen.getByRole("link", { name: "Збої стендів" }).parentElement as HTMLElement).getByText("+5")).toBeInTheDocument()
-    expect(within(screen.getByRole("link", { name: "Схвалені учасники" }).parentElement as HTMLElement).getByText("0%")).toBeInTheDocument()
+    expect(within(screen.getByRole("link", { name: "Збої стендів" }).closest("div.relative") as HTMLElement).getByText("+5")).toBeInTheDocument()
+    expect(within(screen.getByRole("link", { name: "Схвалені учасники" }).closest("div.relative") as HTMLElement).getByText("0%")).toBeInTheDocument()
     expect(screen.getByText("чернетки 1 · опубліковані 2 · тривають 3 · завершені 4")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Спроби" })).toHaveAttribute("href", "/analytics/tasks")
     expect(screen.getByRole("link", { name: "Листи надіслано" })).toHaveAttribute("href", "/analytics/notifications")

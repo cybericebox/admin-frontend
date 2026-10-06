@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
 import { DataTable, type Column } from "@/components/analytics/DataTable"
 import { KpiTile } from "@/components/analytics/KpiTile"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -29,8 +30,7 @@ const userName = (user: UsageUser) => user.UserName || t(`${P}.unnamed`)
 const time = (iso: string | null) => (iso ? Date.parse(iso) : null)
 
 function StateTag({ state }: { state: UsageState }) {
-  const tone = state === "online" ? "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]" : "bg-secondary text-muted-foreground"
-  return <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{t(`${P}.state.${state}`)}</span>
+  return <Badge size="sm" tone={state === "online" ? "ok" : "neutral"}>{t(`${P}.state.${state}`)}</Badge>
 }
 
 function Detail({ user }: { user: UsageUser }) {
@@ -44,22 +44,22 @@ function Detail({ user }: { user: UsageUser }) {
     </section>
     <section aria-label={t(`${P}.detail.labs`)}>
       <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{t(`${P}.detail.labs`)}</h3>
-      {user.Labs.length === 0 ? <p className="text-xs text-muted-foreground">{t(`${P}.detail.noLabs`)}</p> : <table className="w-full text-left">
-        <thead className="text-xs text-muted-foreground"><tr>
-          <th scope="col" className="py-1 pr-3 font-medium">{t(`${P}.detail.task`)}</th>
-          <th scope="col" className="py-1 pr-3 font-medium">{t(`${P}.detail.access`)}</th>
-          <th scope="col" className="py-1 pr-3 font-medium">{t(`${P}.detail.requests`)}</th>
-          <th scope="col" className="py-1 pr-3 font-medium">{t(`${P}.detail.traffic`)}</th>
-          <th scope="col" className="py-1 font-medium">{t(`${P}.detail.last`)}</th>
+      {user.Labs.length === 0 ? <p className="text-xs text-muted-foreground">{t(`${P}.detail.noLabs`)}</p> : <div className="ib-table-wrap"><table className="ib-table" aria-label={t(`${P}.detail.labs`)}>
+        <thead><tr>
+          <th scope="col">{t(`${P}.detail.task`)}</th>
+          <th scope="col">{t(`${P}.detail.access`)}</th>
+          <th scope="col" className="ib-table__num">{t(`${P}.detail.requests`)}</th>
+          <th scope="col" className="ib-table__num">{t(`${P}.detail.traffic`)}</th>
+          <th scope="col">{t(`${P}.detail.last`)}</th>
         </tr></thead>
         <tbody>{user.Labs.map((lab) => <tr key={`${lab.ChallengeID}:${lab.Surface}`}>
-          <td className="py-1 pr-3">{lab.Task || none}</td>
-          <td className="py-1 pr-3">{t(`${P}.surface.${lab.Surface}`)}</td>
-          <td className="py-1 pr-3 tabular-nums">{formatCount(lab.Attempts)}</td>
-          <td className="whitespace-nowrap py-1 pr-3 tabular-nums">{formatBytes(lab.BytesIn + lab.BytesOut)}</td>
-          <td className="whitespace-nowrap py-1">{formatDateTime(lab.LastAt)}</td>
+          <td>{lab.Task || none}</td>
+          <td>{t(`${P}.surface.${lab.Surface}`)}</td>
+          <td className="ib-table__num">{formatCount(lab.Attempts)}</td>
+          <td className="ib-table__num">{formatBytes(lab.BytesIn + lab.BytesOut)}</td>
+          <td>{formatDateTime(lab.LastAt)}</td>
         </tr>)}</tbody>
-      </table>}
+      </table></div>}
     </section>
   </div>
 }

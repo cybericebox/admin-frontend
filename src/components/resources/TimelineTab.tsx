@@ -17,20 +17,26 @@ import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { formatDateTime } from "@/lib/locale"
 import { attentionIDs, buildMaintenanceTracks, buildTimelineModel, rangeFrom, type Bar, type MaintenanceBand, type Resource } from "@/lib/resourceCalendar"
 import { RefreshIndicator } from "@/components/infrastructure/RefreshIndicator"
-import { Badge, BLOCK, THEAD, TROW, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
+import { TableState, TableWrap } from "@/components/common/DsTable"
+import { Badge, BLOCK, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
 import { timelineOption } from "./timelineOption"
 
 const DAY_OPTIONS = [1, 3, 7, 14, 31]
 const startOfToday = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()) }
 
-function Legend({ items }: { items: { label: string; className: string }[] }) {
-  return <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label={t("admin.resources.timeline.legend")}>
-    {items.map((item) => <li key={item.label} className="flex items-center gap-1.5"><span aria-hidden className={`inline-block h-3 w-4 rounded-sm border ${item.className}`} />{item.label}</li>)}
+// Legend swatches use the same tokens as the chart (series colours, --ib-warn, --ib-danger), so both themes match.
+type Swatch = { label: string; color: string; dashed?: boolean; fill?: number }
+
+function Legend({ items }: { items: Swatch[] }) {
+  return <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[length:var(--ib-fs-13)] text-muted-foreground" aria-label={t("admin.resources.timeline.legend")}>
+    {items.map((item) => <li key={item.label} className="flex items-center gap-1.5">
+      <span aria-hidden className="inline-block h-3 w-4 rounded-sm border" style={{ borderColor: item.color, borderStyle: item.dashed ? "dashed" : "solid", background: `color-mix(in srgb, ${item.color} ${item.fill ?? 40}%, transparent)` }} />{item.label}
+    </li>)}
   </ul>
 }
 
 /** Hatched amber band: «the agent gives the platform no capacity here». */
-const MAINTENANCE_BAND = "block h-full w-full rounded-sm border border-[#F59E0B] bg-[repeating-linear-gradient(135deg,rgba(245,158,11,0.35)_0_4px,rgba(245,158,11,0.08)_4px_8px)]"
+const MAINTENANCE_BAND = "block h-full w-full rounded-sm border border-[var(--ib-warn)] bg-[repeating-linear-gradient(135deg,color-mix(in_srgb,var(--ib-warn)_35%,transparent)_0_4px,color-mix(in_srgb,var(--ib-warn)_8%,transparent)_4px_8px)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]"
 
 function maintenanceText(band: MaintenanceBand) {
   const { window } = band
@@ -95,12 +101,12 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
       : empty ? <EmptyState className={BLOCK} message={t("admin.resources.timeline.empty")} />
       : <>
         <Legend items={[
-          { label: t("admin.resources.timeline.kindEvent"), className: "border-[#0091EA] bg-[#0091EA]/40" },
-          { label: t("admin.resources.timeline.kindBooking"), className: "border-[#22C55E] bg-[#22C55E]/40" },
-          { label: t("admin.resources.uncovered"), className: "border-dashed border-[#F59E0B] bg-[#F59E0B]/25" },
-          { label: t("admin.resources.timeline.pool"), className: "border-border bg-muted" },
-          { label: t("admin.resources.timeline.conflict"), className: "border-[#EF4444] bg-[#EF4444]/15" },
-          ...(tracks.length > 0 ? [{ label: t("admin.resources.timeline.maintenanceLegend"), className: "border-[#F59E0B] bg-[#F59E0B]/30" }] : []),
+          { label: t("admin.resources.timeline.kindEvent"), color: "var(--ib-s1)" },
+          { label: t("admin.resources.timeline.kindBooking"), color: "var(--ib-s3)" },
+          { label: t("admin.resources.uncovered"), color: "var(--ib-warn)", dashed: true, fill: 25 },
+          { label: t("admin.resources.timeline.pool"), color: "var(--ib-line)", fill: 60 },
+          { label: t("admin.resources.timeline.conflict"), color: "var(--ib-danger)", fill: 15 },
+          ...(tracks.length > 0 ? [{ label: t("admin.resources.timeline.maintenanceLegend"), color: "var(--ib-warn)", fill: 30 }] : []),
         ]} />
         {charts.map(({ resource, model }) => model && <Card key={resource}>
           <CardHeader className="pb-0"><CardTitle className="text-base">{t(resource === "cpu" ? "admin.resources.cpu" : "admin.resources.memory")}</CardTitle></CardHeader>
@@ -117,10 +123,10 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
           <CardContent className="space-y-2 pt-3">
             {tracks.map((track) => <div key={track.agentID} className="flex items-center gap-3 text-sm">
               <span className="w-32 shrink-0 truncate font-medium" title={track.agentName}>{track.agentName}</span>
-              <div className="relative h-7 flex-1 rounded-sm bg-muted" role="img" aria-label={t("admin.resources.timeline.maintenanceTrack", { agent: track.agentName })}>
-                {track.bands.map((band) => <div key={`${band.window.From}-${band.window.Name}`} className="absolute inset-y-1" style={{ left: `${band.left}%`, width: `max(${band.width}%, 4px)` }}>
+              <div className="relative h-7 flex-1 rounded-sm bg-muted" role="group" aria-label={t("admin.resources.timeline.maintenanceTrack", { agent: track.agentName })}>
+                {track.bands.map((band) => <div key={`${band.window.From}-${band.window.Name}`} className="absolute inset-y-0" style={{ left: `${band.left}%`, width: `max(${band.width}%, 24px)` }}>
                   <HoverTooltip text={maintenanceText(band)} className="flex h-full w-full">
-                    <span className={MAINTENANCE_BAND} tabIndex={0} aria-label={band.window.Name} />
+                    <button type="button" className={MAINTENANCE_BAND} aria-label={maintenanceText(band).replace(/\n/g, ", ")} />
                   </HoverTooltip>
                 </div>)}
               </div>
@@ -144,36 +150,36 @@ export function TimelineTab({ canWrite, onEdit, onReplan, onCancel, version }: T
         <Card>
           <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.timeline.reservations")}</CardTitle></CardHeader>
           <CardContent className="pt-3">
-            {(data.Reservations ?? []).length === 0 ? <EmptyState compact message={t("admin.resources.timeline.noReservations")} /> : <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className={THEAD}><tr>
+            <TableWrap label={t("admin.resources.timeline.reservations")} rows={4}>
+              <table aria-label={t("admin.resources.timeline.reservations")} className="ib-table">
+                <thead><tr>
                   <Th>{t("admin.resources.col.reservation")}</Th><Th>{t("admin.resources.col.window")}</Th><Th>{t("admin.resources.col.size")}</Th><Th>{t("admin.resources.col.used")}</Th><Th>{t("admin.resources.col.placement")}</Th><Th>{t("admin.resources.col.state")}</Th><Th className="w-28"><span className="sr-only">{t("admin.resources.col.actions")}</span></Th>
                 </tr></thead>
-                <tbody>
+                {(data.Reservations ?? []).length === 0 ? <TableState colSpan={7} kind="empty" message={t("admin.resources.timeline.noReservations")} /> : <tbody>
                   {(data.Reservations ?? []).map((reservation) => {
                     const name = reservation.Kind === "event" ? reservation.EventName || reservation.EventTag : t("admin.resources.timeline.kindBooking")
-                    return <tr key={reservation.ID} className={TROW} data-testid={`reservation-${reservation.ID}`}>
-                      <td className="px-3 py-2"><span className="block font-medium">{name}</span><span className="text-xs text-muted-foreground">{t(reservation.Kind === "event" ? "admin.resources.timeline.kindEvent" : "admin.resources.timeline.kindBooking")}</span></td>
-                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">{formatWindow(reservation.From, reservation.To)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatAmount(reservation.Size)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">{formatAmount(reservation.Used)}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{(reservation.Placement ?? []).map((share) => `${share.AgentName} ×${share.Units}`).join(", ") || "—"}</td>
-                      <td className="px-3 py-2"><span className="inline-flex flex-wrap gap-1.5">
+                    return <tr key={reservation.ID} data-testid={`reservation-${reservation.ID}`}>
+                      <td><span className="block font-medium leading-tight">{name}</span><span className="text-xs text-muted-foreground">{t(reservation.Kind === "event" ? "admin.resources.timeline.kindEvent" : "admin.resources.timeline.kindBooking")}</span></td>
+                      <td className="ib-table__dim">{formatWindow(reservation.From, reservation.To)}</td>
+                      <td>{formatAmount(reservation.Size)}</td>
+                      <td className="ib-table__dim">{formatAmount(reservation.Used)}</td>
+                      <td className="ib-table__dim">{(reservation.Placement ?? []).map((share) => `${share.AgentName} ×${share.Units}`).join(", ") || "—"}</td>
+                      <td><span className="inline-flex flex-wrap gap-1.5">
                         {!reservation.Covered && <Badge tone="warn">{t("admin.resources.uncovered")}</Badge>}
                         {reservation.Unplaced > 0 && <Badge tone="danger">{t("admin.resources.unplaced", { count: reservation.Unplaced })}</Badge>}
                         {attention.has(reservation.ID) && reservation.Covered && <Badge tone="danger">{t("admin.resources.timeline.inConflict")}</Badge>}
                         {(reservation.Alarms ?? []).length > 0 && <Badge tone="warn">{t("admin.resources.alarmsCount", { count: (reservation.Alarms ?? []).length })}</Badge>}
                       </span></td>
-                      <td className="px-3 py-2">{reservation.Kind === "event" && <span className="inline-flex items-center gap-1">
+                      <td className="ib-table__actions">{reservation.Kind === "event" && <span className="inline-flex items-center gap-1">
                         <HoverTooltip text={t(canWrite ? "admin.resources.edit" : "admin.resources.view")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t(canWrite ? "admin.resources.edit" : "admin.resources.view")}: ${name}`} onClick={() => onEdit({ eventID: reservation.EventID, name })}><Pencil className="h-4 w-4" aria-hidden /></Button></HoverTooltip>
                         {canWrite && <HoverTooltip text={t("admin.resources.replan.action")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t("admin.resources.replan.action")}: ${name}`} onClick={() => onReplan(reservation)}><RefreshCw className="h-4 w-4" aria-hidden /></Button></HoverTooltip>}
                         {canWrite && <HoverTooltip text={t("admin.resources.cancel.action")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.resources.cancel.action")}: ${name}`} onClick={() => onCancel({ eventID: reservation.EventID, name })}><X className="h-4 w-4" aria-hidden /></Button></HoverTooltip>}
                       </span>}</td>
                     </tr>
                   })}
-                </tbody>
+                </tbody>}
               </table>
-            </div>}
+            </TableWrap>
           </CardContent>
         </Card>
       </>}

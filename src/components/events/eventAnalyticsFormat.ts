@@ -1,16 +1,16 @@
 import { integrityKinds, type IntegrityLevel, type IntegritySignal } from "@/api/events/analytics"
 import { t } from "@/i18n/t"
+import { UI_LOCALE, formatListDateTime } from "@/lib/locale"
 
 // Value formatting and the wording of the integrity signals. The wording is the event site's
 // own (same terms, same sentences), so an organizer reads the same thing in both places.
 const P = "admin.events.analytics"
 const none = "—"
-const wholeNumber = new Intl.NumberFormat("uk-UA")
-const dateTime = new Intl.DateTimeFormat("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })
-const clock = new Intl.DateTimeFormat("uk-UA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+const wholeNumber = new Intl.NumberFormat(UI_LOCALE)
+const clock = new Intl.DateTimeFormat(UI_LOCALE, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
 export const formatCount = (value: number) => wholeNumber.format(value)
-export const formatDateTime = (iso: string | null | undefined) => iso ? dateTime.format(new Date(iso)) : none
+export const formatDateTime = (iso: string | null | undefined) => iso ? formatListDateTime(iso) : none
 export const formatClock = (iso: string) => clock.format(new Date(iso))
 
 export function formatDuration(seconds: number): string {

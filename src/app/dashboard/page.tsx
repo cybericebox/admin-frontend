@@ -14,6 +14,7 @@ import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
 
 type UserStats = { Total: number }
 type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[]; ByChannel?: { Channel: string; Status: string; Count: number }[] }
@@ -41,6 +42,8 @@ export default function Page() {
   const [failedFeeds, setFailedFeeds] = useState(0)
   const [failCause, setFailCause] = useState<unknown>(undefined)
   const [retry, setRetry] = useState(0)
+  // A retry reloads in the background: the tiles keep their last values, only the first load shows the loader.
+  const reload = () => setRetry((current) => current + 1)
 
   useEffect(() => {
     let cancelled = false
@@ -53,10 +56,11 @@ export default function Page() {
         notificationsAllowed ? apiGet<NotificationStats>("/api/notifications/stats?days=7").catch((cause) => { failures++; firstCause ??= cause; return null }) : null,
       ])
       if (cancelled) return
-      setUsers(u)
-      setEvents(e?.Items ?? null)
-      setEventTotal(e?.Total ?? null)
-      setNotifications(n)
+      // A failed refresh keeps what the page already shows.
+      setUsers((previous) => u ?? previous)
+      setEvents((previous) => e ? e.Items : previous)
+      setEventTotal((previous) => e ? e.Total : previous)
+      setNotifications((previous) => n ?? previous)
       setFailedFeeds(failures)
       setFailCause(firstCause)
       setLoading(false)
@@ -68,8 +72,9 @@ export default function Page() {
   // The infrastructure tiles poll on their own; a failed poll only blanks them.
   const loadInfrastructure = useCallback(async () => {
     const [nextStatus, nextSummary] = await Promise.allSettled([getInfrastructureStatus(), getInfrastructureSummary()])
-    setInfrastructure(nextStatus.status === "fulfilled" ? nextStatus.value : null)
-    setSummary(nextSummary.status === "fulfilled" ? nextSummary.value : null)
+    // A failed poll keeps the last values instead of blanking the tiles.
+    setInfrastructure((previous) => nextStatus.status === "fulfilled" ? nextStatus.value : previous)
+    setSummary((previous) => nextSummary.status === "fulfilled" ? nextSummary.value : previous)
   }, [])
   const { updatedAt, refreshing } = usePolling(loadInfrastructure, infrastructureAllowed)
 
@@ -84,9 +89,9 @@ export default function Page() {
   const notificationErrors = (notifications?.ByChannel ?? []).reduce((sum, item) => item.Status === "error" ? sum + item.Count : sum, 0)
 
   return <div className="flex min-h-full flex-col gap-7">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold text-foreground">{t("admin.dashboard.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.dashboard.subtitle")}</p></div>{infrastructureAllowed && <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />}</div>
-    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : failedFeeds > 0 && failedFeeds === [usersAllowed, eventsAllowed, notificationsAllowed].filter(Boolean).length ? <LoadError error={failCause} onRetry={() => { setLoading(true); setRetry((current) => current + 1) }} className="flex-1" /> : <>
-      {failedFeeds > 0 && <LoadError message={t("admin.dashboard.partialError")} error={failCause} compact onRetry={() => { setLoading(true); setRetry((current) => current + 1) }} />}
+    <PageHeader title={t("admin.dashboard.title")} sub={t("admin.dashboard.subtitle")} actions={infrastructureAllowed ? <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} /> : undefined} />
+    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : failedFeeds > 0 && !users && !events && !notifications && failedFeeds === [usersAllowed, eventsAllowed, notificationsAllowed].filter(Boolean).length ? <LoadError error={failCause} onRetry={() => { reload() }} className="flex-1" /> : <>
+      {failedFeeds > 0 && <LoadError message={t("admin.dashboard.partialError")} error={failCause} compact onRetry={() => { reload() }} />}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href="/analytics/users" />}
         {eventsAllowed && <Metric label={t("admin.dashboard.events")} value={eventTotal ?? unavailable} href="/events" />}
@@ -99,7 +104,7 @@ export default function Page() {
       </div>
       {eventsAllowed && <section className="rounded-lg border border-border bg-card" aria-labelledby="recent-events-heading">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">{t("admin.dashboard.recentEvents")}</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">{t("admin.dashboard.allEvents")}</Link></div>
-        {events === null ? <LoadError message={t("admin.dashboard.eventsError")} error={failCause} compact onRetry={() => { setLoading(true); setRetry((current) => current + 1) }} /> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
+        {events === null ? <LoadError message={t("admin.dashboard.eventsError")} error={failCause} compact onRetry={() => { reload() }} /> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
       </section>}
     </>}
   </div>

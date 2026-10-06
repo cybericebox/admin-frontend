@@ -18,8 +18,8 @@ const PREVIEW_DELAY_MS = 300
 
 type PreviewState = { status: "loading" } | { status: "error"; message: string; cause: unknown } | { status: "ready"; preview: MailFooterPreview }
 
-// Pills look like the ones of the email body editor: the variable name on an amber chip.
-const PILL_CLASS = "[&_[data-notif-variable]]:border-amber-300 [&_[data-notif-variable]]:bg-amber-100 [&_[data-notif-variable]]:text-amber-950 dark:[&_[data-notif-variable]]:border-amber-700 dark:[&_[data-notif-variable]]:bg-amber-900/40 dark:[&_[data-notif-variable]]:text-amber-200"
+// Pills look like the ones of the email body editor: the variable name on a warn-tone chip.
+const PILL_CLASS = "[&_[data-notif-variable]]:border-[var(--ib-warn)] [&_[data-notif-variable]]:bg-[var(--ib-warn-bg)] [&_[data-notif-variable]]:text-[var(--ib-warn)]"
 
 // What the editor shows: the saved footer, else the default that is sent.
 export function footerDraft(footer: MailFooter): LexicalState {

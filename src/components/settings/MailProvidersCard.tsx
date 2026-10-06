@@ -7,6 +7,7 @@ import {
   type MailProvider, type MailProviderInput, type MailSettings, type MailTLSMode, type MailTestResult,
 } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
+import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -106,7 +107,7 @@ function testText(result: MailTestResult): string {
   return t(result.Recipient ? "admin.mail.test.failedTo" : "admin.mail.test.failed", { recipient: result.Recipient, error: result.Error || t("admin.mail.test.unknownError") })
 }
 
-const dateText = (iso: string) => new Date(iso).toLocaleString("uk-UA")
+const dateText = (iso: string) => formatListDateTime(iso)
 
 /**
  * The platform SMTP providers: a list by priority (the first enabled provider with room left

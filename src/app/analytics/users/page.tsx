@@ -1,5 +1,6 @@
 "use client"
 
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { SectionPage } from "@/components/analytics"
 import { UsersAnalytics } from "@/components/analytics/users/UsersAnalytics"
@@ -12,5 +13,5 @@ function UsersAnalyticsPage() {
 }
 
 export default function Page() {
-  return <RequirePermission perm="analytics.read"><UsersAnalyticsPage /></RequirePermission>
+  return <RequirePermission perm="analytics.read" fallback={<NoAccess />}><UsersAnalyticsPage /></RequirePermission>
 }

@@ -1,7 +1,6 @@
 "use client"
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
 import { useRole, type Role } from "@/lib/useRole"
@@ -14,6 +13,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { LoadError } from "@/components/ui/load-error"
+import { PageHeader } from "@/components/ui/page-header"
+import { formatListDate, formatListDateTime } from "@/lib/locale"
 import { toast } from "@/components/ui/toast"
 
 type UserDetail = {
@@ -34,6 +35,8 @@ function fullName(u: UserDetail): string {
   const n = `${u.FirstName ?? ""} ${u.LastName ?? ""}`.trim()
   return n || u.Email
 }
+
+const usersCrumb = () => ({ label: t("admin.nav.users"), href: "/users" })
 
 function isNotFound(error: unknown): boolean {
   return !!error && typeof error === "object" && "status" in error && error.status === 404
@@ -97,7 +100,7 @@ function Detail() {
   if (loadError) {
     return (
       <div className="frost-panel frost-in rounded-lg p-8">
-        <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
+        <PageHeader title={t("admin.nav.users")} crumbs={[usersCrumb()]} />
         <LoadError message={t("admin.userDetail.loadError")} error={loadError.cause} onRetry={() => { setLoading(true); setLoadError(null); setReloadKey((k) => k + 1) }} />
       </div>
     )
@@ -105,6 +108,7 @@ function Detail() {
   if (notFound || !user) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
+        <PageHeader title={t("admin.nav.users")} crumbs={[usersCrumb()]} />
         <NotFoundScreen block title={t("admin.userDetail.notFound")} />
       </div>
     )
@@ -116,14 +120,8 @@ function Detail() {
 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
-      <Link href="/users" className="text-sm text-primary hover:underline">← {t("admin.userDetail.back")}</Link>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold text-foreground">{fullName(user)}</h1>
-        <RoleBadge role={user.Role} />
-        <StatusBadge status={user.Status} />
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">{user.Email}</p>
+      <PageHeader title={fullName(user)} crumbs={[usersCrumb(), { label: fullName(user) }]} sub={user.Email}
+        actions={<><RoleBadge role={user.Role} /><StatusBadge status={user.Status} /></>} />
 
       <dl className="mt-6 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
         <div>
@@ -139,12 +137,12 @@ function Detail() {
         <div>
           <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.lastSeen")}</dt>
           <dd className="text-sm text-foreground">
-            {user.LastSeen && !user.LastSeen.startsWith("0001") ? new Date(user.LastSeen).toLocaleString() : t("admin.userDetail.never")}
+            {user.LastSeen && !user.LastSeen.startsWith("0001") ? <time dateTime={user.LastSeen}>{formatListDateTime(user.LastSeen)}</time> : t("admin.userDetail.never")}
           </dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.created")}</dt>
-          <dd className="text-sm text-foreground">{user.CreatedAt ? new Date(user.CreatedAt).toLocaleDateString() : "—"}</dd>
+          <dd className="text-sm text-foreground">{user.CreatedAt ? <time dateTime={user.CreatedAt}>{formatListDate(user.CreatedAt)}</time> : "—"}</dd>
         </div>
       </dl>
 

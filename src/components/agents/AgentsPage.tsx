@@ -8,7 +8,9 @@ import {
 } from "@/api/agents"
 import { RefreshIndicator } from "@/components/infrastructure/RefreshIndicator"
 import { Button } from "@/components/ui/button"
+import { Badge as UiBadge, type BadgeTone } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -25,16 +27,10 @@ import { cn } from "@/utils/cn"
 import { DeleteBlockedDialog, EditAgentDialog, EnrollDialog, ReconnectDialog, ReservationImpactList } from "./AgentDialogs"
 import { CERT_WARN_DAYS, agentState, capacityText, certDaysLeft, featureChips, sortAgents, unmetLines, type AgentState } from "./agentView"
 
-const STATE_STYLE: Record<AgentState, string> = {
-  online: "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
-  unreachable: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
-  offline: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
-  disabled: "bg-secondary text-muted-foreground",
-  archived: "bg-secondary text-muted-foreground",
-}
+const STATE_TONE: Record<AgentState, BadgeTone> = { online: "ok", unreachable: "warn", offline: "warn", disabled: "neutral", archived: "neutral" }
 
-function Badge({ className, children, ...rest }: { className?: string; children: React.ReactNode; "data-testid"?: string }) {
-  return <span {...rest} className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium", className)}>{children}</span>
+function Badge({ tone = "neutral", children, ...rest }: { tone?: BadgeTone; children: React.ReactNode; "data-testid"?: string }) {
+  return <UiBadge {...rest} tone={tone} size="sm">{children}</UiBadge>
 }
 
 function Fact({ label, children, warn }: { label: string; children: React.ReactNode; warn?: boolean }) {
@@ -173,17 +169,14 @@ export function AgentsPage() {
   const list = items ? sortAgents(items) : []
 
   return <div className="flex min-h-full flex-col gap-5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-xl font-semibold text-foreground">{t("admin.agents.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.agents.subtitle")}</p></div>
-      <div className="flex flex-wrap items-center gap-3">
-        <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Switch checked={archived} onCheckedChange={setArchived} aria-label={t("admin.agents.archived")} />{t("admin.agents.archived")}
-        </label>
-        <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
-        {canWrite && <Button onClick={() => setEnrolling(true)}><Plus className="mr-2 h-4 w-4" />{t("admin.agents.add")}</Button>}
-      </div>
-    </div>
+    <PageHeader title={t("admin.nav.agents")} sub={t("admin.agents.subtitle")} actions={<>
+      <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Switch checked={archived} onCheckedChange={setArchived} aria-label={t("admin.agents.archived")} />{t("admin.agents.archived")}
+      </label>
+      <Button variant="outline" onClick={retry} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4" />{t("admin.labs.refresh")}</Button>
+      {canWrite && <Button onClick={() => setEnrolling(true)}><Plus className="mr-2 h-4 w-4" />{t("admin.agents.add")}</Button>}
+    </>} />
 
     {error !== null && items && <LoadError message={t("admin.agents.error.load")} error={error} compact onRetry={retry} />}
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} />
@@ -200,9 +193,9 @@ export function AgentsPage() {
               <div className="min-w-0 flex-1 basis-56">
                 <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
                   <span className="truncate">{agent.Name}</span>
-                  <Badge className={STATE_STYLE[!agent.Enabled && state !== "archived" ? "disabled" : state]}>{t(`admin.agents.state.${!agent.Enabled && state !== "archived" ? "disabled" : state}`)}</Badge>
-                  <Badge className="bg-secondary text-muted-foreground">{t(`admin.agents.source.${agent.Source}`)}</Badge>
-                  {agent.MeetsRequirements === false && state !== "archived" && <Badge className="bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]" data-testid="agent-unmet">{t("admin.agents.requirements.unmet")}</Badge>}
+                  <Badge tone={STATE_TONE[!agent.Enabled && state !== "archived" ? "disabled" : state]}>{t(`admin.agents.state.${!agent.Enabled && state !== "archived" ? "disabled" : state}`)}</Badge>
+                  <Badge>{t(`admin.agents.source.${agent.Source}`)}</Badge>
+                  {agent.MeetsRequirements === false && state !== "archived" && <Badge tone="warn" data-testid="agent-unmet">{t("admin.agents.requirements.unmet")}</Badge>}
                 </p>
                 <p className="truncate text-sm text-muted-foreground">{agent.Endpoint || "—"}{agent.Tenant && ` · ${agent.Tenant}`}</p>
               </div>
@@ -233,7 +226,7 @@ export function AgentsPage() {
               <Fact label={t("admin.agents.fact.groups")}>{agent.Groups}</Fact>
             </dl>
             <div className="flex flex-wrap items-center gap-1.5" data-testid="agent-features">
-              {chips ? chips.map((chip) => <Badge key={chip} className="bg-secondary text-muted-foreground">{chip}</Badge>) : <span className="text-xs text-muted-foreground">{t("admin.agents.feature.unknown")}</span>}
+              {chips ? chips.map((chip) => <Badge key={chip}>{chip}</Badge>) : <span className="text-xs text-muted-foreground">{t("admin.agents.feature.unknown")}</span>}
             </div>
             {agent.MeetsRequirements === false && state !== "archived" && <div className="space-y-0.5 text-xs text-[var(--ib-warn)]" data-testid="agent-unmet-hint">
               <p>{t("admin.agents.requirements.unmetHint")}</p>

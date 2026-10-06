@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { decideElevation, ELEVATION_WRITE_PERM, getElevation, getResourcePresets, type ElevationRequest, type ResourcePreset } from "@/api/elevations"
 import { Card } from "@/components/ui/card"
+import { PageHeader } from "@/components/ui/page-header"
+import { TableWrap, Th } from "@/components/common/DsTable"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadError } from "@/components/ui/load-error"
@@ -75,8 +76,9 @@ export function ElevationDetail({ id }: { id: string }) {
   const retry = () => { setState({ id: "", item: null, error: null }); setAttempt((value) => value + 1) }
 
   if (!id || (settled && state.error instanceof ApiError && state.error.status === 404)) return <NotFoundScreen block title={t("admin.elevations.notFound")} />
-  if (!settled) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (!item) return <LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="h-full" />
+  const crumbs = (label: string) => [{ label: t("admin.nav.elevations"), href: "/elevations" }, { label }]
+  if (!settled) return <div className="flex h-full flex-col gap-5"><PageHeader title={t("admin.nav.elevations")} crumbs={crumbs(t("admin.loading"))} /><LoadingArea className="flex-1" label={t("admin.loading")} /></div>
+  if (!item) return <div className="flex h-full flex-col gap-5"><PageHeader title={t("admin.nav.elevations")} crumbs={crumbs(t("admin.nav.elevations"))} /><LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="flex-1" /></div>
 
   const pending = item.Status === "pending"
 
@@ -108,17 +110,11 @@ export function ElevationDetail({ id }: { id: string }) {
   }
 
   return <div className="flex min-h-full flex-col gap-5">
-    <Link href="/elevations" className="w-fit text-sm text-primary hover:underline">← {t("admin.elevations.back")}</Link>
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <h2 className="truncate text-xl font-semibold text-foreground">{item.ExerciseName}</h2>
-        <StatusBadge status={item.Status} />
-      </div>
-      {pending && canReview && <div className="flex gap-2">
+    <PageHeader title={item.ExerciseName} crumbs={crumbs(item.ExerciseName)} sub={<StatusBadge status={item.Status} />}
+      actions={pending && canReview ? <>
         <Button type="button" variant="outline" onClick={() => open("reject")}>{t("admin.elevations.reject.action")}</Button>
         <Button type="button" onClick={() => open("approve")}>{t("admin.elevations.approve.action")}</Button>
-      </div>}
-    </div>
+      </> : undefined} />
     {pending && !canReview && <p role="status" className="text-sm text-muted-foreground">{t("admin.elevations.noReview")}</p>}
 
     <Card className="space-y-4 p-4">
@@ -132,36 +128,38 @@ export function ElevationDetail({ id }: { id: string }) {
       {item.DecisionNote && <div><p className="text-xs text-muted-foreground">{t("admin.elevations.note")}</p><p className="whitespace-pre-wrap break-words text-sm text-foreground">{item.DecisionNote}</p></div>}
     </Card>
 
-    <Card className="overflow-x-auto">
-      <table data-testid="elevation-devices" className="w-full text-sm">
-        <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
-          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.device")}</th>
-          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.requested")}</th>
-          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.cpu")}</th>
-          <th className="px-4 py-2 font-medium">{t("admin.elevations.col.memory")}</th>
-          {editing && <th className="px-4 py-2 font-medium">{t("admin.elevations.col.approved")}</th>}
-        </tr></thead>
-        <tbody className="divide-y divide-border">
-          {item.Requested.map((device) => {
-            const name = device.Name || device.DeviceID
-            const options = allowedPresets(device, presets)
-            return <tr key={device.DeviceID}>
-              <td className="px-4 py-2 font-medium">{name}</td>
-              <td className="px-4 py-2">{presetName(device.Blocks, presets)}</td>
-              <td className="px-4 py-2">{formatCpu(device.CPUMillicores)}</td>
-              <td className="px-4 py-2">{formatBytes(device.MemoryBytes)}</td>
-              {editing && <td className="px-4 py-2">
-                {options.some((preset) => preset.Blocks === device.Blocks)
-                  ? <Select value={String(approvedBlocks(device))} onChange={(event) => setEdit(device, Number(event.target.value))}
-                      aria-label={t("admin.elevations.edit.block", { name })} className="h-8 min-w-56">
-                      {options.map((preset) => <option key={preset.ID} value={preset.Blocks}>{presetName(preset.Blocks, presets)} · {sizeText(preset)}</option>)}
-                    </Select>
-                  : <span className="text-xs text-muted-foreground">{presetName(device.Blocks, presets)}</span>}
-              </td>}
-            </tr>
-          })}
-        </tbody>
-      </table>
+    <Card className="overflow-hidden">
+      <TableWrap label={t("admin.elevations.table")} rows={Math.max(2, item.Requested.length)} className="rounded-none border-0">
+        <table data-testid="elevation-devices" aria-label={t("admin.elevations.table")} className="ib-table">
+          <thead><tr>
+            <Th>{t("admin.elevations.col.device")}</Th>
+            <Th>{t("admin.elevations.col.requested")}</Th>
+            <Th>{t("admin.elevations.col.cpu")}</Th>
+            <Th>{t("admin.elevations.col.memory")}</Th>
+            {editing && <Th>{t("admin.elevations.col.approved")}</Th>}
+          </tr></thead>
+          <tbody>
+            {item.Requested.map((device) => {
+              const name = device.Name || device.DeviceID
+              const options = allowedPresets(device, presets)
+              return <tr key={device.DeviceID}>
+                <td className="font-medium">{name}</td>
+                <td>{presetName(device.Blocks, presets)}</td>
+                <td>{formatCpu(device.CPUMillicores)}</td>
+                <td>{formatBytes(device.MemoryBytes)}</td>
+                {editing && <td>
+                  {options.some((preset) => preset.Blocks === device.Blocks)
+                    ? <Select value={String(approvedBlocks(device))} onChange={(event) => setEdit(device, Number(event.target.value))}
+                        aria-label={t("admin.elevations.edit.block", { name })} className="h-8 min-w-56">
+                        {options.map((preset) => <option key={preset.ID} value={preset.Blocks}>{presetName(preset.Blocks, presets)} · {sizeText(preset)}</option>)}
+                      </Select>
+                    : <span className="text-xs text-muted-foreground">{presetName(device.Blocks, presets)}</span>}
+                </td>}
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </TableWrap>
       {editing && <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground" data-testid="elevation-edit-hint">{t("admin.elevations.edit.hint")}</p>}
       {item.Approved.length > 0 && <p data-testid="elevation-approved" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         {t("admin.elevations.approvedValues")} {item.Approved.map((device) => `${device.Name || device.DeviceID}: ${presetName(device.Blocks, presets)} · ${sizeText(device)}`).join("; ")}

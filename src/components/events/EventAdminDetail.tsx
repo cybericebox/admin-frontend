@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
-import Link from "next/link"
 import { getEvent, listEventManagers, setEventInfrastructure, updateEvent, type Event, type EventManager } from "@/api/events/catalog"
 import { EventAnalyticsTab } from "@/components/events/EventAnalyticsTab"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
+import { EventStatusBadge } from "@/components/events/EventStatusBadge"
+import { PageHeader } from "@/components/ui/page-header"
 import { EventReservationButton } from "@/components/resources/EventReservationButton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -169,17 +170,14 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   }
 
   if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (!id || loadError || !event || !draft) return <LoadError message={t("admin.events.loadError")} error={loadError?.cause} onRetry={id ? retryEvent : undefined} className="h-full" />
+  if (!id || loadError || !event || !draft) return <div className="flex h-full flex-col">
+    <PageHeader title={t("admin.nav.events")} crumbs={[{ label: t("admin.nav.events"), href: "/events" }]} />
+    <LoadError message={t("admin.events.loadError")} error={loadError?.cause} onRetry={id ? retryEvent : undefined} className="flex-1" />
+  </div>
 
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <Link className="text-sm text-primary hover:underline" href="/events">← {t("admin.events.back")}</Link>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">{event.Name || event.Tag}</h1>
-        <div className="mt-1"><EventSiteLink tag={event.Tag} /></div>
-      </div>
-      <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{t(`admin.events.lifecycle.${event.Status === "archived" ? "archived" : event.Status === "pending" ? "not_available" : event.LifecycleStatus ?? "not_published"}`)}</span>
-    </div>
+    <PageHeader title={event.Name || event.Tag} crumbs={[{ label: t("admin.nav.events"), href: "/events" }, { label: event.Name || event.Tag }]}
+      sub={<EventSiteLink tag={event.Tag} />} actions={<EventStatusBadge event={event} size={undefined} />} />
 
     <Tabs value={tab} onValueChange={changeTab}>
     <TabsList aria-label={t("admin.events.tabs.label")}>
@@ -191,14 +189,14 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       <div className="mb-4"><h2 className="text-base font-semibold text-foreground">{t("admin.events.details.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.details.description")}</p></div>
       <form className="space-y-4" onSubmit={(e) => void save(e)}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><Input id="event-name" value={draft.Name} onChange={(e) => setDraft({ ...draft, Name: e.target.value })} required disabled={!writable || saving} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><Input id="event-tag" value={draft.Tag} onChange={(e) => setDraft({ ...draft, Tag: e.target.value })} required disabled={!writable || saving} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={!writable || saving} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable || saving} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><Input id="event-name" value={draft.Name} onChange={(e) => setDraft({ ...draft, Name: e.target.value })} required disabled={!writable} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><Input id="event-tag" value={draft.Tag} onChange={(e) => setDraft({ ...draft, Tag: e.target.value })} required disabled={!writable} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={!writable} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable} /></div>
         </div>
         <div className="flex items-center gap-1.5" data-testid="event-infrastructure">
           {infraEditable
-            ? <Switch id="event-infrastructure" checked={Boolean(event.InfrastructureAllowed)} onCheckedChange={(next) => { setInfraError(""); setInfraTarget(next) }} disabled={saving} />
+            ? <Switch id="event-infrastructure" checked={Boolean(event.InfrastructureAllowed)} onCheckedChange={(next) => { setInfraError(""); setInfraTarget(next) }} />
             : <HoverTooltip text={infraLockReason}><span className="inline-flex"><Switch id="event-infrastructure" checked={Boolean(event.InfrastructureAllowed)} onCheckedChange={() => undefined} disabled /></span></HoverTooltip>}
           <label htmlFor="event-infrastructure" className="cursor-pointer select-none text-sm font-medium">{t("admin.events.field.infrastructure")}</label>
           <FieldHelp text={t("admin.events.field.infrastructureHelp")} />
