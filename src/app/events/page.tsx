@@ -110,7 +110,8 @@ export default function Page() {
 
   function goToPage(next: number) {
     if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
-    setLoading(true)
+    // The request effect raises `loading` itself; raising it here left it stuck (rows unclickable)
+    // whenever nothing changed and so no request followed.
     setPage(next)
   }
 

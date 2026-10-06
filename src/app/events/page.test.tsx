@@ -193,6 +193,17 @@ describe('events catalog page', () => {
     await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'started', sortBy: 'name', sortDir: 'asc' })))
   })
 
+  it('keeps the event link clickable after re-choosing the current filter', async () => {
+    render(<Page />)
+    const link = await screen.findByRole('link', { name: 'Spring CTF' })
+    const filter = screen.getByRole('button', { name: 'admin.events.filterStatus' })
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.events.filterAll' }))
+    // No request follows an unchanged filter, so nothing may stay marked as loading.
+    expect(link.closest('.pointer-events-none')).toBeNull()
+    expect(link.closest('[aria-busy="true"]')).toBeNull()
+  })
+
   it('keeps toolbar controls at the same height', async () => {
     render(<Page />)
     await screen.findByRole('link', { name: /admin.events.action.openSite/ })
