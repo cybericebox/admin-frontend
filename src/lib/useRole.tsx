@@ -49,7 +49,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       .catch((err: unknown) => {
         if (run !== runRef.current) return
         setMe(null)
-        // The backend cannot be reached: the service gate probes and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
+        // The backend cannot be reached: the service gate probes once after the grace period and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
         if (isBackendUnreachable(err)) { setError(null); reportServiceUnavailable(); return }
         setError(err ?? new Error("session check failed"))
         setIsLoading(false)
