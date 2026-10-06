@@ -27,7 +27,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
         <title>{t("error.page.title")}</title>
       </head>
       <body className="grid-bg" suppressHydrationWarning>
-        <ErrorPage mode="page" status={500} title={t("error.page.title")} text={t("error.page.body")} onRetry={retry} error={error} />
+        <ErrorPage mode="page" status={500} title={t("error.page.title")} text={t("error.page.body")} onRetry={retry} error={error} report />
       </body>
     </html>
   )

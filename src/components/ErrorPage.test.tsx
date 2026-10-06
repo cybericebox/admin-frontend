@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 
 import uk from "../../messages/uk.json"
 import en from "../../messages/en.json"
+import { ApiError } from "@/api/client"
 import { ErrorPage, NotFoundBlock } from "./ErrorPage"
 
 const noop = vi.fn()
@@ -18,7 +19,7 @@ describe("ErrorPage", () => {
     expect(html).toContain("crest-128.png")
     expect(html).toContain(">На головну<")
     expect(html).toContain(">Надіслати відгук<")
-    expect(html).toContain(">Оновити<")
+    expect(html).toContain(">Спробувати ще раз<")
     expect(html).toContain(">Назад<")
   })
 
@@ -39,12 +40,36 @@ describe("ErrorPage", () => {
     expect(without).not.toContain("secret stack detail")
   })
 
+  it("a backend 5xx: journaled text, copyable reference «code-rid8» and the report link", () => {
+    const err = new ApiError(500, {}, "x", undefined, 50310, undefined, "ab12cd34-5678-4abc-8def-000000000000")
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} title="T" text="crash text" onRetry={noop} error={err} report />)
+    expect(html).toContain("Ми вже отримали звіт про цю помилку")
+    expect(html).toContain("Номер звернення: 50310-ab12cd34")
+    expect(html).toContain('aria-label="Копіювати номер звернення"')
+    expect(html).toContain(">Повідомити деталі<")
+    expect(html).not.toContain("Код помилки")
+  })
+
+  it("a frontend crash: no journal line, no reference, still the report link", () => {
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} title="T" text="crash text" onRetry={noop} error={new Error("boom")} report />)
+    expect(html).toContain("crash text")
+    expect(html).not.toContain("Ми вже отримали звіт")
+    expect(html).not.toContain("Номер звернення")
+    expect(html).toContain(">Повідомити деталі<")
+  })
+
+  it("a 404 has neither the reference nor the report link", () => {
+    const html = renderToStaticMarkup(<NotFoundBlock />)
+    expect(html).not.toContain("Повідомити деталі")
+    expect(html).not.toContain("Номер звернення")
+  })
+
   it("a two-line title renders each line; without onRetry the primary action is the home link", () => {
     const html = renderToStaticMarkup(<ErrorPage mode="block" status={404} title={["Рядок один", "Рядок два"]} text="x" />)
     expect(html).toContain('<span class="ib-error__line">Рядок один</span>')
     expect(html).toContain('<span class="ib-error__line">Рядок два</span>')
     expect(html).toContain('href="/dashboard"')
-    expect(html).not.toContain(">Оновити<")
+    expect(html).not.toContain(">Спробувати ще раз<")
   })
 
   it("NotFoundBlock: 404 with the default or a context title", () => {

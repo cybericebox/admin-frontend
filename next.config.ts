@@ -70,6 +70,8 @@ const nextConfig: NextConfig = {
   // route (profile, profile/sessions) exported both profile.html and a profile/ directory, which nginx answered with 403.
   // nginx redirects a slashless page path once to the slashed one (deploy/nginx/server.conf).
   trailingSlash: true,
+  // Build version for the «Повідомити деталі» mail of a frontend crash.
+  env: { NEXT_PUBLIC_APP_VERSION: process.env.APP_VERSION || process.env.npm_package_version || "dev" },
   allowedDevOrigins: [...new Set(devOrigins)],
 }
 
