@@ -4,14 +4,14 @@ import { Sidebar } from "./Sidebar"
 
 const nav = vi.hoisted(() => ({ path: "/events" }))
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
-const rights = vi.hoisted(() => ({ infrastructure: true, denied: new Set<string>() }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission !== "platform.settings.read" && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
+const rights = vi.hoisted(() => ({ infrastructure: true, settings: false, denied: new Set<string>() }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => (permission !== "platform.settings.read" || rights.settings) && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span> }))
 vi.mock("@/lib/origins", () => ({ exercisesOrigin: "https://exercises.cybericebox.local", eventDomain: "example.org", platformHosts: ["example.org", "api.example.org", "id.example.org", "admin.example.org", "exercises.example.org"] }))
 
 describe("admin sidebar", () => {
-  beforeEach(() => { rights.infrastructure = true; rights.denied = new Set(); nav.path = "/events" })
+  beforeEach(() => { rights.infrastructure = true; rights.settings = false; rights.denied = new Set(); nav.path = "/events" })
   it("links to available administration sections and respects permissions", () => {
     render(<Sidebar />)
     expect(screen.getByRole("link", { name: "admin.nav.events" })).toHaveAttribute("href", "/events")
@@ -113,6 +113,29 @@ describe("admin sidebar", () => {
         render(<Sidebar />)
         expect(screen.queryByRole("link", { name: /admin.nav.returnToEvent/ }), url).not.toBeInTheDocument()
       }
+    })
+  })
+  describe("platform blocks", () => {
+    // Children of the platform group in order, "|" where a divider stands.
+    const layout = (container: HTMLElement) => Array.from(container.querySelectorAll("#admin-group-platform > a, #admin-group-platform > hr")).map((el) => el.tagName === "HR" ? "|" : el.textContent).join(",")
+    const open = () => {
+      const view = render(<Sidebar />)
+      fireEvent.click(screen.getByRole("button", { name: "admin.nav.section.platform" }))
+      return view.container
+    }
+    it("splits resources, logs and settings by dividers", () => {
+      rights.settings = true
+      expect(layout(open())).toBe("admin.nav.labs,admin.nav.agents,admin.nav.resources,admin.nav.elevations,|,admin.nav.audit,admin.nav.errors,|,admin.nav.settings")
+    })
+    it("draws no divider for an empty block", () => {
+      rights.settings = true
+      rights.denied = new Set(["platform.audit.read", "platform.errors.read"])
+      expect(layout(open())).toBe("admin.nav.labs,admin.nav.agents,admin.nav.resources,admin.nav.elevations,|,admin.nav.settings")
+    })
+    it("draws no leading divider when the first block is empty", () => {
+      rights.infrastructure = false
+      rights.denied = new Set(["exercises.elevations.read"])
+      expect(layout(open())).toBe("admin.nav.audit,admin.nav.errors")
     })
   })
   it("shows the audit log only with platform.audit.read", () => {
