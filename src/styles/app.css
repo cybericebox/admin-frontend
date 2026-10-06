@@ -52,3 +52,8 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
 .ib-tabs > a:hover { color: var(--ib-ink); border-bottom-color: var(--ib-line); }
 .ib-tabs > a[aria-current="page"] { font-weight: var(--ib-w-semibold); }
 .ib-tabs > a:focus-visible { outline: 2px solid var(--ib-action); outline-offset: 2px; border-radius: var(--ib-r-sm); }
+
+/* «Назад» beside the primary action of ErrorPage: the DS .ib-link look (the app has no DS link copy). */
+.ib-error__back{color:var(--ib-action);font:inherit;font-weight:var(--ib-w-medium);text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,currentColor 70%,transparent);background:none;border:0;padding:0;cursor:pointer;border-radius:var(--ib-r-sm)}
+.ib-error__back:hover{color:var(--ib-action-hover);text-decoration-color:currentColor}
+.ib-error__back:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}

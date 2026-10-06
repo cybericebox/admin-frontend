@@ -30,6 +30,8 @@ const FILES = [
   { from: "components/empty-state/empty-state.css", to: "src/styles/ds/empty-state.css" },
   { from: "components/pagination/pagination.css", to: "src/styles/ds/pagination.css" },
   { from: "patterns/page-header/page-header.css", to: "src/styles/ds/page-header.css" },
+  { from: "patterns/error-page/error-page.css", to: "src/styles/ds/error-page.css" },
+  { from: "patterns/service-down/service-down.css", to: "src/styles/ds/service-down.css" },
   { from: "components/chart-theme/chart-theme.js", to: "src/styles/ds/chart-theme.js" },
   { from: "components/chart-theme/chart-theme.d.ts", to: "src/styles/ds/chart-theme.d.ts" },
   { from: "assets/crest-64.png", to: "public/crest-64.png" },

@@ -21,6 +21,8 @@ describe("error pages", () => {
     expect(html).toContain(uk["error.page.body"])
     expect(html).toContain(">Оновити<")
     expect(html).toContain(">Назад<")
+    expect(html).toContain("ib-error--block")
+    expect(html).not.toContain("<footer")
     expect(html).not.toContain("secret stack detail")
   })
 
@@ -29,6 +31,7 @@ describe("error pages", () => {
     expect(html).toMatch(/^<html lang="uk"/)
     expect(html).toContain("<title>Не вдалося завантажити сторінку</title>")
     expect(html).toContain(">Оновити<")
+    expect(html).toContain("ib-error--page")
     expect(html).toContain('href="mailto:')
     expect(html).not.toContain("secret stack detail")
   })

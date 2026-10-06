@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { NotFoundBlock } from "@/components/ErrorPage"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
@@ -75,7 +75,7 @@ export function ElevationDetail({ id }: { id: string }) {
   const item = settled ? state.item : null
   const retry = () => { setState({ id: "", item: null, error: null }); setAttempt((value) => value + 1) }
 
-  if (!id || (settled && state.error instanceof ApiError && state.error.status === 404)) return <NotFoundScreen block title={t("admin.elevations.notFound")} />
+  if (!id || (settled && state.error instanceof ApiError && state.error.status === 404)) return <NotFoundBlock title={t("admin.elevations.notFound")} />
   const crumbs = (label: string) => [{ label: t("admin.nav.elevations"), href: "/elevations" }, { label }]
   if (!settled) return <div className="flex h-full flex-col gap-5"><PageHeader title={t("admin.nav.elevations")} crumbs={crumbs(t("admin.loading"))} /><LoadingArea className="flex-1" label={t("admin.loading")} /></div>
   if (!item) return <div className="flex h-full flex-col gap-5"><PageHeader title={t("admin.nav.elevations")} crumbs={crumbs(t("admin.nav.elevations"))} /><LoadError message={t("admin.elevations.error.load")} error={state.error} onRetry={retry} className="flex-1" /></div>

@@ -12,7 +12,7 @@ function sources(dir: string): string[] {
 
 // Every page owns its one h1 through PageHeader; the top bar shows the trail only. Full-screen states (error, not found,
 // no access) are the only other places with an h1.
-const SCREENS = ["ErrorScreen.tsx", "NotFoundScreen.tsx", "NoAccessScreen.tsx"]
+const SCREENS = ["ErrorPage.tsx", "NoAccessScreen.tsx"]
 
 describe("page titles", () => {
   it("no component draws its own page h1", () => {
