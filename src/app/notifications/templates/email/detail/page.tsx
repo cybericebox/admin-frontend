@@ -30,6 +30,7 @@ import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { TestNotificationModal } from "@/components/notifications/editor/TestNotificationModal"
 import { TemplateVersions } from "@/components/notifications/editor/TemplateVersions"
 import {
@@ -59,6 +60,8 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
 import { sameTemplateValue } from "@/lib/templateEditorState"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { PageHeader } from "@/components/ui/page-header"
 import { FieldHelp } from "@/components/ui/field-help"
 import { toast } from "@/components/ui/toast"
 
@@ -76,6 +79,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
   const busy = busyAction !== ""
   const [versionRevision, setVersionRevision] = useState(0)
+  const [publishOpen, setPublishOpen] = useState(false)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText, BlockEditor)
@@ -313,27 +317,18 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   return (
     <div className="frost-panel frost-in rounded-lg p-6">
 
-      {/* ── Header ── */}
-      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
-        <Link
-          href="/notifications/templates/email"
-          className="text-sm text-primary hover:underline shrink-0"
-        >
-          ← {t("admin.notif.tpl.email")}
-        </Link>
-
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-          <h1 className="text-xl font-semibold text-foreground truncate">
-            {notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose")}
-          </h1>
-          {template && <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} />}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+      <PageHeader
+        crumbs={[
+          { label: t("admin.notif.tpl.email"), href: "/notifications/templates/email" },
+          { label: notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose") },
+        ]}
+        title={notificationType ? notifTypeLabel(notificationType) : t("admin.notif.tpl.choose")}
+        sub={template ? <StatusPill status={template.Status} label={t(statusLabelKey(template.Status))} /> : undefined}
+        actions={<>
           {/* Send test: shown when a template is loaded */}
           {template !== null && canWrite && (
             <Button variant="outline" onClick={() => setTestOpen(true)}>
-              <Send className="h-4 w-4 mr-1" />
+              <Send aria-hidden className="h-4 w-4" />
               {t("admin.notif.test.button")}
             </Button>
           )}
@@ -345,7 +340,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (
-            <Button variant="outline" onClick={() => void handlePublish()} busy={busyAction === "publish"} disabled={busy}>
+            <Button onClick={() => setPublishOpen(true)} disabled={busy}>
               {t("admin.notif.tpl.publish")}
             </Button>
           )}
@@ -355,8 +350,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* ── Read-only notice: one orange warning under the header ── */}
       {template && isReadOnly && (
@@ -400,7 +395,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             <div
               data-testid="subject-wrapper"
               {...(isReadOnly ? { inert: true } : {})}
-              className={isReadOnly ? "opacity-60" : ""}
+              
             >
               <VariableRichText
                 key={`subject-${loadNonce}`}
@@ -421,7 +416,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             <div
               data-testid="preheader-wrapper"
               {...(isReadOnly ? { inert: true } : {})}
-              className={isReadOnly ? "opacity-60" : ""}
+              
             >
               <VariableRichText
                 key={`preheader-${loadNonce}`}
@@ -463,7 +458,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             <div
               data-testid="styling-wrapper"
               {...(isReadOnly ? { inert: true } : {})}
-              className={`grid grid-cols-2 gap-4${isReadOnly ? " opacity-60" : ""}`}
+              className={`grid grid-cols-2 gap-4`}
             >
               <ColorPicker
                 label={t("admin.notif.editor.ctaBackground")}
@@ -574,6 +569,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
       </div>
 
+      <ConfirmDialog open={publishOpen} onCancel={() => setPublishOpen(false)}
+        busy={busyAction === "publish"}
+        title={t("admin.notif.tpl.publishTitle")}
+        description={t("admin.notif.tpl.publishDescription")}
+        confirmLabel={t("admin.notif.tpl.publish")}
+        onConfirm={() => void handlePublish().finally(() => setPublishOpen(false))} />
+
       {/* ── Test notification modal ── */}
       {template !== null && (
         <TestNotificationModal
@@ -601,11 +603,7 @@ export default function Page() {
   return (
     <RequirePermission
       perm="notifications.templates.read"
-      fallback={
-        <div className="frost-panel frost-in rounded-lg p-8 text-center text-sm text-muted-foreground">
-          {t("admin.notif.noAccess")}
-        </div>
-      }
+      fallback={<NoAccess />}
     >
       <Suspense
         fallback={

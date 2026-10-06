@@ -18,6 +18,7 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { t } from "@/i18n/t"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
+import { NoAccess } from "@/components/rbac/NoAccess"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { StatusPill } from "@/components/notifications/StatusPill"
@@ -35,6 +36,12 @@ import { useUserNames } from "@/lib/userNames"
 import { notifTypeLabel } from "@/utils/notifType"
 import { useRole } from "@/lib/useRole"
 import { LoadingArea } from "@/components/ui/spinner"
+import { PageHeader } from "@/components/ui/page-header"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { formatDateTime } from "@/lib/locale"
+import { Plus } from "lucide-react"
 
 // ── Helper: pick the most relevant version for row link ──────────────────────
 
@@ -106,21 +113,12 @@ function InAppTemplateList() {
 
   return (
     <div className="frost-in space-y-4">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">
-          {t("admin.notif.inapp.list.title")}
-        </h1>
-        {canWrite && <Link
-          href="/notifications/templates/in-app/detail"
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          + {t("admin.notif.inapp.list.new")}
-        </Link>}
-      </div>
-      <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-        aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")}
-        className="h-9 w-full max-w-sm rounded-md border border-border bg-background px-3 text-sm text-foreground" />
+      <PageHeader
+        title={t("admin.notif.list.title")}
+        actions={canWrite && <Button asChild><Link href="/notifications/templates/in-app/detail"><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.list.new")}</Link></Button>}
+        filters={<Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+          aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")} className="max-w-sm" />}
+      />
 
       {/* Empty state */}
       {list.length === 0 ? (
@@ -130,7 +128,7 @@ function InAppTemplateList() {
         <div className="overflow-hidden rounded-lg border border-border bg-background">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colType")}</th>
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colStatus")}</th>
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colUpdated")}</th>
@@ -152,7 +150,7 @@ function InAppTemplateList() {
                       : entry.Unpublished
 
                 const updatedAt = effectiveVersion?.UpdatedAt
-                  ? new Date(effectiveVersion.UpdatedAt).toLocaleDateString()
+                  ? formatDateTime(effectiveVersion.UpdatedAt, { dateStyle: "short", timeStyle: "short" })
                   : "—"
 
                 const editorId = pickUpdatedBy(entry)
@@ -165,7 +163,7 @@ function InAppTemplateList() {
                 return (
                   <tr
                     key={entry.NotificationType}
-                    className="hover:bg-accent/40 transition-colors"
+                    className="hover:bg-[var(--ib-hover)] transition-colors"
                   >
                     {/* Type */}
                     <td className="px-4 py-3">
@@ -189,9 +187,7 @@ function InAppTemplateList() {
                           <span className="text-xs text-muted-foreground">{t("admin.notif.tpl.notConfigured")}</span>
                         )}
                         {draftPending && (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                            {t("admin.notif.list.draftPending")}
-                          </span>
+                          <Badge tone="warn" size="sm">{t("admin.notif.list.draftPending")}</Badge>
                         )}
                         {[entry.Draft, entry.Published, entry.Unpublished].filter((item): item is InAppTemplate => Boolean(item)).map((item) =>
                           <Link key={item.ID} href={`/notifications/templates/in-app/detail?id=${item.ID}`}
@@ -235,11 +231,7 @@ export default function Page() {
   return (
     <RequirePermission
       perm="notifications.templates.read"
-      fallback={
-        <div className="frost-panel frost-in rounded-lg p-8 text-center text-sm text-muted-foreground">
-          {t("admin.notif.noAccess")}
-        </div>
-      }
+      fallback={<NoAccess />}
     >
       <Suspense
         fallback={

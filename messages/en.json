@@ -2310,5 +2310,11 @@
   "admin.res.preset.medium": "Medium",
   "admin.res.preset.large": "Large",
   "admin.res.preset.xlarge": "X-Large",
-  "admin.res.preset.max": "Maximum"
+  "admin.res.preset.max": "Maximum",
+  "admin.noAccess.title": "No access",
+  "admin.noAccess.body": "Your role has no permission for this section.",
+  "admin.notif.settings.switchLabel": "{type}, {channel}: {flag}",
+  "admin.notif.tpl.publishTitle": "Publish the template?",
+  "admin.notif.tpl.publishDescription": "Every new notification of this type will use this content.",
+  "inbox.unreadBadge": "New"
 }

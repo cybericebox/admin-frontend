@@ -34,7 +34,7 @@ describe('InAppBodyEditor', () => {
     expect(variableItem('Name')).not.toHaveTextContent('{{')
     fireEvent.click(variableItem('Name'))
     expect(onChange).toHaveBeenLastCalledWith('Welcome {{.Name}}')
-    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-[var(--ib-warn-bg)]')
     expect(editor.querySelector('[data-var="Name"]')).toHaveTextContent('Name')
   })
 
@@ -60,7 +60,7 @@ describe('InAppBodyEditor', () => {
 
   it('marks variables in a previously saved template', () => {
     render(<InAppBodyEditor value="Hello {{.Name}}" onChange={vi.fn()} variables={[{ name: 'Name', example: 'Alex' }]} />)
-    expect(screen.getByRole('textbox').querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+    expect(screen.getByRole('textbox').querySelector('[data-var="Name"]')).toHaveClass('bg-[var(--ib-warn-bg)]')
   })
 
   it('marks saved variables when their definitions arrive after the template', () => {
@@ -68,7 +68,7 @@ describe('InAppBodyEditor', () => {
     const { rerender } = render(<InAppBodyEditor value="Hello {{.Name}}" onChange={onChange} variables={[]} />)
     expect(screen.getByRole('textbox').querySelector('[data-var="Name"]')).toBeNull()
     rerender(<InAppBodyEditor value="Hello {{.Name}}" onChange={onChange} variables={[{ name: 'Name' }]} />)
-    expect(screen.getByRole('textbox').querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+    expect(screen.getByRole('textbox').querySelector('[data-var="Name"]')).toHaveClass('bg-[var(--ib-warn-bg)]')
     expect(onChange).not.toHaveBeenCalled()
   })
 
@@ -84,7 +84,7 @@ describe('InAppBodyEditor', () => {
     expect(editor.querySelector('[data-var]')).toBeNull()
     fireEvent.keyDown(editor, { key: 'z', metaKey: true, shiftKey: true })
     expect(onChange).toHaveBeenLastCalledWith('Hello {{.Name}}')
-    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-[var(--ib-warn-bg)]')
   })
 
   it('keeps formatting around a variable in the saved token', () => {
@@ -125,7 +125,7 @@ describe('InAppBodyEditor', () => {
     const editor = screen.getByRole('textbox', { name: t('admin.notif.tpl.body') })
     expect(editor.querySelector('[data-var]')).toBeNull()
     rerender(<InAppBodyEditor value="Hi {{.Name}}" onChange={vi.fn()} variables={[{ name: 'Name' }]} />)
-    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-amber-100')
+    expect(editor.querySelector('[data-var="Name"]')).toHaveClass('bg-[var(--ib-warn-bg)]')
   })
 
   it('stores a flagged variable back as its token', () => {

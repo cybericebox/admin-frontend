@@ -2310,5 +2310,11 @@
   "admin.res.preset.medium": "Середній",
   "admin.res.preset.large": "Великий",
   "admin.res.preset.xlarge": "Дуже великий",
-  "admin.res.preset.max": "Максимальний"
+  "admin.res.preset.max": "Максимальний",
+  "admin.noAccess.title": "Немає доступу",
+  "admin.noAccess.body": "Ваша роль не має прав на цей розділ.",
+  "admin.notif.settings.switchLabel": "{type}, {channel}: {flag}",
+  "admin.notif.tpl.publishTitle": "Опублікувати шаблон?",
+  "admin.notif.tpl.publishDescription": "Усі нові сповіщення цього типу надходитимуть із цим вмістом.",
+  "inbox.unreadBadge": "Нове"
 }
