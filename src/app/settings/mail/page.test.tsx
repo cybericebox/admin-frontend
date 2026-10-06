@@ -63,7 +63,7 @@ describe("mail settings page", () => {
     getMailSettings.mockResolvedValue(STORED)
     render(<Page />)
     expect(await screen.findByText("Brevo")).toBeInTheDocument()
-    expect(screen.getByLabelText("Ім'я", { selector: "#mail-sender-name" })).toBeDisabled()
+    expect(screen.getByLabelText("Імʼя", { selector: "#mail-sender-name" })).toBeDisabled()
     expect(screen.getByRole("switch", { name: "Увімкнути «Brevo»" })).toBeDisabled()
     expect(screen.queryByRole("button", { name: "Додати провайдера" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
@@ -92,7 +92,7 @@ describe("mail settings page", () => {
     fireEvent.change(screen.getByDisplayValue("not-an-address"), { target: { value: "ok@mail.cybericebox.com" } })
     fireEvent.change(screen.getByDisplayValue("CyberICEBox"), { target: { value: "x".repeat(65) } })
     fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
-    expect(await screen.findByText("Ім'я має бути не довшим за 64 символів.")).toBeInTheDocument()
+    expect(await screen.findByText("Імʼя має бути не довшим за 64 символів.")).toBeInTheDocument()
     expect(saveMailIdentity).not.toHaveBeenCalled()
   })
 

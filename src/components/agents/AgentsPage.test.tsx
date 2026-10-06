@@ -58,7 +58,7 @@ describe("agents page", () => {
     serve([agent(), agent({ ID: "a2", Name: "Львів", Source: "env", Priority: 20, Features: null, Connected: false })])
     render(<AgentsPage />)
     const row = await screen.findByTestId("agent-a1")
-    expect(within(row).getByText("На зв'язку")).toBeInTheDocument()
+    expect(within(row).getByText("На звʼязку")).toBeInTheDocument()
     expect(within(row).getByText("Додано вручну")).toBeInTheDocument()
     expect(within(row).getByText(/tenant-a/)).toBeInTheDocument()
     expect(within(row).getByText(/Збереження стану: так/)).toBeInTheDocument()
