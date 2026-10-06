@@ -22,6 +22,11 @@ const source = process.env.DS_DIR ?? findSource()
 const FILES = [
   { from: "tokens.css", to: "src/styles/ds/tokens.css", transform: dropFontFace },
   { from: "patterns/admin-sidebar/admin-sidebar.css", to: "src/styles/ds/admin-sidebar.css" },
+  { from: "components/tooltip/tooltip.css", to: "src/styles/ds/tooltip.css" },
+  { from: "components/tabs/tabs.css", to: "src/styles/ds/tabs.css" },
+  { from: "components/segmented/segmented.css", to: "src/styles/ds/segmented.css" },
+  { from: "components/tag/tag.css", to: "src/styles/ds/tag.css" },
+  { from: "patterns/page-header/page-header.css", to: "src/styles/ds/page-header.css" },
   { from: "components/chart-theme/chart-theme.js", to: "src/styles/ds/chart-theme.js" },
   { from: "components/chart-theme/chart-theme.d.ts", to: "src/styles/ds/chart-theme.d.ts" },
   { from: "assets/crest-64.png", to: "public/crest-64.png" },

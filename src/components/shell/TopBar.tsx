@@ -1,14 +1,15 @@
 "use client"
 import { Fragment } from "react"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { Menu } from "lucide-react"
-import { ThemeSwitch } from "./ThemeSwitch"
+import { THEME_OPTIONS, ThemeSwitch, useThemeChoice } from "./ThemeSwitch"
+import type { ThemeChoice } from "@/lib/theme"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
@@ -39,6 +40,7 @@ async function signOutAndRedirect(): Promise<void> {
 export function TopBar({ title, heading = true, onMenuClick }: { title: string; heading?: boolean; onMenuClick?: () => void }) {
   const Title = heading ? "h1" : "p"
   const { me, role } = useRole()
+  const [themeChoice, selectTheme] = useThemeChoice()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
   const adminTier = role !== null && role !== "user"
@@ -56,11 +58,14 @@ export function TopBar({ title, heading = true, onMenuClick }: { title: string; 
         <Title className="ib-topbar__title">{title}</Title>
       </div>
       <div className="flex items-center gap-3">
-        <ThemeSwitch />
-        <span className="h-5 w-px bg-border" aria-hidden="true" />
+        {/* On narrow screens the theme switch and the view-only badge live in the account menu. */}
+        <div className="flex items-center gap-3 max-md:hidden">
+          <ThemeSwitch />
+          <span className="h-5 w-px bg-border" aria-hidden="true" />
+        </div>
         <InboxButton defaultTab="requestsIfOpen" />
         {role === "admin_viewer" && (
-          <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground max-md:hidden">
             {t("admin.role.viewOnlyBadge")}
           </span>
         )}
@@ -87,6 +92,16 @@ export function TopBar({ title, heading = true, onMenuClick }: { title: string; 
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <div className="md:hidden">
+              {role === "admin_viewer" && <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("admin.role.viewOnlyBadge")}</DropdownMenuLabel>}
+              <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("theme.label")}</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={themeChoice} onValueChange={(value) => selectTheme(value as ThemeChoice)}>
+                {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
+                  <DropdownMenuRadioItem key={value} value={value} className="gap-2"><Icon aria-hidden="true" className="h-4 w-4" />{t(label)}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+            </div>
             {entries.map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
               if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>

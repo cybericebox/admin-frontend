@@ -1,7 +1,13 @@
 @import 'tailwindcss';
 @import '../styles/ds/tokens.css';
 @import '../styles/ds/admin-sidebar.css';
+@import '../styles/ds/tooltip.css';
+@import '../styles/ds/tabs.css';
+@import '../styles/ds/segmented.css';
+@import '../styles/ds/tag.css';
+@import '../styles/ds/page-header.css';
 @import '../styles/app.css';
+@import '../styles/motion.css';
 
 .exercise-editor-toolbar button:not(.bg-primary):hover,
 .exercise-editor-toolbar button:not(.bg-primary):focus-visible {

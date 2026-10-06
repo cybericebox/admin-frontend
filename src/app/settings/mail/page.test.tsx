@@ -124,11 +124,11 @@ describe("mail settings page", () => {
     getMailSettings.mockResolvedValue({ ...STORED, Sources: { SenderName: "default", SenderAddress: "env", ReplyToName: "none", ReplyToAddress: "derived", SendingDomain: "saved" } })
     render(<Page />)
     await screen.findByLabelText("Домен відправлення")
-    expect(screen.getByRole("button", { name: /Зараз: береться з конфігурації сервера \(SMTP_SENDER_EMAIL\)\./ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Зараз: значення за замовчуванням платформи\./ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Зараз: збережено в системі\./ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Зараз: складено зі збереженого домену відправлення\./ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Зараз: не задано\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: /Зараз: береться з конфігурації сервера \(SMTP_SENDER_EMAIL\)\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: /Зараз: значення за замовчуванням платформи\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: /Зараз: збережено в системі\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: /Зараз: складено зі збереженого домену відправлення\./ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { description: /Зараз: не задано\./ })).toBeInTheDocument()
   })
 
   it("keeps the providers and the footer enabled while the sender saves", async () => {
