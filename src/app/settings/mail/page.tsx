@@ -154,7 +154,7 @@ export default function Page() {
 
 // A field tooltip: what the field is, then where its current value comes from.
 function withSource(help: string, source: MailFieldSource, envName: string): string {
-  return `${help} ${t(`admin.mail.fieldSource.${source}`, { name: envName })}`
+  return t("admin.mail.fieldHelp", { help, source: t(`admin.mail.fieldSource.${source}`, { name: envName }) })
 }
 
 function SectionTitle({ id, title, help }: { id?: string; title: string; help: string }) {

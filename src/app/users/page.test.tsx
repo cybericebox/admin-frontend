@@ -169,7 +169,7 @@ describe("admin users page", () => {
   it("changes page size and shows the total in the fixed footer", async () => {
     mocks.get.mockResolvedValue({ Items: [], Total: 125, Page: 1, PageSize: 50 })
     render(<Page />)
-    expect(await screen.findByText("admin.table.total: 125")).toBeInTheDocument()
+    expect(await screen.findByText("admin.table.totalCount")).toBeInTheDocument()
     const selector = screen.getByRole("button", { name: "admin.table.perPage" })
     fireEvent.keyDown(selector, { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "25" }))

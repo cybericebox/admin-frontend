@@ -116,7 +116,7 @@ export function InAppPreview({
       </div>
     </div>
     {_surface === "inbox" && popInDuration(_autoDismissMs) > 0 && <p className="mt-2 text-xs text-muted-foreground">
-      {t("admin.notif.inapp.popInPreview")} · {popInDuration(_autoDismissMs) / 1000} {t("admin.notif.inapp.seconds")}
+      {t("admin.notif.inapp.popInPreviewLine", { seconds: popInDuration(_autoDismissMs) / 1000 })}
     </p>}
     </div>
   )

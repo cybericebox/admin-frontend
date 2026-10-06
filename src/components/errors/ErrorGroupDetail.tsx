@@ -28,7 +28,7 @@ function SampleCard({ sample, userName }: { sample: ErrorSample; userName?: { na
     <article className="rounded-lg border border-border bg-card p-4" aria-label={t("admin.errors.sample.at", { time: formatDateTime(sample.OccurredAt) })}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium text-foreground">{formatDateTime(sample.OccurredAt)}</h3>
-        {sample.RequestID && <span className="font-mono text-xs text-muted-foreground">{t("admin.errors.sample.requestID")}: {sample.RequestID}</span>}
+        {sample.RequestID && <span className="font-mono text-xs text-muted-foreground">{t("admin.errors.sample.requestIDLine", { id: sample.RequestID })}</span>}
       </div>
       {/* Untrusted text: always rendered as text, never as markup. */}
       {sample.Message && <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-sm text-foreground">{sample.Message}</pre>}

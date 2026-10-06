@@ -24,7 +24,7 @@ export function EventStatusBadge({ event, size = "sm" }: { event: Event; size?: 
   const status = displayStatus(event)
   return (
     <HoverTooltip text={t(`admin.events.lifecycle.help.${status}`)}>
-      <Badge size={size} tone={STATUS_TONE[status]} tabIndex={0} aria-label={`${t(`admin.events.lifecycle.${status}`)}: ${t(`admin.events.lifecycle.help.${status}`)}`}>{t(`admin.events.lifecycle.${status}`)}</Badge>
+      <Badge size={size} tone={STATUS_TONE[status]} tabIndex={0} aria-label={t("admin.common.labelValue", { label: t(`admin.events.lifecycle.${status}`), value: t(`admin.events.lifecycle.help.${status}`) })}>{t(`admin.events.lifecycle.${status}`)}</Badge>
     </HoverTooltip>
   )
 }

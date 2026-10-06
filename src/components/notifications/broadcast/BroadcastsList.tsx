@@ -100,7 +100,7 @@ export function BroadcastsList() {
       </div>
 
       <div className="mt-auto grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
-        <div className="flex items-center gap-3"><span>{t("admin.table.total")}: {total}</span><span>{t("admin.table.page")} {page} {t("admin.table.of")} {pageCount}</span>{loading && data && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
+        <div className="flex items-center gap-3"><span>{t("admin.table.totalCount", { total })}</span><span>{t("admin.table.pageOf", { page, pages: pageCount })}</span>{loading && data && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
         <div className="flex gap-2 sm:justify-center">
           <Button variant="outline" size="sm" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
           <Button variant="outline" size="sm" disabled={loading || !nextCursor} onClick={() => { if (nextCursor) { setCursors((list) => [...list.slice(0, page), nextCursor]); setPage(page + 1) } }}>{t("admin.table.next")}</Button>

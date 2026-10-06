@@ -99,12 +99,12 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                 <td className="ib-table__num ib-table__dim">{stand.Generation}</td>
                 <td className="ib-table__actions"><span className="inline-flex items-center gap-1">
                   <HoverTooltip text={t("admin.labs.detail.open")}>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t("admin.labs.detail.open")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onDetails(stand)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.labs.actionOnPair", { action: t("admin.labs.detail.open"), name: stand.EventName || stand.EventTag, who: teamLabel(stand) })} onClick={() => onDetails(stand)}>
                       <Info aria-hidden="true" className="h-4 w-4" />
                     </Button>
                   </HoverTooltip>
                   {canWrite && stand.Status !== "removed" && <HoverTooltip text={t("admin.labs.stands.recreate")}>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.stands.recreate")}: ${stand.EventName || stand.EventTag}, ${teamLabel(stand)}`} onClick={() => onRecreate(stand)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={t("admin.labs.actionOnPair", { action: t("admin.labs.stands.recreate"), name: stand.EventName || stand.EventTag, who: teamLabel(stand) })} onClick={() => onRecreate(stand)}>
                       <RotateCw aria-hidden="true" className="h-4 w-4" />
                     </Button>
                   </HoverTooltip>}

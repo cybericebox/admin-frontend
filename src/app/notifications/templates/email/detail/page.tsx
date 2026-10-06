@@ -290,7 +290,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (loadError) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link href="/notifications/templates/email" className="text-sm text-primary hover:underline">← {t("admin.notif.tpl.email")}</Link>
+        <Link href="/notifications/templates/email" className="text-sm text-primary hover:underline">{t("admin.notif.back.emailTemplates")}</Link>
         <LoadError error={loadError.cause} className="flex-1" onRetry={() => { setLoadError(null); setLoading(true); load() }} />
       </div>
     )

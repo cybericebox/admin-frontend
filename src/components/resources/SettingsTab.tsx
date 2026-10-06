@@ -12,6 +12,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { amountToText, isDoesNotFit, textToAmount, type AmountText } from "@/lib/resourceCalendar"
 import { AllowConflictsDialog, BLOCK, Badge, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
 
@@ -85,7 +86,7 @@ export function SettingsTab({ canWrite, onSaved }: { canWrite: boolean; onSaved:
         {capacity.error && capacity.data === null ? <LoadError className={BLOCK} message={t("admin.resources.settings.capacityError")} error={capacity.error} onRetry={() => void capacity.refresh(true)} />
           : capacity.data === null ? <LoadingArea className={BLOCK} label={t("admin.loading")} />
           : <>
-            <p className="text-sm">{t("admin.resources.settings.total")}: <span className="font-medium tabular-nums">{formatAmount(capacity.data.Total)}</span></p>
+            <p className="text-sm">{tRich("admin.resources.settings.totalLine", { amount: <span className="font-medium tabular-nums">{formatAmount(capacity.data.Total)}</span> })}</p>
             {(capacity.data.CPUUnlimited || capacity.data.MemoryUnlimited) && <p className="text-sm text-muted-foreground">{t("admin.resources.settings.unlimited")}</p>}
             {agents.length > 0 && <TableWrap label={t("admin.resources.settings.capacity")} rows={3}><table aria-label={t("admin.resources.settings.capacity")} className="ib-table">
               <thead><tr><Th>{t("admin.resources.col.agent")}</Th><Th>{t("admin.resources.col.capacity")}</Th><Th>{t("admin.resources.settings.deviceMax")}</Th><Th>{t("admin.resources.col.state")}</Th></tr></thead>

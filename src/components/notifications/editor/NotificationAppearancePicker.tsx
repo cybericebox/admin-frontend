@@ -23,7 +23,7 @@ export function NotificationAppearancePicker({ icon, tone, accentColor, onChange
   return <section className="rounded-lg border border-border bg-card p-4" aria-label={t("admin.notif.inapp.appearance")}>
     <div className="mb-3 flex items-center gap-1.5">
       <h2 className="text-sm font-semibold text-foreground">{t("admin.notif.inapp.appearance")}</h2>
-      <FieldHelp text={`${t("admin.notif.inapp.appearanceHelp")}\n${t("admin.notif.inapp.deliveryHint")}`} />
+      <FieldHelp text={t("admin.notif.inapp.appearanceHelp")} />
     </div>
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="radiogroup" aria-label={t("admin.notif.inapp.appearance")}>
       {APPEARANCES.map((option) => <button key={option.tone} type="button" role="radio" aria-checked={tone === option.tone} disabled={disabled}

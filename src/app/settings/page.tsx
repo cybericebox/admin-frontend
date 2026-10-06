@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 
 type Setting = {
   ID: string
@@ -133,7 +134,7 @@ export default function Page() {
                     <h2 className={label ? "font-medium text-foreground" : "font-mono text-sm font-medium text-foreground"}>{name}</h2>
                     {label && <p className="mt-0.5 font-mono text-xs text-muted-foreground">{item.Key}</p>}
                     {!open && kind !== "boolean" && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{showValue(item.Value)}</pre>}
-                    {item.UpdatedAt && <p className="mt-1 text-xs text-muted-foreground">{t("admin.settings.updated")}: <time dateTime={item.UpdatedAt}>{formatListDateTime(item.UpdatedAt)}</time></p>}
+                    {item.UpdatedAt && <p className="mt-1 text-xs text-muted-foreground">{tRich("admin.settings.updatedAt", { date: <time dateTime={item.UpdatedAt}>{formatListDateTime(item.UpdatedAt)}</time> })}</p>}
                   </div>
                   {kind === "boolean"
                     ? <Switch checked={item.Value === true} onCheckedChange={(value) => toggle(item, value)} disabled={!canWrite} aria-label={name} />

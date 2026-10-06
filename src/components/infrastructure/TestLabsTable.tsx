@@ -76,7 +76,7 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                 <td><Link href={`/users/detail?id=${encodeURIComponent(lab.AuthorID)}`} className="ib-table__name block text-primary hover:underline">{testLabAuthor(lab)}</Link>{lab.AuthorName && <span className="block text-xs text-muted-foreground">{lab.AuthorEmail}</span>}</td>
                 <td>
                   <HoverTooltip text={t("admin.labs.testLabs.openExercise")}>
-                    <a href={`${exercisesOrigin}/detail?id=${encodeURIComponent(lab.ExerciseID)}`} target="_blank" rel="noopener noreferrer" aria-label={`${t("admin.labs.testLabs.openExercise")}: ${lab.ExerciseName}`}
+                    <a href={`${exercisesOrigin}/detail?id=${encodeURIComponent(lab.ExerciseID)}`} target="_blank" rel="noopener noreferrer" aria-label={t("admin.labs.actionNamed", { action: t("admin.labs.testLabs.openExercise"), name: lab.ExerciseName })}
                       className="inline-flex max-w-full items-center gap-1.5 rounded-md text-foreground hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                       <span className="ib-table__name">{lab.ExerciseName}</span>
                       <ExternalLink aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -91,12 +91,12 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                 <td><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Queue && lab.Queue.Position > 0 && <QueueBadge position={lab.Queue.Position} length={lab.Queue.Length} reason={lab.Queue.Reason} />}{lab.ImageWarning && <ImageWarningIcon />}{lab.Expired && <Badge size="sm">{t("admin.labs.testLabs.expired")}</Badge>}</span></td>
                 <td className="ib-table__actions"><span className="inline-flex items-center gap-1">
                   <HoverTooltip text={t("admin.labs.detail.open")}>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`${t("admin.labs.detail.open")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onDetails(lab)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.labs.actionOnPair", { action: t("admin.labs.detail.open"), name: lab.ExerciseName, who: testLabAuthor(lab) })} onClick={() => onDetails(lab)}>
                       <Info aria-hidden="true" className="h-4 w-4" />
                     </Button>
                   </HoverTooltip>
                   {canWrite && <HoverTooltip text={t("admin.labs.testLabs.terminate")}>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={`${t("admin.labs.testLabs.terminate")}: ${lab.ExerciseName}, ${testLabAuthor(lab)}`} onClick={() => onTerminate(lab)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[var(--ib-danger)] hover:bg-[var(--ib-danger-bg)] hover:text-[var(--ib-danger)]" aria-label={t("admin.labs.actionOnPair", { action: t("admin.labs.testLabs.terminate"), name: lab.ExerciseName, who: testLabAuthor(lab) })} onClick={() => onTerminate(lab)}>
                       <Power aria-hidden="true" className="h-4 w-4" />
                     </Button>
                   </HoverTooltip>}

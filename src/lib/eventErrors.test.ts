@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(' ')}` : key }))
 
 import { ApiError } from '@/api/client'
 import {
@@ -41,7 +41,7 @@ describe('eventErrorMessage', () => {
 
   it('falls back to generic + backend Status.Message for unknown codes', () => {
     expect(eventErrorMessage(apiError(500, 42, 'weird backend fact')))
-      .toBe('admin.events.err.generic: weird backend fact')
+      .toBe('admin.events.err.genericWith weird backend fact')
   })
 
   it('falls back to plain generic for non-ApiError', () => {

@@ -292,7 +292,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   if (loadError) {
     return (
       <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
-        <Link href="/notifications/templates/in-app" className="text-sm text-primary hover:underline">← {t("admin.notif.tpl.inapp")}</Link>
+        <Link href="/notifications/templates/in-app" className="text-sm text-primary hover:underline">{t("admin.notif.back.inappTemplates")}</Link>
         <LoadError error={loadError.cause} className="flex-1" onRetry={() => { setLoadError(null); setLoading(true); load() }} />
       </div>
     )
@@ -500,7 +500,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       value={action.label}
                       onChange={(e) => updateAction(i, "label", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionLabel")}
-                      aria-label={`${t("admin.notif.inapp.actionLabel")} ${i + 1}`}
+                      aria-label={t("admin.notif.inapp.actionLabelN", { n: i + 1 })}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <input
@@ -508,7 +508,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       value={action.href}
                       onChange={(e) => updateAction(i, "href", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionHref")}
-                      aria-label={`${t("admin.notif.inapp.actionHref")} ${i + 1}`}
+                      aria-label={t("admin.notif.inapp.actionHrefN", { n: i + 1 })}
                       className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <Button
