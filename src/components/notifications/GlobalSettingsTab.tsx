@@ -8,6 +8,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
+import { useRole } from "@/lib/useRole"
 import { SignalDefaultsSection } from "@/components/notifications/SignalDefaultsSection"
 
 type Setting = {
@@ -21,6 +22,7 @@ type Setting = {
 const rowKey = (s: Setting) => `${s.NotificationType}::${s.Channel}`
 
 export function GlobalSettingsTab() {
+  const canWrite = useRole().can("notifications.settings.write")
   const [rows, setRows] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
@@ -49,6 +51,8 @@ export function GlobalSettingsTab() {
     setRows(next)
   }
 
+  const switchLabel = (s: Setting, flag: string) => t("admin.notif.settings.switchLabel", { type: notifTypeLabel(s.NotificationType), channel: notifChannelLabel(s.Channel), flag: t(`admin.notif.settings.${flag}`) })
+
   function toggle(s: Setting, field: "Enabled" | "UserCanChange" | "UserDefault", value: boolean) {
     const key = rowKey(s)
     const previous = latest.current.find((r) => rowKey(r) === key)?.[field] ?? s[field]
@@ -58,7 +62,6 @@ export function GlobalSettingsTab() {
       if (!wanted) return
       try {
         await apiPut("/api/notifications/settings/global", wanted)
-        toast.success(t("admin.notif.settings.saved"))
       } catch {
         toast.error(t("admin.notif.settings.saveError"))
         // Roll back only this field, and only if the user has not changed it again since.
@@ -79,7 +82,7 @@ export function GlobalSettingsTab() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2 font-medium">{t("admin.notif.settings.type")}</th>
               <th className="px-3 py-2 font-medium">{t("admin.notif.settings.channel")}</th>
               <th className="px-3 py-2 font-medium text-center">{t("admin.notif.settings.enabled")}</th>
@@ -92,9 +95,9 @@ export function GlobalSettingsTab() {
               <tr key={rowKey(s)} className="border-b border-border/50">
                 <td className="px-3 py-2 font-medium text-foreground">{notifTypeLabel(s.NotificationType)}</td>
                 <td className="px-3 py-2 text-muted-foreground">{notifChannelLabel(s.Channel)}</td>
-                <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} onCheckedChange={(v) => toggle(s, "Enabled", v)} /></td>
-                <td className="px-3 py-2 text-center"><Switch checked={s.UserCanChange} onCheckedChange={(v) => toggle(s, "UserCanChange", v)} /></td>
-                <td className="px-3 py-2 text-center"><Switch checked={s.UserDefault} onCheckedChange={(v) => toggle(s, "UserDefault", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} disabled={!canWrite} aria-label={switchLabel(s, "enabled")} onCheckedChange={(v) => toggle(s, "Enabled", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.UserCanChange} disabled={!canWrite} aria-label={switchLabel(s, "userCanChange")} onCheckedChange={(v) => toggle(s, "UserCanChange", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.UserDefault} disabled={!canWrite} aria-label={switchLabel(s, "userDefault")} onCheckedChange={(v) => toggle(s, "UserDefault", v)} /></td>
               </tr>
             ))}
           </tbody>

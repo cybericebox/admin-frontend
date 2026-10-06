@@ -42,7 +42,7 @@ export function normalizeInAppBody(html: string): string {
   return Array.from(root.childNodes).map(visit).join("").replace(/(?:<br>)+$/, "")
 }
 
-const VALID_PILL_CLASS = "mx-0.5 rounded border border-amber-300 bg-amber-100 px-1 text-amber-950 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+const VALID_PILL_CLASS = "mx-0.5 rounded border border-transparent bg-[var(--ib-warn-bg)] px-1 text-[var(--ib-warn)]"
 const INVALID_PILL_STYLE = `${INVALID_PILL_CLASS} mx-0.5 rounded border border-destructive/40 bg-destructive/10 px-1 text-destructive underline decoration-wavy`
 
 function variablePill(name: string, invalid = false): HTMLSpanElement {

@@ -378,7 +378,7 @@ export function BlockEditor({
             {block.type === "rich_text" && (
               <RichTextEditor
                 showVariableNames
-                className="[&_[data-notif-variable]]:border-amber-300 [&_[data-notif-variable]]:bg-amber-100 [&_[data-notif-variable]]:text-amber-950 dark:[&_[data-notif-variable]]:border-amber-700 dark:[&_[data-notif-variable]]:bg-amber-900/40 dark:[&_[data-notif-variable]]:text-amber-200"
+                className="[&_[data-notif-variable]]:border-transparent [&_[data-notif-variable]]:bg-[var(--ib-warn-bg)] [&_[data-notif-variable]]:text-[var(--ib-warn)]"
                 value={block.content}
                 onChange={(state) =>
                   updateBlock(i, {
@@ -585,7 +585,7 @@ export function BlockEditor({
 
       {/* ── Add block tray ── */}
       <div className="mt-4 rounded-xl border border-dashed border-border p-4">
-        <div className="text-2xs font-bold tracking-[0.08em] uppercase text-muted-foreground mb-3">
+        <div className="text-xs font-semibold text-muted-foreground mb-3">
           {t("admin.notif.editor.addBlock")}
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -604,7 +604,7 @@ export function BlockEditor({
 
         {presets.length > 0 && (
           <div className="border-t border-border pt-3">
-            <div className="text-2xs font-bold tracking-[0.08em] uppercase text-muted-foreground mb-2">
+            <div className="text-xs font-semibold text-muted-foreground mb-2">
               {t("admin.notif.editor.sharedPresets")}
             </div>
             <div className="flex flex-wrap gap-2">

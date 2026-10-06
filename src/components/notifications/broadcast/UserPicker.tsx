@@ -63,7 +63,7 @@ export function UserPicker({ value, onChange }: { value: PickedUser[]; onChange:
             <li key={user.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 py-0.5 pl-3 pr-1 text-sm text-foreground">
               <span>{user.name}</span>
               <HoverTooltip text={t("admin.notif.broadcast.users.remove")}>
-                <button type="button" aria-label={t("admin.notif.broadcast.users.removeNamed", { name: user.name })} onClick={() => onChange(value.filter((item) => item.id !== user.id))} className="rounded-full p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                <button type="button" aria-label={t("admin.notif.broadcast.users.removeNamed", { name: user.name })} onClick={() => onChange(value.filter((item) => item.id !== user.id))} className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
               </HoverTooltip>
             </li>
           ))}

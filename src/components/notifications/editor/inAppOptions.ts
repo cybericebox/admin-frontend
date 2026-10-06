@@ -59,3 +59,20 @@ export function accentOf(tmplLike: { Tone: string; AccentColor: string }): strin
     ? tmplLike.AccentColor
     : toneColor(tmplLike.Tone)
 }
+
+// The admin app's own notification surfaces (inbox, pop-in) take the tone colour from the DS state tokens,
+// which hold contrast in both themes; an explicit AccentColor still wins. The template preview keeps the hex
+// defaults because it shows how other apps draw the message.
+const TONE_TOKENS: Record<string, string> = {
+  neutral: "var(--ib-dim)",
+  info: "var(--ib-action)",
+  success: "var(--ib-ok)",
+  warning: "var(--ib-warn)",
+  danger: "var(--ib-danger)",
+}
+
+export function accentCss(tmplLike: { Tone: string; AccentColor: string }): string {
+  return /^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/.test(tmplLike.AccentColor)
+    ? tmplLike.AccentColor
+    : TONE_TOKENS[tmplLike.Tone] ?? TONE_TOKENS.neutral
+}

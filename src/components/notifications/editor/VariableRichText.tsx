@@ -209,7 +209,7 @@ export function VariableRichText({
         className={cn(
           "variable-richtext min-h-[2rem] px-3 py-1.5 text-sm rounded-md border border-input bg-background text-foreground",
           "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "[&_.var-pill]:mx-0.5 [&_.var-pill]:rounded [&_.var-pill]:border [&_.var-pill]:border-amber-300 [&_.var-pill]:bg-amber-100 [&_.var-pill]:px-1 [&_.var-pill]:text-amber-950 dark:[&_.var-pill]:border-amber-700 dark:[&_.var-pill]:bg-amber-900/40 dark:[&_.var-pill]:text-amber-200",
+          "[&_.var-pill]:mx-0.5 [&_.var-pill]:rounded [&_.var-pill]:border [&_.var-pill]:border-transparent [&_.var-pill]:bg-[var(--ib-warn-bg)] [&_.var-pill]:px-1 [&_.var-pill]:text-[var(--ib-warn)]",
           "[&_.var-pill-invalid]:border-destructive/40 [&_.var-pill-invalid]:bg-destructive/10 [&_.var-pill-invalid]:text-destructive [&_.var-pill-invalid]:underline [&_.var-pill-invalid]:decoration-wavy dark:[&_.var-pill-invalid]:border-destructive/50 dark:[&_.var-pill-invalid]:bg-destructive/15 dark:[&_.var-pill-invalid]:text-destructive",
           "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none",
           variables.length > 0 && "pr-11",
