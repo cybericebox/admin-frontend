@@ -9,7 +9,7 @@ import { apiOrigin } from "@/lib/origins"
 import { getServiceStatus, probeService, reportServiceAvailable, startOutageGrace, subscribeServiceStatus } from "@/lib/serviceStatus"
 import { APP_ROOT_ID } from "@/lib/appRoot"
 
-// A failed call is confirmed by two probes 15 s apart (see startOutageGrace), so
+// A failed call is confirmed by one probe 15 s after the failure (see startOutageGrace), so
 // a short backend restart never flashes the modal.
 // Seconds between automatic tries while the outage lasts.
 const BACKOFF_S = [3, 5, 10, 20, 30]
@@ -82,7 +82,7 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
 
 /**
  * App-wide outage modal, the same as the event site's. API calls report network
- * failures and 5xx into the status store; two probes 15 s apart confirm before the
+ * failures and 5xx into the status store; one probe 15 s after the first failure confirms before the
  * modal shows. The page stays rendered and inert underneath; the modal cannot be
  * dismissed, retries on a 3/5/10/20/30 s backoff or on «Спробувати зараз», and
  * closes by itself once the API answers.
