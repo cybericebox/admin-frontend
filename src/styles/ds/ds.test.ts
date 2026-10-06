@@ -8,10 +8,10 @@ import fs from "node:fs"
 import path from "node:path"
 
 const ROOT = path.resolve(import.meta.dirname, "../../..")
-const lock = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "ds.lock.json"), "utf8")) as Record<string, string>
+const lock = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "manifest.json"), "utf8")) as Record<string, string>
 
 describe("design system copies", () => {
-  it.each(Object.entries(lock))("%s matches the lock", (file, hash) => {
+  it.each(Object.entries(lock))("%s matches the manifest", (file, hash) => {
     const actual = createHash("sha256").update(fs.readFileSync(path.join(ROOT, file))).digest("hex")
     expect(actual).toBe(hash)
   })
