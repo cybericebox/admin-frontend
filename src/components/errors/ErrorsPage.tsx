@@ -53,7 +53,7 @@ export function ErrorsPage() {
   return (
     <RequirePermission perm="platform.errors.read" fallback={<NoAccess message={t("admin.errors.noAccess")} />}>
       <div className="flex h-full min-h-0 flex-col gap-4">
-        {groupID ? <ErrorGroupDetailPage key={groupID} groupID={groupID} /> : (
+        {groupID ? <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><ErrorGroupDetailPage key={groupID} groupID={groupID} /></Suspense> : (
           <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><ErrorsList /></Suspense>
         )}
       </div>

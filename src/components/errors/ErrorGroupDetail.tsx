@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { getErrorGroup, setErrorGroupStatus, type ErrorGroupDetail, type ErrorSample } from "@/api/errorJournal"
 import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -14,6 +14,9 @@ import { createStatusQueue } from "@/lib/statusQueue"
 import { useErrorStream } from "@/lib/errorStream"
 import { useUserNames } from "@/lib/userNames"
 import { useRole } from "@/lib/useRole"
+import { useUrlState } from "@/lib/useUrlState"
+import { cn } from "@/utils/cn"
+import { parseReference } from "@/api/errorJournal"
 import { KindBadge, StatusSwitch } from "./shared"
 
 const MAX_SAMPLES = 50
@@ -22,13 +25,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words text-sm text-foreground">{children}</dd></div>
 }
 
-function SampleCard({ sample, userName }: { sample: ErrorSample; userName?: { name: string; href: string } }) {
+function SampleCard({ sample, userName, matched }: { sample: ErrorSample; userName?: { name: string; href: string }; matched?: boolean }) {
   const details = Object.entries(sample.Details ?? {})
+  const articleRef = useRef<HTMLElement>(null)
+  useEffect(() => { if (matched) articleRef.current?.scrollIntoView?.({ block: "nearest" }) }, [matched])
   return (
-    <article className="rounded-lg border border-border bg-card p-4" aria-label={t("admin.errors.sample.at", { time: formatDateTime(sample.OccurredAt) })}>
+    <article ref={articleRef} data-matched={matched || undefined} className={cn("rounded-lg border bg-card p-4", matched ? "border-[var(--ib-action)] bg-muted/40" : "border-border")} aria-label={t("admin.errors.sample.at", { time: formatDateTime(sample.OccurredAt) })}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium text-foreground">{formatDateTime(sample.OccurredAt)}</h3>
-        {sample.RequestID && <span className="font-mono text-xs text-muted-foreground">{t("admin.errors.sample.requestIDLine", { id: sample.RequestID })}</span>}
+        <span className="flex items-baseline gap-2">
+          {matched && <span className="rounded-md bg-[var(--ib-action)] px-1.5 py-0.5 text-xs font-medium text-[var(--ib-on-brand)]">{t("admin.errors.sample.matched")}</span>}
+          {sample.RequestID && <span className="font-mono text-xs text-muted-foreground">{t("admin.errors.sample.requestIDLine", { id: sample.RequestID })}</span>}
+        </span>
       </div>
       {/* Untrusted text: always rendered as text, never as markup. */}
       {sample.Message && <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-sm text-foreground">{sample.Message}</pre>}
@@ -58,6 +66,9 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
   const [detail, setDetail] = useState<ErrorGroupDetail | null>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const [reload, setReload] = useState(0)
+  // ?ref= from the list search: the sample with that request id is highlighted and scrolled into view.
+  const [url] = useUrlState({ ref: "" })
+  const request = parseReference(url.ref)
 
   useEffect(() => {
     let active = true
@@ -117,7 +128,7 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
           </header>
           <section aria-label={t("admin.errors.detail.samples")} className="min-h-0 flex-1 space-y-3 overflow-auto">
             <h2 className="text-sm font-semibold text-foreground">{t("admin.errors.detail.samples")}</h2>
-            {detail.Samples.length === 0 ? <EmptyState message={t("admin.errors.detail.noSamples")} /> : detail.Samples.map((sample) => <SampleCard key={sample.ID} sample={sample} userName={sample.UserID ? names[sample.UserID] : undefined} />)}
+            {detail.Samples.length === 0 ? <EmptyState message={t("admin.errors.detail.noSamples")} /> : detail.Samples.map((sample) => <SampleCard key={sample.ID} matched={!!request && sample.RequestID.toLowerCase().replaceAll("-", "").startsWith(request)} sample={sample} userName={sample.UserID ? names[sample.UserID] : undefined} />)}
           </section>
         </>}
     </div>
