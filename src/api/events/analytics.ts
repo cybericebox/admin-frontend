@@ -99,7 +99,7 @@ export function integrityJournalPath(solve: { TeamID: string; ChallengeID: strin
 }
 
 export type UsageSession = { StartedAt: string; EndedAt: string; Seconds: number; RxBytes: number; TxBytes: number }
-export type UsageLab = { ChallengeID: string; Task: string; Surface: "vpn" | "proxy"; Attempts: number; BytesIn: number; BytesOut: number; FirstAt: string; LastAt: string }
+export type UsageLab = { ChallengeID: string; Task: string; Surface: "vpn" | "proxy"; Attempts: number; LabInitiatedAttempts?: number; BytesIn: number; BytesOut: number; FirstAt: string | null; LastAt: string | null }
 export type UsageUser = {
   UserID: string
   UserName: string
@@ -140,7 +140,11 @@ export async function getEventAnalyticsUsage(eventID: string): Promise<EventUsag
   const data = await apiGet<EventUsage>(`${base(eventID)}/usage`)
   return {
     ...data,
-    Users: (data.Users ?? []).map((user) => ({ ...user, VPN: { ...user.VPN, Recent: user.VPN.Recent ?? [] }, Labs: user.Labs ?? [] })),
+    Users: (data.Users ?? []).map((user) => ({
+      ...user,
+      VPN: { ...user.VPN, Recent: user.VPN.Recent ?? [] },
+      Labs: (user.Labs ?? []).map((lab) => ({ ...lab, LabInitiatedAttempts: lab.LabInitiatedAttempts ?? 0 })),
+    })),
   }
 }
 
