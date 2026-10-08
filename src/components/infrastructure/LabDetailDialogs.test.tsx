@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { StandDetailDialog, TestLabDetailDialog } from "./LabDetailDialogs"
 import type { Stand, TestLab } from "@/api/infrastructure"
-import { managedLab } from "@/test/labLifecycle"
+import { managedGroup, managedLab } from "@/test/labLifecycle"
 
 const apiGet = vi.fn()
 const apiPost = vi.fn()
@@ -148,4 +148,23 @@ describe("test lab detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Скинути" }))
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.stringContaining("/devices/web/reset"), {}))
   })
+})
+
+
+it("renders group preparation without a lifecycle POST on detail reopen or poll, and keeps solved children stopped", async () => {
+  apiGet.mockResolvedValue({ ...standDetail(), Group: { ...managedGroup, ObservedRevision: managedGroup.Revision, ActualState: "Starting", Ready: false } })
+  const { unmount } = render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+  expect(await screen.findByText("Готовність сервісів групи не підтверджено")).toBeInTheDocument()
+  expect(document.querySelector(`[data-lab-id="${managedLab.ID}"]`)).toHaveTextContent("Закрито: усі залежні завдання виконано")
+  expect(apiPost).not.toHaveBeenCalled()
+  unmount()
+  apiGet.mockResolvedValue({ ...standDetail(), Group: { ...managedGroup, ObservedRevision: managedGroup.Revision, Ready: true } })
+  render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+  expect(await screen.findByText("Сервіси групи готові")).toBeInTheDocument()
+  expect(screen.queryByRole("switch")).not.toBeInTheDocument()
+  const later = Date.now() + 20_001
+  vi.spyOn(Date, "now").mockReturnValue(later)
+  fireEvent(document, new Event("visibilitychange"))
+  await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThanOrEqual(3))
+  expect(apiPost).not.toHaveBeenCalled()
 })

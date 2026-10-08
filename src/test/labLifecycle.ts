@@ -14,7 +14,7 @@ export const managedLab = {
   Revision: "12", ObservedRevision: "11", Generation: 1, AgentUID: "lab-uid",
   DesiredState: "Stopped" as const, ActualState: "StopFailed" as const, CloseReason: "solved" as const,
   ClosedAt: "2026-10-08T12:00:00Z", ActualStoppedAt: null, RetentionUntil: "2026-10-08T13:00:00Z",
-  ObservedAt: "2026-10-08T12:00:00Z", SnapshotState: "Failed" as const,
+  ObservedAt: "2026-10-08T12:00:00Z", SnapshotPolicy: null, SnapshotState: "Failed" as const,
   FailureCode: "CaptureFailed", FailureMessage: "snapshot capture failed", Resources: allocation,
 }
 

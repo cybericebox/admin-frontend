@@ -2443,5 +2443,12 @@
   "admin.resources.observation.pendingStarts": "Запуски в очікуванні (входять до загального обсягу)",
   "admin.resources.observation.groupServices": "Сервіси групи (входять до загального обсягу)",
   "admin.resources.observation.unknownHelp": "Невідомі внески не вважаються вільною місткістю.",
-  "admin.resources.stats.accountingHelp": "Календарні резервування та запити запущених обʼєктів нижче показано окремо від підтверджених утриманих ресурсів. Це не виміряне використання CPU чи памʼяті."
+  "admin.resources.stats.accountingHelp": "Календарні резервування та запити запущених обʼєктів нижче показано окремо від підтверджених утриманих ресурсів. Це не виміряне використання CPU чи памʼяті.",
+  "admin.labs.group.title": "Сервіси групи",
+  "admin.labs.group.ready": "Сервіси групи готові",
+  "admin.labs.group.notReady": "Готовність сервісів групи не підтверджено",
+  "admin.labs.group.prepareHelp": "Підготовка враховує запуск сервісів групи, відновлення знімків і готовність мережі. Виконані середовища залишаються зупиненими.",
+  "admin.labs.lifecycle.snapshotPolicy": "Політика знімків",
+  "admin.labs.lifecycle.policy.none": "Не вимагати знімок",
+  "admin.labs.lifecycle.policy.required": "Вимагати успішний знімок"
 }

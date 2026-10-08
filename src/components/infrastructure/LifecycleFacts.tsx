@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import type { AllocationView, ComputeView, ManagedLabView } from "@/api/labLifecycle"
+import type { AllocationView, ComputeView, ManagedGroupView, ManagedLabView } from "@/api/labLifecycle"
 import { Badge } from "@/components/ui/badge"
 import { t } from "@/i18n/t"
 import { currentObservation, decimalCpu, decimalMemory } from "@/lib/labResourceObservation"
@@ -40,6 +40,7 @@ export function LifecycleFacts({ lab }: { lab: ManagedLabView }) {
     <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <Fact label={t("admin.labs.lifecycle.desired")}>{t(`admin.labs.lifecycle.desired.${lab.DesiredState}`)}</Fact>
       <Fact label={t("admin.labs.lifecycle.actual")}>{t(`admin.labs.lifecycle.actual.${lab.ActualState}`)}</Fact>
+      {lab.SnapshotPolicy && <Fact label={t("admin.labs.lifecycle.snapshotPolicy")}>{t(`admin.labs.lifecycle.policy.${lab.SnapshotPolicy}`)}</Fact>}
       <Fact label={t("admin.labs.lifecycle.snapshot")}>{t(`admin.labs.lifecycle.snapshot.${lab.SnapshotState}`)}</Fact>
       <Fact label={t("admin.labs.lifecycle.closedAt")}>{formatListDateTime(lab.ClosedAt)}</Fact>
       <Fact label={t("admin.labs.lifecycle.stoppedAt")}>{formatListDateTime(lab.ActualStoppedAt)}</Fact>
@@ -52,5 +53,27 @@ export function LifecycleFacts({ lab }: { lab: ManagedLabView }) {
       {lab.FailureMessage && <Fact label={t("admin.labs.lifecycle.failureMessage")}>{lab.FailureMessage}</Fact>}
     </dl>}
     <AllocationFacts resources={lab.Resources} current={current} />
+  </section>
+}
+
+export function GroupLifecycleFacts({ group }: { group: ManagedGroupView }) {
+  const current = currentObservation(group)
+  return <section data-group-name={group.Name} aria-label={t("admin.labs.group.title")} className="space-y-3 rounded-lg border border-border p-3">
+    <h3 className="font-medium text-foreground">{t("admin.labs.group.title")}</h3>
+    <div className="flex flex-wrap gap-2">
+      <Badge tone={group.ActualState === "StopFailed" ? "danger" : "neutral"}>{t(`admin.labs.lifecycle.actual.${group.ActualState}`)}</Badge>
+      <Badge tone={group.Ready && current ? "ok" : "warn"}>{t(group.Ready && current ? "admin.labs.group.ready" : "admin.labs.group.notReady")}</Badge>
+    </div>
+    <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Fact label={t("admin.labs.lifecycle.desired")}>{t(`admin.labs.lifecycle.desired.${group.DesiredState}`)}</Fact>
+      <Fact label={t("admin.labs.lifecycle.actual")}>{t(`admin.labs.lifecycle.actual.${group.ActualState}`)}</Fact>
+      <Fact label={t("admin.labs.lifecycle.observedAt")}>{formatListDateTime(group.ObservedAt)}</Fact>
+    </dl>
+    <p className="text-xs text-muted-foreground">{t("admin.labs.group.prepareHelp")}</p>
+    {(group.FailureCode || group.FailureMessage) && <dl className="grid grid-cols-1 gap-3 rounded-md bg-[var(--ib-danger-bg)] p-3 sm:grid-cols-2">
+      {group.FailureCode && <Fact label={t("admin.labs.lifecycle.failureCode")}>{group.FailureCode}</Fact>}
+      {group.FailureMessage && <Fact label={t("admin.labs.lifecycle.failureMessage")}>{group.FailureMessage}</Fact>}
+    </dl>}
+    <AllocationFacts resources={group.Resources} current={current} />
   </section>
 }

@@ -39,6 +39,7 @@ export const ManagedLabSchema = z.object({
   ActualStoppedAt: optionalTime,
   RetentionUntil: optionalTime,
   ObservedAt: optionalTime,
+  SnapshotPolicy: z.enum(["none", "required"]).nullish().transform(value => value ?? null),
   SnapshotState: z.enum(["NotRequired", "Pending", "Succeeded", "Failed", "Unknown"]),
   FailureCode: z.string(),
   FailureMessage: z.string(),

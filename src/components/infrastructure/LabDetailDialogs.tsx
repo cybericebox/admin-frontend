@@ -9,7 +9,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
 import { LabLiveView } from "@/components/infrastructure/LabLiveView"
-import { LifecycleFacts } from "@/components/infrastructure/LifecycleFacts"
+import { GroupLifecycleFacts, LifecycleFacts } from "@/components/infrastructure/LifecycleFacts"
 import { useLabDetail } from "@/components/infrastructure/useLabDetail"
 import { StandStatusBadge, teamLabel } from "@/components/infrastructure/StandsTable"
 import { TestLabStatusBadge, testLabAuthor } from "@/components/infrastructure/TestLabsTable"
@@ -95,6 +95,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
         {stand.ImageWarning && <ImageWarningIcon />}
         {detail.Reason && <span className="break-words text-sm text-muted-foreground">{detail.Reason}</span>}
       </div>
+      {detail.Group && <GroupLifecycleFacts group={detail.Group} />}
       {!detail.LaboratoriesAvailable ? <EmptyState compact message={t("admin.labs.detail.unavailable")} />
         : detail.Labs.length === 0 ? <EmptyState compact message={t("admin.labs.detail.stand.empty")} />
         : <ul className="space-y-4">{detail.Labs.map((lab) => <li key={lab.Lab?.ID ?? lab.ChallengeID} className="min-w-0 space-y-2">

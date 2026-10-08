@@ -2443,5 +2443,12 @@
   "admin.resources.observation.pendingStarts": "Pending starts (included in held total)",
   "admin.resources.observation.groupServices": "Group services (included in held total)",
   "admin.resources.observation.unknownHelp": "Unknown contributors are not treated as free capacity.",
-  "admin.resources.stats.accountingHelp": "Calendar reservations and requests of running objects below are shown separately from confirmed held resources. They are not measured CPU or memory usage."
+  "admin.resources.stats.accountingHelp": "Calendar reservations and requests of running objects below are shown separately from confirmed held resources. They are not measured CPU or memory usage.",
+  "admin.labs.group.title": "Group services",
+  "admin.labs.group.ready": "Group services ready",
+  "admin.labs.group.notReady": "Group services readiness unconfirmed",
+  "admin.labs.group.prepareHelp": "Preparation includes group services, snapshot restore and network readiness. Completed environments remain stopped.",
+  "admin.labs.lifecycle.snapshotPolicy": "Snapshot policy",
+  "admin.labs.lifecycle.policy.none": "Do not require a snapshot",
+  "admin.labs.lifecycle.policy.required": "Require a successful snapshot"
 }
