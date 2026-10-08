@@ -62,7 +62,7 @@ export function GroupLifecycleFacts({ group }: { group: ManagedGroupView }) {
     <h3 className="font-medium text-foreground">{t("admin.labs.group.title")}</h3>
     <div className="flex flex-wrap gap-2">
       <Badge tone={group.ActualState === "StopFailed" ? "danger" : "neutral"}>{t(`admin.labs.lifecycle.actual.${group.ActualState}`)}</Badge>
-      <Badge tone={group.Ready && current ? "ok" : "warn"}>{t(group.Ready && current ? "admin.labs.group.ready" : "admin.labs.group.notReady")}</Badge>
+      <Badge className="h-auto! min-h-6 max-w-full whitespace-normal! py-1! leading-snug!" tone={group.Ready && current ? "ok" : "warn"}>{t(group.Ready && current ? "admin.labs.group.ready" : "admin.labs.group.notReady")}</Badge>
     </div>
     <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <Fact label={t("admin.labs.lifecycle.desired")}>{t(`admin.labs.lifecycle.desired.${group.DesiredState}`)}</Fact>
