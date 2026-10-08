@@ -2435,5 +2435,13 @@
   "admin.labs.resources.storage.CleanupPending": "Очищення не підтверджено",
   "admin.labs.resources.storage.Deleted": "Видалення підтверджено",
   "admin.labs.resources.storage.Unknown": "Невідомо",
-  "admin.resources.observation.unknown": "Невідомо"
+  "admin.resources.observation.unknown": "Невідомо",
+  "admin.resources.observation.title": "Підтверджені ресурси",
+  "admin.resources.observation.incomplete": "Неповні спостереження; відомі ресурси залишаються утриманими",
+  "admin.resources.observation.complete": "Спостереження актуальні",
+  "admin.resources.observation.knownHeld": "Відомий утриманий обсяг",
+  "admin.resources.observation.pendingStarts": "Запуски в очікуванні (входять до загального обсягу)",
+  "admin.resources.observation.groupServices": "Сервіси групи (входять до загального обсягу)",
+  "admin.resources.observation.unknownHelp": "Невідомі внески не вважаються вільною місткістю.",
+  "admin.resources.stats.accountingHelp": "Календарні резервування та запити запущених обʼєктів нижче показано окремо від підтверджених утриманих ресурсів. Це не виміряне використання CPU чи памʼяті."
 }

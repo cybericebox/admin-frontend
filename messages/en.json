@@ -2435,5 +2435,13 @@
   "admin.labs.resources.storage.CleanupPending": "Cleanup unconfirmed",
   "admin.labs.resources.storage.Deleted": "Deletion confirmed",
   "admin.labs.resources.storage.Unknown": "Unknown",
-  "admin.resources.observation.unknown": "Unknown"
+  "admin.resources.observation.unknown": "Unknown",
+  "admin.resources.observation.title": "Confirmed resources",
+  "admin.resources.observation.incomplete": "Incomplete observations; known resources remain held",
+  "admin.resources.observation.complete": "Observations are current",
+  "admin.resources.observation.knownHeld": "Known held amount",
+  "admin.resources.observation.pendingStarts": "Pending starts (included in held total)",
+  "admin.resources.observation.groupServices": "Group services (included in held total)",
+  "admin.resources.observation.unknownHelp": "Unknown contributors are not treated as free capacity.",
+  "admin.resources.stats.accountingHelp": "Calendar reservations and requests of running objects below are shown separately from confirmed held resources. They are not measured CPU or memory usage."
 }
