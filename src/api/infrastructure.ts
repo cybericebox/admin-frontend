@@ -5,6 +5,8 @@
  */
 import { apiGet, apiPost } from "@/api/client"
 import type { OffsetPage } from "@/api/pagination"
+import { z } from "zod"
+import { ManagedGroupSchema, ManagedLabSchema, type ManagedGroupView, type ManagedLabView } from "@/api/labLifecycle"
 
 const BASE = "/api/infrastructure"
 
@@ -169,7 +171,18 @@ export function listTestLabs(filter: TestLabsFilter): Promise<OffsetPage<TestLab
 
 export const terminateTestLab = (id: string) => apiPost<unknown>(`${BASE}/test-labs/${encodeURIComponent(id)}/terminate`, {})
 
-export type StandLabDetail = { ChallengeID: string; ChallengeName: string; Status: string; Reason: string; Live: LabLive | null; LiveUnavailable: boolean }
+const standQuestionsSchema = z.array(z.object({ EventChallengeID: z.string().uuid(), Name: z.string() }))
+export type StandLabDetail = {
+  ChallengeID: string
+  ChallengeName: string
+  Status: string
+  Reason: string
+  Live: LabLive | null
+  LiveUnavailable: boolean
+  /** Absent on older producers; one physical Lab is shared by its dependent questions. */
+  Lab?: ManagedLabView | null
+  Questions?: z.infer<typeof standQuestionsSchema>
+}
 export type StandDetail = {
   TeamID: string
   TeamName: string
@@ -179,12 +192,24 @@ export type StandDetail = {
   Generation: number
   LaboratoriesAvailable: boolean
   Labs: StandLabDetail[]
+  Group?: ManagedGroupView | null
 }
 export type TestLabDetail = { ID: string; GroupName: string; Status: "queued" | "creating" | "ready" | "failed"; Live: LabLive | null }
 
 const standPath = (eventId: string, teamId: string) => `${BASE}/stands/${encodeURIComponent(eventId)}/${encodeURIComponent(teamId)}`
 
-export const getStandDetail = (eventId: string, teamId: string) => apiGet<StandDetail>(`${standPath(eventId, teamId)}/detail`)
+export async function getStandDetail(eventId: string, teamId: string): Promise<StandDetail> {
+  const raw = await apiGet<StandDetail>(`${standPath(eventId, teamId)}/detail`)
+  return {
+    ...raw,
+    Group: raw.Group == null ? null : ManagedGroupSchema.parse(raw.Group),
+    Labs: raw.Labs.map((row) => ({
+      ...row,
+      Lab: row.Lab == null ? null : ManagedLabSchema.parse(row.Lab),
+      Questions: row.Questions == null ? [] : standQuestionsSchema.parse(row.Questions),
+    })),
+  }
+}
 export const getTestLabDetail = (id: string) => apiGet<TestLabDetail>(`${BASE}/test-labs/${encodeURIComponent(id)}/detail`)
 
 const standDevicePath = (eventId: string, teamId: string, challengeId: string, device: string) =>
