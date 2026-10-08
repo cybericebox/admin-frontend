@@ -1614,6 +1614,7 @@
   "admin.events.analytics.usage.detail.task": "Завдання",
   "admin.events.analytics.usage.detail.access": "Доступ",
   "admin.events.analytics.usage.detail.requests": "Звернень",
+  "admin.events.analytics.usage.detail.labInitiated": "З боку лабораторії: {count}",
   "admin.events.analytics.usage.detail.traffic": "Обсяг",
   "admin.events.analytics.usage.detail.last": "Останнє",
   "admin.events.analytics.usage.surface.vpn": "VPN",

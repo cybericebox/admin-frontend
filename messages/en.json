@@ -1614,6 +1614,7 @@
   "admin.events.analytics.usage.detail.task": "Task",
   "admin.events.analytics.usage.detail.access": "Access",
   "admin.events.analytics.usage.detail.requests": "Attempts",
+  "admin.events.analytics.usage.detail.labInitiated": "Started by the lab: {count}",
   "admin.events.analytics.usage.detail.traffic": "Volume",
   "admin.events.analytics.usage.detail.last": "Last",
   "admin.events.analytics.usage.surface.vpn": "VPN",

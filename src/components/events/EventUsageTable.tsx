@@ -55,7 +55,12 @@ function Detail({ user }: { user: UsageUser }) {
         <tbody>{user.Labs.map((lab) => <tr key={`${lab.ChallengeID}:${lab.Surface}`}>
           <td>{lab.Task || none}</td>
           <td>{t(`${P}.surface.${lab.Surface}`)}</td>
-          <td className="ib-table__num">{formatCount(lab.Attempts)}</td>
+          <td className="ib-table__num">
+            <div>{formatCount(lab.Attempts)}</div>
+            {lab.Surface === "vpn" && (lab.LabInitiatedAttempts ?? 0) > 0 && <div className="mt-1 text-xs text-muted-foreground">
+              {t(`${P}.detail.labInitiated`, { count: formatCount(lab.LabInitiatedAttempts ?? 0) })}
+            </div>}
+          </td>
           <td className="ib-table__num">{formatBytes(lab.BytesIn + lab.BytesOut)}</td>
           <td>{formatDateTime(lab.LastAt)}</td>
         </tr>)}</tbody>
@@ -151,4 +156,3 @@ export function EventUsageTable({ eventID }: { eventID: string }) {
   }
   return <AnalyticsBlock title={title} subtitle={t(`${P}.subtitle`)} actions={<ExportButton eventID={eventID} disabled={!data?.Available} />}>{body}</AnalyticsBlock>
 }
-
