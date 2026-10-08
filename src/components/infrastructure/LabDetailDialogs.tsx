@@ -95,7 +95,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
         {stand.ImageWarning && <ImageWarningIcon />}
         {detail.Reason && <span className="break-words text-sm text-muted-foreground">{detail.Reason}</span>}
       </div>
-      {detail.Group && <GroupLifecycleFacts group={detail.Group} />}
+      {detail.Group && <GroupLifecycleFacts group={detail.Group} stale={!!error} />}
       {!detail.LaboratoriesAvailable ? <EmptyState compact message={t("admin.labs.detail.unavailable")} />
         : detail.Labs.length === 0 ? <EmptyState compact message={t("admin.labs.detail.stand.empty")} />
         : <ul className="space-y-4">{detail.Labs.map((lab) => <li key={lab.Lab?.ID ?? lab.ChallengeID} className="min-w-0 space-y-2">
@@ -104,7 +104,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
             <StandStatusBadge status={lab.Status} />
             {lab.Reason && <span className="break-words text-sm text-muted-foreground">{lab.Reason}</span>}
           </div>
-          {lab.Lab && <LifecycleFacts lab={lab.Lab} />}
+          {lab.Lab && <LifecycleFacts lab={lab.Lab} stale={!!error} />}
           {!!lab.Questions?.length && <div className="min-w-0 text-sm">
             <p className="text-xs text-muted-foreground">{t("admin.labs.lifecycle.questions")}</p>
             <ul className="list-inside list-disc">{lab.Questions.map((question) => <li className="break-words" key={question.EventChallengeID}>{question.Name}</li>)}</ul>

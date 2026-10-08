@@ -94,3 +94,19 @@ describe("retained group and prewarm observations", () => {
     expect(screen.getByText("Зберігається файловий стан, а не памʼять процесів чи незаписані мережеві зміни.")).toBeInTheDocument()
   })
 })
+
+
+it("shows producer Unknown group fallback zero allocations as unknown, preserving positive held amounts and quota", () => {
+  const zero = { CPUMillicores: "0", MemoryBytes: "0" }
+  const unknown = { ...managedGroup, AgentUID: "", ActualState: "Unknown" as const, Ready: false, ObservedAt: null,
+    Resources: { ...allocation, ConfiguredRequests: zero, ConfiguredLimits: zero, AllocatedRequests: zero, Used: zero, ReleasedRequests: zero,
+      RuntimeState: "Unknown" as const, ObservedAt: null, UsageAvailable: false, SnapshotQuotaBytes: "0", StorageState: "Unknown" as const } }
+  const { rerender } = render(<GroupLifecycleFacts group={unknown} />)
+  expect(fact("Утримані ресурси")).toHaveTextContent("Невідомо")
+  expect(fact("Утримані ресурси")).not.toHaveTextContent("0 vCPU")
+  expect(fact("Утримана квота знімків")).toHaveTextContent("Невідомо")
+  rerender(<GroupLifecycleFacts group={{ ...unknown, Resources: { ...unknown.Resources, AllocatedRequests: allocation.AllocatedRequests, SnapshotQuotaBytes: allocation.SnapshotQuotaBytes, StorageState: "Retained" } }} />)
+  expect(fact("Утримані ресурси")).toHaveTextContent("250 мілі-ядер · 100 МіБ")
+  expect(fact("Утримана квота знімків")).toHaveTextContent("9 007 199 254 740 993 Б")
+  expect(fact("Збереження сховища")).toHaveTextContent("Збережено")
+})
