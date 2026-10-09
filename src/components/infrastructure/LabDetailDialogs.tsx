@@ -9,6 +9,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
 import { LabLiveView } from "@/components/infrastructure/LabLiveView"
+import { GroupLifecycleFacts, LifecycleFacts } from "@/components/infrastructure/LifecycleFacts"
 import { useLabDetail } from "@/components/infrastructure/useLabDetail"
 import { StandStatusBadge, teamLabel } from "@/components/infrastructure/StandsTable"
 import { TestLabStatusBadge, testLabAuthor } from "@/components/infrastructure/TestLabsTable"
@@ -41,7 +42,7 @@ function Body<T>({ data, error, onRetry, children }: { data: T | null; error: un
   return <LoadingArea className={BLOCK} label={t("admin.loading")} />
 }
 
-type ResetTarget = { device: string; run: () => Promise<unknown> }
+type ResetTarget = { device: string; challengeId?: string; run: () => Promise<unknown> }
 
 function ResetDialog({ target, onClose, onDone }: { target: ResetTarget | null; onClose: () => void; onDone: () => void }) {
   const [busy, setBusy] = useState(false)
@@ -76,6 +77,8 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
   const load = useCallback(() => getStandDetail(stand.EventID, stand.TeamID), [stand.EventID, stand.TeamID])
   const { data, error, refresh, enqueue } = useLabDetail<StandDetail>(load, true)
   const [reset, setReset] = useState<ResetTarget | null>(null)
+  // Polling closure (or removal) withdraws an existing confirmation as well as device controls.
+  const activeReset = reset && canWrite && data?.Labs.some((row) => row.ChallengeID === reset.challengeId && row.Lab?.ClosedAt == null) ? reset : null
 
   const rescue = (challengeId: string, device: string, enable: boolean) => {
     enqueue((value) => ({ ...value, Labs: value.Labs.map((lab) => lab.ChallengeID === challengeId ? { ...lab, Live: withRescue(lab.Live, device, enable) } : lab) }),
@@ -92,20 +95,26 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
         {stand.ImageWarning && <ImageWarningIcon />}
         {detail.Reason && <span className="break-words text-sm text-muted-foreground">{detail.Reason}</span>}
       </div>
+      {detail.Group && <GroupLifecycleFacts group={detail.Group} stale={!!error} />}
       {!detail.LaboratoriesAvailable ? <EmptyState compact message={t("admin.labs.detail.unavailable")} />
         : detail.Labs.length === 0 ? <EmptyState compact message={t("admin.labs.detail.stand.empty")} />
-        : <ul className="space-y-4">{detail.Labs.map((lab) => <li key={lab.ChallengeID} className="space-y-2">
+        : <ul className="space-y-4">{detail.Labs.map((lab) => <li key={lab.Lab?.ID ?? lab.ChallengeID} className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium text-foreground">{lab.ChallengeName}</h3>
+            <h3 className="min-w-0 break-words font-medium text-foreground">{lab.Lab?.ExerciseName ?? lab.ChallengeName}</h3>
             <StandStatusBadge status={lab.Status} />
             {lab.Reason && <span className="break-words text-sm text-muted-foreground">{lab.Reason}</span>}
           </div>
-          <LabLiveView live={lab.Live} unavailable={lab.LiveUnavailable} canWrite={canWrite}
-            onReset={(device) => setReset({ device, run: () => resetStandDevice(stand.EventID, stand.TeamID, lab.ChallengeID, device) })}
+          {lab.Lab && <LifecycleFacts lab={lab.Lab} stale={!!error} />}
+          {!!lab.Questions?.length && <div className="min-w-0 text-sm">
+            <p className="text-xs text-muted-foreground">{t("admin.labs.lifecycle.questions")}</p>
+            <ul className="list-inside list-disc">{lab.Questions.map((question) => <li className="break-words" key={question.EventChallengeID}>{question.Name}</li>)}</ul>
+          </div>}
+          <LabLiveView live={lab.Live} unavailable={lab.LiveUnavailable} canWrite={canWrite && lab.Lab?.ClosedAt == null}
+            onReset={(device) => setReset({ device, challengeId: lab.ChallengeID, run: () => resetStandDevice(stand.EventID, stand.TeamID, lab.ChallengeID, device) })}
             onRescue={(device, enable) => rescue(lab.ChallengeID, device, enable)} />
         </li>)}</ul>}
     </div>}</Body>
-    <ResetDialog target={reset} onClose={() => setReset(null)} onDone={refresh} />
+    <ResetDialog target={activeReset} onClose={() => setReset(null)} onDone={refresh} />
   </Shell>
 }
 

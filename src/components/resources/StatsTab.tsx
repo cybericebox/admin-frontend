@@ -7,6 +7,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { Badge, BLOCK, Th, formatAmount, formatWindow } from "./resourceView"
+import { ObservationFacts } from "./ObservationFacts"
 
 export function StatsTab({ stats, error, onRetry }: { stats: Stats | null; error: unknown; onRetry: () => void }) {
   if (error && stats === null) return <LoadError className={BLOCK} message={t("admin.resources.stats.loadError")} error={error} onRetry={onRetry} />
@@ -14,6 +15,12 @@ export function StatsTab({ stats, error, onRetry }: { stats: Stats | null; error
   const agents = stats.Agents ?? []
   const events = stats.Events ?? []
   return <div className="space-y-4">
+    {error != null && <LoadError compact message={t("admin.resources.stats.loadError")} error={error} onRetry={onRetry} />}
+    <Card>
+      <CardHeader className="pb-0"><CardTitle className="text-base">{t("admin.resources.observation.title")}</CardTitle></CardHeader>
+      <CardContent className="pt-3"><ObservationFacts observation={stats.Observation ?? null} stale={error != null} /></CardContent>
+    </Card>
+    <p className="text-xs text-muted-foreground">{t("admin.resources.stats.accountingHelp")}</p>
     <div className="grid gap-3 sm:grid-cols-2">
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("admin.resources.stats.testPool")}</p><p className="mt-1 text-sm font-medium tabular-nums">{formatAmount(stats.TestPool)}</p></CardContent></Card>
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("admin.resources.stats.testLabsHeld")}</p><p className="mt-1 text-sm font-medium tabular-nums">{formatAmount(stats.TestLabsHeld)}</p></CardContent></Card>

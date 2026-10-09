@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { TestLabDetailDialog } from "./LabDetailDialogs"
-import type { TestLab } from "@/api/infrastructure"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { StandDetailDialog, TestLabDetailDialog } from "./LabDetailDialogs"
+import type { Stand, TestLab } from "@/api/infrastructure"
+import { managedGroup, managedLab } from "@/test/labLifecycle"
 
 const apiGet = vi.fn()
 const apiPost = vi.fn()
@@ -19,7 +20,70 @@ const detail = () => ({
   },
 })
 
-beforeEach(() => { apiGet.mockReset(); apiPost.mockReset(); apiGet.mockResolvedValue(detail()) })
+const stand = { EventID: "event-1", TeamID: "team-1", TeamName: "Команда", EventName: "Захід", Status: "ready" } as Stand
+const standDetail = (lifecycle = true) => ({
+  TeamID: "team-1", TeamName: "Команда", Moderators: false, Status: "ready", Reason: "", Generation: 1, LaboratoriesAvailable: true,
+  Labs: [{ ChallengeID: "question-1", ChallengeName: "Питання", Status: "ready", Reason: "", Live: detail().Live, LiveUnavailable: false,
+    ...(lifecycle ? { Lab: managedLab, Questions: [{ EventChallengeID: "00000000-0000-4000-8000-000000000001", Name: "Перше залежне завдання" }, { EventChallengeID: "00000000-0000-4000-8000-000000000002", Name: "Друге залежне завдання" }] } : {}),
+  }],
+})
+
+describe("managed stand detail", () => {
+  it("renders a shared lab once for both questions and keeps solved devices read-only even for writers", async () => {
+    apiGet.mockResolvedValue(standDetail())
+    render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+    expect(await screen.findByText("Перше залежне завдання")).toBeInTheDocument()
+    expect(screen.getByText("Друге залежне завдання")).toBeInTheDocument()
+    expect(document.querySelectorAll(`[data-lab-id="${managedLab.ID}"]`)).toHaveLength(1)
+    expect(screen.getAllByText("web")).toHaveLength(1)
+    expect(screen.getByText("snapshot capture failed")).toBeInTheDocument()
+    expect(screen.getByText("Розмір знімків")).toBeInTheDocument()
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Скинути|Запустити|Зупинити|Перезапустити/ })).not.toBeInTheDocument()
+    expect(apiPost).not.toHaveBeenCalled()
+  })
+
+  it("preserves legacy inspection and device permissions when lifecycle fields are absent", async () => {
+    apiGet.mockResolvedValue(standDetail(false))
+    render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+    expect(await screen.findByRole("switch", { name: /web/ })).toBeEnabled()
+    expect(screen.getByRole("button", { name: /Скинути до образу: web/ })).toBeEnabled()
+    expect(screen.queryByText("Спостереження актуальне")).not.toBeInTheDocument()
+  })
+
+  it("preserves lifecycle facts and physical amounts when a background detail request fails", async () => {
+    apiGet.mockResolvedValueOnce(standDetail()).mockRejectedValue(new Error("offline"))
+    render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+    expect(await screen.findByText("snapshot capture failed")).toBeInTheDocument()
+    const facts = document.querySelector(`[data-lab-id="${managedLab.ID}"]`)
+    const later = Date.now() + 20_001
+    vi.spyOn(Date, "now").mockReturnValue(later)
+    fireEvent(document, new Event("visibilitychange"))
+    expect(await screen.findByText("Не вдалося завантажити стан лабораторії.")).toBeInTheDocument()
+    expect(document.querySelector(`[data-lab-id="${managedLab.ID}"]`)).toBe(facts)
+    expect(facts).toHaveTextContent("250 мілі-ядер · 100 МіБ")
+    expect(facts).toHaveTextContent("9 007 199 254 740 993 Б")
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument()
+    expect(apiPost).not.toHaveBeenCalled()
+  })
+
+  it("withdraws an open reset confirmation when polling closes its managed lab", async () => {
+    const open = { ...standDetail(), Labs: [{ ...standDetail().Labs[0], Lab: { ...managedLab, ClosedAt: null, CloseReason: null } }] }
+    apiGet.mockResolvedValueOnce(open).mockResolvedValue(standDetail())
+    render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole("button", { name: /Скинути до образу: web/ }))
+    expect(screen.getByRole("button", { name: "Скинути" })).toBeInTheDocument()
+    const later = Date.now() + 20_001
+    vi.spyOn(Date, "now").mockReturnValue(later)
+    fireEvent(document, new Event("visibilitychange"))
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Скинути" })).not.toBeInTheDocument())
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Скинути до образу/ })).not.toBeInTheDocument()
+    expect(apiPost).not.toHaveBeenCalled()
+  })
+})
+
+beforeEach(() => { vi.restoreAllMocks(); apiGet.mockReset(); apiPost.mockReset(); apiGet.mockResolvedValue(detail()) })
 
 describe("test lab detail", () => {
   it("shows devices with the failure and lets a writer switch rescue at once, keeping other controls enabled", async () => {
@@ -84,4 +148,59 @@ describe("test lab detail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Скинути" }))
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(expect.stringContaining("/devices/web/reset"), {}))
   })
+})
+
+
+it("renders group preparation without a lifecycle POST on detail reopen or poll, and keeps solved children stopped", async () => {
+  apiGet.mockResolvedValue({ ...standDetail(), Group: { ...managedGroup, ObservedRevision: managedGroup.Revision, ActualState: "Starting", Ready: false } })
+  const { unmount } = render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+  expect(await screen.findByText("Готовність сервісів групи не підтверджено")).toBeInTheDocument()
+  expect(document.querySelector(`[data-lab-id="${managedLab.ID}"]`)).toHaveTextContent("Закрито: усі залежні завдання виконано")
+  expect(apiPost).not.toHaveBeenCalled()
+  unmount()
+  apiGet.mockResolvedValue({ ...standDetail(), Group: { ...managedGroup, ObservedRevision: managedGroup.Revision, Ready: true } })
+  render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+  expect(await screen.findByText("Сервіси групи готові")).toBeInTheDocument()
+  expect(screen.queryByRole("switch")).not.toBeInTheDocument()
+  const later = Date.now() + 20_001
+  vi.spyOn(Date, "now").mockReturnValue(later)
+  fireEvent(document, new Event("visibilitychange"))
+  await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThanOrEqual(3))
+  expect(apiPost).not.toHaveBeenCalled()
+})
+
+
+it("withdraws current group/lab readiness and measurements after failed polling, retains holdings, and certifies fresh recovery", async () => {
+  const currentLab = { ...managedLab, ObservedRevision: managedLab.Revision, ActualState: "Stopped", SnapshotState: "Succeeded", FailureCode: "", FailureMessage: "",
+    Resources: { ...managedLab.Resources, RuntimeState: "Released", ReleasedRequests: { CPUMillicores: "250", MemoryBytes: "104857600" }, ReleasedAt: managedLab.ObservedAt, PhysicalStorageBytesAvailable: true, PhysicalStorageBytes: "1048576" } }
+  const currentGroup = { ...managedGroup, ObservedRevision: managedGroup.Revision, Ready: true, Resources: { ...managedGroup.Resources, PhysicalStorageBytesAvailable: true, PhysicalStorageBytes: "1048576" } }
+  const response = { ...standDetail(), Group: currentGroup, Labs: [{ ...standDetail().Labs[0], Lab: currentLab }] }
+  apiGet.mockResolvedValueOnce(response).mockRejectedValueOnce(new Error("offline")).mockResolvedValue(response)
+  render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+  await screen.findByText("Сервіси групи готові")
+  const groupNode = document.querySelector(`[data-group-name="${managedGroup.Name}"]`)! as HTMLElement
+  const labNode = document.querySelector(`[data-lab-id="${managedLab.ID}"]`)! as HTMLElement
+  const labFact = (label: string) => within(labNode).getByText(label).closest("div")!
+  expect(within(labNode).getByText("Спостереження актуальне")).toBeInTheDocument()
+  expect(labFact("Фізичне сховище")).toHaveTextContent("1 МіБ")
+  const started = Date.now()
+  vi.spyOn(Date, "now").mockReturnValue(started + 20_001)
+  fireEvent(document, new Event("visibilitychange"))
+  await screen.findByText("Не вдалося завантажити стан лабораторії.")
+  expect(within(groupNode).queryByText("Сервіси групи готові")).not.toBeInTheDocument()
+  expect(within(groupNode).getByText("Готовність сервісів групи не підтверджено")).toBeInTheDocument()
+  expect(within(labNode).queryByText("Спостереження актуальне")).not.toBeInTheDocument()
+  expect(within(labNode).getByText("Спостереження застаріле або відсутнє")).toBeInTheDocument()
+  for (const label of ["Виміряне використання", "Підтверджено звільнено", "Фізичне сховище"]) expect(labFact(label)).toHaveTextContent("Невідомо")
+  expect(labFact("Утримані ресурси")).toHaveTextContent("250 мілі-ядер · 100 МіБ")
+  expect(labFact("Утримана квота знімків")).toHaveTextContent("9 007 199 254 740 993 Б")
+  expect(document.querySelector(`[data-lab-id="${managedLab.ID}"]`)).toBe(labNode)
+  vi.spyOn(Date, "now").mockReturnValue(started + 40_002)
+  fireEvent(document, new Event("visibilitychange"))
+  await screen.findByText("Сервіси групи готові")
+  expect(within(labNode).getByText("Спостереження актуальне")).toBeInTheDocument()
+  expect(labFact("Фізичне сховище")).toHaveTextContent("1 МіБ")
+  expect(labFact("Підтверджено звільнено")).toHaveTextContent("250 мілі-ядер · 100 МіБ")
+  expect(screen.queryByText("Не вдалося завантажити стан лабораторії.")).not.toBeInTheDocument()
+  expect(apiPost).not.toHaveBeenCalled()
 })

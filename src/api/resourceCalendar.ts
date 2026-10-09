@@ -4,6 +4,7 @@
  * for the rest. JSON PascalCase, times RFC3339 UTC, a slot is 15 minutes.
  */
 import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
+import { ResourceObservationSchema, type ResourceObservation } from "@/api/labLifecycle"
 
 const BASE = "/api/infrastructure/calendar"
 
@@ -98,7 +99,7 @@ export type Timeline = {
 
 export type AgentStat = { ID: string; Name: string; Priority: number; Used: boolean; Connected: boolean; Capacity: Amount; Allocated: Amount; InUse: Amount; Free: Amount }
 export type EventStat = { ReservationID: string; EventID: string; EventName: string; EventTag: string; From: string; To: string; Allocated: Amount; InUse: Amount; Free: Amount; Covered: boolean }
-export type Stats = { At: string; Agents: AgentStat[] | null; Events: EventStat[] | null; TestPool: Amount; TestLabsHeld: Amount; PendingChangeRequests: number; OpenAlarms: number }
+export type Stats = { At: string; Agents: AgentStat[] | null; Events: EventStat[] | null; TestPool: Amount; TestLabsHeld: Amount; PendingChangeRequests: number; OpenAlarms: number; Observation?: ResourceObservation | null }
 
 export type Settings = { TestPool: Amount; UpdatedAt: string }
 export type SettingsResult = { Settings: Settings; Conflicts: Conflict[] | null }
@@ -144,7 +145,10 @@ export type ChangeRequest = {
 
 export const getTimeline = (from: string, to: string) => apiGet<Timeline>(`${BASE}/timeline?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
 export const getCapacity = () => apiGet<Capacity>(`${BASE}/capacity`)
-export const getStats = () => apiGet<Stats>(`${BASE}/stats`)
+export async function getStats(): Promise<Stats> {
+  const raw = await apiGet<Stats>(`${BASE}/stats`)
+  return { ...raw, Observation: raw.Observation == null ? null : ResourceObservationSchema.parse(raw.Observation) }
+}
 export const getSettings = () => apiGet<Settings>(`${BASE}/settings`)
 export const putSettings = (body: { TestPool: Amount; AllowConflicts?: boolean }) => apiPut<SettingsResult>(`${BASE}/settings`, body)
 
