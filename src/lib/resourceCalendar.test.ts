@@ -1,11 +1,40 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { getStats } from "@/api/resourceCalendar"
 import type { Reservation, Timeline } from "@/api/resourceCalendar"
+import { resourceObservation } from "@/test/labLifecycle"
 import { timelineOption } from "@/components/resources/timelineOption"
 import { testChartTheme } from "@/test/chartTheme"
 import { MIB, amountToText, attentionIDs, buildMaintenanceTracks, buildTimelineModel, rangeFrom, textToAmount } from "./resourceCalendar"
 
 const amount = (cpu: number, mem = 0) => ({ CPUMillicores: cpu, MemoryBytes: mem * MIB })
 const at = (hour: number) => `2026-10-05T${String(hour).padStart(2, "0")}:00:00Z`
+
+afterEach(() => vi.restoreAllMocks())
+
+describe("stats observation compatibility", () => {
+  const legacy = { At: at(12), Agents: null, Events: null, TestPool: amount(250, 512), TestLabsHeld: amount(500, 200), PendingChangeRequests: 2, OpenAlarms: 3 }
+  const response = (data: unknown) => new Response(JSON.stringify({ Data: data }), { headers: { "Content-Type": "application/json" } })
+
+  it.each([undefined, null])("keeps legacy amounts and absent observation %j as unknown", async (Observation) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ ...legacy, Observation }))
+    expect(await getStats()).toEqual({ ...legacy, Observation: null })
+  })
+
+  it("keeps incomplete producer held, pending, group and storage amounts exact without a frontend sum", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ ...legacy, Observation: resourceObservation }))
+    const result = await getStats()
+    expect(result.Observation).toEqual({ ObservedAt: "2026-10-08T12:00:00Z", Complete: false,
+      Held: { CPUMillicores: "325", MemoryBytes: "138412032", SnapshotQuotaBytes: "9007199254740993" },
+      PendingStarts: { CPUMillicores: "25", MemoryBytes: "16777216" }, GroupServices: { CPUMillicores: "50", MemoryBytes: "16777216" },
+      PhysicalStorageBytesAvailable: false, PhysicalStorageBytes: "0" })
+    expect(result.TestLabsHeld).toEqual(amount(500, 200))
+  })
+
+  it("rejects a malformed present observation rather than replacing it with zero usage", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ ...legacy, Observation: { ...resourceObservation, Held: { ...resourceObservation.Held, CPUMillicores: 325 } } }))
+    await expect(getStats()).rejects.toThrow()
+  })
+})
 
 const reservation = (over: Partial<Reservation>): Reservation => ({
   ID: "r1", Kind: "event", EventID: "e1", EventName: "CTF", EventTag: "ctf", OwnerID: "", From: at(8), To: at(12), Teams: 2,

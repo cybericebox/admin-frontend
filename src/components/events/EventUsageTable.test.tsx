@@ -7,6 +7,8 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 vi.mock("@/api/events/analytics", async (importActual) => ({ ...(await importActual<typeof import("@/api/events/analytics")>()), getEventAnalyticsUsage: mock.usage }))
 
 import { EventUsageTable, usageState } from "./EventUsageTable"
+import en from "../../../messages/en.json"
+import uk from "../../../messages/uk.json"
 
 const at = "2026-10-01T10:00:00Z"
 const none = { Sessions: 0, Seconds: 0, RxBytes: 0, TxBytes: 0, Recent: [] }
@@ -54,6 +56,48 @@ describe("EventUsageTable", () => {
     fireEvent.click(screen.getByRole("button", { name: `admin.events.analytics.usage.toggle${JSON.stringify({ name: "Ann" })}` }))
     expect(await screen.findByText("Web login")).toBeInTheDocument()
     expect(screen.getByText("admin.events.analytics.usage.surface.proxy")).toBeInTheDocument()
+  })
+
+  it("keeps lab-only VPN traffic separate from participant attempts in the existing five cells", async () => {
+    mock.usage.mockResolvedValue({ ...report, Users: [{ ...report.Users[2], UserName: "Ann",
+      Labs: [{ ChallengeID: "lab-only", Task: "Lab initiated", Surface: "vpn", Attempts: 0, LabInitiatedAttempts: 7, BytesIn: 20, BytesOut: 10, FirstAt: null, LastAt: null }],
+    }] })
+    render(<EventUsageTable eventID="event-1" />)
+    const participants = await screen.findByRole("table", { name: "admin.events.analytics.usage.tableLabel" })
+    expect(within(participants).getByText("admin.events.analytics.usage.state.never")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: `admin.events.analytics.usage.toggle${JSON.stringify({ name: "Ann" })}` }))
+    const labs = screen.getByRole("table", { name: "admin.events.analytics.usage.detail.labs" })
+    expect(within(labs).getAllByRole("columnheader")).toHaveLength(5)
+    const cells = within(within(labs).getAllByRole("row")[1]).getAllByRole("cell")
+    expect(cells).toHaveLength(5)
+    expect(within(cells[2]).getByText("0")).toBeInTheDocument()
+    expect(within(cells[2]).getByText(`admin.events.analytics.usage.detail.labInitiated${JSON.stringify({ count: "7" })}`)).toBeInTheDocument()
+    expect(cells[4]).toHaveTextContent("—")
+    expect(labs).not.toHaveTextContent("0001")
+  })
+
+  it.each([
+    { Surface: "vpn", LabInitiatedAttempts: 0 },
+    { Surface: "vpn" },
+    { Surface: "proxy", LabInitiatedAttempts: 7 },
+  ])("does not show lab-origin detail for $Surface with $LabInitiatedAttempts", async (extra) => {
+    mock.usage.mockResolvedValue({ ...report, Users: [{ ...report.Users[1],
+      Labs: [{ ChallengeID: "c1", Task: "Existing task", Attempts: 3, BytesIn: 0, BytesOut: 0, FirstAt: at, LastAt: at, ...extra }],
+    }] })
+    render(<EventUsageTable eventID="event-1" />)
+    await screen.findByRole("table")
+    fireEvent.click(screen.getByRole("button", { name: `admin.events.analytics.usage.toggle${JSON.stringify({ name: "Ann" })}` }))
+    const labs = screen.getByRole("table", { name: "admin.events.analytics.usage.detail.labs" })
+    const cells = within(within(labs).getAllByRole("row")[1]).getAllByRole("cell")
+    expect(cells).toHaveLength(5)
+    expect(cells[2]).toHaveTextContent(/^3$/)
+    expect(labs).not.toHaveTextContent("admin.events.analytics.usage.detail.labInitiated")
+  })
+
+  it("maintains the same translated secondary label in both catalogs", () => {
+    const key = "admin.events.analytics.usage.detail.labInitiated"
+    expect((uk as Record<string, string>)[key]).toBe("З боку лабораторії: {count}")
+    expect((en as Record<string, string>)[key]).toBe("Started by the lab: {count}")
   })
 
   it("says so when the event has no infrastructure", async () => {
