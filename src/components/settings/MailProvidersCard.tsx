@@ -456,7 +456,7 @@ function ProviderDialog({ provider, onClose, onSaved }: {
         {result && <Alert variant={result.Sent ? "success" : "destructive"}>{testText(result)}</Alert>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <p className="text-xs text-muted-foreground">{t("admin.mail.testHint")}</p>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={onClose}>{t("admin.mail.cancel")}</Button>
           <Button type="button" variant="outline" busy={testingForm} onClick={() => void test()}>{t("admin.mail.test")}</Button>
           <Button type="button" busy={saving} onClick={() => void save()}>{t("admin.mail.save")}</Button>
