@@ -15,16 +15,16 @@ describe("test pool settings Save", () => {
   it("ignores equivalent and reverted amounts and guards submitting a clean form", async () => {
     render(<SettingsTab canWrite onSaved={() => {}} />)
     const input = await screen.findByDisplayValue("100")
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.change(input, { target: { value: "0100" } })
     expect(input).toHaveValue("0100")
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.submit(input.closest("form")!)
     expect(mocks.put).not.toHaveBeenCalled()
     fireEvent.change(input, { target: { value: "200" } })
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
     fireEvent.change(input, { target: { value: "100" } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
   })
 
   it("keeps a newer amount while an earlier save is pending and acknowledged", async () => {

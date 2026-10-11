@@ -8,15 +8,15 @@ vi.mock("@/api/client", () => ({ apiGet: (...args: unknown[]) => apiGet(...args)
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
 describe("platform settings page", () => {
-  it.each([[1, "1.0"], [{ a: 1, b: 2 }, '{"b":2,"a":1}']])("does not offer or submit an equivalent saved value %j", async (value, equivalent) => {
+  it.each([[1, "1.0"], [{ a: 1, b: 2 }, '{"b":2,"a":1}']])("disables visible Save and does not submit an equivalent saved value %j", async (value, equivalent) => {
     apiPut.mockClear()
     apiGet.mockResolvedValue([{ ID: "id", Key: "value", Value: value, RequiredPermission: "", CreatedAt: "", UpdatedAt: "" }])
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "Редагувати value" }))
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     const input = screen.getByLabelText("Значення")
     fireEvent.change(input, { target: { value: equivalent } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.submit(input.closest("form")!)
     expect(apiPut).not.toHaveBeenCalled()
   })

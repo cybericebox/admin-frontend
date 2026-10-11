@@ -51,15 +51,15 @@ describe("mail settings page", () => {
     expect(screen.getByText("Brevo")).toBeInTheDocument()
   })
 
-  it("has no save buttons after loading saved mail settings", async () => {
+  it("keeps both Save buttons visible and disabled for saved mail settings", async () => {
     getMailSettings.mockResolvedValue(STORED)
     render(<Page />)
     await screen.findByText("SMTP-провайдери")
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    screen.getAllByRole("button", { name: "Зберегти" }).forEach((button) => expect(button).toBeDisabled())
     fireEvent.change(screen.getByLabelText("Домен відправлення"), { target: { value: "MAIL.CYBERICEBOX.COM " } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    screen.getAllByRole("button", { name: "Зберегти" }).forEach((button) => expect(button).toBeDisabled())
     fireEvent.change(screen.getByLabelText("Домен відправлення"), { target: { value: "other.example.com" } })
-    expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "Зберегти" })[0]).toBeEnabled()
   })
 
   it("shows a load error with a retry that reloads", async () => {
@@ -165,12 +165,12 @@ describe("mail settings page", () => {
     render(<Page />)
     const domain = await screen.findByLabelText("Домен відправлення")
     fireEvent.change(domain, { target: { value: "submitted.example.com" } })
-    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    fireEvent.click(screen.getAllByRole("button", { name: "Зберегти" })[0])
     await waitFor(() => expect(saveMailIdentity).toHaveBeenCalled())
     fireEvent.change(domain, { target: { value: "newer.example.com" } })
     finish({ ...STORED, SavedSendingDomain: "submitted.example.com" })
     await screen.findByText("Відправника збережено.")
     expect(domain).toHaveValue("newer.example.com")
-    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
+    expect(screen.getAllByRole("button", { name: "Зберегти" })[0]).toBeEnabled()
   })
 })

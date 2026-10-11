@@ -15,17 +15,17 @@ describe("error notification settings", () => {
   beforeEach(() => { mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.get.mockResolvedValue(settings()) })
   afterEach(cleanup)
 
-  it("hides Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
+  it("disables visible Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
     render(<ErrorNotifySettings />)
     const input = await screen.findByDisplayValue("ops@example.test")
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "admin.errors.settings.test" })).toBeEnabled()
     fireEvent.change(input, { target: { value: " ops@example.test " } })
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
     fireEvent.change(input, { target: { value: "changed@example.test" } })
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
     fireEvent.change(input, { target: { value: "ops@example.test" } })
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
   })
 
   it("keeps new recipient edits after an older save completes", async () => {
@@ -51,7 +51,7 @@ describe("error notification settings", () => {
     expect(input).toHaveValue("new@example.test")
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
-    await waitFor(() => expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
     expect(mocks.put).toHaveBeenCalledTimes(2)
   })
 
