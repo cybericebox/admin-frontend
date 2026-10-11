@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { MAIL_FOOTER_MAX_BYTES, previewMailFooter, saveMailFooter, type LexicalState, type MailFooter, type MailFooterPreview, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
@@ -8,6 +8,8 @@ import { EmailHtmlFrame } from "@/components/notifications/editor/EmailPreview"
 import { RichTextEditor } from "@/components/notifications/editor/RichTextEditor"
 import type { VariableDef } from "@/components/notifications/editor/variableUtils"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -54,18 +56,31 @@ function signature(doc: LexicalState): string {
   return documentSignature((doc as { root?: unknown }).root).trim()
 }
 
+// Lexical fills absent default fields while loading a document. Ignore only
+// these defaults and node versions; keep formatting, styles and all content.
+function footerValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(footerValue)
+  if (!value || typeof value !== "object") return value
+  return Object.fromEntries(Object.entries(value).filter(([key, item]) => {
+    if (key === "version") return false
+    if (["format", "detail", "indent", "textFormat"].includes(key) && (item === 0 || item === "")) return false
+    if (["style", "textStyle"].includes(key) && item === "") return false
+    if (key === "direction" && (item === null || item === "ltr")) return false
+    return !(key === "mode" && item === "normal")
+  }).map(([key, item]) => [key, footerValue(item)]))
+}
+
 function byteLength(doc: LexicalState): number {
   return new TextEncoder().encode(JSON.stringify(doc)).length
 }
 
 export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFooter; canWrite: boolean; onSaved: (settings: MailSettings) => void }) {
-  const [draft, setDraft] = useState<LexicalState>(() => footerDraft(footer))
+  const { draft, setDraft, dirty, accept } = useSavedDraft(footerDraft(footer), footerValue)
   const [preview, setPreview] = useState<PreviewState>({ status: "loading" })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [retry, setRetry] = useState(0)
-  const edits = useRef(0)
   const variables = useMemo(() => footerVariables(footer.Variables), [footer.Variables])
 
   // Live preview: the backend renders the unsaved footer exactly as send appends it.
@@ -80,7 +95,6 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   }, [draft, retry])
 
   function change(value: LexicalState) {
-    edits.current += 1
     setDraft(value)
     setPreview({ status: "loading" })
     setNotice("")
@@ -88,15 +102,16 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   }
 
   async function save() {
+    if (busy || !dirty) return
     if (byteLength(draft) > MAIL_FOOTER_MAX_BYTES) { setError(t("admin.mail.footer.tooLong")); return }
-    const seen = edits.current
+    const submitted = footerValue(draft)
     setBusy(true)
     setError("")
     setNotice("")
     try {
       const next = await saveMailFooter(draft)
       // A newer edit made while saving stays in the editor.
-      if (edits.current === seen) setDraft(footerDraft(next.Footer))
+      accept(footerDraft(next.Footer), submitted)
       onSaved(next)
       setNotice(t("admin.mail.footer.saved"))
     } catch (err) {
@@ -151,7 +166,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
 
         <RequirePermission perm="platform.settings.write">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void save()} busy={busy}>{t("admin.mail.save")}</Button>
+            <SaveButton dirty={dirty} onClick={() => void save()} busy={busy}>{t("admin.mail.save")}</SaveButton>
             <Button variant="outline" onClick={() => change(footer.DefaultContent)} disabled={isDefault}>{t("admin.mail.footer.resetDefault")}</Button>
           </div>
         </RequirePermission>

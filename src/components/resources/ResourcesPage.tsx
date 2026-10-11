@@ -65,7 +65,7 @@ export function ResourcesPage() {
       <TabsContent value="alarms" className="mt-5"><AlarmsTab canWrite={canWrite} version={version} onChanged={changed} /></TabsContent>
       <TabsContent value="settings" className="mt-5"><SettingsTab canWrite={canWrite} onSaved={changed} /></TabsContent>
     </Tabs>
-    <ReservationEditor target={editing} canWrite={canWrite} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); changed() }}
+    <ReservationEditor target={editing} canWrite={canWrite} onClose={() => setEditing(null)} onSaved={(close) => { if (close) setEditing(null); changed() }}
       onCancelReservation={(target) => { setEditing(null); setCancelling(target) }} />
     <CancelReservationDialog target={cancelling} onCancel={() => setCancelling(null)} onDone={() => { setCancelling(null); changed() }} />
     <ReplanDialog target={replanning} onCancel={() => setReplanning(null)} onDone={() => { setReplanning(null); changed() }} />

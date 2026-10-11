@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { getCapacity, getSettings, putSettings, type Conflict } from "@/api/resourceCalendar"
 import { TableWrap } from "@/components/common/DsTable"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldHelp } from "@/components/ui/field-help"
 import { LoadError } from "@/components/ui/load-error"
@@ -17,37 +18,28 @@ import { amountToText, isDoesNotFit, textToAmount, type AmountText } from "@/lib
 import { AllowConflictsDialog, BLOCK, Badge, Th, formatAmount, formatWindow, useCalendarResource } from "./resourceView"
 
 const NONE: Conflict[] = []
+const poolOf = (text: AmountText) => textToAmount(text) ?? { CPUMillicores: 0, MemoryBytes: 0 }
 
 /** The always-on minimum of the test pool, and the capacity the calendar sees per agent. */
 export function SettingsTab({ canWrite, onSaved }: { canWrite: boolean; onSaved: () => void }) {
   const settings = useCalendarResource(getSettings, true)
   const capacity = useCalendarResource(getCapacity, true)
-  const [text, setText] = useState<AmountText>({ cpu: "", memoryMiB: "" })
-  const [dirty, setDirty] = useState(false)
+  const { draft: text, setDraft: setText, dirty, accept } = useSavedDraft(amountToText(settings.data?.TestPool), poolOf)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [conflicts, setConflicts] = useState<Conflict[]>(NONE)
   const [confirm, setConfirm] = useState(false)
-  const loaded = useRef(false)
-
-  // The saved value fills the form once; later refreshes never overwrite what is being typed.
-  useEffect(() => {
-    if (settings.data && !loaded.current) {
-      loaded.current = true
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- the form starts from the saved value
-      setText(amountToText(settings.data.TestPool))
-    }
-  }, [settings.data])
 
   async function save(allowConflicts: boolean) {
-    const pool = textToAmount(text) ?? { CPUMillicores: 0, MemoryBytes: 0 }
+    if (!canWrite || busy || !dirty) return
+    const pool = poolOf(text)
     setBusy(true)
     setError("")
     try {
       const result = await putSettings({ TestPool: pool, ...(allowConflicts ? { AllowConflicts: true } : {}) })
       settings.setData(result.Settings)
       setConflicts(result.Conflicts ?? NONE)
-      setDirty(false)
+      accept(amountToText(result.Settings.TestPool), pool)
       setConfirm(false)
       toast.success(t("admin.resources.settings.saved"))
       onSaved()
@@ -69,14 +61,14 @@ export function SettingsTab({ canWrite, onSaved }: { canWrite: boolean; onSaved:
           : <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void save(false) }}>
             <div className="grid max-w-md grid-cols-2 gap-3">
               <label className="space-y-1.5 text-sm font-medium">{t("admin.resources.editor.cpuMillicores")}
-                <NumberInput value={text.cpu} onChange={(cpu) => { setText({ ...text, cpu }); setDirty(true) }} disabled={!canWrite || busy} /></label>
+                <NumberInput value={text.cpu} onChange={(cpu) => setText({ ...text, cpu })} disabled={!canWrite} /></label>
               <label className="space-y-1.5 text-sm font-medium">{t("admin.resources.editor.memoryMiB")}
-                <NumberInput value={text.memoryMiB} onChange={(memoryMiB) => { setText({ ...text, memoryMiB }); setDirty(true) }} disabled={!canWrite || busy} /></label>
+                <NumberInput value={text.memoryMiB} onChange={(memoryMiB) => setText({ ...text, memoryMiB })} disabled={!canWrite} /></label>
             </div>
             <p className="text-xs text-muted-foreground">{t("admin.resources.settings.unitHint")}</p>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             {conflicts.length > 0 && <ul className="space-y-1 text-sm" data-testid="settings-conflicts">{conflicts.map((conflict) => <li key={`${conflict.From}-${conflict.To}`} className="flex flex-wrap items-center gap-2"><Badge tone="danger">{t("admin.resources.conflict.pool")}</Badge><span className="tabular-nums">{formatWindow(conflict.From, conflict.To)}</span></li>)}</ul>}
-            {canWrite && <Button type="submit" busy={busy} disabled={!dirty}>{t("admin.resources.settings.save")}</Button>}
+            {canWrite && <SaveButton type="submit" dirty={dirty} busy={busy}>{t("admin.resources.settings.save")}</SaveButton>}
           </form>}
       </CardContent>
     </Card>

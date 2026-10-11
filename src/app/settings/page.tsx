@@ -1,11 +1,13 @@
 "use client"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { NoAccess } from "@/components/rbac/NoAccess"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { useRole } from "@/lib/useRole"
 import { formatListDateTime, formatNumber } from "@/lib/locale"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { sameTemplateValue } from "@/lib/templateEditorState"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
@@ -40,6 +42,15 @@ function labelOf(key: string): string | null {
 
 const showValue = (value: unknown) => typeof value === "string" ? value : typeof value === "number" ? formatNumber(value) : JSON.stringify(value, null, 2)
 
+function parsedValue(kind: Kind, draft: string): { valid: boolean; value: unknown } {
+  if (kind === "string") return { valid: true, value: draft }
+  if (kind === "number") {
+    const value = Number(draft.replace(",", "."))
+    return { valid: draft.trim() !== "" && Number.isFinite(value), value }
+  }
+  try { return { valid: true, value: JSON.parse(draft) } } catch { return { valid: false, value: draft } }
+}
+
 export default function Page() {
   const allowed = useRole().can("platform.settings.read")
   const canWrite = useRole().can("platform.settings.write")
@@ -49,8 +60,11 @@ export default function Page() {
   const [loadFailed, setLoadFailed] = useState<{ cause: unknown } | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
+  const latest = useRef({ editing, draft })
+  useLayoutEffect(() => { latest.current = { editing, draft } }, [editing, draft])
   // Only the Save button of the open editor is busy; nothing else on the page is disabled.
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving] = useState<Set<string>>(new Set())
+  const inFlight = useRef(new Set<string>())
   // Instant changes (switches) go through one promise chain, so quick toggles never race.
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const pending = useRef(new Map<string, number>())
@@ -94,24 +108,22 @@ export default function Page() {
   }
 
   async function save(item: Setting) {
+    if (inFlight.current.has(item.Key) || !canWrite) return
     const kind = kindOf(item.Value)
-    let value: unknown
-    if (kind === "string") value = draft
-    else if (kind === "number") {
-      value = Number(draft.replace(",", "."))
-      if (draft.trim() === "" || !Number.isFinite(value)) { setError(t("admin.settings.invalidNumber")); return }
-    } else {
-      try { value = JSON.parse(draft) } catch { setError(t("admin.settings.invalidJson")); return }
-    }
-    setSaving(true)
+    const { valid, value } = parsedValue(kind, draft)
+    if (!valid) { setError(t(kind === "number" ? "admin.settings.invalidNumber" : "admin.settings.invalidJson")); return }
+    if (sameTemplateValue(value, item.Value)) return
+    inFlight.current.add(item.Key)
+    setSaving(new Set(inFlight.current))
     setError("")
     try {
       replace(await apiPut<Setting>(`/api/settings/${encodeURIComponent(item.Key)}`, { Value: value, RequiredPermission: item.RequiredPermission }))
-      setEditing(null)
+      if (latest.current.editing === item.Key && sameTemplateValue(parsedValue(kind, latest.current.draft).value, value)) setEditing(null)
     } catch {
       setError(t("admin.settings.saveError"))
     } finally {
-      setSaving(false)
+      inFlight.current.delete(item.Key)
+      setSaving(new Set(inFlight.current))
     }
   }
 
@@ -128,6 +140,8 @@ export default function Page() {
               const label = labelOf(item.Key)
               const name = label ?? item.Key
               const open = editing === item.Key
+              const parsed = parsedValue(kind, draft)
+              const dirty = !parsed.valid || !sameTemplateValue(parsed.value, item.Value)
               return <div key={item.ID} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -145,7 +159,7 @@ export default function Page() {
                   {kind === "json"
                     ? <textarea id="setting-value" value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} className="min-h-32 w-full rounded-md border border-border bg-card p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-primary" />
                     : <Input id="setting-value" value={draft} inputMode={kind === "number" ? "decimal" : undefined} onChange={(event) => setDraft(event.target.value)} autoComplete="off" />}
-                  <div className="flex gap-2"><Button type="submit" busy={saving}>{t("admin.settings.save")}</Button><Button type="button" variant="outline" onClick={() => setEditing(null)}>{t("admin.settings.cancel")}</Button></div>
+                  <div className="flex gap-2"><SaveButton type="submit" dirty={dirty} busy={saving.has(item.Key)}>{t("admin.settings.save")}</SaveButton><Button type="button" variant="outline" onClick={() => setEditing(null)}>{t("admin.settings.cancel")}</Button></div>
                 </form>}
               </div>
             })}

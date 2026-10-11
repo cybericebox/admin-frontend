@@ -8,7 +8,8 @@ import { EventSiteLink } from "@/components/events/EventSiteLink"
 import { EventStatusBadge } from "@/components/events/EventStatusBadge"
 import { PageHeader } from "@/components/ui/page-header"
 import { EventReservationButton } from "@/components/resources/EventReservationButton"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -33,6 +34,9 @@ function formOf(event: Event) {
     ArchiveAt: isoToLocal(event.ArchiveAt),
   }
 }
+function payloadOf(draft: ReturnType<typeof formOf> | null) {
+  return draft ? { Name: draft.Name.trim(), Tag: draft.Tag, AvailableFrom: localToIso(draft.AvailableFrom), ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null } : null
+}
 
 export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: string | null }) {
   const { can, me } = useRole()
@@ -48,7 +52,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   }
   const [event, setEvent] = useState<Event | null>(null)
   const [managers, setManagers] = useState<EventManager[]>([])
-  const [draft, setDraft] = useState<ReturnType<typeof formOf> | null>(null)
+  const { draft, setDraft, dirty: isDirty, accept } = useSavedDraft(event ? formOf(event) : null, payloadOf)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [managersLoading, setManagersLoading] = useState(true)
@@ -63,7 +67,6 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
     try {
       const record = await getEvent(id)
       setEvent(record)
-      setDraft(formOf(record))
       setLoadError(null)
     } catch (cause) {
       setLoadError({ cause })
@@ -90,7 +93,6 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       .then((record) => {
         if (!active) return
         setEvent(record)
-        setDraft(formOf(record))
         setLoadError(null)
       })
       .catch((cause) => { if (active) setLoadError({ cause }) })
@@ -120,7 +122,6 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   // The raw attempts journal is for the event's assigned write moderators only (owner or manager).
   const canOpenJournal = Boolean(me?.ID && managers.some((manager) => manager.UserID === me.ID && (manager.Role === 0 || manager.Role === 1)))
   const writable = can("events.write") && event?.Status !== "archived"
-  const isDirty = Boolean(event && draft && Object.entries(formOf(event)).some(([key, value]) => draft[key as keyof typeof draft] !== value))
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -132,15 +133,11 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       return
     }
     setSaving(true)
+    const submitted = payloadOf(draft)!
     try {
-      const next = await updateEvent(event.ID, {
-        Name: draft.Name,
-        Tag: draft.Tag,
-        AvailableFrom: localToIso(draft.AvailableFrom),
-        ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null,
-      })
+      const next = await updateEvent(event.ID, submitted)
       setEvent(next)
-      setDraft(formOf(next))
+      accept(formOf(next), submitted)
       toast.success(t("admin.events.details.saved"))
     } catch (error) {
       toast.error(eventErrorMessage(error))
@@ -203,7 +200,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
         </div>
         {event.InfrastructureAllowed && <div className="flex items-center gap-3" data-testid="event-reservation"><EventReservationButton eventID={event.ID} name={event.Name} /></div>}
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
-        {writable && <div className="flex justify-end"><Button type="submit" busy={saving} disabled={!isDirty}>{t("admin.events.dialog.submit")}</Button></div>}
+        {writable && <div className="flex justify-end"><SaveButton type="submit" dirty={isDirty} busy={saving}>{t("admin.events.dialog.submit")}</SaveButton></div>}
       </form>
     </CardContent></Card>
 

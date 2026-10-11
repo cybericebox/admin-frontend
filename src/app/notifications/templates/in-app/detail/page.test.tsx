@@ -245,7 +245,7 @@ describe('In-app template editor page', () => {
     vi.mocked(updateInAppTemplate).mockResolvedValue(makeDraftTemplate({ AutoDismissMs: 7500 }))
     render(<Page />)
     const duration = await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    const save = screen.getByText('admin.notif.tpl.save').closest('button')!
     expect(save).toBeDisabled()
     expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
 
@@ -282,12 +282,27 @@ describe('In-app template editor page', () => {
 
   // ── Action buttons (draft) ────────────────────────────────────────────────
 
-  it('shows Save and Publish buttons for a draft template', async () => {
+  it('keeps only Publish and Test actionable for a clean saved draft', async () => {
     render(<Page />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
     })
+  })
+
+  it('retains a newer duration edit after an older save completes and is clean when reverted', async () => {
+    let resolve!: (value: InAppTemplate) => void
+    vi.mocked(updateInAppTemplate).mockReturnValue(new Promise<InAppTemplate>((done) => { resolve = done }))
+    render(<Page />)
+    const duration = await screen.findByLabelText('admin.notif.inapp.autoDismissMs')
+    fireEvent.change(duration, { target: { value: '7.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+    fireEvent.change(duration, { target: { value: '8' } })
+    resolve(makeDraftTemplate({ AutoDismissMs: 7500 }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeEnabled())
+    expect(duration).toHaveValue(8)
+    fireEvent.change(duration, { target: { value: '7.5' } })
+    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
   })
 
   it('does NOT show Rollback button for a draft template', async () => {
@@ -394,7 +409,7 @@ describe('In-app template editor page', () => {
     })
 
     // The button is renamed while busy; wait for the create request to settle.
-    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
+    const save = screen.getByText('admin.notif.tpl.save').closest('button')!
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.inapp.autoDismissMs'), { target: { value: '6.5' } })
     fireEvent.click(save)

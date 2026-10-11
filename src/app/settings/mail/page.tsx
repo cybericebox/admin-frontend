@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, saveMailIdentity, type MailFieldSource, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
@@ -10,7 +10,8 @@ import { MailFooterCard } from "@/components/settings/MailFooterCard"
 import { MailProvidersCard } from "@/components/settings/MailProvidersCard"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { useRole } from "@/lib/useRole"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { sameTemplateValue } from "@/lib/templateEditorState"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,14 @@ type IdentityForm = { SenderName: string; SenderAddress: string; ReplyToName: st
 function identityFrom(settings: MailSettings): IdentityForm {
   const { Sender, ReplyTo } = settings.Identity
   return { SenderName: Sender.Name, SenderAddress: Sender.Address, ReplyToName: ReplyTo.Name, ReplyToAddress: ReplyTo.Address, SendingDomain: settings.SavedSendingDomain }
+}
+
+function identityInput(form: IdentityForm) {
+  return {
+    Sender: { Name: form.SenderName.trim(), Address: form.SenderAddress.trim() },
+    ReplyTo: { Name: form.ReplyToName.trim(), Address: form.ReplyToAddress.trim() },
+    SendingDomain: form.SendingDomain.trim().toLowerCase(),
+  }
 }
 
 function validateIdentity(form: IdentityForm): string {
@@ -42,6 +51,8 @@ export default function Page() {
   const [notice, setNotice] = useState("")
   // The save busies only its own button: nothing else on the page is disabled while it runs.
   const [identityBusy, setIdentityBusy] = useState(false)
+  const identityEdits = useRef(0)
+  const identityDirty = !!identity && !!settings && !sameTemplateValue(identityInput(identity), identityInput(identityFrom(settings)))
 
   const apply = useCallback((next: MailSettings) => {
     setSettings(next)
@@ -60,25 +71,25 @@ export default function Page() {
   useEffect(() => { if (allowed) queueMicrotask(() => void load()) }, [allowed, load])
 
   function changeIdentity<K extends keyof IdentityForm>(key: K, value: IdentityForm[K]) {
+    identityEdits.current += 1
     setIdentity((current) => current && { ...current, [key]: value })
     setNotice("")
   }
 
   function saveIdentity() {
-    if (!identity) return
+    if (!identity || identityBusy || !identityDirty) return
     const invalid = validateIdentity(identity)
     if (invalid) { setError(invalid); return }
     setIdentityBusy(true)
     setError("")
     setNotice("")
-    saveMailIdentity({
-      Sender: { Name: identity.SenderName.trim(), Address: identity.SenderAddress.trim() },
-      ReplyTo: { Name: identity.ReplyToName.trim(), Address: identity.ReplyToAddress.trim() },
-      SendingDomain: identity.SendingDomain.trim().toLowerCase(),
-    }).then((next) => {
-      // Only the sender part is refreshed: the providers list may hold changes still being saved.
-      setSettings((current) => ({ ...next, Providers: current?.Providers ?? next.Providers }))
-      setIdentity(identityFrom(next))
+    const seen = identityEdits.current
+    saveMailIdentity(identityInput(identity)).then((next) => {
+      // Only the sender part is refreshed: the providers and footer save independently.
+      setSettings((current) => current && { ...current, Identity: next.Identity, Effective: next.Effective,
+        SendingDomain: next.SendingDomain, SavedSendingDomain: next.SavedSendingDomain,
+        EnvSendingDomain: next.EnvSendingDomain, Sources: next.Sources })
+      if (identityEdits.current === seen) setIdentity(identityFrom(next))
       setNotice(t("admin.mail.identitySaved"))
     }).catch((err) => setError(localizedError(err))).finally(() => setIdentityBusy(false))
   }
@@ -133,7 +144,7 @@ export default function Page() {
                   </div>
                 </section>
                 <RequirePermission perm="platform.settings.write">
-                  <Button onClick={saveIdentity} busy={identityBusy}>{t("admin.mail.save")}</Button>
+                  <SaveButton dirty={identityDirty} onClick={saveIdentity} busy={identityBusy}>{t("admin.mail.save")}</SaveButton>
                 </RequirePermission>
               </CardContent>
             </Card>

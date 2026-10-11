@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { getEventSchedule } from "@/api/events/catalog"
 import {
   getEventReservation, putEventReservation, type Conflict, type ReservationInput, type ReservationResult,
 } from "@/api/resourceCalendar"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -123,32 +125,33 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
   target: { eventID: string; name: string } | null
   canWrite: boolean
   onClose: () => void
-  onSaved: () => void
+  onSaved: (close: boolean) => void
   onCancelReservation: (target: { eventID: string; name: string }) => void
 }) {
   const eventID = target?.eventID ?? null
   const [phase, setPhase] = useState<"loading" | "ready" | "failed">("loading")
   const [loadError, setLoadError] = useState<unknown>(null)
   const [existing, setExisting] = useState(false)
-  const [form, setForm] = useState<EditorForm>(EMPTY_FORM)
+  const [windowRequired, setWindowRequired] = useState(false)
+  const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(EMPTY_FORM, (value) => inputFromForm(value, windowRequired))
   const [preview, setPreview] = useState<ReservationResult | null>(null)
   const [busy, setBusy] = useState<"preview" | "save" | null>(null)
   const [error, setError] = useState("")
   const [confirmConflicts, setConfirmConflicts] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  const [windowRequired, setWindowRequired] = useState(false)
+  const revision = useRef(0)
 
   useEffect(() => {
     if (!eventID) return
     let alive = true
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor reloads for each event it opens
-    setPhase("loading"); setPreview(null); setError(""); setConfirmConflicts(false); setForm(EMPTY_FORM)
+    setPhase("loading"); setPreview(null); setError(""); setConfirmConflicts(false); setForm(EMPTY_FORM); accept(EMPTY_FORM, inputFromForm(EMPTY_FORM, windowRequired))
     // The schedule only decides the required marker: when it cannot be read, nothing is marked and the backend still checks.
     const schedule = getEventSchedule(eventID).then((s) => needsWindow(s), () => false)
     getEventReservation(eventID).then(async (result) => {
       const required = await schedule
       if (!alive) return
-      setWindowRequired(required); setExisting(true); setForm(formFromResult(result)); setPhase("ready")
+      setWindowRequired(required); setExisting(true); accept(formFromResult(result)); setPhase("ready")
     }).catch(async (err: unknown) => {
       const required = await schedule
       if (!alive) return
@@ -156,23 +159,26 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
       else { setLoadError(err); setPhase("failed") }
     })
     return () => { alive = false }
-  }, [eventID, attempt])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only opening/retrying an event resets this editor
+  }, [eventID, attempt, accept, setForm])
 
-  const set = (patch: Partial<EditorForm>) => { setForm((current) => ({ ...current, ...patch })); setPreview(null); setError("") }
-  const disabled = !canWrite || busy !== null
+  const set = (patch: Partial<EditorForm>) => { revision.current += 1; setForm((current) => ({ ...current, ...patch })); setPreview(null); setError("") }
+  const disabled = !canWrite
 
   async function send(mode: "preview" | "save", allowConflicts = false) {
-    if (!eventID) return
+    if (!eventID || !canWrite || busy !== null || (mode === "save" && existing && !dirty)) return
     const input = inputFromForm(form, windowRequired)
     if (input === null || input === "window") { setError(t(windowRequired && !form.start && !form.end ? "admin.resources.editor.windowRequired" : "admin.resources.editor.invalidWindow")); return }
     setBusy(mode)
+    const submittedRevision = revision.current
     setError("")
     try {
       const result = await putEventReservation(eventID, { ...input, DryRun: mode === "preview", ...(allowConflicts ? { AllowConflicts: true } : {}) })
-      if (mode === "preview") { setPreview(result); return }
+      if (mode === "preview") { if (revision.current === submittedRevision) setPreview(result); return }
       toast.success(t(existing ? "admin.resources.editor.saved" : "admin.resources.editor.created"))
       setConfirmConflicts(false)
-      onSaved()
+      setExisting(true)
+      onSaved(accept(formFromResult(result), input))
     } catch (err) {
       if (isDoesNotFit(err)) {
         if (mode === "save") setConfirmConflicts(true)
@@ -225,7 +231,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
             <Button type="button" variant="outline" disabled={busy !== null} onClick={onClose}>{t("admin.resources.editor.close")}</Button>
             {canWrite && phase === "ready" && <>
               <Button type="button" variant="secondary" busy={busy === "preview"} disabled={busy !== null} onClick={() => void send("preview")}>{t("admin.resources.editor.preview")}</Button>
-              <Button type="button" busy={busy === "save"} disabled={busy !== null} onClick={() => void send("save")}>{t("admin.resources.editor.save")}</Button>
+              <SaveButton type="button" dirty={!existing || dirty} busy={busy === "save"} disabled={busy !== null} onClick={() => void send("save")}>{t("admin.resources.editor.save")}</SaveButton>
             </>}
           </span>
         </DialogFooter>
