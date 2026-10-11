@@ -60,12 +60,25 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
 import { sameTemplateValue } from "@/lib/templateEditorState"
+import { SaveButton } from "@/components/ui/save-button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { PageHeader } from "@/components/ui/page-header"
 import { FieldHelp } from "@/components/ui/field-help"
 import { toast } from "@/components/ui/toast"
 
 // ── Detail inner component (needs Suspense for useSearchParams) ───────────────
+
+function effectiveStyling(styling: Record<string, unknown>) {
+  return {
+    ...styling,
+    cta_bg_color: styling.cta_bg_color ?? "theme:accent",
+    cta_text_color: styling.cta_text_color ?? "theme:on_accent",
+    text_color: styling.text_color ?? "#333333",
+    heading_color: styling.heading_color ?? "theme:brand",
+    cta_border_radius: parseInt(String(styling.cta_border_radius ?? "4px"), 10) || 0,
+    cta_font_size: parseInt(String(styling.cta_font_size ?? "14px"), 10) || 14,
+  }
+}
 
 function Detail({ id, initialType = "" }: { id: string; initialType?: string }) {
   const router = useRouter()
@@ -309,7 +322,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const isDraft    = template?.Status === "draft"
   const isDirty = template
     ? subject !== template.Subject || preheader !== template.Preheader
-      || !sameTemplateValue(body, template.Body) || !sameTemplateValue(styling, template.Styling)
+      || !sameTemplateValue(body, template.Body) || !sameTemplateValue(effectiveStyling(styling), effectiveStyling(template.Styling))
     : Boolean(notificationType)
 
   // ── Main layout ───────────────────────────────────────────────────────────
@@ -334,9 +347,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !isDirty || !notificationType}>
+            <SaveButton dirty={isDirty} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !notificationType}>
               {t("admin.notif.tpl.save")}
-            </Button>
+            </SaveButton>
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (

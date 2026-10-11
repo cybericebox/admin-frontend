@@ -6,6 +6,8 @@ import {
   MAX_NOTIFY_CHATS, MAX_NOTIFY_EMAILS, type ErrorSettings, type TestResult,
 } from "@/api/errorJournal"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { LoadError } from "@/components/ui/load-error"
@@ -28,11 +30,12 @@ const clean = (draft: Draft): Draft => ({
   emails: draft.emails.map((value) => value.trim()).filter(Boolean),
   chats: draft.chats.map((chat) => ({ chatID: chat.chatID.trim(), label: chat.label.trim() })).filter((chat) => chat.chatID),
 })
+const normalizedDraft = (draft: Draft | null) => draft ? clean(draft) : null
 
 export function ErrorNotifySettings() {
   const writable = useRole().can("platform.errors.write")
   const [settings, setSettings] = useState<ErrorSettings | null>(null)
-  const [draft, setDraft] = useState<Draft | null>(null)
+  const { draft, setDraft, dirty, accept } = useSavedDraft(settings ? draftOf(settings) : null, normalizedDraft)
   const [failure, setFailure] = useState<unknown>(null)
   const [reload, setReload] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -43,14 +46,13 @@ export function ErrorNotifySettings() {
   useEffect(() => {
     let active = true
     getErrorSettings()
-      .then((value) => { if (active) { setSettings(value); setDraft((current) => current ?? draftOf(value)); setFailure(null) } })
+      .then((value) => { if (active) { setSettings(value); setFailure(null) } })
       .catch((cause) => { if (active) setFailure(cause ?? new Error("failed")) })
     return () => { active = false }
   }, [reload])
 
   const cleaned = useMemo(() => (draft ? clean(draft) : null), [draft])
   const issues = useMemo(() => (cleaned ? validateSettings({ emails: cleaned.emails, chats: cleaned.chats }) : []), [cleaned])
-  const dirty = !!(settings && cleaned) && JSON.stringify(cleaned) !== JSON.stringify(clean(draftOf(settings)))
 
   if (!settings || !draft) {
     return failure ? <LoadError message={t("admin.errors.settings.loadError")} error={failure} onRetry={() => setReload((value) => value + 1)} className="min-h-80" />
@@ -61,13 +63,13 @@ export function ErrorNotifySettings() {
   const failing = new Map(settings.TelegramChats.map((chat) => [chat.ChatID, chat]))
 
   async function save() {
-    if (!cleaned || issues.length) return
+    if (!writable || saving || !dirty || !cleaned || issues.length) return
     setSaving(true)
     setSaveError("")
     try {
       const saved = await saveErrorSettings({ Emails: cleaned.emails, EmailToSuperAdmins: cleaned.toSuperAdmins, TelegramChats: cleaned.chats.map((chat) => ({ ChatID: chat.chatID, Label: chat.label })) })
       setSettings(saved)
-      setDraft(draftOf(saved))
+      accept(draftOf(saved), cleaned)
       toast.success(t("admin.errors.settings.saved"))
     } catch (cause) {
       setSaveError(errorOr(cause, t("admin.errors.settings.saveError")))
@@ -136,7 +138,7 @@ export function ErrorNotifySettings() {
 
       {writable && (
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" onClick={() => void save()} busy={saving} disabled={!dirty || issues.length > 0}>{t("admin.errors.settings.save")}</Button>
+          <SaveButton type="button" onClick={() => void save()} dirty={dirty} busy={saving} disabled={issues.length > 0}>{t("admin.errors.settings.save")}</SaveButton>
           <Button type="button" variant="outline" onClick={() => void test()} busy={testing}>{t("admin.errors.settings.test")}</Button>
           {dirty && <span className="text-xs text-muted-foreground">{t("admin.errors.settings.testSavedOnly")}</span>}
           {saveError && <p role="alert" className="w-full text-sm text-destructive">{saveError}</p>}

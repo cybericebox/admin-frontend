@@ -8,6 +8,49 @@ vi.mock("@/api/client", () => ({ apiGet: (...args: unknown[]) => apiGet(...args)
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
 describe("platform settings page", () => {
+  it.each([[1, "1.0"], [{ a: 1, b: 2 }, '{"b":2,"a":1}']])("does not offer or submit an equivalent saved value %j", async (value, equivalent) => {
+    apiPut.mockClear()
+    apiGet.mockResolvedValue([{ ID: "id", Key: "value", Value: value, RequiredPermission: "", CreatedAt: "", UpdatedAt: "" }])
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "Редагувати value" }))
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    const input = screen.getByLabelText("Значення")
+    fireEvent.change(input, { target: { value: equivalent } })
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    fireEvent.submit(input.closest("form")!)
+    expect(apiPut).not.toHaveBeenCalled()
+  })
+
+  it("keeps newer setting edits while an earlier value is being saved", async () => {
+    apiGet.mockResolvedValue([{ ID: "id", Key: "value", Value: "Saved", RequiredPermission: "", CreatedAt: "", UpdatedAt: "" }])
+    let resolve!: (value: unknown) => void
+    apiPut.mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "Редагувати value" }))
+    const input = screen.getByLabelText("Значення")
+    fireEvent.change(input, { target: { value: "First" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    fireEvent.change(input, { target: { value: "Newer" } })
+    resolve({ ID: "id", Key: "value", Value: "First", RequiredPermission: "", CreatedAt: "", UpdatedAt: "" })
+    await waitFor(() => expect(screen.getByLabelText("Значення")).toHaveValue("Newer"))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled())
+  })
+
+  it("does not busy another setting editor while the previous setting saves", async () => {
+    apiGet.mockResolvedValue(["first", "second"].map((key) => ({ ID: key, Key: key, Value: "Saved", RequiredPermission: "", CreatedAt: "", UpdatedAt: "" })))
+    let resolve!: (value: unknown) => void
+    apiPut.mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "Редагувати first" }))
+    fireEvent.change(screen.getByLabelText("Значення"), { target: { value: "First changed" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    fireEvent.click(screen.getByRole("button", { name: "Скасувати" }))
+    fireEvent.click(screen.getByRole("button", { name: "Редагувати second" }))
+    fireEvent.change(screen.getByLabelText("Значення"), { target: { value: "Second changed" } })
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
+    resolve({ ID: "first", Key: "first", Value: "First changed", RequiredPermission: "", CreatedAt: "", UpdatedAt: "" })
+    await waitFor(() => expect(screen.getByLabelText("Значення")).toHaveValue("Second changed"))
+  })
   it("loads settings and saves a validated value", async () => {
     apiGet.mockResolvedValue([{ ID: "id-1", Key: "site.title", Value: "Old title", RequiredPermission: "", CreatedAt: "2026-01-01", UpdatedAt: "2026-01-01" }])
     apiPut.mockResolvedValue({ ID: "id-1", Key: "site.title", Value: "New title", RequiredPermission: "" })

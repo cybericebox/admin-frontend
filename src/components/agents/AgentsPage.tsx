@@ -238,7 +238,7 @@ export function AgentsPage() {
       </ul></Card>}
 
     {enrolling && <EnrollDialog onClose={() => setEnrolling(false)} onDone={(agent) => { upsert(agent); setEnrolling(false); toast.success(t("admin.agents.add.done", { name: agent.Name })); void refresh(true) }} />}
-    {editing && <EditAgentDialog agent={editing} onClose={() => setEditing(null)} onDone={(agent) => { upsert(agent); setEditing(null); toast.success(t("admin.agents.edit.done", { name: agent.Name })) }} />}
+    {editing && <EditAgentDialog agent={editing} onClose={() => setEditing(null)} onDone={(agent, close) => { upsert(agent); setEditing(close ? null : agent); toast.success(t("admin.agents.edit.done", { name: agent.Name })) }} />}
     {reconnecting && <ReconnectDialog agent={reconnecting} onClose={() => setReconnecting(null)} onDone={(agent) => { upsert(agent); setReconnecting(null); toast.success(t("admin.agents.reconnect.done", { name: agent.Name })) }} />}
     {blocked && <DeleteBlockedDialog agent={blocked.agent} preview={blocked.preview} onClose={() => setBlocked(null)} />}
 

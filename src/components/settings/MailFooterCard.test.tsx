@@ -67,6 +67,20 @@ describe("MailFooterCard", () => {
     expect(editorProps?.className).toContain("data-notif-variable")
   })
 
+  it("ignores editor default metadata but keeps formatting changes dirty", () => {
+    const plain = doc(text("same text"))
+    render(<MailFooterCard footer={{ ...FOOTER, Content: plain }} canWrite onSaved={() => {}} />)
+    const normalized = { root: { type: "root", version: 1, format: "", indent: 0, direction: null,
+      children: [{ type: "paragraph", version: 1, format: "", indent: 0, direction: "ltr", textFormat: 0, textStyle: "",
+        children: [{ type: "text", text: "same text", version: 1, format: 0, detail: 0, mode: "normal", style: "" }] }] } }
+    act(() => editorProps?.onChange(normalized))
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    act(() => editorProps?.onChange(doc({ ...text("same text"), format: 1 })))
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
+    act(() => editorProps?.onChange(plain))
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+  })
+
   it("renders the backend preview of the (debounced) draft in the email preview frame", async () => {
     render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
     await waitFor(() => expect(screen.getByTestId("mail-footer-preview").querySelector("iframe")).not.toBeNull())
@@ -102,6 +116,7 @@ describe("MailFooterCard", () => {
     expect(onSaved).toHaveBeenCalledWith(saved)
     expect(await screen.findByText("Підвал листів збережено.")).toBeInTheDocument()
     expect(editorProps?.value).toBe(custom)
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
   })
 
   it("refuses a document over the size limit without calling the API", async () => {
@@ -130,6 +145,7 @@ describe("MailFooterCard", () => {
     let finish: (value: MailSettings) => void = () => {}
     saveMailFooter.mockReturnValue(new Promise<MailSettings>((resolve) => { finish = resolve }))
     render(<MailFooterCard footer={{ ...FOOTER, Content: doc(text("custom")) }} canWrite onSaved={() => {}} />)
+    act(() => editorProps?.onChange(doc(text("submitted"))))
     const save = screen.getByRole("button", { name: "Зберегти" })
     await act(async () => { fireEvent.click(save) })
     expect(save).toBeDisabled()
@@ -138,7 +154,7 @@ describe("MailFooterCard", () => {
     // A newer edit made during the save is not overwritten by the answer.
     const newer = doc(text("newer"))
     act(() => editorProps?.onChange(newer))
-    await act(async () => { finish({ Footer: { ...FOOTER, Content: doc(text("custom")) } } as MailSettings) })
+    await act(async () => { finish({ Footer: { ...FOOTER, Content: doc(text("submitted")) } } as MailSettings) })
     expect(editorProps?.value).toBe(newer)
   })
 })

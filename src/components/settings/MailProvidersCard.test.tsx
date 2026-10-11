@@ -11,6 +11,7 @@ const reorderMailProviders = vi.fn()
 const testMailProvider = vi.fn()
 const testMailProviderForm = vi.fn()
 const testMailTransportInUse = vi.fn()
+const getMailSettings = vi.fn()
 vi.mock("@/api/mail/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/mail/settings")>()),
   createMailProvider: (input: unknown) => createMailProvider(input),
@@ -21,6 +22,7 @@ vi.mock("@/api/mail/settings", async (importOriginal) => ({
   testMailProvider: (id: string) => testMailProvider(id),
   testMailProviderForm: (input: unknown, id?: string) => testMailProviderForm(input, id),
   testMailTransportInUse: () => testMailTransportInUse(),
+  getMailSettings: () => getMailSettings(),
 }))
 let perms = ["platform.settings.read", "platform.settings.write"]
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => perms.includes(perm) }) }))
@@ -65,12 +67,34 @@ describe("MailProvidersCard", () => {
     vi.clearAllMocks()
     perms = ["platform.settings.read", "platform.settings.write"]
     latest = null
+    getMailSettings.mockResolvedValue(settings([]))
   })
 
   it("shows the empty state with the add button when there are no providers", () => {
     render(<Host initial={settings([])} />)
     expect(screen.getByText("Провайдерів ще немає. Додайте першого, щоб платформа надсилала листи.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Додати провайдера" })).toBeInTheDocument()
+  })
+
+  it("hides save for an unchanged provider and hides it again after reverting", () => {
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Other" } })
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: " Brevo " } })
+    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+  })
+
+  it("refreshes usage after testing without reverting an unsaved provider form", async () => {
+    testMailProviderForm.mockResolvedValue({ Sent: true, Recipient: "me@example.com", Transport: "platform", Error: "" })
+    getMailSettings.mockResolvedValue(settings([provider("p1", "Brevo", 0, { SentToday: 1 })]))
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Unsaved name" } })
+    fireEvent.click(screen.getByRole("button", { name: "Перевірити підключення" }))
+    await screen.findByText("Сьогодні (UTC): 1, без ліміту")
+    expect(screen.getByLabelText(/Назва/)).toHaveValue("Unsaved name")
   })
 
   it("lists providers by priority with today's usage against the daily limit and the last error", () => {
@@ -124,6 +148,20 @@ describe("MailProvidersCard", () => {
     expect(ses).toHaveAttribute("aria-checked", "false")
     await waitFor(() => expect(setMailProviderEnabled).toHaveBeenCalledWith("p1", false))
     expect(setMailProviderEnabled).toHaveBeenCalledTimes(1) // the second save waits for the first
+  })
+
+  it("does not replace independently saved sender or footer values with a provider response", async () => {
+    const initial = settings([provider("p1", "Brevo", 0)], {
+      SavedSendingDomain: "new.example.com",
+      Footer: { Content: { root: { type: "root", children: [] } }, DefaultContent: {}, Variables: [] },
+    })
+    setMailProviderEnabled.mockResolvedValue(settings([provider("p1", "Brevo", 0, { Enabled: false })]))
+    render(<Host initial={initial} />)
+    fireEvent.click(screen.getByRole("switch", { name: "Увімкнути «Brevo»" }))
+    await waitFor(() => expect(setMailProviderEnabled).toHaveBeenCalled())
+    await waitFor(() => expect(latest?.Providers[0].Enabled).toBe(false))
+    expect(latest?.SavedSendingDomain).toBe("new.example.com")
+    expect(latest?.Footer).toEqual(initial.Footer)
   })
 
   it("runs quick changes one after another and applies only the last answer", async () => {
@@ -195,6 +233,38 @@ describe("MailProvidersCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
     expect(await screen.findByText("Максимум листів за секунду має бути числом більше нуля.")).toBeInTheDocument()
     expect(createMailProvider).not.toHaveBeenCalled()
+  })
+
+  it("waits for an in-flight test before creating the provider and displays its imported usage", async () => {
+    let finishTest!: (result: { Sent: boolean; Recipient: string; Transport: string; Error: string }) => void
+    testMailProviderForm.mockReturnValue(new Promise((resolve) => { finishTest = resolve }))
+    createMailProvider.mockResolvedValue(settings([provider("p1", "Brevo", 0, { SentToday: 1 })]))
+    render(<Host initial={settings([])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Додати провайдера" }))
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Brevo" } })
+    fireEvent.change(screen.getByLabelText(/Сервер/), { target: { value: "smtp.p1.example" } })
+    fireEvent.click(screen.getByRole("button", { name: "Перевірити підключення" }))
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    expect(createMailProvider).not.toHaveBeenCalled()
+    await act(async () => { finishTest({ Sent: true, Recipient: "me@example.com", Transport: "platform", Error: "" }) })
+    await waitFor(() => expect(createMailProvider).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(screen.getByText("Сьогодні (UTC): 1, без ліміту")).toBeInTheDocument()
+  })
+
+  it("keeps later provider edits open when an older save finishes", async () => {
+    let finishSave!: (next: MailSettings) => void
+    saveMailProvider.mockReturnValue(new Promise((resolve) => { finishSave = resolve }))
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Submitted" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    await waitFor(() => expect(saveMailProvider).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Newer edit" } })
+    await act(async () => { finishSave(settings([provider("p1", "Submitted", 0)])) })
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByLabelText(/Назва/)).toHaveValue("Newer edit")
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
   })
 
   it("edits a provider keeping the stored password and shows an API error inside the dialog", async () => {

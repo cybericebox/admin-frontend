@@ -2,7 +2,7 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from "react"
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react"
 import {
-  MAIL_NAME_MAX, createMailProvider, deleteMailProvider, isValidEmail, reorderMailProviders, saveMailProvider, setMailProviderEnabled,
+  MAIL_NAME_MAX, createMailProvider, deleteMailProvider, getMailSettings, isValidEmail, reorderMailProviders, saveMailProvider, setMailProviderEnabled,
   testMailProvider, testMailProviderForm, testMailTransportInUse,
   type MailProvider, type MailProviderInput, type MailSettings, type MailTLSMode, type MailTestResult,
 } from "@/api/mail/settings"
@@ -11,6 +11,8 @@ import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { sameTemplateValue } from "@/lib/templateEditorState"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -133,13 +135,19 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
   // Saves of instant controls run one after another; the server answer is applied only when no newer change waits.
   const queue = useRef<Promise<void>>(Promise.resolve())
   const waiting = useRef(0)
+  function applyProviders(next: MailSettings) {
+    // Responses include all mail settings, but this card owns only transports.
+    // A concurrent sender/footer save may already have a newer acknowledgement.
+    update((current) => current && { ...current, Providers: next.Providers, Source: next.Source,
+      Configured: next.Configured, EnvActive: next.EnvActive, Env: next.Env })
+  }
   function enqueue(save: () => Promise<MailSettings>) {
     waiting.current += 1
     queue.current = queue.current.then(async () => {
       try {
         const next = await save()
         waiting.current -= 1
-        if (waiting.current === 0) update(next)
+        if (waiting.current === 0) applyProviders(next)
       } catch (err) {
         waiting.current -= 1
         toast.error(localizedError(err))
@@ -174,8 +182,27 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
     } catch (err) {
       toast.error(localizedError(err))
     } finally {
+      await refreshUsage()
       setTesting((current) => ({ ...current, [key]: false }))
     }
+  }
+
+  // Refresh only usage, in the same queue as instant saves. A counter refresh
+  // must not revert a queued switch/reorder or reset an open form.
+  function refreshUsage(): Promise<void> {
+    queue.current = queue.current.then(async () => {
+      try {
+        const next = await getMailSettings()
+        update((current) => current && { ...current, Providers: current.Providers.map((provider) => {
+          const fresh = next.Providers.find((p) => p.ID === provider.ID)
+          return fresh ? { ...provider, SentToday: fresh.SentToday, Exhausted: fresh.Exhausted, ResetsAt: fresh.ResetsAt,
+            LastUsedAt: fresh.LastUsedAt, LastError: fresh.LastError, LastErrorAt: fresh.LastErrorAt } : provider
+        }) })
+      } catch (err) {
+        toast.error(localizedError(err))
+      }
+    })
+    return queue.current
   }
 
   async function confirmDelete() {
@@ -184,7 +211,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
     setDeleteError("")
     try {
       const next = await deleteMailProvider(deleting.ID)
-      update(next)
+      applyProviders(next)
       setDeleting(null)
       toast.success(t("admin.mail.providers.deleted"))
     } catch (err) {
@@ -245,10 +272,10 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
 
       {editing && (
         <ProviderDialog
-          key={editing.id ?? "new"}
           provider={editing.id ? providers.find((p) => p.ID === editing.id) ?? null : null}
           onClose={() => setEditing(null)}
-          onSaved={(next, created) => { update(next); setEditing(null); toast.success(t(created ? "admin.mail.providers.created" : "admin.mail.providers.saved")) }}
+          onTested={refreshUsage}
+          onSaved={(next, created, keepEditingID) => { applyProviders(next); setEditing(keepEditingID ? { id: keepEditingID } : null); toast.success(t(created ? "admin.mail.providers.created" : "admin.mail.providers.saved")) }}
         />
       )}
 
@@ -329,30 +356,41 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
   )
 }
 
-function ProviderDialog({ provider, onClose, onSaved }: {
+function ProviderDialog({ provider, onClose, onSaved, onTested }: {
   provider: MailProvider | null
   onClose: () => void
-  onSaved: (next: MailSettings, created: boolean) => void
+  onSaved: (next: MailSettings, created: boolean, keepEditingID?: string) => void
+  onTested: () => Promise<void>
 }) {
   const [form, setForm] = useState<ProviderForm>(() => (provider ? formFrom(provider) : EMPTY_FORM))
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [testingForm, setTestingForm] = useState(false)
   const [result, setResult] = useState<MailTestResult | null>(null)
+  const edits = useRef(0)
+  const testFlight = useRef<Promise<void> | null>(null)
+  const dirty = !provider || !sameTemplateValue(inputFrom(form), inputFrom(formFrom(provider)))
 
   function change<K extends keyof ProviderForm>(key: K, value: ProviderForm[K]) {
+    edits.current += 1
     setForm((current) => ({ ...current, [key]: value }))
   }
 
   async function save() {
+    if (saving || !dirty) return
     const invalid = validate(form)
     if (invalid) { setError(invalid); return }
     setSaving(true)
     setError("")
+    const seen = edits.current
+    const input = inputFrom(form)
     try {
-      const input = inputFrom(form)
+      // A test started before Save must be journalled before the provider is
+      // created, so its successful send can be imported into today's usage.
+      await testFlight.current
       const next = provider ? await saveMailProvider(provider.ID, input) : await createMailProvider(input)
-      onSaved(next, !provider)
+      const savedID = provider?.ID ?? next.Providers.find((p) => p.Name === input.Name)?.ID
+      onSaved(next, !provider, edits.current === seen ? undefined : savedID)
     } catch (err) {
       setError(localizedError(err))
     } finally {
@@ -361,18 +399,24 @@ function ProviderDialog({ provider, onClose, onSaved }: {
   }
 
   async function test() {
+    if (testFlight.current) return
     const invalid = validate(form)
     if (invalid) { setError(invalid); return }
     setTestingForm(true)
     setError("")
     setResult(null)
-    try {
-      setResult(await testMailProviderForm(inputFrom(form), provider?.ID))
-    } catch (err) {
-      setError(localizedError(err))
-    } finally {
-      setTestingForm(false)
-    }
+    testFlight.current = (async () => {
+      try {
+        setResult(await testMailProviderForm(inputFrom(form), provider?.ID))
+      } catch (err) {
+        setError(localizedError(err))
+      } finally {
+        await onTested()
+        setTestingForm(false)
+      }
+    })()
+    await testFlight.current
+    testFlight.current = null
   }
 
   const passwordSet = !!provider?.PasswordSet
@@ -459,7 +503,7 @@ function ProviderDialog({ provider, onClose, onSaved }: {
         <DialogFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={onClose}>{t("admin.mail.cancel")}</Button>
           <Button type="button" variant="outline" busy={testingForm} onClick={() => void test()}>{t("admin.mail.test")}</Button>
-          <Button type="button" busy={saving} onClick={() => void save()}>{t("admin.mail.save")}</Button>
+          <SaveButton type="button" dirty={dirty} busy={saving} onClick={() => void save()}>{t("admin.mail.save")}</SaveButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
