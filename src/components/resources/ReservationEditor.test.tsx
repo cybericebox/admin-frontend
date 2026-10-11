@@ -72,6 +72,25 @@ describe("required window", () => {
 })
 
 describe("ReservationEditor", () => {
+  it("does not save an unchanged or numerically equivalent reservation, and retains newer edits", async () => {
+    serve()
+    let resolve!: (value: ReservationResult) => void
+    apiPut.mockReturnValue(new Promise<ReservationResult>((done) => { resolve = done }))
+    const { onSaved } = renderEditor()
+    const input = await screen.findByDisplayValue("4")
+    expect(screen.queryByRole("button", { name: t("admin.resources.editor.save") })).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { value: "04" } })
+    expect(input).toHaveValue("04")
+    expect(screen.queryByRole("button", { name: t("admin.resources.editor.save") })).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
+    expect(input).toBeEnabled()
+    fireEvent.change(input, { target: { value: "6" } })
+    resolve(result({ Reservation: { ...reservation, Teams: 5 } }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(false))
+    expect(input).toHaveValue("6")
+    expect(screen.getByRole("button", { name: t("admin.resources.editor.save") })).toBeEnabled()
+  })
   it("marks no window field as required when the event has a schedule", async () => {
     serve(result(), scheduled)
     renderEditor()
@@ -105,11 +124,25 @@ describe("ReservationEditor", () => {
     expect(apiPut.mock.calls[0][1]).not.toHaveProperty("AllowConflicts")
   })
 
+  it("does not display an outdated preview after fields change during its request", async () => {
+    serve()
+    let resolve!: (value: ReservationResult) => void
+    apiPut.mockReturnValue(new Promise<ReservationResult>((done) => { resolve = done }))
+    renderEditor()
+    fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.preview") }))
+    fireEvent.change(screen.getByDisplayValue("4"), { target: { value: "5" } })
+    resolve(result())
+    await waitFor(() => expect(screen.getByRole("button", { name: t("admin.resources.editor.preview") })).toBeEnabled())
+    expect(screen.queryByTestId("editor-preview")).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue("5")).toBeInTheDocument()
+  })
+
   it("on 72504 asks to save anyway and repeats the save with AllowConflicts", async () => {
     serve()
     apiPut.mockRejectedValueOnce(apiError(409, 72504)).mockResolvedValueOnce(result({ Reservation: { ...reservation, Covered: false } }))
     const { onSaved } = renderEditor()
-    fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.save") }))
+    fireEvent.change(await screen.findByDisplayValue("4"), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
     expect(await screen.findByText(t("admin.resources.conflict.title"))).toBeTruthy()
     expect(apiPut).toHaveBeenCalledTimes(1)
     expect(apiPut.mock.calls[0][1]).toMatchObject({ DryRun: false })
@@ -123,7 +156,8 @@ describe("ReservationEditor", () => {
     serve()
     apiPut.mockRejectedValueOnce(apiError(409, 72504))
     const { onSaved } = renderEditor()
-    fireEvent.click(await screen.findByRole("button", { name: t("admin.resources.editor.save") }))
+    fireEvent.change(await screen.findByDisplayValue("4"), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
     await screen.findByText(t("admin.resources.conflict.title"))
     fireEvent.click(screen.getByRole("button", { name: t("confirm.cancel") }))
     await waitFor(() => expect(screen.queryByText(t("admin.resources.conflict.title"))).toBeNull())

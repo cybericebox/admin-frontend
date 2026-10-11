@@ -54,6 +54,7 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useRole } from "@/lib/useRole"
 import { sameTemplateValue } from "@/lib/templateEditorState"
+import { SaveButton } from "@/components/ui/save-button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { PageHeader } from "@/components/ui/page-header"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -313,7 +314,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
     ? title !== template.Title || body !== template.Body || link !== template.Link
       || icon !== template.Icon || tone !== template.Tone || accentColor !== template.AccentColor
       || surface !== template.Surface || autoDismissMs !== (template.AutoDismissMs == null ? null : popInDuration(template.AutoDismissMs))
-      || dismissible !== template.Dismissible || !sameTemplateValue(actions, template.Actions)
+      || dismissible !== (template.Dismissible ?? true) || !sameTemplateValue(actions, template.Actions ?? [])
     : Boolean(notificationType)
 
   // ── Main layout ───────────────────────────────────────────────────────────
@@ -338,9 +339,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Save becomes the primary action only when there are local changes. */}
           {!isReadOnly && (
-            <Button variant={isDirty ? "default" : "outline"} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !isDirty || !notificationType}>
+            <SaveButton dirty={isDirty} onClick={() => void handleSave()} busy={busyAction === "save"} disabled={busy || !notificationType}>
               {t("admin.notif.tpl.save")}
-            </Button>
+            </SaveButton>
           )}
           {/* Only a saved draft can be published. */}
           {isDraft && !isDirty && canWrite && (

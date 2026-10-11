@@ -4,6 +4,8 @@ import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
 import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel } from "@/api/notifications/banners"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -62,8 +64,8 @@ function windowLabel(banner: Banner): string {
   return `${banner.ActiveFrom ? fmt(banner.ActiveFrom) : "…"} — ${banner.ActiveTo ? fmt(banner.ActiveTo) : "…"}`
 }
 
-function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState<Form>(banner === "new" ? EMPTY_FORM : toForm(banner))
+function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; onClose: () => void; onSaved: (saved: Banner, close: boolean) => void }) {
+  const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(banner === "new" ? EMPTY_FORM : toForm(banner), toInput)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }))
@@ -72,14 +74,16 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
   const valid = form.text.trim() !== "" && form.text.length <= BANNER_TEXT_MAX && form.linkLabel.length <= BANNER_LABEL_MAX && linkValid(form.linkURL) && !rangeInvalid
 
   async function save() {
+    if (busy || !valid || (banner !== "new" && !dirty)) return
+    const submitted = toInput(form)
     setBusy(true)
     setError("")
     try {
-      if (banner === "new") await createBanner(toInput(form))
-      else await updateBanner(banner.ID, toInput(form))
-      onSaved()
+      const saved = banner === "new" ? await createBanner(submitted) : await updateBanner(banner.ID, submitted)
+      onSaved(saved, accept(toForm(saved), submitted))
     } catch (cause) {
       setError(localizedError(cause))
+    } finally {
       setBusy(false)
     }
   }
@@ -137,7 +141,7 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
         </div>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>{t("confirm.cancel")}</Button>
-          <Button busy={busy} disabled={!valid} onClick={() => void save()}>{t("admin.notif.banners.save")}</Button>
+          <SaveButton dirty={banner === "new" || dirty} busy={busy} disabled={!valid} onClick={() => void save()}>{t("admin.notif.banners.save")}</SaveButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -246,7 +250,7 @@ export function BannersAdmin() {
         )}
       </div>
     </div>
-      {editing && <BannerDialog banner={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+      {editing && <BannerDialog banner={editing} onClose={() => setEditing(null)} onSaved={(saved, close) => { setEditing(close ? null : saved); load() }} />}
       <ConfirmDialog
         open={removing !== null}
         onCancel={() => setRemoving(null)}

@@ -15,6 +15,46 @@ describe("error notification settings", () => {
   beforeEach(() => { mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.get.mockResolvedValue(settings()) })
   afterEach(cleanup)
 
+  it("hides Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
+    render(<ErrorNotifySettings />)
+    const input = await screen.findByDisplayValue("ops@example.test")
+    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.test" })).toBeEnabled()
+    fireEvent.change(input, { target: { value: " ops@example.test " } })
+    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { value: "changed@example.test" } })
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
+    fireEvent.change(input, { target: { value: "ops@example.test" } })
+    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+  })
+
+  it("keeps new recipient edits after an older save completes", async () => {
+    let resolve!: (value: unknown) => void
+    mocks.put.mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<ErrorNotifySettings />)
+    const input = await screen.findByDisplayValue("ops@example.test")
+    fireEvent.change(input, { target: { value: "first@example.test" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
+    fireEvent.change(input, { target: { value: "newer@example.test" } })
+    resolve(settings({ Emails: ["first@example.test"] }))
+    await waitFor(() => expect(input).toHaveValue("newer@example.test"))
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled())
+  })
+
+  it("retains rejected edits for retry and becomes clean only after acknowledgement", async () => {
+    mocks.put.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValueOnce(settings({ Emails: ["new@example.test"] }))
+    render(<ErrorNotifySettings />)
+    const input = await screen.findByDisplayValue("ops@example.test")
+    fireEvent.change(input, { target: { value: "new@example.test" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
+    await screen.findByRole("alert")
+    expect(input).toHaveValue("new@example.test")
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument())
+    expect(mocks.put).toHaveBeenCalledTimes(2)
+  })
+
   it("shows the lists, a failing chat and the missing-token hint", async () => {
     mocks.get.mockResolvedValue(settings({ TelegramEnabled: false }))
     render(<ErrorNotifySettings />)

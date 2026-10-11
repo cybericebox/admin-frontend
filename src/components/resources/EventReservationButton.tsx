@@ -17,7 +17,7 @@ export function EventReservationButton({ eventID, name }: { eventID: string; nam
   const target = { eventID, name }
   return <>
     <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}><CalendarClock className="mr-2 h-4 w-4" aria-hidden />{t("admin.resources.editor.open")}</Button>
-    <ReservationEditor target={editing ? target : null} canWrite={can("infrastructure.write")} onClose={() => setEditing(false)} onSaved={() => setEditing(false)}
+    <ReservationEditor target={editing ? target : null} canWrite={can("infrastructure.write")} onClose={() => setEditing(false)} onSaved={(close) => { if (close) setEditing(false) }}
       onCancelReservation={() => { setEditing(false); setCancelling(true) }} />
     <CancelReservationDialog target={cancelling ? target : null} onCancel={() => setCancelling(false)} onDone={() => setCancelling(false)} />
   </>

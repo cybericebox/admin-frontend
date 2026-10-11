@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react"
 import { ChevronRight } from "lucide-react"
 import { enrollAgent, reconnectAgent, updateAgent, type Agent, type DeletePreview } from "@/api/agents"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
+import { useSavedDraft } from "@/lib/useSavedDraft"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -146,24 +148,27 @@ export function ReconnectDialog({ agent, onClose, onDone }: { agent: Agent; onCl
 }
 
 /** Name and priority: an explicit form, it busies only its own button. The switch saves instantly in the list. */
-export function EditAgentDialog({ agent, onClose, onDone }: { agent: Agent; onClose: () => void; onDone: (agent: Agent) => void }) {
-  const [name, setName] = useState(agent.Name)
-  const [priority, setPriority] = useState(String(agent.Priority))
+export function EditAgentDialog({ agent, onClose, onDone }: { agent: Agent; onClose: () => void; onDone: (agent: Agent, close: boolean) => void }) {
+  const { draft, setDraft, baseline, dirty, accept } = useSavedDraft({ name: agent.Name, priority: String(agent.Priority) }, (value) => ({ name: value.name.trim(), priority: parsePriority(value.priority) }))
+  const { name, priority } = draft
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
 
   async function submit() {
+    if (busy || !dirty) return
     const next = parsePriority(priority)
     if (!name.trim() || name.trim().length > AGENT_NAME_MAX) { setError(t("admin.agents.error.name", { max: AGENT_NAME_MAX })); return }
     if (next === null) { setError(t("admin.agents.error.priority", { max: AGENT_PRIORITY_MAX })); return }
-    const patch = { ...(name.trim() !== agent.Name && { Name: name.trim() }), ...(next !== agent.Priority && { Priority: next }) }
-    if (Object.keys(patch).length === 0) { onClose(); return }
+    const patch = { ...(name.trim() !== baseline.name.trim() && { Name: name.trim() }), ...(next !== parsePriority(baseline.priority) && { Priority: next }) }
+    if (Object.keys(patch).length === 0) return
     setBusy(true)
     setError("")
     try {
-      onDone(await updateAgent(agent.ID, patch))
+      const saved = await updateAgent(agent.ID, patch)
+      onDone(saved, accept({ name: saved.Name, priority: String(saved.Priority) }, { name: name.trim(), priority: next }))
     } catch (err) {
       setError(localizedError(err))
+    } finally {
       setBusy(false)
     }
   }
@@ -176,15 +181,15 @@ export function EditAgentDialog({ agent, onClose, onDone }: { agent: Agent; onCl
           <DialogDescription>{t("admin.agents.edit.description")}</DialogDescription>
         </DialogHeader>
         <Field id="agent-edit-name" label={t("admin.agents.form.name")} required>
-          <Input id="agent-edit-name" value={name} maxLength={AGENT_NAME_MAX} autoComplete="off" onChange={(event) => setName(event.target.value)} />
+          <Input id="agent-edit-name" value={name} maxLength={AGENT_NAME_MAX} autoComplete="off" onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
         </Field>
         <Field id="agent-edit-priority" label={t("admin.agents.form.priority")} help={t("admin.agents.form.priorityHelp")}>
-          <NumberInput id="agent-edit-priority" value={priority} onChange={setPriority} />
+          <NumberInput id="agent-edit-priority" value={priority} onChange={(priority) => setDraft({ ...draft, priority })} />
         </Field>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("confirm.cancel")}</Button>
-          <Button type="submit" busy={busy}>{t("admin.agents.edit.submit")}</Button>
+          <SaveButton type="submit" dirty={dirty} busy={busy}>{t("admin.agents.edit.submit")}</SaveButton>
         </DialogFooter>
       </form>
     </DialogContent>

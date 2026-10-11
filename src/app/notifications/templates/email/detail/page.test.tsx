@@ -215,11 +215,11 @@ describe('Email template editor page', () => {
 
   // ── Action buttons (draft) ────────────────────────────────────────────────
 
-  it('shows Save and Publish buttons for a draft template', async () => {
+  it('keeps only Publish and Test actionable for a clean saved draft', async () => {
     render(<Page />)
     // t() is mocked to return the key; buttons show "admin.notif.tpl.save" etc.
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
     })
   })
@@ -230,7 +230,7 @@ describe('Email template editor page', () => {
     } }))
     render(<Page />)
     const radius = await screen.findByLabelText('admin.notif.editor.ctaBorderRadius')
-    const save = screen.getByRole('button', { name: 'admin.notif.tpl.save' })
+    const save = screen.getByText('admin.notif.tpl.save').closest('button')!
     expect(save).toBeDisabled()
     expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
 
@@ -242,6 +242,28 @@ describe('Email template editor page', () => {
     fireEvent.click(save)
     await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument())
     expect(save).toBeDisabled()
+  })
+
+  it('does not offer Save after reverting an implicit style default', async () => {
+    render(<Page />)
+    const radius = await screen.findByLabelText('admin.notif.editor.ctaBorderRadius')
+    fireEvent.change(radius, { target: { value: '6' } })
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeEnabled()
+    fireEvent.change(radius, { target: { value: '4' } })
+    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+  })
+
+  it('retains a newer style edit when an older save completes', async () => {
+    let resolve!: (value: EmailTemplate) => void
+    vi.mocked(updateEmailTemplate).mockReturnValue(new Promise<EmailTemplate>((done) => { resolve = done }))
+    render(<Page />)
+    const radius = await screen.findByLabelText('admin.notif.editor.ctaBorderRadius')
+    fireEvent.change(radius, { target: { value: '6' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.tpl.save' }))
+    fireEvent.change(radius, { target: { value: '8' } })
+    resolve(makeDraftTemplate({ Styling: { cta_bg_color: '#0070f3', cta_text_color: '#ffffff', cta_border_radius: '6px' } }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeEnabled())
+    expect(radius).toHaveValue(8)
   })
 
   it('does NOT show Rollback button for a draft template', async () => {
@@ -337,7 +359,7 @@ describe('Email template editor page', () => {
     })
 
     // The button is renamed while busy; wait for the create request to settle.
-    const save = await screen.findByRole('button', { name: 'admin.notif.tpl.save' })
+    const save = screen.getByText('admin.notif.tpl.save').closest('button')!
     await waitFor(() => expect(save).toBeDisabled())
     fireEvent.change(screen.getByLabelText('admin.notif.editor.ctaBorderRadius'), { target: { value: '6' } })
     fireEvent.click(save)
@@ -493,7 +515,7 @@ describe('Email template editor page', () => {
     render(<Page />)
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
     })
 
     // Find the border-radius input and change it
