@@ -197,6 +197,15 @@ describe('BlockEditor', () => {
     expect((next[0] as ButtonBlock).align).toBe('right')
   })
 
+  it('lets an uploaded image used as a logo change alignment without losing its asset', async () => {
+    render(<BlockEditor value={[makeImage({ file_id: 'asset-123', width_pct: 50 })]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />)
+    const align = screen.getByRole('button', { name: 'Вирівнювання' })
+    expect(align).toHaveTextContent('По центру')
+    fireEvent.keyDown(align, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Праворуч' }))
+    expect(onChange).toHaveBeenLastCalledWith([{ type: 'image', alt: '', file_id: 'asset-123', width_pct: 50, align: 'right' }])
+  })
+
   it('clicking "Add divider block" calls onChange with one more block (divider)', () => {
     render(
       <BlockEditor

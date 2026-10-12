@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, onTestFinished } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $setSelection } from 'lexical'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createEditor, getNearestEditorFromDOMNode, SELECTION_CHANGE_COMMAND, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $setSelection } from 'lexical'
+import { $createListNode, $createListItemNode, ListNode, ListItemNode } from '@lexical/list'
 import {
   RichTextEditor,
   VariableNode,
@@ -19,6 +20,30 @@ import {
 // createEditor() + editor.update() to provide that context.
 
 describe('RichTextEditor', () => {
+  it('shows the alignment of the selected list item rather than its unaligned list', async () => {
+    const fixture = createEditor({ nodes: [ListNode, ListItemNode] })
+    fixture.update(() => {
+      const item = $createListItemNode().setFormat('right')
+      item.append($createTextNode('Aligned item'))
+      $getRoot().append($createListNode('bullet').append(item))
+    }, { discrete: true })
+    const { container } = render(<RichTextEditor
+      value={fixture.getEditorState().toJSON() as unknown as Record<string, unknown>}
+      onChange={vi.fn()} />)
+    const editable = container.querySelector('[contenteditable]')!
+    await waitFor(() => expect(editable.querySelector('li')).toHaveStyle({ textAlign: 'right' }))
+    const editor = getNearestEditorFromDOMNode(editable)
+    if (!editor) throw new Error('The mounted editable must have a Lexical editor')
+    await act(async () => {
+      editor.update(() => {
+        $getRoot().getAllTextNodes()[0].select(0, 0)
+      }, { discrete: true })
+      editor.dispatchCommand(SELECTION_CHANGE_COMMAND, undefined)
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Вирівнювання' })
+      .querySelector('svg')).toHaveClass('lucide-align-right'))
+  })
+
   it('mounts without throwing given null state', () => {
     const onChange = vi.fn()
     expect(() => render(<RichTextEditor value={null} onChange={onChange} />)).not.toThrow()
