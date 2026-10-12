@@ -22,7 +22,10 @@ function displayName(user: UserRow): string {
 
 // Search picker over the platform users list (GET /api/users?search=). Selected users stay
 // visible as chips while the search changes.
-export function UserPicker({ value, onChange }: { value: PickedUser[]; onChange: (users: PickedUser[]) => void }) {
+export function UserPicker({ value, onChange, selection = "user", maxSelected, showSelected = true }: {
+  value: PickedUser[]; onChange: (users: PickedUser[]) => void;
+  selection?: "user" | "email"; maxSelected?: number; showSelected?: boolean;
+}) {
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
   const [rows, setRows] = useState<UserRow[]>([])
@@ -49,15 +52,19 @@ export function UserPicker({ value, onChange }: { value: PickedUser[]; onChange:
     return () => { active = false }
   }, [query, reload])
 
-  const selected = new Set(value.map((user) => user.id))
+  const keyOf = (user: PickedUser) => selection === "email" ? user.email.trim().toLowerCase() : user.id
+  const selected = new Set(value.map(keyOf))
   function toggle(row: UserRow) {
-    onChange(selected.has(row.ID) ? value.filter((user) => user.id !== row.ID) : [...value, { id: row.ID, name: displayName(row), email: row.Email }])
+    const user = { id: row.ID, name: displayName(row), email: row.Email?.trim() ?? "" }
+    const key = keyOf(user)
+    if (selection === "email" && !key) return
+    onChange(selected.has(key) ? value.filter((item) => keyOf(item) !== key) : [...value, user])
   }
 
   return (
     <div className="space-y-3">
       <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("admin.notif.broadcast.users.search")} aria-label={t("admin.notif.broadcast.users.search")} />
-      {value.length > 0 && (
+      {showSelected && value.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label={t("admin.notif.broadcast.users.selected", { count: value.length })}>
           {value.map((user) => (
             <li key={user.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 py-0.5 pl-3 pr-1 text-sm text-foreground">
@@ -78,11 +85,18 @@ export function UserPicker({ value, onChange }: { value: PickedUser[]; onChange:
           <EmptyState compact className="flex-1" message={t("admin.notif.broadcast.users.empty")} />
         ) : (
           <ul>
-            {rows.map((row) => (
+            {rows.map((row) => {
+              const email = row.Email?.trim() ?? ""
+              const checked = selected.has(selection === "email" ? email.toLowerCase() : row.ID)
+              const unavailable = selection === "email" && !email
+              return (
               <li key={row.ID} className="border-b border-border/50 px-3 py-2 last:border-b-0">
-                <Checkbox checked={selected.has(row.ID)} onChange={() => toggle(row)} label={<span>{displayName(row)} <span className="text-muted-foreground">{row.Email}</span></span>} />
+                <Checkbox checked={checked} disabled={unavailable || !checked && maxSelected !== undefined && selected.size >= maxSelected} onChange={() => toggle(row)}
+                  label={selection === "email" ? <span className="grid min-w-0 gap-0.5 [overflow-wrap:anywhere]"><span>{displayName(row)}</span><span className="text-xs text-muted-foreground">{email || t("admin.errors.settings.userNoEmail")}</span></span>
+                    : <span>{displayName(row)} <span className="text-muted-foreground">{row.Email}</span></span>} />
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </div>
