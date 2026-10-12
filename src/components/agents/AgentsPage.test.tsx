@@ -199,7 +199,7 @@ describe("agents page", () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith("/api/infrastructure/agents/a1", { Priority: 5 }))
   })
 
-  it("hides Save for equivalent agent values and preserves an edit made while saving", async () => {
+  it("disables visible Save for equivalent agent values and preserves an edit made while saving", async () => {
     serve([agent()])
     let resolve!: (value: Agent) => void
     apiPut.mockReturnValue(new Promise<Agent>((done) => { resolve = done }))
@@ -207,12 +207,12 @@ describe("agents page", () => {
     await openMenu("Змінити")
     const dialog = await screen.findByRole("dialog")
     const input = within(dialog).getByLabelText(/^Пріоритет/)
-    expect(within(dialog).queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.submit(input.closest("form")!)
     expect(apiPut).not.toHaveBeenCalled()
     expect(dialog).toBeInTheDocument()
     fireEvent.change(input, { target: { value: "010" } })
-    expect(within(dialog).queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.change(input, { target: { value: "5" } })
     fireEvent.click(within(dialog).getByRole("button", { name: "Зберегти" }))
     fireEvent.change(input, { target: { value: "6" } })

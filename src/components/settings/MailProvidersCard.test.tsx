@@ -76,14 +76,14 @@ describe("MailProvidersCard", () => {
     expect(screen.getByRole("button", { name: "Додати провайдера" })).toBeInTheDocument()
   })
 
-  it("hides save for an unchanged provider and hides it again after reverting", () => {
+  it("disables visible Save for an unchanged provider and after reverting", () => {
     render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
     fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Other" } })
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: " Brevo " } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
   })
 
   it("refreshes usage after testing without reverting an unsaved provider form", async () => {

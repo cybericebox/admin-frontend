@@ -43,16 +43,16 @@ describe("banners admin page", () => {
     await waitFor(() => expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ Text: "Нова версія", Level: "info", Audience: "everyone", Dismissible: true, IsActive: true, ActiveFrom: null, ActiveTo: null })))
   })
 
-  it("offers Save only for a changed banner and keeps newer text after an earlier save", async () => {
+  it("enables visible Save only for a changed banner and keeps newer text after an earlier save", async () => {
     let resolve!: (value: unknown) => void
     api.update.mockReturnValueOnce(new Promise((done) => { resolve = done }))
     render(<BannersAdmin />)
     await screen.findByText("Планові роботи")
     fireEvent.click(screen.getByRole("button", { name: "Редагувати" }))
     const input = await screen.findByLabelText("Текст")
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.change(input, { target: { value: " Планові роботи " } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     fireEvent.change(input, { target: { value: "Перша зміна" } })
     fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
     fireEvent.change(input, { target: { value: "Наступна зміна" } })
@@ -60,7 +60,7 @@ describe("banners admin page", () => {
     await waitFor(() => expect(screen.getByLabelText("Текст")).toHaveValue("Наступна зміна"))
     await waitFor(() => expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled())
     fireEvent.change(screen.getByLabelText("Текст"), { target: { value: "Перша зміна" } })
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
   })
 
   it("blocks saving an empty text or a bad link", async () => {

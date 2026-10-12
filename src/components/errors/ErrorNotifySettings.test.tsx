@@ -1,10 +1,10 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn() }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), denied: new Set<string>(), users: [] as { ID: string; FirstName: string; LastName: string; Email: string }[] }))
 vi.mock("@/api/client", async (original) => ({ ...(await original<object>()), apiGet: mocks.get, apiPut: mocks.put, apiPost: mocks.post }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => !mocks.denied.has(permission) }) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }))
 
 import { ErrorNotifySettings } from "./ErrorNotifySettings"
@@ -12,20 +12,23 @@ import { ErrorNotifySettings } from "./ErrorNotifySettings"
 const settings = (over: object = {}) => ({ Emails: ["ops@example.test"], EmailToSuperAdmins: true, TelegramEnabled: true, TelegramChats: [{ ChatID: "-100", Label: "Ops", Failing: true, FailingSince: "2026-10-01T10:00:00Z", LastError: "bot was blocked" }], UpdatedAt: "2026-10-01T10:00:00Z", ...over })
 
 describe("error notification settings", () => {
-  beforeEach(() => { mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.get.mockResolvedValue(settings()) })
+  beforeEach(() => {
+    mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.denied.clear(); mocks.users = []
+    mocks.get.mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/users?") ? { Items: mocks.users, Total: mocks.users.length } : settings()))
+  })
   afterEach(cleanup)
 
-  it("hides Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
+  it("disables visible Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
     render(<ErrorNotifySettings />)
     const input = await screen.findByDisplayValue("ops@example.test")
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "admin.errors.settings.test" })).toBeEnabled()
     fireEvent.change(input, { target: { value: " ops@example.test " } })
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
     fireEvent.change(input, { target: { value: "changed@example.test" } })
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
     fireEvent.change(input, { target: { value: "ops@example.test" } })
-    expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
   })
 
   it("keeps new recipient edits after an older save completes", async () => {
@@ -51,7 +54,7 @@ describe("error notification settings", () => {
     expect(input).toHaveValue("new@example.test")
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
-    await waitFor(() => expect(screen.queryByRole("button", { name: "admin.errors.settings.save" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
     expect(mocks.put).toHaveBeenCalledTimes(2)
   })
 
@@ -95,5 +98,49 @@ describe("error notification settings", () => {
     expect(await screen.findByText("chat not found")).toBeInTheDocument()
     expect(screen.getByText("admin.errors.settings.resultOk")).toBeInTheDocument()
     expect(mocks.post).toHaveBeenCalledWith("/api/admin/errors/settings/test", {})
+  })
+
+  it("selects registered users by email, deduplicates existing/manual recipients and skips missing addresses", async () => {
+    mocks.users = [
+      { ID: "ops", FirstName: "Ops", LastName: "User", Email: " OPS@example.test " },
+      { ID: "new", FirstName: "New", LastName: "User", Email: "new@example.test" },
+      { ID: "same", FirstName: "Same", LastName: "Email", Email: " NEW@example.test " },
+      { ID: "empty", FirstName: "No", LastName: "Email", Email: "" },
+    ]
+    mocks.put.mockResolvedValue(settings({ Emails: ["ops@example.test", "new@example.test", "external@example.test"] }))
+    render(<ErrorNotifySettings />)
+    expect(await screen.findByRole("checkbox", { name: /Ops User/ })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: /No Email/ })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("checkbox", { name: /New User/ }))
+    expect(screen.getByRole("checkbox", { name: /Same Email/ })).toBeChecked()
+    expect(screen.getAllByDisplayValue("new@example.test")).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
+    fireEvent.change(screen.getByLabelText(/admin.errors.settings.emailN {"n":3}/), { target: { value: " external@example.test " } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
+    await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/admin/errors/settings", expect.objectContaining({ Emails: ["ops@example.test", "new@example.test", "external@example.test"] })))
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
+    expect(mocks.get.mock.calls.filter(([path]) => String(path).startsWith("/api/users?"))).toHaveLength(1)
+    expect(mocks.get.mock.calls.find(([path]) => String(path).startsWith("/api/users?"))?.[0]).toContain("pageSize=20")
+  })
+
+  it("keeps manual recipients available without permission to read registered users", async () => {
+    mocks.denied.add("users.read")
+    render(<ErrorNotifySettings />)
+    await screen.findByDisplayValue("ops@example.test")
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
+    expect(mocks.get.mock.calls.some(([path]) => String(path).startsWith("/api/users?"))).toBe(false)
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
+    fireEvent.change(screen.getByLabelText(/admin.errors.settings.emailN {"n":2}/), { target: { value: "manual@example.test" } })
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
+  })
+
+  it("does not load the user picker or offer writes for read-only error settings", async () => {
+    mocks.denied.add("platform.errors.write")
+    render(<ErrorNotifySettings />)
+    expect(await screen.findByDisplayValue("ops@example.test")).toBeDisabled()
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.errors.settings.test" })).not.toBeInTheDocument()
+    expect(mocks.get.mock.calls.some(([path]) => String(path).startsWith("/api/users?"))).toBe(false)
   })
 })

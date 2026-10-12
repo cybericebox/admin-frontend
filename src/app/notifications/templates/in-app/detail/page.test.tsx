@@ -285,7 +285,7 @@ describe('In-app template editor page', () => {
   it('keeps only Publish and Test actionable for a clean saved draft', async () => {
     render(<Page />)
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
     })
   })
@@ -302,7 +302,7 @@ describe('In-app template editor page', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeEnabled())
     expect(duration).toHaveValue(8)
     fireEvent.change(duration, { target: { value: '7.5' } })
-    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeDisabled()
   })
 
   it('does NOT show Rollback button for a draft template', async () => {
