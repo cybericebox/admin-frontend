@@ -471,6 +471,14 @@ export function BlockEditor({
                   }
                   placeholder={t("admin.notif.editor.altPlaceholder")}
                 />
+                <label className="block text-sm">
+                  <span className="text-muted-foreground">{t("admin.notif.editor.alignment")}</span>
+                  <SelectMenu value={(block as ImageBlock).align ?? "center"}
+                    onChange={(next) => updateBlock(i, { ...(block as ImageBlock), align: next as "left" | "center" | "right" })}
+                    ariaLabel={t("admin.notif.editor.alignment")}
+                    options={[{ value: "left", label: t("admin.notif.editor.alignLeft") }, { value: "center", label: t("admin.notif.editor.alignCenter") }, { value: "right", label: t("admin.notif.editor.alignRight") }]}
+                    className="mt-1 w-full" />
+                </label>
               </div>
             )}
 

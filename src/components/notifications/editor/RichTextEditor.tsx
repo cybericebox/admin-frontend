@@ -14,10 +14,12 @@ import { createPortal } from "react-dom";
 import {
   $createParagraphNode,
   $createTextNode,
+  $findMatchingParent,
   $getRoot,
   $getSelection,
   $insertNodes,
   $isRangeSelection,
+  $isElementNode,
   $isTextNode,
   $setSelection,
   COMMAND_PRIORITY_LOW,
@@ -336,13 +338,6 @@ function Tooltip({
 
 type FormatType = "bold" | "italic" | "underline" | "strikethrough" | "code";
 
-const ALIGN_FORMAT_MAP: Record<number, string> = {
-  1: "left",
-  2: "center",
-  3: "right",
-  4: "justify",
-};
-
 function ToolbarPlugin({
   variables,
   onInsertVariable,
@@ -416,12 +411,11 @@ function ToolbarPlugin({
             setBlockType("paragraph");
           }
 
-          const elemFmt =
-            typeof (element as { getFormat?: () => number }).getFormat ===
-            "function"
-              ? (element as { getFormat: () => number }).getFormat()
-              : 0;
-          setAlignment(ALIGN_FORMAT_MAP[elemFmt] ?? "");
+          const alignmentElement = $findMatchingParent(
+            anchorNode,
+            (node) => $isElementNode(node) && !node.isInline()
+          );
+          setAlignment($isElementNode(alignmentElement) ? alignmentElement.getFormatType() : "");
         });
         return false;
       },
