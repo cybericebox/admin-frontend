@@ -10,6 +10,7 @@ import type { VariableDef } from "@/components/notifications/editor/variableUtil
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
 import { useSavedDraft } from "@/lib/useSavedDraft"
+import { sameTemplateValue } from "@/lib/templateEditorState"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -37,25 +38,6 @@ export function footerVariables(names: string[]): VariableDef[] {
   }))
 }
 
-// The content of a Lexical document without editor bookkeeping (ids, versions):
-// two documents with the same signature read the same.
-export function documentSignature(node: unknown): string {
-  if (!node || typeof node !== "object") return ""
-  const n = node as Record<string, unknown>
-  const children = Array.isArray(n.children) ? n.children.map(documentSignature).join("") : ""
-  switch (n.type) {
-    case "text": return String(n.text ?? "")
-    case "variable": return `{${String(n.varName ?? "")}}`
-    case "linebreak": return "\n"
-    case "link": return `[${String(n.url ?? "")}|${children}]`
-    default: return `${children}\n`
-  }
-}
-
-function signature(doc: LexicalState): string {
-  return documentSignature((doc as { root?: unknown }).root).trim()
-}
-
 // Lexical fills absent default fields while loading a document. Ignore only
 // these defaults and node versions; keep formatting, styles and all content.
 function footerValue(value: unknown): unknown {
@@ -63,6 +45,7 @@ function footerValue(value: unknown): unknown {
   if (!value || typeof value !== "object") return value
   return Object.fromEntries(Object.entries(value).filter(([key, item]) => {
     if (key === "version") return false
+    if (key === "formats" && Array.isArray(item) && item.length === 0) return false
     if (["format", "detail", "indent", "textFormat"].includes(key) && (item === 0 || item === "")) return false
     if (["style", "textStyle"].includes(key) && item === "") return false
     if (key === "direction" && (item === null || item === "ltr")) return false
@@ -121,7 +104,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
     }
   }
 
-  const isDefault = signature(draft) === signature(footer.DefaultContent)
+  const isDefault = sameTemplateValue(footerValue(draft), footerValue(footer.DefaultContent))
 
   return (
     <Card>

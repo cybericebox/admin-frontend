@@ -22,7 +22,7 @@ vi.mock("@/components/notifications/editor/RichTextEditor", () => ({
   },
 }))
 
-import { MailFooterCard, documentSignature, footerDraft, footerVariables } from "./MailFooterCard"
+import { MailFooterCard, footerDraft, footerVariables } from "./MailFooterCard"
 
 const doc = (...children: unknown[]): LexicalState => ({ root: { type: "root", children: [{ type: "paragraph", children }] } })
 const text = (value: string) => ({ type: "text", text: value })
@@ -44,11 +44,6 @@ describe("footer helpers", () => {
     expect(defs[3]).toEqual({ name: "reply_to", description: "Адреса для відповідей", example: "support@example.com" })
   })
 
-  it("compares documents by content, not by editor bookkeeping", () => {
-    const withIds = { root: { type: "root", version: 1, children: [{ type: "paragraph", version: 1, direction: "ltr", children: [{ ...variable("platform_name"), version: 1 }, { ...text(" · "), format: 0, detail: 0 }, variable("site_url")] }] } }
-    expect(documentSignature((withIds as LexicalState).root)).toBe(documentSignature((DEFAULT as LexicalState).root))
-    expect(documentSignature((doc(text("other")) as LexicalState).root)).not.toBe(documentSignature((DEFAULT as LexicalState).root))
-  })
 })
 
 describe("MailFooterCard", () => {
@@ -79,6 +74,14 @@ describe("MailFooterCard", () => {
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
     act(() => editorProps?.onChange(plain))
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+  })
+
+  it("keeps both Save and default reset disabled for equivalent editor metadata", () => {
+    const withMetadata = { root: { type: "root", version: 1, children: [{ type: "paragraph", version: 1, direction: "ltr", children: [{ ...variable("platform_name"), version: 1, formats: [] }, { ...text(" · "), format: 0, detail: 0 }, variable("site_url")] }] } }
+    render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
+    act(() => editorProps?.onChange(withMetadata))
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Типовий підвал" })).toBeDisabled()
   })
 
   it("renders the backend preview of the (debounced) draft in the email preview frame", async () => {
@@ -134,6 +137,19 @@ describe("MailFooterCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Типовий підвал" }))
     expect(editorProps?.value).toBe(DEFAULT)
     expect(screen.getByRole("button", { name: "Типовий підвал" })).toBeDisabled()
+  })
+
+  it("can restore default alignment when the saved footer has the same wording", () => {
+    const aligned = structuredClone(DEFAULT) as { root: { children: { format?: string }[] } }
+    aligned.root.children[0].format = "right"
+    render(<MailFooterCard footer={{ ...FOOTER, Content: aligned as LexicalState }} canWrite onSaved={() => {}} />)
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+    const reset = screen.getByRole("button", { name: "Типовий підвал" })
+    expect(reset).toBeEnabled()
+    fireEvent.click(reset)
+    expect(editorProps?.value).toBe(DEFAULT)
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
+    expect(reset).toBeDisabled()
   })
 
   it("is read-only without write access", () => {
