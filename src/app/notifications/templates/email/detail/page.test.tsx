@@ -219,7 +219,7 @@ describe('Email template editor page', () => {
     render(<Page />)
     // t() is mocked to return the key; buttons show "admin.notif.tpl.save" etc.
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
     })
   })
@@ -244,13 +244,13 @@ describe('Email template editor page', () => {
     expect(save).toBeDisabled()
   })
 
-  it('does not offer Save after reverting an implicit style default', async () => {
+  it('disables visible Save after reverting an implicit style default', async () => {
     render(<Page />)
     const radius = await screen.findByLabelText('admin.notif.editor.ctaBorderRadius')
     fireEvent.change(radius, { target: { value: '6' } })
     expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeEnabled()
     fireEvent.change(radius, { target: { value: '4' } })
-    expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeDisabled()
   })
 
   it('retains a newer style edit when an older save completes', async () => {
@@ -515,7 +515,7 @@ describe('Email template editor page', () => {
     render(<Page />)
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'admin.notif.tpl.save' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'admin.notif.tpl.save' })).toBeDisabled()
     })
 
     // Find the border-radius input and change it

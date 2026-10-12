@@ -74,11 +74,11 @@ describe("MailFooterCard", () => {
       children: [{ type: "paragraph", version: 1, format: "", indent: 0, direction: "ltr", textFormat: 0, textStyle: "",
         children: [{ type: "text", text: "same text", version: 1, format: 0, detail: 0, mode: "normal", style: "" }] }] } }
     act(() => editorProps?.onChange(normalized))
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
     act(() => editorProps?.onChange(doc({ ...text("same text"), format: 1 })))
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeInTheDocument()
     act(() => editorProps?.onChange(plain))
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
   })
 
   it("renders the backend preview of the (debounced) draft in the email preview frame", async () => {
@@ -116,7 +116,7 @@ describe("MailFooterCard", () => {
     expect(onSaved).toHaveBeenCalledWith(saved)
     expect(await screen.findByText("Підвал листів збережено.")).toBeInTheDocument()
     expect(editorProps?.value).toBe(custom)
-    expect(screen.queryByRole("button", { name: "Зберегти" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
   })
 
   it("refuses a document over the size limit without calling the API", async () => {

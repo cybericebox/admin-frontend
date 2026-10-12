@@ -104,7 +104,7 @@ describe("EventAdminDetail", () => {
     render(<EventAdminDetail id="event-1" />)
 
     expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
     expect(screen.getByRole("alert")).toHaveTextContent("admin.events.access.loadError")
 
     fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
@@ -123,13 +123,13 @@ describe("EventAdminDetail", () => {
     const success = vi.spyOn(toast, "success")
     render(<EventAdminDetail id="event-1" />)
     await screen.findByDisplayValue("Spring CTF")
-    expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
     fireEvent.change(await screen.findByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Autumn CTF" } })
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.tag/ }), { target: { value: "autumn" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
     await waitFor(() => expect(mock.update).toHaveBeenCalledWith("event-1", expect.objectContaining({ Name: "Autumn CTF", Tag: "autumn" })))
     await waitFor(() => expect(success).toHaveBeenCalledWith("admin.events.details.saved"))
-    await waitFor(() => expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled())
   })
 
   it("does not submit equivalent names and retains a new name edit after an older save", async () => {
@@ -138,7 +138,7 @@ describe("EventAdminDetail", () => {
     render(<EventAdminDetail id="event-1" />)
     const name = await screen.findByDisplayValue("Spring CTF")
     fireEvent.change(name, { target: { value: " Spring CTF " } })
-    expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
     fireEvent.submit(name.closest("form")!)
     expect(mock.update).not.toHaveBeenCalled()
     fireEvent.change(name, { target: { value: "First name" } })
@@ -148,7 +148,7 @@ describe("EventAdminDetail", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeEnabled())
     expect(name).toHaveValue("Newer name")
     fireEvent.change(name, { target: { value: "First name" } })
-    expect(screen.queryByRole("button", { name: "admin.events.dialog.submit" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled()
   })
 
   it("keeps platform fields and access read-only for admins without events.write", async () => {
