@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useState, type Dispatch, type SetStateAction } from "react"
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react"
 import {
   MAIL_NAME_MAX, createMailProvider, deleteMailProvider, getMailSettings, isValidEmail, reorderMailProviders, saveMailProvider, setMailProviderEnabled,
@@ -135,6 +135,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
   // Saves of instant controls run one after another; the server answer is applied only when no newer change waits.
   const queue = useRef<Promise<void>>(Promise.resolve())
   const waiting = useRef(0)
+  const usageRefresh = useRef<Promise<void> | null>(null)
   function applyProviders(next: MailSettings) {
     // Responses include all mail settings, but this card owns only transports.
     // A concurrent sender/footer save may already have a newer acknowledgement.
@@ -187,10 +188,11 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
     }
   }
 
-  // Refresh only usage, in the same queue as instant saves. A counter refresh
-  // must not revert a queued switch/reorder or reset an open form.
-  function refreshUsage(): Promise<void> {
-    queue.current = queue.current.then(async () => {
+  // Merge only usage into the latest state so polling never overwrites an
+  // optimistic control or an open form. Coalesce refreshes, including queue time.
+  const refreshUsage = useCallback((silent = false): Promise<void> => {
+    if (usageRefresh.current) return usageRefresh.current
+    const refresh = queue.current.then(async () => {
       try {
         const next = await getMailSettings()
         update((current) => current && { ...current, Providers: current.Providers.map((provider) => {
@@ -199,11 +201,20 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
             LastUsedAt: fresh.LastUsedAt, LastError: fresh.LastError, LastErrorAt: fresh.LastErrorAt } : provider
         }) })
       } catch (err) {
-        toast.error(localizedError(err))
+        if (!silent) toast.error(localizedError(err))
       }
-    })
-    return queue.current
-  }
+    }).finally(() => { usageRefresh.current = null })
+    usageRefresh.current = refresh
+    queue.current = refresh
+    return refresh
+  }, [update])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (waiting.current === 0) void refreshUsage(true)
+    }, 15_000)
+    return () => clearInterval(timer)
+  }, [refreshUsage])
 
   async function confirmDelete() {
     if (!deleting) return
@@ -310,6 +321,8 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
   onTest: () => void
 }) {
   const limit = provider.DailyLimit
+  const failedLastAttempt = !!provider.LastError && !!provider.LastErrorAt &&
+    !(provider.LastUsedAt && Date.parse(provider.LastUsedAt) >= Date.parse(provider.LastErrorAt))
   const share = limit ? Math.min(100, Math.round((provider.SentToday / limit) * 100)) : 0
   return (
     <li className="space-y-2 px-4 py-3" data-testid={`mail-provider-${provider.ID}`}>
@@ -348,9 +361,12 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
           )}
         </div>
       </div>
-      {provider.LastError && provider.LastErrorAt && (
-        <p className="break-words text-xs text-destructive" data-testid="mail-provider-error">{t("admin.mail.providers.lastError", { date: dateText(provider.LastErrorAt), error: provider.LastError })}</p>
+      {failedLastAttempt && provider.LastErrorAt && (
+        <p className="break-words text-xs text-destructive" data-testid="mail-provider-error">{t("admin.mail.providers.lastAttemptFailed", { date: dateText(provider.LastErrorAt), error: provider.LastError })}</p>
       )}
+      <a href={`/errors/?kind=mail&status=all&q=${encodeURIComponent(`smtp-provider:${provider.ID}`)}`} className="inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+        {t("admin.mail.providers.errorHistory")}
+      </a>
       {result && <Alert variant={result.Sent ? "success" : "destructive"}>{testText(result)}</Alert>}
     </li>
   )

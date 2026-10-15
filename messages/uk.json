@@ -1787,6 +1787,8 @@
   "admin.mail.providers.usageNoLimit": "Сьогодні (UTC): {sent}, без ліміту",
   "admin.mail.providers.usageLabel": "Використання добового ліміту «{name}»",
   "admin.mail.providers.exhausted": "Ліміт вичерпано, відновиться {date}",
+  "admin.mail.providers.lastAttemptFailed": "Остання спроба невдала {date}: {error}",
+  "admin.mail.providers.errorHistory": "Історія помилок",
   "admin.mail.providers.lastError": "Остання помилка {date}: {error}",
   "admin.mail.providers.enabledLabel": "Увімкнути «{name}»",
   "admin.mail.providers.moveUp": "Підняти «{name}» вище",
