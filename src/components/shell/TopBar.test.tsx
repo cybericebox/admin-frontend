@@ -17,6 +17,14 @@ describe("top bar", () => {
     document.documentElement.dataset.theme = "light"
   })
 
+  it("keeps Profile first and leaves the catalog link in the left navigation", () => {
+    role.value = "admin"
+    render(<TopBar crumbs={[]} />)
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
+    expect(screen.queryByRole("menuitem", { name: "accountMenu.exercises" })).not.toBeInTheDocument()
+    expect(screen.getAllByRole("menuitem")[0]).toHaveTextContent("accountMenu.profile")
+  })
+
   it("keeps theme choices behind one expandable account row on every screen and preserves view-only badges", async () => {
     role.value = "admin_viewer"
     const { container } = render(<TopBar crumbs={[{ label: "Заходи" }]} />)

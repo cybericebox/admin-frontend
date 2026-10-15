@@ -49,11 +49,11 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
   const currentTheme = THEME_OPTIONS.find((option) => option.value === themeChoice)!
   const ThemeIcon = currentTheme.icon
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
-  // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
+  // The catalog already lives in the sidebar; account links start with Profile.
   const adminTier = role !== null && role !== "user"
   const entries = accountMenu(
     "admin",
-    { adminTier, catalog: adminTier, returnTo },
+    { adminTier, catalog: false, returnTo },
     { id: idOrigin, admin: "", exercises: exercisesOrigin },
   )
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
@@ -94,11 +94,20 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="flex flex-col gap-0.5">
-              <span className="font-medium">{fullName}</span>
-              <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
+              <span className="truncate font-medium" title={fullName}>{fullName}</span>
+              <span className="truncate text-xs font-normal text-muted-foreground" title={me?.Email}>{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             {role === "admin_viewer" && <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground md:hidden">{t("admin.role.viewOnlyBadge")}</DropdownMenuLabel>}
+            {entries.filter((entry) => entry.kind === "link").map((entry) => {
+              const Icon = ACCOUNT_MENU_ICONS[entry.key]
+              return (
+                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
+                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} /><span className="min-w-0 truncate">{t(ACCOUNT_MENU_LABELS[entry.key])}</span></a>
+                </DropdownMenuItem>
+              )
+            })}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               ref={themeTrigger}
               className="gap-2"
@@ -134,8 +143,7 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
                 ))}
               </DropdownMenuRadioGroup>
             )}
-            <DropdownMenuSeparator />
-            {entries.map((entry, i) => {
+            {entries.filter((entry) => entry.kind !== "link").map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
               if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>
               if (entry.kind === "signOut") {
@@ -146,12 +154,7 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
                   </DropdownMenuItem>
                 )
               }
-              const Icon = ACCOUNT_MENU_ICONS[entry.key]
-              return (
-                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
-                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS[entry.key])}</a>
-                </DropdownMenuItem>
-              )
+              return null
             })}
           </DropdownMenuContent>
         </DropdownMenu>
