@@ -97,6 +97,22 @@ describe("MailFooterCard", () => {
     await waitFor(() => expect(previewMailFooter).toHaveBeenLastCalledWith(edited))
   })
 
+  it("shares viewport controls with the email preview and preserves unsaved footer content", async () => {
+    render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
+    await screen.findByRole("button", { name: "Телефон" })
+    const edited = doc(text("Unsaved footer"))
+    act(() => editorProps?.onChange(edited))
+    const mobile = await screen.findByRole("button", { name: "Телефон" })
+    const frame = screen.getByTestId("mail-footer-preview").querySelector("iframe")!
+    fireEvent.click(mobile)
+    expect(mobile).toHaveAttribute("aria-pressed", "true")
+    expect(frame).toHaveStyle({ width: "390px" })
+    fireEvent.click(screen.getByRole("button", { name: "Планшет" }))
+    expect(frame).toHaveStyle({ width: "768px" })
+    expect(editorProps?.value).toEqual(edited)
+    expect(saveMailFooter).not.toHaveBeenCalled()
+  })
+
   it("shows the rendering error instead of the preview, and an empty state for an empty footer", async () => {
     previewMailFooter.mockRejectedValueOnce(new Error("Footer uses an unknown variable"))
     render(<MailFooterCard footer={FOOTER} canWrite onSaved={() => {}} />)
