@@ -1,4 +1,5 @@
 "use client"
+import "@/styles/account-menu.css"
 import { Fragment, useId, useRef, useState } from "react"
 import Link from "next/link"
 import {
@@ -92,8 +93,8 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
               avatarInitials
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="flex flex-col gap-0.5">
+          <DropdownMenuContent align="end" className="account-menu" collisionPadding={16}>
+            <DropdownMenuLabel className="account-menu__identity">
               <span className="truncate font-medium" title={fullName}>{fullName}</span>
               <span className="truncate text-xs font-normal text-muted-foreground" title={me?.Email}>{me?.Email}</span>
             </DropdownMenuLabel>
@@ -145,12 +146,12 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
             )}
             {entries.filter((entry) => entry.kind !== "link").map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
-              if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>
+              if (entry.kind === "cookies") return <Fragment key={i}><FeedbackMenuItem /><CookieSettingsMenuItem /></Fragment>
               if (entry.kind === "signOut") {
                 const Icon = ACCOUNT_MENU_ICONS.signOut
                 return (
                   <DropdownMenuItem key={i} className="group gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.signOut)}
+                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} /><span className="account-menu__label">{t(ACCOUNT_MENU_LABELS.signOut)}</span>
                   </DropdownMenuItem>
                 )
               }

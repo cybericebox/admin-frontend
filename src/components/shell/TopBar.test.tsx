@@ -8,8 +8,8 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/client", () => ({ apiPost: vi.fn(), mediaUrl: (value: string) => value }))
 vi.mock("@/lib/origins", () => ({ idOrigin: "https://id.test", exercisesOrigin: "https://ex.test" }))
 vi.mock("./InboxButton", () => ({ InboxButton: () => <button>inbox</button> }))
-vi.mock("@/components/consent/CookieSettingsMenuItem", () => ({ CookieSettingsMenuItem: () => null }))
-vi.mock("@/components/FeedbackMenuItem", () => ({ FeedbackMenuItem: () => null }))
+vi.mock("@/components/consent/CookieSettingsMenuItem", () => ({ CookieSettingsMenuItem: () => <div role="menuitem">cookies</div> }))
+vi.mock("@/components/FeedbackMenuItem", () => ({ FeedbackMenuItem: () => <div role="menuitem">feedback</div> }))
 
 describe("top bar", () => {
   beforeEach(() => {
@@ -22,7 +22,9 @@ describe("top bar", () => {
     render(<TopBar crumbs={[]} />)
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
     expect(screen.queryByRole("menuitem", { name: "accountMenu.exercises" })).not.toBeInTheDocument()
-    expect(screen.getAllByRole("menuitem")[0]).toHaveTextContent("accountMenu.profile")
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "accountMenu.profile", "theme.labeltheme.system", "feedback", "cookies", "accountMenu.signOut",
+    ])
   })
 
   it("keeps theme choices behind one expandable account row on every screen and preserves view-only badges", async () => {
