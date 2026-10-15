@@ -130,7 +130,7 @@ export function ErrorEmailPicker({ selected, canInvite, onSelect, onClose }: {
     {inviteError && <p role="alert" className="text-sm text-destructive">{inviteError}</p>}
     <div className="flex flex-wrap gap-2">
       {canCreate && <Button type="button" size="sm" className="h-auto min-h-9 whitespace-normal break-all" busy={inviting} onClick={() => void invite()}>{t("admin.errors.settings.inviteAndAdd", { email })}</Button>}
-      <Button type="button" variant="outline" size="sm" disabled={inviting} onClick={onClose}>{t("admin.cancel")}</Button>
+      <Button type="button" variant="outline" size="sm" disabled={inviting} onClick={onClose}>{t("confirm.cancel")}</Button>
     </div>
   </div>
 }
