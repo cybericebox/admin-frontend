@@ -18,7 +18,7 @@ export function CookieSettingsMenuItem() {
     <DropdownMenuItem asChild className="group gap-2" onSelect={() => { window.setTimeout(openConsentSettings, 0) }}>
       <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
         <Icon {...ACCOUNT_MENU_ICON_PROPS} className="shrink-0 text-muted-foreground group-focus:text-accent-foreground" />
-        {t(ACCOUNT_MENU_LABELS.cookies)}
+        <span className="account-menu__label">{t(ACCOUNT_MENU_LABELS.cookies)}</span>
       </a>
     </DropdownMenuItem>
   )
