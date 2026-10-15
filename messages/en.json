@@ -1787,6 +1787,8 @@
   "admin.mail.providers.usageNoLimit": "Today (UTC): {sent}, no limit",
   "admin.mail.providers.usageLabel": "Daily limit usage of “{name}”",
   "admin.mail.providers.exhausted": "Limit used up, resets {date}",
+  "admin.mail.providers.lastAttemptFailed": "Last attempt failed {date}: {error}",
+  "admin.mail.providers.errorHistory": "Error history",
   "admin.mail.providers.lastError": "Last error {date}: {error}",
   "admin.mail.providers.enabledLabel": "Enable “{name}”",
   "admin.mail.providers.moveUp": "Move “{name}” up",

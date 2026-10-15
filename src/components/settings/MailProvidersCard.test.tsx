@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { useEffect, useState } from "react"
 import type { MailProvider, MailSettings } from "@/api/mail/settings"
@@ -63,6 +63,7 @@ function Host({ initial, canWrite = true }: { initial: MailSettings; canWrite?: 
 const names = () => screen.getAllByTestId(/^mail-provider-p/).map((el) => within(el).getAllByText(/^(Brevo|SES|Mailgun)$/)[0].textContent)
 
 describe("MailProvidersCard", () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     vi.clearAllMocks()
     perms = ["platform.settings.read", "platform.settings.write"]
@@ -106,6 +107,61 @@ describe("MailProvidersCard", () => {
     expect(screen.getByRole("progressbar", { name: "Використання добового ліміту «Brevo»" })).toHaveAttribute("aria-valuenow", "120")
     expect(screen.getByText("Сьогодні (UTC): 0, без ліміту")).toBeInTheDocument()
     expect(screen.getByTestId("mail-provider-error")).toHaveTextContent("535 authentication failed")
+  })
+
+  it.each(["2026-10-01T09:00:00Z", "2026-10-01T10:00:00Z"])("hides the current alert after same-provider success at %s and retains its history link", (LastUsedAt) => {
+    render(<Host initial={settings([provider("p1", "Brevo", 0, {
+      LastError: "535 authentication failed", LastErrorAt: "2026-10-01T09:00:00Z", LastUsedAt,
+    })])} />)
+    expect(screen.queryByTestId("mail-provider-error")).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Історія помилок" })).toHaveAttribute("href", "/errors/?kind=mail&status=all&q=smtp-provider%3Ap1")
+    expect(latest?.Providers[0].LastError).toBe("535 authentication failed")
+  })
+
+  it("keeps a newer failed attempt red even when another provider succeeded later", () => {
+    render(<Host initial={settings([
+      provider("p1", "Brevo", 0, { LastError: "535 auth failed", LastErrorAt: "2026-10-01T10:00:00Z", LastUsedAt: "2026-10-01T09:00:00Z" }),
+      provider("p2", "SES", 1, { LastUsedAt: "2026-10-01T11:00:00Z" }),
+    ])} />)
+    expect(within(screen.getByTestId("mail-provider-p1")).getByTestId("mail-provider-error")).toHaveTextContent("Остання спроба невдала")
+    expect(screen.getByTestId("mail-provider-error")).toHaveClass("text-destructive")
+  })
+
+  it("refreshes background metadata without resetting the form or a pending optimistic switch", async () => {
+    vi.useFakeTimers()
+    let finishRefresh!: (value: MailSettings) => void
+    getMailSettings.mockReturnValue(new Promise<MailSettings>((resolve) => { finishRefresh = resolve }))
+    setMailProviderEnabled.mockReturnValue(new Promise(() => {}))
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
+    fireEvent.change(screen.getByLabelText(/Назва/), { target: { value: "Unsaved name" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000) })
+    expect(getMailSettings).toHaveBeenCalledTimes(1)
+    const sw = screen.getByRole("switch", { name: "Увімкнути «Brevo»", hidden: true })
+    fireEvent.click(sw)
+    await act(async () => { finishRefresh(settings([provider("p1", "Brevo", 0, { SentToday: 9 })])) })
+    expect(sw).toHaveAttribute("aria-checked", "false")
+    expect(sw).toBeEnabled()
+    expect(screen.getByLabelText(/Назва/)).toHaveValue("Unsaved name")
+    expect(latest?.Providers[0].SentToday).toBe(9)
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+    expect(getMailSettings).toHaveBeenCalledTimes(1)
+    expect(setMailProviderEnabled).toHaveBeenCalledTimes(1)
+  })
+
+  it("coalesces slow background refreshes and keeps repeated failures quiet", async () => {
+    vi.useFakeTimers()
+    let rejectRefresh!: (reason: Error) => void
+    getMailSettings.mockReturnValueOnce(new Promise<MailSettings>((_, reject) => { rejectRefresh = reject }))
+      .mockRejectedValue(new Error("offline"))
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+    expect(getMailSettings).toHaveBeenCalledTimes(1)
+    await act(async () => { rejectRefresh(new Error("offline")) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000) })
+    expect(getMailSettings).toHaveBeenCalledTimes(3)
+    expect(toastError).not.toHaveBeenCalled()
+    expect(screen.getByText("Brevo")).toBeInTheDocument()
   })
 
   it("marks an exhausted provider with the time the limit resets", () => {
