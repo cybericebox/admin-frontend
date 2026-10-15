@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import type { EmailBodyBlock } from './emailBlocks'
 
 vi.mock('@/lib/origins', () => ({
@@ -26,7 +26,7 @@ vi.mock('@/api/notifications/emailTemplates', () => ({
 }))
 
 import { ApiError } from '@/api/client'
-import { EmailPreview } from './EmailPreview'
+import { EmailHtmlFrame, EmailPreview } from './EmailPreview'
 
 const body: EmailBodyBlock[] = [{ type: 'divider' }]
 const styling = { cta_bg_color: 'theme:accent' }
@@ -111,6 +111,26 @@ describe('EmailPreview', () => {
     expect(iframe!.getAttribute('title')).toBe('admin.notif.editor.previewTitle')
     expect(srcDoc().toLowerCase()).toContain('<!doctype html>')
     expect(srcDoc()).toContain('<p>Hello Ada</p>')
+  })
+
+  it('switches real iframe viewport widths without replacing the frame, content or rendering request', async () => {
+    render(<EmailPreview notificationType="user.welcome" subject="Hi" body={body} styling={styling} />)
+    await flushDebounce()
+    const frame = screen.getByTitle('admin.notif.editor.previewTitle')
+    const documentBefore = frame.getAttribute('srcdoc')
+    expect(frame).toHaveStyle({ width: '1024px' })
+    expect(screen.getByRole('group', { name: 'admin.emailPreview.viewport' })).toBeInTheDocument()
+    for (const [device, width] of [['mobile', 390], ['tablet', 768], ['desktop', 1024]] as const) {
+      const control = screen.getByRole('button', { name: `admin.emailPreview.${device}` })
+      fireEvent.click(control)
+      expect(control).toHaveAttribute('aria-pressed', 'true')
+      expect(frame).toHaveStyle({ width: `${width}px` })
+      expect(screen.getByTitle('admin.notif.editor.previewTitle')).toBe(frame)
+      expect(frame.getAttribute('srcdoc')).toBe(documentBefore)
+      expect(frame).toHaveAttribute('sandbox', '')
+    }
+    await flushDebounce()
+    expect(preview).toHaveBeenCalledTimes(1)
   })
 
   it('passes inline data: images through without injecting a <base href>', async () => {
@@ -221,5 +241,34 @@ describe('EmailPreview', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(errorSpy).not.toHaveBeenCalled()
     errorSpy.mockRestore()
+  })
+})
+
+
+describe('EmailHtmlFrame fitting', () => {
+  it('keeps the iframe viewport fixed while scaling to a smaller container and disconnects its observer', () => {
+    let resize!: () => void
+    const disconnect = vi.fn()
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { resize = callback }
+      observe() {}
+      disconnect = disconnect
+    })
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 320, height: 480 } as DOMRect)
+    try {
+      const { unmount } = render(<EmailHtmlFrame html="<p>Content</p>" />)
+      const frame = screen.getByTitle('admin.notif.editor.previewTitle')
+      expect(frame).toHaveStyle({ width: '1024px', height: '1536px', transform: 'scale(0.3125)' })
+      expect(frame.parentElement).toHaveStyle({ width: '320px' })
+      expect(frame.parentElement?.parentElement).toHaveClass('overflow-hidden')
+      bounds.mockReturnValue({ width: 1200, height: 480 } as DOMRect)
+      act(() => resize())
+      expect(frame).toHaveStyle({ width: '1024px', height: '480px', transform: 'scale(1)' })
+      unmount()
+      expect(disconnect).toHaveBeenCalledOnce()
+    } finally {
+      bounds.mockRestore()
+      vi.unstubAllGlobals()
+    }
   })
 })
