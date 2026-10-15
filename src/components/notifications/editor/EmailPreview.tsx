@@ -150,7 +150,7 @@ export function EmailPreview({ notificationType, subject = "", preheader = "", b
   }, [notificationType, subject, preheader, body, styling, reloadKey])
 
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-background">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-border bg-background">
       <div className="space-y-2 border-b border-border px-4 py-3 text-sm">
         <div><span className="text-muted-foreground">{t("admin.notif.tpl.subject")}: </span><span className="font-medium text-foreground">{result?.Subject || "—"}</span></div>
         <div className="text-xs"><span className="text-muted-foreground">{t("admin.notif.tpl.preheader")}: </span><span className="text-foreground">{result?.Preheader || "—"}</span></div>

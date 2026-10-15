@@ -236,7 +236,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+      <CardHeader className="flex flex-col items-start gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.providers.title")}<FieldHelp text={t("admin.mail.providers.description")} /></CardTitle>
         {canWrite && <Button size="sm" onClick={() => setEditing({ id: null })}>{t("admin.mail.providers.add")}</Button>}
       </CardHeader>
@@ -326,16 +326,16 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
   const share = limit ? Math.min(100, Math.round((provider.SentToday / limit) * 100)) : 0
   return (
     <li className="space-y-2 px-4 py-3" data-testid={`mail-provider-${provider.ID}`}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-4 sm:gap-y-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-medium text-muted-foreground" aria-label={t("admin.mail.providers.position", { n: position })}>{position}</span>
-        <div className="min-w-0 flex-1 basis-48">
+        <div className="min-w-0 sm:flex-1 sm:basis-48">
           <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-foreground">
             <span className="truncate">{provider.Name}</span>
             {!provider.Enabled && <span className="rounded-md bg-secondary px-1.5 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.mail.providers.off")}</span>}
           </p>
           <p className="truncate text-sm text-muted-foreground">{provider.Host}:{provider.Port}</p>
         </div>
-        <div className="basis-56 space-y-1 text-xs text-muted-foreground" data-testid="mail-provider-usage">
+        <div className="col-span-2 min-w-0 space-y-1 text-xs text-muted-foreground sm:basis-56" data-testid="mail-provider-usage">
           <p>
             {limit
               ? t("admin.mail.providers.usage", { sent: provider.SentToday, limit })
@@ -348,15 +348,19 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
           ) : null}
           {provider.Exhausted && <p className="text-destructive">{t("admin.mail.providers.exhausted", { date: dateText(provider.ResetsAt) })}</p>}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="col-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:gap-1">
           <Switch checked={provider.Enabled} onCheckedChange={onToggle} disabled={!canWrite} aria-label={t("admin.mail.providers.enabledLabel", { name: provider.Name })} />
           {canWrite && (
             <>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={first} aria-label={t("admin.mail.providers.moveUp", { name: provider.Name })} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={last} aria-label={t("admin.mail.providers.moveDown", { name: provider.Name })} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+              <div className="flex items-center justify-end gap-1">
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={first} aria-label={t("admin.mail.providers.moveUp", { name: provider.Name })} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={last} aria-label={t("admin.mail.providers.moveDown", { name: provider.Name })} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
+              </div>
               <Button type="button" variant="outline" size="sm" busy={testing} aria-label={t("admin.mail.providers.testVia", { name: provider.Name })} onClick={onTest}>{t("admin.mail.providers.test")}</Button>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.edit", { name: provider.Name })} onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.delete", { name: provider.Name })} onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+              <div className="flex items-center justify-end gap-1">
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.edit", { name: provider.Name })} onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.delete", { name: provider.Name })} onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+              </div>
             </>
           )}
         </div>

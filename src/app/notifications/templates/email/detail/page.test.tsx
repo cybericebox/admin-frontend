@@ -474,7 +474,7 @@ describe('Email template editor page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.rollback' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.notif.tpl.rollback' }))
     await waitFor(() => expect(rollbackEmailTemplate).toHaveBeenCalledWith('tpl-published'))
-    expect(screen.getByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'admin.notif.tpl.publish' })).toBeInTheDocument()
   })
 
   // ── Translated status in read-only banner ─────────────────────────────────
