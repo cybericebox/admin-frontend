@@ -153,7 +153,7 @@ export function AuditLogPage() {
   </>
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
       <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")}
         filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-end gap-x-3 gap-y-3">{filterControls}</div>} />
       {badRange && <p role="alert" className="text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}

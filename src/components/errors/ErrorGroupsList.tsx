@@ -112,7 +112,7 @@ export function ErrorGroupsList() {
   const resetPage = () => setUrl({ page: "1" })
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0">
       <div className="mb-4 flex flex-wrap items-end gap-x-3 gap-y-3">
         <FilterField label={t("admin.errors.filter.searchLabel")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
           <Input value={qInput} onChange={(event) => { setQInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.search")} aria-label={t("admin.errors.filter.search")} />

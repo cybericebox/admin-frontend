@@ -49,9 +49,9 @@ export function AuditUserFilter({ value, onChange }: { value: PickedUser | null;
 
   if (value) {
     return (
-      <div className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-foreground">
-        <span className="max-w-56 truncate">{t("admin.audit.filter.userNamed", { name: value.name })}</span>
-        <button type="button" onClick={() => onChange(null)} aria-label={t("admin.audit.filter.userClear")} className="text-muted-foreground hover:text-foreground">
+      <div className="inline-flex h-10 min-w-0 max-w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-foreground">
+        <span className="min-w-0 max-w-56 truncate">{t("admin.audit.filter.userNamed", { name: value.name })}</span>
+        <button type="button" onClick={() => onChange(null)} aria-label={t("admin.audit.filter.userClear")} className="shrink-0 text-muted-foreground hover:text-foreground">
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>

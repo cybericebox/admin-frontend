@@ -112,7 +112,7 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
   const missing = failure instanceof ApiError && failure.status === 404 && !detail
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
       <PageHeader title={group?.Title ?? t("admin.nav.errors")} crumbs={[{ label: t("admin.nav.errors"), href: "/errors" }, { label: group?.Title ?? t("admin.loading") }]} />
       {missing ? <EmptyState message={t("admin.errors.notFound")} className="flex-1" />
         : failure && !detail ? <LoadError message={t("admin.errors.detailLoadError")} error={failure} onRetry={resync} className="flex-1" />

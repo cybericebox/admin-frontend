@@ -136,8 +136,8 @@ function EventsList() {
   const colCount = writable ? 7 : 6
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <PageHeader title={t("admin.nav.events")} count={firstLoad ? undefined : total}
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
+      <PageHeader title={t("admin.nav.events")}
         actions={writable ? <Button className="h-10 shrink-0 text-sm" asChild><Link href="/events/new">{t("admin.events.create.button")}</Link></Button> : undefined}
         filters={<>
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}

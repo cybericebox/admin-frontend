@@ -495,14 +495,14 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </div>
               <div className="space-y-2">
                 {actions.map((action, i) => (
-                  <div key={i} className="flex gap-2 items-center">
+                  <div key={i} className="grid min-w-0 grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                     <input
                       type="text"
                       value={action.label}
                       onChange={(e) => updateAction(i, "label", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionLabel")}
                       aria-label={t("admin.notif.inapp.actionLabelN", { n: i + 1 })}
-                      className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="min-w-0 w-full rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <input
                       type="text"
@@ -510,7 +510,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       onChange={(e) => updateAction(i, "href", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionHref")}
                       aria-label={t("admin.notif.inapp.actionHrefN", { n: i + 1 })}
-                      className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="min-w-0 w-full rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <Button
                       variant="outline"

@@ -58,7 +58,7 @@ function ErrorsRoute() {
   const groupID = groupIDOf(address)
   return (
     <RequirePermission perm="platform.errors.read" fallback={<NoAccess message={t("admin.errors.noAccess")} />}>
-      <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
         {groupID ? <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><ErrorGroupDetailPage key={groupID} groupID={groupID} /></Suspense> : (
           <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><ErrorsList /></Suspense>
         )}
