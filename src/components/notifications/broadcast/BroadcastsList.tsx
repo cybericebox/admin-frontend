@@ -101,9 +101,9 @@ export function BroadcastsList() {
 
       <div className="grid shrink-0 grid-cols-[1fr_auto] items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
         <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-1"><span>{t("admin.table.totalCount", { total })}</span><span>{t("admin.table.pageOf", { page, pages: pageCount })}</span>{loading && data && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
-        <div className="flex gap-2 sm:justify-center">
-          <Button variant="outline" size="sm" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
-          <Button variant="outline" size="sm" disabled={loading || !nextCursor} onClick={() => { if (nextCursor) { setCursors((list) => [...list.slice(0, page), nextCursor]); setPage(page + 1) } }}>{t("admin.table.next")}</Button>
+        <div className="flex min-w-0 flex-wrap gap-2 sm:justify-center">
+          <Button variant="outline" className="px-3 sm:px-4" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
+          <Button variant="outline" className="px-3 sm:px-4" disabled={loading || !nextCursor} onClick={() => { if (nextCursor) { setCursors((list) => [...list.slice(0, page), nextCursor]); setPage(page + 1) } }}>{t("admin.table.next")}</Button>
         </div>
         <div className="flex items-center justify-end gap-2"><span className="sr-only sm:not-sr-only">{t("admin.table.perPage")}</span><SelectMenu value={String(pageSize)} onChange={(value) => { setPage(1); setCursors([null]); setPageSize(Number(value)) }} ariaLabel={t("admin.table.perPage")} options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))} className="w-20" disabled={loading} /></div>
       </div>

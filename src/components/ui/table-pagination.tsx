@@ -22,9 +22,9 @@ export function TablePagination({ page, pageSize, total, busy, onPage, onPageSiz
       <span className="whitespace-nowrap">{t("admin.table.pageOf", { page, pages })}</span>
       <span className="inline-flex w-5 justify-center">{busy && <Spinner size="sm" label={t("admin.table.updating")} />}</span>
     </div>
-    <div className="flex items-center gap-2 sm:justify-center">
-      <Button type="button" variant="outline" size="sm" disabled={busy || page <= 1} onClick={() => onPage(page - 1)}>{t("admin.table.previous")}</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy || page >= pages} onClick={() => onPage(page + 1)}>{t("admin.table.next")}</Button>
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-center">
+      <Button type="button" variant="outline" className="px-3 sm:px-4" disabled={busy || page <= 1} onClick={() => onPage(page - 1)}>{t("admin.table.previous")}</Button>
+      <Button type="button" variant="outline" className="px-3 sm:px-4" disabled={busy || page >= pages} onClick={() => onPage(page + 1)}>{t("admin.table.next")}</Button>
     </div>
     <div className="flex items-center justify-end gap-2">
       <span className="sr-only sm:not-sr-only">{t("admin.table.perPage")}</span>
