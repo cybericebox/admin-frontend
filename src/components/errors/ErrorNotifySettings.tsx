@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Plus, X } from "lucide-react"
 import {
   getErrorSettings, saveErrorSettings, sendErrorTest,
-  MAX_NOTIFY_CHATS, MAX_NOTIFY_EMAILS, type ErrorSettings, type TestResult,
+  MAX_NOTIFY_CHATS, MAX_NOTIFY_EMAILS, type ErrorSettings, type ErrorEmailRecipient, type TestResult,
 } from "@/api/errorJournal"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
@@ -12,8 +12,10 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
-import { UserPicker, type PickedUser } from "@/components/notifications/broadcast/UserPicker"
+import { ErrorEmailPicker, recipientState } from "./ErrorEmailPicker"
+import { roleLabel } from "@/lib/roles"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { errorOr } from "@/i18n/apiError"
@@ -33,19 +35,14 @@ const clean = (draft: Draft): Draft => ({
   chats: draft.chats.map((chat) => ({ chatID: chat.chatID.trim(), label: chat.label.trim() })).filter((chat) => chat.chatID),
 })
 const normalizedDraft = (draft: Draft | null) => draft ? clean(draft) : null
-const emailsOf = (users: PickedUser[]) => {
-  const seen = new Set<string>()
-  return users.map((user) => user.email.trim()).filter((email) => {
-    if (!email || seen.has(email.toLowerCase())) return false
-    seen.add(email.toLowerCase())
-    return true
-  })
-}
 
 export function ErrorNotifySettings() {
   const { can } = useRole()
   const writable = can("platform.errors.write")
   const canReadUsers = can("users.read")
+  const [removeRecipient, setRemoveRecipient] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [recipients, setRecipients] = useState<Record<string, ErrorEmailRecipient>>({})
   const [settings, setSettings] = useState<ErrorSettings | null>(null)
   const { draft, setDraft, dirty, accept } = useSavedDraft(settings ? draftOf(settings) : null, normalizedDraft)
   const [failure, setFailure] = useState<unknown>(null)
@@ -72,6 +69,7 @@ export function ErrorNotifySettings() {
   }
 
   const set = (patch: Partial<Draft>) => { setDraft({ ...draft, ...patch }); setSaveError("") }
+  const recipientFor = (email: string) => settings.EmailRecipients?.find((recipient) => recipient.Email.toLowerCase() === email.toLowerCase()) ?? recipients[email.toLowerCase()]
   const failing = new Map(settings.TelegramChats.map((chat) => [chat.ChatID, chat]))
 
   async function save() {
@@ -107,6 +105,9 @@ export function ErrorNotifySettings() {
 
   return (
     <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
+      <ConfirmDialog open={removeRecipient !== null} onCancel={() => setRemoveRecipient(null)} tone="danger"
+        title={t("admin.errors.settings.removeRecipientTitle")} description={t("admin.errors.settings.removeRecipientHelp", { email: removeRecipient ?? "" })}
+        confirmLabel={t("admin.errors.settings.removeRecipientConfirm")} onConfirm={() => { set({ emails: draft.emails.filter((email) => email !== removeRecipient) }); setRemoveRecipient(null) }} />
       <p className="text-sm text-muted-foreground">{t("admin.errors.settings.intro")}</p>
 
       <section aria-labelledby="errors-emails" className="space-y-3 rounded-lg border border-border bg-card p-4">
@@ -115,28 +116,29 @@ export function ErrorNotifySettings() {
           <Switch checked={draft.toSuperAdmins} disabled={!writable} onCheckedChange={(value) => set({ toSuperAdmins: value })} aria-label={t("admin.errors.settings.toSuperAdmins")} />
           {t("admin.errors.settings.toSuperAdmins")}
         </label>
-        {writable && canReadUsers && <div className="space-y-3 pt-2">
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium text-foreground">{t("admin.errors.settings.registeredUsers")}</h4>
-            <p className="text-sm text-muted-foreground">{t("admin.errors.settings.registeredUsersHelp")}</p>
-          </div>
-          <UserPicker selection="email" showSelected={false} maxSelected={MAX_NOTIFY_EMAILS}
-            value={draft.emails.filter((email) => email.trim()).map((email) => ({ id: email, name: email, email }))}
-            onChange={(users) => set({ emails: emailsOf(users) })} />
-        </div>}
         <div className="space-y-1 border-t border-border pt-4">
           <h4 className="text-sm font-medium text-foreground">{t("admin.errors.settings.recipients")}</h4>
           <p className="text-sm text-muted-foreground">{t("admin.errors.settings.recipientsHelp")}</p>
         </div>
-        {draft.emails.map((email, index) => (
-          <div key={index} className="flex min-w-0 items-center gap-2">
-            <Input type="email" className="min-w-0" value={email} disabled={!writable} onChange={(event) => set({ emails: draft.emails.map((value, at) => at === index ? event.target.value : value) })} aria-label={t("admin.errors.settings.emailN", { n: index + 1 })} placeholder={t("admin.errors.settings.emailPlaceholder")} />
-            {writable && <Button type="button" variant="outline" size="icon" aria-label={t("admin.errors.settings.removeEmail", { value: email || String(index + 1) })} onClick={() => set({ emails: draft.emails.filter((_, at) => at !== index) })}><X aria-hidden="true" className="h-4 w-4" /></Button>}
+        {draft.emails.map((email, index) => {
+          const recipient = recipientFor(email)
+          return <div key={email} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium text-foreground [overflow-wrap:anywhere]">{[recipient?.FirstName, recipient?.LastName].filter(Boolean).join(" ") || email}</p>
+              {(recipient?.FirstName || recipient?.LastName) && <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{email}</p>}
+              <p className="text-xs text-muted-foreground">{recipient?.Role ? t("admin.errors.settings.recipientDetails", { role: roleLabel(recipient.Role), state: t(`admin.errors.settings.recipientState.${recipientState(recipient)}`) }) : t(`admin.errors.settings.recipientState.${recipientState(recipient)}`)}</p>
+            </div>
+            {writable && <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={t("admin.errors.settings.removeEmail", { value: email || String(index + 1) })} onClick={() => setRemoveRecipient(email)}><X aria-hidden="true" className="h-4 w-4" /></Button>}
           </div>
-        ))}
+        })}
         {draft.emails.length === 0 && <EmptyState compact message={t("admin.errors.settings.noEmails")} />}
         {issuesOf("emails").map((issue, index) => <p key={index} role="alert" className="text-sm text-destructive">{t(issue.key, issue.vars)}</p>)}
-        {writable && <Button type="button" variant="outline" size="sm" disabled={draft.emails.length >= MAX_NOTIFY_EMAILS} onClick={() => set({ emails: [...draft.emails, ""] })}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.errors.settings.addEmail")}</Button>}
+        {writable && canReadUsers && (pickerOpen
+          ? <ErrorEmailPicker selected={draft.emails} canInvite={can("users.invite")} onClose={() => setPickerOpen(false)} onSelect={(email, recipient) => {
+            setRecipients((previous) => ({ ...previous, [email.toLowerCase()]: recipient }))
+            set({ emails: [...draft.emails, email] })
+          }} />
+          : <Button type="button" variant="outline" size="sm" disabled={draft.emails.length >= MAX_NOTIFY_EMAILS} onClick={() => setPickerOpen(true)}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.errors.settings.addEmail")}</Button>)}
       </section>
 
       <section aria-labelledby="errors-telegram" className="space-y-3 rounded-lg border border-border bg-card p-4">

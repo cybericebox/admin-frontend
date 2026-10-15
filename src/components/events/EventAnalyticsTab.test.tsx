@@ -85,7 +85,7 @@ describe("EventAnalyticsTab", () => {
   it("filters by signal kind and review state", async () => {
     setup()
     await screen.findByRole("table", { name: "admin.events.analytics.integrity.tableLabel" })
-    expect(mock.integrity).toHaveBeenLastCalledWith("event-1", { signal: null, reviewed: "no" })
+    await waitFor(() => expect(mock.integrity).toHaveBeenLastCalledWith("event-1", { signal: null, reviewed: "no" }))
     fireEvent.click(screen.getByRole("button", { name: /admin.events.analytics.integrity.kind.too_fast/ }))
     await waitFor(() => expect(mock.integrity).toHaveBeenLastCalledWith("event-1", { signal: "too_fast", reviewed: "no" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.events.analytics.integrity.reviewedOption.all" }))

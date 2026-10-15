@@ -43,7 +43,8 @@ export type ErrorSample = {
 }
 
 export type ErrorGroupList = { Items: ErrorGroup[]; Total: number; Limit: number; Offset: number }
-export type ErrorGroupDetail = { Group: ErrorGroup; Samples: ErrorSample[] }
+export type ErrorDelivery = { ID: string; Channel: string; Target: string; Label: string; Attempts: number; LastError: string; CreatedAt: string; LastAttemptAt: string | null; NextAttemptAt: string | null; DeliveredAt: string | null; CancelledAt?: string | null }
+export type ErrorGroupDetail = { Group: ErrorGroup; Samples: ErrorSample[]; Deliveries?: ErrorDelivery[] }
 
 export type ErrorFilters = {
   kinds: ErrorKind[]
@@ -109,7 +110,8 @@ export function getNotFoundStats(range: { from?: string; to?: string }): Promise
 }
 
 export type TelegramChat = { ChatID: string; Label: string; Failing: boolean; FailingSince: string | null; LastError: string }
-export type ErrorSettings = { Emails: string[]; EmailToSuperAdmins: boolean; TelegramEnabled: boolean; TelegramChats: TelegramChat[]; UpdatedAt: string }
+export type ErrorEmailRecipient = { Email: string; UserID?: string; FirstName?: string; LastName?: string; Role?: string; Status?: string; EmailConfirmed?: boolean; Eligible: boolean }
+export type ErrorSettings = { EmailRecipients?: ErrorEmailRecipient[]; Emails: string[]; EmailToSuperAdmins: boolean; TelegramEnabled: boolean; TelegramChats: TelegramChat[]; UpdatedAt: string }
 export type ErrorSettingsInput = { Emails: string[]; EmailToSuperAdmins: boolean; TelegramChats: { ChatID: string; Label: string }[] }
 export type TestResult = { Channel: "telegram" | "email" | string; Target: string; Label: string; OK: boolean; Error: string }
 
