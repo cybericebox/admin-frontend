@@ -38,7 +38,7 @@ describe("errors page", () => {
   it("lists groups linking to the detail path and sends the filters", async () => {
     render(<Page />)
     const link = await screen.findByRole("link", { name: "database is down" })
-    expect(link).toHaveAttribute("href", "/errors/g1")
+    expect(link).toHaveAttribute("href", "/errors/?group=g1")
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.errors.filter.status" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.errors.status.resolved" }))
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("status=resolved"), expect.anything()))
@@ -99,10 +99,10 @@ describe("errors page", () => {
     expect(screen.queryByRole("radio")).not.toBeInTheDocument()
   })
 
-  it("renders /errors/<groupID> as one group, its stack as text and the user as a link", async () => {
+  it.each(["/errors/ID", "/errors/?group=ID"])("renders the group at %s, its stack as text and the user as a link", async (address) => {
     const id = "11111111-1111-4111-8111-111111111111"
     const user = "22222222-2222-4222-8222-222222222222"
-    window.history.pushState({}, "", `/errors/${id}`)
+    window.history.pushState({}, "", address.replace("ID", id))
     mocks.get.mockImplementation((path: string) => path.startsWith("/api/users/")
       ? Promise.resolve({ ID: user, FirstName: "Олена", LastName: "Коваль", Email: "o@example.test" })
       : Promise.resolve({ Group: group({ ID: id }), Samples: [{ ID: "s1", OccurredAt: "2026-10-01T11:00:00Z", Message: "<img src=x onerror=alert(1)>", Stack: "<b>frame</b>\nmain.go:1", Method: "GET", Route: "/api/x", HTTPStatus: 500, RequestID: "req-1", UserID: user, Role: "admin", Permission: "", Limiter: "", Details: { attempt: "2" } }] }))
