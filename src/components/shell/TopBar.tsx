@@ -1,5 +1,5 @@
 "use client"
-import { Fragment } from "react"
+import { Fragment, useId, useRef, useState } from "react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -7,9 +7,9 @@ import {
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { Menu } from "lucide-react"
+import { ChevronDown, Menu } from "lucide-react"
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs"
-import { THEME_OPTIONS, ThemeSwitch, useThemeChoice } from "./ThemeSwitch"
+import { THEME_OPTIONS, useThemeChoice } from "./ThemeSwitch"
 import type { ThemeChoice } from "@/lib/theme"
 import { InboxButton } from "./InboxButton"
 import { exercisesOrigin, idOrigin } from "@/lib/origins"
@@ -41,6 +41,11 @@ async function signOutAndRedirect(): Promise<void> {
 export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMenuClick?: () => void }) {
   const { me, role } = useRole()
   const [themeChoice, selectTheme] = useThemeChoice()
+  const [themeExpanded, setThemeExpanded] = useState(false)
+  const themeChoicesID = useId()
+  const themeTrigger = useRef<HTMLDivElement>(null)
+  const currentTheme = THEME_OPTIONS.find((option) => option.value === themeChoice)!
+  const ThemeIcon = currentTheme.icon
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   // Everyone past the admin shell is admin-tier, and admin-tier opens the catalog.
   const adminTier = role !== null && role !== "user"
@@ -58,18 +63,13 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
         <Breadcrumbs items={crumbs} className="min-w-0" />
       </div>
       <div className="flex items-center gap-3">
-        {/* On narrow screens the theme switch and the view-only badge live in the account menu. */}
-        <div className="flex items-center gap-3 max-md:hidden">
-          <ThemeSwitch />
-          <span className="h-5 w-px bg-border" aria-hidden="true" />
-        </div>
         <InboxButton defaultTab="requestsIfOpen" />
         {role === "admin_viewer" && (
           <span className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground max-md:hidden">
             {t("admin.role.viewOnlyBadge")}
           </span>
         )}
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => { if (!open) setThemeExpanded(false) }}>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
             className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-xs font-medium text-[var(--ib-on-brand)]"
@@ -92,16 +92,43 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <div className="md:hidden">
-              {role === "admin_viewer" && <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("admin.role.viewOnlyBadge")}</DropdownMenuLabel>}
-              <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">{t("theme.label")}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={themeChoice} onValueChange={(value) => selectTheme(value as ThemeChoice)}>
+            {role === "admin_viewer" && <DropdownMenuLabel className="text-[length:var(--ib-fs-13)] font-medium text-muted-foreground md:hidden">{t("admin.role.viewOnlyBadge")}</DropdownMenuLabel>}
+            <DropdownMenuItem
+              ref={themeTrigger}
+              className="gap-2"
+              aria-expanded={themeExpanded}
+              aria-controls={themeChoicesID}
+              onSelect={(event) => { event.preventDefault(); setThemeExpanded((expanded) => !expanded) }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowRight") { event.preventDefault(); setThemeExpanded(true) }
+                if (event.key === "ArrowLeft") { event.preventDefault(); setThemeExpanded(false) }
+              }}
+            >
+              <ThemeIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{t("theme.label")}</span>
+              <span className="ml-auto text-xs text-muted-foreground">{t(currentTheme.label)}</span>
+              <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 transition-transform ${themeExpanded ? "rotate-180" : ""}`} />
+            </DropdownMenuItem>
+            {themeExpanded && (
+              <DropdownMenuRadioGroup
+                id={themeChoicesID}
+                aria-label={t("theme.label")}
+                value={themeChoice}
+                onValueChange={(value) => selectTheme(value as ThemeChoice)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault()
+                    setThemeExpanded(false)
+                    themeTrigger.current?.focus()
+                  }
+                }}
+              >
                 {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
                   <DropdownMenuRadioItem key={value} value={value} className="gap-2"><Icon aria-hidden="true" className="h-4 w-4" />{t(label)}</DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-            </div>
+            )}
+            <DropdownMenuSeparator />
             {entries.map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
               if (entry.kind === "cookies") return <Fragment key={i}><CookieSettingsMenuItem /><FeedbackMenuItem /></Fragment>

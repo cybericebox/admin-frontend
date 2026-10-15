@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { TopBar } from "./TopBar"
 
 const role = vi.hoisted(() => ({ value: "admin_viewer" as string }))
@@ -12,19 +12,52 @@ vi.mock("@/components/consent/CookieSettingsMenuItem", () => ({ CookieSettingsMe
 vi.mock("@/components/FeedbackMenuItem", () => ({ FeedbackMenuItem: () => null }))
 
 describe("top bar", () => {
-  it("keeps the theme switch and the view-only badge in the bar from md up, and offers both in the account menu on narrow screens", () => {
+  beforeEach(() => {
+    document.cookie = "cib_theme=; path=/; domain=.localhost; max-age=0"
+    document.documentElement.dataset.theme = "light"
+  })
+
+  it("keeps theme choices behind one expandable account row on every screen and preserves view-only badges", async () => {
     role.value = "admin_viewer"
     const { container } = render(<TopBar crumbs={[{ label: "Заходи" }]} />)
-    // In the bar: hidden below md through a utility class.
-    const barSwitch = screen.getByRole("radiogroup", { name: "theme.label" })
-    expect(barSwitch.parentElement).toHaveClass("max-md:hidden")
+    expect(screen.queryByRole("radiogroup", { name: "theme.label" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument()
     expect(container.querySelector("header span.max-md\\:hidden")).toHaveTextContent("admin.role.viewOnlyBadge")
-
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
-    expect(screen.getByRole("menuitemradio", { name: "theme.dark" })).toBeInTheDocument()
+    const theme = screen.getByRole("menuitem", { name: /theme.label/ })
+    expect(theme).toHaveTextContent("theme.system")
+    expect(theme).toHaveAttribute("aria-expanded", "false")
+    expect(theme.closest(".md\\:hidden")).toBeNull()
+    expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
     expect(screen.getAllByText("admin.role.viewOnlyBadge")).toHaveLength(2)
+    fireEvent.click(theme)
+    const light = await screen.findByRole("menuitemradio", { name: "theme.light" })
+    expect(theme).toHaveAttribute("aria-expanded", "true")
+    expect(light.closest('[role="menu"]')).toBe(theme.closest('[role="menu"]'))
+    expect(screen.getByRole("menuitemradio", { name: "theme.system" })).toHaveAttribute("aria-checked", "true")
     fireEvent.click(screen.getByRole("menuitemradio", { name: "theme.dark" }))
     expect(document.documentElement.dataset.theme).toBe("dark")
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
+    expect(screen.getByRole("menuitem", { name: /theme.label/ })).toHaveTextContent("theme.dark")
+    expect(screen.getByRole("menuitem", { name: /theme.label/ })).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+  })
+
+  it("expands inline theme choices with Enter and closes them with ArrowLeft", async () => {
+    role.value = "admin"
+    render(<TopBar crumbs={[]} />)
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
+    const theme = screen.getByRole("menuitem", { name: /theme.label/ })
+    theme.focus()
+    fireEvent.keyDown(theme, { key: "Enter" })
+    const light = await screen.findByRole("menuitemradio", { name: "theme.light" })
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(3)
+    light.focus()
+    fireEvent.keyDown(light, { key: "ArrowLeft" })
+    await waitFor(() => expect(theme).toHaveFocus())
+    expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    fireEvent.keyDown(theme, { key: "Escape" })
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.accountMenu" })).toHaveFocus())
   })
 
   it("shows the trail only: no h1, links on every crumb but the last", () => {
