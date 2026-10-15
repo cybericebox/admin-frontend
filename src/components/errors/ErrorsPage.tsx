@@ -18,11 +18,15 @@ const DETAIL_PATH = /^\/errors\/([0-9a-fA-F-]{36})\/?$/
 const subscribe = (notify: () => void) => { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify) }
 
 /**
- * /errors is the list, /errors/<groupID> a group. The static export has one page, `errors`: nginx serves it for
- * any /errors/<id> (and `next dev` rewrites it), and the id is read from the address here.
+ * The query-based group link works on static hosts without server rewrites.
+ * Legacy /errors/<id> links remain supported where nginx serves the errors page.
  */
-export function groupIDOf(pathname: string): string | null {
-  return DETAIL_PATH.exec(pathname)?.[1] ?? null
+export function groupIDOf(address: string): string | null {
+  const [pathname, search = ""] = address.split("?", 2)
+  const legacy = DETAIL_PATH.exec(pathname)?.[1]
+  if (legacy) return legacy
+  const id = new URLSearchParams(search).get("group")
+  return /^\/errors\/?$/.test(pathname) && id && /^[0-9a-fA-F-]{36}$/.test(id) ? id : null
 }
 
 const TABS = ["journal", "notFound", "notify"]
@@ -48,8 +52,8 @@ function ErrorsList() {
 export function ErrorsPage() {
   // usePathname re-renders the page when a link moves between the list and a group; the address is the source.
   const routed = usePathname()
-  const pathname = useSyncExternalStore(subscribe, () => window.location.pathname, () => routed || "/errors")
-  const groupID = groupIDOf(pathname)
+  const address = useSyncExternalStore(subscribe, () => window.location.pathname + window.location.search, () => routed || "/errors")
+  const groupID = groupIDOf(address)
   return (
     <RequirePermission perm="platform.errors.read" fallback={<NoAccess message={t("admin.errors.noAccess")} />}>
       <div className="flex h-full min-h-0 flex-col gap-4">
