@@ -1,5 +1,7 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Monitor, Smartphone, Tablet } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { ApiError } from "@/api/client"
 import { LoadError } from "@/components/ui/load-error"
 import { previewEmailTemplate, type PreviewEmailTemplateResult } from "@/api/notifications/emailTemplates"
@@ -23,7 +25,7 @@ const PREVIEW_DEBOUNCE_MS = 300
  * document makes no image requests and needs no base URL.
  */
 function previewDocument(html: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${html}</body></html>`
 }
 
 /**
@@ -31,14 +33,59 @@ function previewDocument(html: string): string {
  * (sandbox="": no scripts, forms, popups or same-origin access). Shared by the
  * template preview and the platform footer preview, so both look alike.
  */
+const VIEWPORTS = [
+  { key: "desktop", width: 1024, icon: Monitor },
+  { key: "tablet", width: 768, icon: Tablet },
+  { key: "mobile", width: 390, icon: Smartphone },
+] as const
+
 export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string; className?: string }) {
+  const [device, setDevice] = useState<(typeof VIEWPORTS)[number]["key"]>("desktop")
+  const viewport = useRef<HTMLDivElement>(null)
+  const [available, setAvailable] = useState({ width: 0, height: 0 })
+  const width = VIEWPORTS.find((preset) => preset.key === device)!.width
+  const scale = available.width > 0 ? Math.min(1, available.width / width) : 1
+
+  useEffect(() => {
+    const shell = viewport.current
+    if (!shell) return
+    const measure = () => {
+      const bounds = shell.getBoundingClientRect()
+      setAvailable({ width: bounds.width, height: bounds.height })
+    }
+    measure()
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure)
+      return () => window.removeEventListener("resize", measure)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(shell)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <iframe
-      title={t("admin.notif.editor.previewTitle")}
-      sandbox=""
-      srcDoc={previewDocument(html)}
-      className={`w-full bg-white ${className}`}
-    />
+    <div className="min-w-0 w-full overflow-hidden">
+      <div role="group" aria-label={t("admin.emailPreview.viewport")} className="flex flex-wrap gap-1 border-b border-border bg-card p-2">
+        {VIEWPORTS.map(({ key, width: presetWidth, icon: Icon }) => (
+          <Button key={key} type="button" size="sm" variant={device === key ? "secondary" : "ghost"} aria-pressed={device === key} onClick={() => setDevice(key)}>
+            <Icon className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            {t(`admin.emailPreview.${key}`)}
+            <span aria-hidden="true" className="ml-1.5 text-[10px] font-normal text-muted-foreground">{presetWidth}</span>
+          </Button>
+        ))}
+      </div>
+      <div ref={viewport} className={`relative w-full overflow-hidden bg-secondary ${className}`}>
+        <div className="relative mx-auto h-full" style={{ width: width * scale }}>
+          <iframe
+            title={t("admin.notif.editor.previewTitle")}
+            sandbox=""
+            srcDoc={previewDocument(html)}
+            className="absolute left-0 top-0 border-0 bg-white"
+            style={{ width, height: available.height > 0 ? available.height / scale : "100%", transform: `scale(${scale})`, transformOrigin: "top left" }}
+          />
+        </div>
+      </div>
+    </div>
   )
 }
 
