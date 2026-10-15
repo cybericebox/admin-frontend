@@ -120,8 +120,8 @@ function UsersList() {
   const stateKind = error ? "error" : firstLoad ? "loading" : users.length === 0 ? "empty" : null
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <PageHeader title={t("admin.users.title")} count={loading && users.length === 0 ? undefined : total}
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
+      <PageHeader title={t("admin.users.title")}
         actions={can("users.invite") ? <Button className="h-10 shrink-0 text-sm" onClick={() => setInviteOpen(true)}>{t("admin.users.invite.button")}</Button> : undefined}
         filters={<>
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}

@@ -16,8 +16,8 @@ export function TablePagination({ page, pageSize, total, busy, onPage, onPageSiz
   onPageSize: (pageSize: number) => void
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize))
-  return <div className="grid shrink-0 grid-cols-1 items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+  return <div className="grid shrink-0 grid-cols-[1fr_auto] items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
+    <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-1">
       <span>{t("admin.table.totalCount", { total })}</span>
       <span className="whitespace-nowrap">{t("admin.table.pageOf", { page, pages })}</span>
       <span className="inline-flex w-5 justify-center">{busy && <Spinner size="sm" label={t("admin.table.updating")} />}</span>
@@ -26,8 +26,8 @@ export function TablePagination({ page, pageSize, total, busy, onPage, onPageSiz
       <Button type="button" variant="outline" size="sm" disabled={busy || page <= 1} onClick={() => onPage(page - 1)}>{t("admin.table.previous")}</Button>
       <Button type="button" variant="outline" size="sm" disabled={busy || page >= pages} onClick={() => onPage(page + 1)}>{t("admin.table.next")}</Button>
     </div>
-    <div className="flex items-center gap-2 sm:justify-end">
-      <span>{t("admin.table.perPage")}</span>
+    <div className="flex items-center justify-end gap-2">
+      <span className="sr-only sm:not-sr-only">{t("admin.table.perPage")}</span>
       <SelectMenu value={String(pageSize)} onChange={(value) => onPageSize(Number(value))}
         options={PAGE_SIZES.map((value) => ({ value: String(value), label: String(value) }))}
         ariaLabel={t("admin.table.perPage")} className="w-20" disabled={busy} />

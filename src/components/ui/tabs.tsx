@@ -21,7 +21,7 @@ const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, T
     <TabsPrimitive.List
       ref={ref}
       className={cn(
-        "ib-tabs",
+        "ib-tabs min-w-0 max-w-full",
         variant === "page" && "ib-tabs--page",
         variant === "vertical" && "ib-tabs--vertical",
         variant !== "vertical" && (scroll ?? true) && "ib-tabs--scroll",

@@ -19,7 +19,7 @@ const HEAD_H = 36
 export function TableWrap({ label, rows = 6, minHeight, className, children }: { label: string; rows?: number; minHeight?: number; className?: string; children: ReactNode }) {
   // With `minHeight` the whole block (header + state) keeps that height, the state cell takes the rest.
   const style = { "--ib-state-h": minHeight ? `${Math.max(120, minHeight - HEAD_H)}px` : `${rows * ROW_H}px`, minHeight } as React.CSSProperties
-  return <div role="region" tabIndex={0} aria-label={label} style={style} className={cn("ib-table-wrap rounded-lg border border-border bg-card", className)}>{children}</div>
+  return <div role="region" tabIndex={0} aria-label={label} style={style} className={cn("ib-table-wrap [container-type:inline-size] rounded-lg border border-border bg-card", className)}>{children}</div>
 }
 
 export type TableStateKind = "loading" | "empty" | "error"
@@ -33,12 +33,12 @@ export function TableState({ colSpan, kind, message, error, onRetry, loadingLabe
   onRetry?: () => void
   loadingLabel?: string
 }) {
-  const cls = "min-h-[var(--ib-state-h,240px)] flex-1"
-  return <tbody className="ib-table__state"><tr><td colSpan={colSpan}>
-    {kind === "loading" && <LoadingArea className={cn("w-full", cls)} label={loadingLabel ?? t("admin.loading")} />}
-    {kind === "error" && <LoadError className={cls} message={message} error={error} onRetry={onRetry} />}
-    {kind === "empty" && <EmptyState className={cls} message={message ?? t("admin.platformAnalytics.table.empty")} />}
-  </td></tr></tbody>
+  const cls = "sticky left-0 flex w-[100cqw] max-w-full min-h-[var(--ib-state-h,240px)] items-center justify-center"
+  return <tbody className="ib-table__state"><tr><td colSpan={colSpan}><div className={cls}>
+    {kind === "loading" && <LoadingArea label={loadingLabel ?? t("admin.loading")} />}
+    {kind === "error" && <LoadError className="w-full" message={message} error={error} onRetry={onRetry} />}
+    {kind === "empty" && <EmptyState className="w-full" message={message ?? t("admin.platformAnalytics.table.empty")} />}
+  </div></td></tr></tbody>
 }
 
 /** Sort header: `th[aria-sort]` with one button; `num` right-aligns numbers like their cells. */
