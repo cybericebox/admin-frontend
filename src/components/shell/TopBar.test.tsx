@@ -60,12 +60,19 @@ describe("top bar", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.accountMenu" })).toHaveFocus())
   })
 
-  it("shows the trail only: no h1, links on every crumb but the last", () => {
+  it("keeps only the section link in the top bar, without duplicating the page heading", () => {
     role.value = "admin"
     render(<TopBar crumbs={[{ label: "Заходи", href: "/events" }, { label: "Новий захід" }]} />)
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Заходи" })).toHaveAttribute("href", "/events")
-    expect(screen.getByText("Новий захід")).toHaveAttribute("aria-current", "page")
+    expect(screen.queryByText("Новий захід")).not.toBeInTheDocument()
+  })
+
+  it("keeps a deep object's name and leaf title out of the top bar", () => {
+    render(<TopBar crumbs={[{ label: "Помилки", href: "/errors" }, { label: "Назва обʼєкта", href: "/errors/object" }, { label: "Контрольна перевірка доставки CIB-NOTIFY-20261015-e8605811" }]} />)
+    expect(screen.getByRole("link", { name: "Помилки" })).toHaveAttribute("href", "/errors")
+    expect(screen.queryByText("Назва обʼєкта")).not.toBeInTheDocument()
+    expect(screen.queryByText(/CIB-NOTIFY/)).not.toBeInTheDocument()
   })
 
   it("a top-level page shows its section as plain text, not a link to itself", () => {
