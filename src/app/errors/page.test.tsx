@@ -2,6 +2,16 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), put: vi.fn(), post: vi.fn(), denied: new Set<string>() }))
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react")
+  return {
+    usePathname: () => "/errors/",
+    useSearchParams: () => new URLSearchParams(useSyncExternalStore(
+      (notify) => { window.addEventListener("test-next-query", notify); return () => window.removeEventListener("test-next-query", notify) },
+      () => window.location.search,
+    )),
+  }
+})
 vi.mock("@/api/client", async (original) => ({ ...(await original<object>()), apiGet: mocks.get, apiPatch: mocks.patch, apiPut: mocks.put, apiPost: mocks.post }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
 vi.mock("@/lib/origins", async (original) => ({ ...(await original<object>()), apiOrigin: "https://api.example.test" }))
@@ -60,6 +70,23 @@ describe("errors page", () => {
     render(<Page />)
     expect(screen.getByText("admin.errors.noAccess")).toBeInTheDocument()
     expect(mocks.get).not.toHaveBeenCalled()
+  })
+
+  it("returns from a query-linked group to the list on Next query navigation", async () => {
+    const id = "11111111-1111-4111-8111-111111111111"
+    window.history.pushState({}, "", `/errors/?group=${id}`)
+    mocks.get.mockImplementation((path: string) => Promise.resolve(path === `/api/admin/errors/${id}`
+      ? { Group: group({ ID: id }), Samples: [] }
+      : list([group()])))
+    render(<Page />)
+    await screen.findByRole("heading", { name: "database is down" })
+    act(() => {
+      window.history.pushState({}, "", "/errors/")
+      // Next's Link updates the query without a native popstate event.
+      window.dispatchEvent(new Event("test-next-query"))
+    })
+    expect(await screen.findByRole("link", { name: "database is down" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "database is down" })).not.toBeInTheDocument()
   })
 
   it("updates a row and adds a new group from the live stream without refetching", async () => {

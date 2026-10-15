@@ -1,6 +1,6 @@
 "use client"
 import { Suspense, useSyncExternalStore } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { NoAccess } from "@/components/rbac/NoAccess"
 import { PageHeader } from "@/components/ui/page-header"
@@ -49,10 +49,12 @@ function ErrorsList() {
   </>
 }
 
-export function ErrorsPage() {
-  // usePathname re-renders the page when a link moves between the list and a group; the address is the source.
+function ErrorsRoute() {
+  // Next Link can change only the query without popstate or a pathname change.
+  // Subscribe to both router values; legacy rewritten paths still come from the live address.
   const routed = usePathname()
-  const address = useSyncExternalStore(subscribe, () => window.location.pathname + window.location.search, () => routed || "/errors")
+  const params = useSearchParams()
+  const address = useSyncExternalStore(subscribe, () => window.location.pathname + window.location.search, () => `${routed || "/errors"}${params?.size ? `?${params}` : ""}`)
   const groupID = groupIDOf(address)
   return (
     <RequirePermission perm="platform.errors.read" fallback={<NoAccess message={t("admin.errors.noAccess")} />}>
@@ -63,4 +65,8 @@ export function ErrorsPage() {
       </div>
     </RequirePermission>
   )
+}
+
+export function ErrorsPage() {
+  return <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}><ErrorsRoute /></Suspense>
 }
