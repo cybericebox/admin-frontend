@@ -1,146 +1,165 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), denied: new Set<string>(), users: [] as { ID: string; FirstName: string; LastName: string; Email: string }[] }))
-vi.mock("@/api/client", async (original) => ({ ...(await original<object>()), apiGet: mocks.get, apiPut: mocks.put, apiPost: mocks.post }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), patch: vi.fn(), denied: new Set<string>(), users: [] as object[] }))
+vi.mock("@/api/client", async (original) => ({ ...(await original<object>()), apiGet: mocks.get, apiPut: mocks.put, apiPost: mocks.post, apiPatch: mocks.patch }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => !mocks.denied.has(permission) }) }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ role: "super_admin", can: (permission: string) => !mocks.denied.has(permission) }) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }))
-
 import { ErrorNotifySettings } from "./ErrorNotifySettings"
-
-const settings = (over: object = {}) => ({ Emails: ["ops@example.test"], EmailToSuperAdmins: true, TelegramEnabled: true, TelegramChats: [{ ChatID: "-100", Label: "Ops", Failing: true, FailingSince: "2026-10-01T10:00:00Z", LastError: "bot was blocked" }], UpdatedAt: "2026-10-01T10:00:00Z", ...over })
-
+const settings = (over: object = {}) => ({ Emails: ["ops@example.test"], EmailRecipients: [{ Email: "ops@example.test", Role: "super_admin", Status: "active", EmailConfirmed: true, Eligible: true }], EmailToSuperAdmins: true, TelegramEnabled: true, TelegramChats: [{ ChatID: "-100", Label: "Ops", Failing: true, FailingSince: "2026-10-01T10:00:00Z", LastError: "bot was blocked" }], UpdatedAt: "2026-10-01T10:00:00Z", ...over })
+const user = (over: object = {}) => ({ ID: "new", FirstName: "New", LastName: "User", Email: "new@example.test", Role: "super_admin", Status: "active", EmailConfirmed: true, ...over })
+async function openPicker() {
+  await screen.findByText("ops@example.test")
+  fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
+  return screen.findByRole("combobox")
+}
+async function selectNew() { await openPicker(); fireEvent.click(await screen.findByRole("option", { name: /New User/ })) }
 describe("error notification settings", () => {
   beforeEach(() => {
-    mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.denied.clear(); mocks.users = []
+    mocks.get.mockReset(); mocks.put.mockReset(); mocks.post.mockReset(); mocks.patch.mockReset(); mocks.denied.clear(); mocks.users = [user()]
     mocks.get.mockImplementation((path: string) => Promise.resolve(path.startsWith("/api/users?") ? { Items: mocks.users, Total: mocks.users.length } : settings()))
   })
   afterEach(cleanup)
-
-  it("disables visible Save for clean, whitespace-equivalent and reverted recipients, leaving Test available", async () => {
+  it("opens one inline picker on demand and adds a platform account to the draft without an invitation", async () => {
     render(<ErrorNotifySettings />)
-    const input = await screen.findByDisplayValue("ops@example.test")
+    await screen.findByText("ops@example.test")
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(mocks.get.mock.calls.some(([path]) => String(path).startsWith("/api/users?"))).toBe(false)
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "admin.errors.settings.test" })).toBeEnabled()
-    fireEvent.change(input, { target: { value: " ops@example.test " } })
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
-    fireEvent.change(input, { target: { value: "changed@example.test" } })
+    await selectNew()
+    expect(mocks.get).toHaveBeenCalledWith("/api/users?pageSize=10&role=super_admin")
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(screen.getByText("new@example.test")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
-    fireEvent.change(input, { target: { value: "ops@example.test" } })
+    expect(mocks.post).not.toHaveBeenCalled()
+    mocks.put.mockResolvedValue(settings({ Emails: ["ops@example.test", "new@example.test"] }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
+    await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/admin/errors/settings", { Emails: ["ops@example.test", "new@example.test"], EmailToSuperAdmins: true, TelegramChats: [{ ChatID: "-100", Label: "Ops" }] }))
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
+  })
+  it("confirms recipient removal and keeps cancellation focused", async () => {
+    render(<ErrorNotifySettings />)
+    await screen.findByText("ops@example.test")
+    fireEvent.click(screen.getByRole("button", { name: /admin.errors.settings.removeEmail/ }))
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "confirm.cancel" })).toHaveFocus()
+    fireEvent.click(screen.getByRole("button", { name: "confirm.cancel" }))
+    expect(screen.getByText("ops@example.test")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /admin.errors.settings.removeEmail/ }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.removeRecipientConfirm" }))
+    expect(screen.queryByText("ops@example.test")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
+  })
+  it("searches by name or email, prevents duplicates and blocks blocked accounts", async () => {
+    mocks.users = [user(), user({ ID: "ops", Email: "OPS@example.test", FirstName: "Ops" }), user({ ID: "blocked", FirstName: "Blocked", Status: "blocked" })]
+    render(<ErrorNotifySettings />)
+    const input = await openPicker()
+    expect(await screen.findByRole("option", { name: /Ops User/ })).toBeDisabled()
+    expect(screen.getByRole("option", { name: /Blocked User/ })).toBeDisabled()
+    fireEvent.change(input, { target: { value: "New" } })
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("search=New")))
+    fireEvent.keyDown(input, { key: "Enter" })
+    await waitFor(() => expect(screen.queryByRole("combobox")).not.toBeInTheDocument())
+  })
+  it("invites unknown addresses through the standard super-administrator invitation before adding a pending recipient", async () => {
+    mocks.users = []
+    let resolve!: (value: unknown) => void
+    mocks.post.mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<ErrorNotifySettings />)
+    fireEvent.change(await openPicker(), { target: { value: " invite@example.test " } })
+    fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
+    expect(mocks.post).toHaveBeenCalledWith("/api/users/invite", { Entries: [{ Email: "invite@example.test", FirstName: "", LastName: "", Role: "super_admin" }] })
+    expect(screen.queryByText("invite@example.test")).not.toBeInTheDocument()
+    mocks.users = [user({ ID: "invited", Email: "invite@example.test", Status: "incomplete", EmailConfirmed: false })]
+    resolve([{ Email: "invite@example.test" }])
+    expect(await screen.findByText("invite@example.test")).toBeInTheDocument()
+    expect(screen.getByText(/recipientState.pending/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
+  })
+  it("requires explicit role promotion confirmation before adding another platform user", async () => {
+    mocks.users = [user({ Role: "user" })]; mocks.patch.mockResolvedValue({})
+    render(<ErrorNotifySettings />)
+    const input = await openPicker()
+    fireEvent.change(input, { target: { value: "New" } })
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("search=New")))
+    fireEvent.click(await screen.findByRole("option", { name: /New User/ }))
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(mocks.patch).not.toHaveBeenCalled()
+    expect(screen.getByText("admin.errors.settings.save").closest("button")).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.promoteAndAdd" }))
+    await waitFor(() => expect(mocks.patch).toHaveBeenCalledWith("/api/users/new/role", { Role: "super_admin" }))
+    await waitFor(() => expect(screen.queryByRole("combobox")).not.toBeInTheDocument())
+    expect(screen.getByText("new@example.test")).toBeInTheDocument()
+  })
+  it("does not allow promotion without permission", async () => {
+    mocks.denied.add("users.role.write"); mocks.users = [user({ Role: "user" })]
+    render(<ErrorNotifySettings />); await openPicker()
+    expect(await screen.findByRole("option", { name: /New User/ })).toBeDisabled()
+    expect(screen.getByText(/recipientState.needsPromotion/)).toBeInTheDocument()
+    expect(mocks.patch).not.toHaveBeenCalled()
+  })
+  it("does not retain an invited address before its super-administrator account exists", async () => {
+    mocks.users = []; mocks.post.mockResolvedValue([{ Email: "invite@example.test" }])
+    render(<ErrorNotifySettings />)
+    fireEvent.change(await openPicker(), { target: { value: "invite@example.test" } })
+    fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("admin.errors.settings.invitedNotFound")
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
   })
-
-  it("keeps new recipient edits after an older save completes", async () => {
+  it("keeps an invite failure out of the recipient list and shows a retryable error", async () => {
+    mocks.users = []; mocks.post.mockResolvedValue([{ Email: "invite@example.test", Code: "send_failed" }])
+    render(<ErrorNotifySettings />)
+    fireEvent.change(await openPicker(), { target: { value: "invite@example.test" } })
+    fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("admin.users.invite.code.send_failed")
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
+    expect(screen.getByRole("combobox")).toBeInTheDocument()
+  })
+  it("keeps controls and newer recipient edits during an earlier save", async () => {
     let resolve!: (value: unknown) => void
     mocks.put.mockReturnValue(new Promise((done) => { resolve = done }))
-    render(<ErrorNotifySettings />)
-    const input = await screen.findByDisplayValue("ops@example.test")
-    fireEvent.change(input, { target: { value: "first@example.test" } })
+    render(<ErrorNotifySettings />); await selectNew()
     fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
-    fireEvent.change(input, { target: { value: "newer@example.test" } })
-    resolve(settings({ Emails: ["first@example.test"] }))
-    await waitFor(() => expect(input).toHaveValue("newer@example.test"))
+    fireEvent.click(screen.getByRole("switch"))
+    expect(screen.getByRole("button", { name: "admin.errors.settings.addEmail" })).toBeEnabled()
+    resolve(settings({ Emails: ["ops@example.test", "new@example.test"] }))
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled())
+    expect(screen.getByRole("switch")).not.toBeChecked()
   })
-
-  it("retains rejected edits for retry and becomes clean only after acknowledgement", async () => {
-    mocks.put.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValueOnce(settings({ Emails: ["new@example.test"] }))
-    render(<ErrorNotifySettings />)
-    const input = await screen.findByDisplayValue("ops@example.test")
-    fireEvent.change(input, { target: { value: "new@example.test" } })
+  it("retains rejected settings edits for retry", async () => {
+    mocks.put.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValueOnce(settings({ Emails: ["ops@example.test", "new@example.test"] }))
+    render(<ErrorNotifySettings />); await selectNew()
     fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
     await screen.findByRole("alert")
-    expect(input).toHaveValue("new@example.test")
+    expect(screen.getByText("new@example.test")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
-    expect(mocks.put).toHaveBeenCalledTimes(2)
   })
-
-  it("shows the lists, a failing chat and the missing-token hint", async () => {
-    mocks.get.mockResolvedValue(settings({ TelegramEnabled: false }))
+  it("does not offer invitations without permission or create arbitrary recipients", async () => {
+    mocks.denied.add("users.invite"); mocks.users = []
     render(<ErrorNotifySettings />)
-    expect(await screen.findByDisplayValue("ops@example.test")).toBeInTheDocument()
-    expect(screen.getByDisplayValue("-100")).toBeInTheDocument()
-    expect(screen.getByText(/admin.errors.settings.chatFailing/)).toBeInTheDocument()
-    expect(screen.getByText("admin.errors.settings.telegramOff")).toBeInTheDocument()
-  })
-
-  it("blocks saving a bad chat id or address and says why", async () => {
-    render(<ErrorNotifySettings />)
-    const chat = await screen.findByDisplayValue("-100")
-    fireEvent.change(chat, { target: { value: "not-a-chat" } })
-    expect(screen.getByText(/admin.errors.settings.chatInvalid/)).toBeInTheDocument()
+    fireEvent.change(await openPicker(), { target: { value: "unknown@example.test" } })
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("search=unknown")))
+    expect(screen.queryByRole("button", { name: /inviteAndAdd/ })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
-    fireEvent.change(chat, { target: { value: "@ops_alerts" } })
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
   })
-
-  it("replaces both lists on save and keeps the editor in place", async () => {
-    mocks.put.mockResolvedValue(settings({ Emails: ["ops@example.test", "new@example.test"] }))
+  it("does not load accounts without users.read or offer edits for read-only settings", async () => {
+    mocks.denied.add("users.read"); mocks.denied.add("platform.errors.write")
     render(<ErrorNotifySettings />)
-    await screen.findByDisplayValue("ops@example.test")
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
-    fireEvent.change(screen.getByLabelText(/admin.errors.settings.emailN {"n":2}/), { target: { value: " new@example.test " } })
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
-    await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/admin/errors/settings", {
-      Emails: ["ops@example.test", "new@example.test"], EmailToSuperAdmins: true, TelegramChats: [{ ChatID: "-100", Label: "Ops" }],
-    }))
-    expect(await screen.findByDisplayValue("new@example.test")).toBeInTheDocument()
-  })
-
-  it("sends a test and lists the result per target", async () => {
-    mocks.post.mockResolvedValue({ Results: [{ Channel: "telegram", Target: "-100", Label: "Ops", OK: false, Error: "chat not found" }, { Channel: "email", Target: "ops@example.test", Label: "", OK: true, Error: "" }] })
-    render(<ErrorNotifySettings />)
-    await screen.findByDisplayValue("ops@example.test")
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.test" }))
-    expect(await screen.findByText("chat not found")).toBeInTheDocument()
-    expect(screen.getByText("admin.errors.settings.resultOk")).toBeInTheDocument()
-    expect(mocks.post).toHaveBeenCalledWith("/api/admin/errors/settings/test", {})
-  })
-
-  it("selects registered users by email, deduplicates existing/manual recipients and skips missing addresses", async () => {
-    mocks.users = [
-      { ID: "ops", FirstName: "Ops", LastName: "User", Email: " OPS@example.test " },
-      { ID: "new", FirstName: "New", LastName: "User", Email: "new@example.test" },
-      { ID: "same", FirstName: "Same", LastName: "Email", Email: " NEW@example.test " },
-      { ID: "empty", FirstName: "No", LastName: "Email", Email: "" },
-    ]
-    mocks.put.mockResolvedValue(settings({ Emails: ["ops@example.test", "new@example.test", "external@example.test"] }))
-    render(<ErrorNotifySettings />)
-    expect(await screen.findByRole("checkbox", { name: /Ops User/ })).toBeChecked()
-    expect(screen.getByRole("checkbox", { name: /No Email/ })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
-    fireEvent.click(screen.getByRole("checkbox", { name: /New User/ }))
-    expect(screen.getByRole("checkbox", { name: /Same Email/ })).toBeChecked()
-    expect(screen.getAllByDisplayValue("new@example.test")).toHaveLength(1)
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
-    fireEvent.change(screen.getByLabelText(/admin.errors.settings.emailN {"n":3}/), { target: { value: " external@example.test " } })
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.save" }))
-    await waitFor(() => expect(mocks.put).toHaveBeenCalledWith("/api/admin/errors/settings", expect.objectContaining({ Emails: ["ops@example.test", "new@example.test", "external@example.test"] })))
-    await waitFor(() => expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled())
-    expect(mocks.get.mock.calls.filter(([path]) => String(path).startsWith("/api/users?"))).toHaveLength(1)
-    expect(mocks.get.mock.calls.find(([path]) => String(path).startsWith("/api/users?"))?.[0]).toContain("pageSize=20")
-  })
-
-  it("keeps manual recipients available without permission to read registered users", async () => {
-    mocks.denied.add("users.read")
-    render(<ErrorNotifySettings />)
-    await screen.findByDisplayValue("ops@example.test")
-    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
-    expect(mocks.get.mock.calls.some(([path]) => String(path).startsWith("/api/users?"))).toBe(false)
-    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.addEmail" }))
-    fireEvent.change(screen.getByLabelText(/admin.errors.settings.emailN {"n":2}/), { target: { value: "manual@example.test" } })
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
-  })
-
-  it("does not load the user picker or offer writes for read-only error settings", async () => {
-    mocks.denied.add("platform.errors.write")
-    render(<ErrorNotifySettings />)
-    expect(await screen.findByDisplayValue("ops@example.test")).toBeDisabled()
-    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
+    await screen.findByText("ops@example.test")
+    expect(screen.queryByRole("button", { name: "admin.errors.settings.addEmail" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.errors.settings.test" })).not.toBeInTheDocument()
     expect(mocks.get.mock.calls.some(([path]) => String(path).startsWith("/api/users?"))).toBe(false)
+  })
+  it("retains chat validation and displays delivery-test outcomes", async () => {
+    mocks.post.mockResolvedValue({ Results: [{ Channel: "email", Target: "ops@example.test", Label: "", OK: false, Error: "delivery failed" }] })
+    render(<ErrorNotifySettings />)
+    fireEvent.change(await screen.findByDisplayValue("-100"), { target: { value: "bad" } })
+    expect(screen.getByText(/chatInvalid/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.errors.settings.test" }))
+    expect(await screen.findByText("delivery failed")).toBeInTheDocument()
   })
 })

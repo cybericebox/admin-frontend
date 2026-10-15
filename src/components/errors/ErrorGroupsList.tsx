@@ -28,9 +28,10 @@ const cap = (value: string) => value[0].toUpperCase() + value.slice(1)
 export function ErrorGroupsList() {
   const { can } = useRole()
   const canWrite = can("platform.errors.write")
-  const [url, setUrl] = useUrlState({ q: "", ref: "", kind: "", status: "", period: "", page: "1", size: "50", sort: "lastSeen", dir: "desc" })
+  const [url, setUrl] = useUrlState({ q: "", ref: "", kind: "", status: "open", period: "", page: "1", size: "50", sort: "lastSeen", dir: "desc" })
   const kinds = useMemo(() => url.kind.split(",").filter((value): value is ErrorKind => (ERROR_KINDS as readonly string[]).includes(value)), [url.kind])
-  const status = (ERROR_STATUSES as readonly string[]).includes(url.status) ? url.status as ErrorStatus : ""
+  // Explicit "all" survives reloads: useUrlState removes empty values, and an absent status defaults to open.
+  const status = url.status === "all" || url.status === "" ? "" : (ERROR_STATUSES as readonly string[]).includes(url.status) ? url.status as ErrorStatus : "open"
   const period = url.period in PERIODS ? url.period : ""
   const [qInput, setQInput] = useState(url.q)
   const q = useDebounced(qInput.trim())
@@ -138,7 +139,7 @@ export function ErrorGroupsList() {
           </DropdownMenu>
         </FilterField>
         <FilterField label={t("admin.errors.filter.statusLabel")} className="min-w-44">
-          <SelectMenu value={status} onChange={(value) => setUrl({ status: value, page: "1" })} ariaLabel={t("admin.errors.filter.status")}
+          <SelectMenu value={status} onChange={(value) => setUrl({ status: value || "all", page: "1" })} ariaLabel={t("admin.errors.filter.status")}
             options={[{ value: "", label: t("admin.errors.filter.statusAll") }, ...ERROR_STATUSES.map((value) => ({ value, label: t(`admin.errors.status.${value}`) }))]} />
         </FilterField>
         <FilterField label={t("admin.errors.filter.periodLabel")} className="min-w-44">

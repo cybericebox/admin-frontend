@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { getErrorGroup, setErrorGroupStatus, type ErrorGroupDetail, type ErrorSample } from "@/api/errorJournal"
+import { ErrorDeliveries } from "./ErrorDeliveries"
 import { PageHeader } from "@/components/ui/page-header"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -78,6 +79,10 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
     return () => { active = false }
   }, [groupID, reload])
 
+  const onNotified = useCallback((time: string | null) => {
+    setDetail((current) => current ? { ...current, Group: { ...current.Group, LastNotifiedAt: time } } : current)
+  }, [])
+
   const resync = useCallback(() => setReload((value) => value + 1), [])
   useErrorStream({
     enabled: can("platform.errors.read"),
@@ -86,7 +91,7 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
       setDetail((current) => {
         if (!current) return current
         const samples = event.Sample && !current.Samples.some((s) => s.ID === event.Sample!.ID) ? [event.Sample, ...current.Samples].slice(0, MAX_SAMPLES) : current.Samples
-        return { Group: event.Group, Samples: samples }
+        return { ...current, Group: event.Group, Samples: samples }
       })
     },
     onResync: resync,
@@ -126,6 +131,7 @@ export function ErrorGroupDetailPage({ groupID }: { groupID: string }) {
               <span className="text-xs text-muted-foreground">{t(`admin.errors.statusHint.${group.Status}`)}</span>
             </div>
           </header>
+          <ErrorDeliveries key={groupID} groupID={groupID} initial={detail.Deliveries ?? []} onNotified={onNotified} />
           <section aria-label={t("admin.errors.detail.samples")} className="min-h-0 flex-1 space-y-3 overflow-auto">
             <h2 className="text-sm font-semibold text-foreground">{t("admin.errors.detail.samples")}</h2>
             {detail.Samples.length === 0 ? <EmptyState message={t("admin.errors.detail.noSamples")} /> : detail.Samples.map((sample) => <SampleCard key={sample.ID} matched={!!request && sample.RequestID.toLowerCase().replaceAll("-", "").startsWith(request)} sample={sample} userName={sample.UserID ? names[sample.UserID] : undefined} />)}
