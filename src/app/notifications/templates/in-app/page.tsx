@@ -125,7 +125,7 @@ function InAppTemplateList() {
         <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.inapp.list.empty")} /></div>
       ) : (
         /* Grouped version table */
-        <div className="overflow-hidden rounded-lg border border-border bg-background">
+        <div role="region" tabIndex={0} aria-label={t("admin.notif.list.title")} className="max-w-full overflow-auto rounded-lg border border-border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">

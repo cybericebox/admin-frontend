@@ -200,7 +200,7 @@ export function BannersAdmin() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
       <PageHeader title={t("admin.notif.banners.title")}
         actions={canWrite ? <Button onClick={() => setEditing("new")}>{t("admin.notif.banners.create")}</Button> : undefined} />
     <div className="frost-panel frost-in flex min-h-0 flex-col overflow-hidden rounded-lg p-6">
