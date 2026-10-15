@@ -112,8 +112,8 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
         <CardTitle className="flex items-center gap-1.5 text-base">{t("admin.mail.footer.title")}<FieldHelp text={t("admin.mail.footer.description")} /></CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2" data-testid="mail-footer-editor">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="min-w-0 space-y-2" data-testid="mail-footer-editor">
             <div className="flex items-center gap-1.5">
               <span className="block text-sm font-medium">{t("admin.mail.footer.text")}</span>
               <FieldHelp text={t("admin.mail.footer.textHelp")} />
@@ -128,7 +128,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
               placeholder={t("admin.mail.footer.placeholder")}
             />
           </div>
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <span className="block text-sm font-medium">{t("admin.mail.footer.preview")}</span>
             <div data-testid="mail-footer-preview" className="flex min-h-40 flex-col justify-center overflow-hidden rounded-md border border-border bg-card">
               {preview.status === "loading" ? (
