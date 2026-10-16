@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import {
   convertTypedToken,
   htmlToRawSingleLine,
   insertVariablePill,
   rawToHtml,
+  unknownVariableHint,
   type VariableDef,
 } from "./variableUtils";
 import { cn } from "@/utils/cn";
 import { t } from "@/i18n/t";
 import { Braces, ChevronDown } from "lucide-react";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { VariablePickerMenu } from "./VariablePickerMenu";
 import { historyDirection, placeCaretAtEnd, TemplateFieldHistory } from "./templateFieldHistory";
 
@@ -21,6 +23,7 @@ interface Props {
   variables?: VariableDef[];
   placeholder?: string;
   className?: string;
+  error?: string;
   /** When true, emits/parses {{.Name}} (Go text/template dotted form).
    *  When false (default), emits/parses {{Name}} (bare form). */
   dotted?: boolean;
@@ -32,8 +35,10 @@ export function VariableRichText({
   variables = [],
   placeholder,
   className,
+  error,
   dotted = false,
 }: Props) {
+  const errorId = useId();
   const divRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Track the last raw value we emitted so we avoid re-syncing innerHTML on
@@ -182,9 +187,9 @@ export function VariableRichText({
   );
 
   // Pasted or edited tokens that never passed through typing get their pills on blur.
-  const normalizeOnBlur = () => {
+  const normalizeOnBlur = (event: React.FocusEvent<HTMLDivElement>) => {
     const div = divRef.current;
-    if (!div || variables.length === 0) return;
+    if (!div || variables.length === 0 || (event.relatedTarget instanceof Node && div.contains(event.relatedTarget))) return;
     const html = rawToHtml(htmlToRawSingleLine(div.innerHTML, { dotted }), variables.map((variable) => variable.name), { dotted });
     if (html !== div.innerHTML) div.innerHTML = html;
   };
@@ -196,6 +201,7 @@ export function VariableRichText({
 
   return (
     <div className="relative" ref={containerRef}>
+      <HoverTooltip text="" delegate="[data-invalid='true']" textForTarget={(target) => unknownVariableHint(target.dataset.var ?? "")} describe className="contents">
       <div
         ref={divRef}
         contentEditable
@@ -217,7 +223,12 @@ export function VariableRichText({
         )}
         role="textbox"
         aria-multiline="false"
+        aria-label={placeholder}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
       />
+      </HoverTooltip>
+      {error && <p id={errorId} role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
       {variables.length > 0 && <button type="button" aria-label={t("admin.notif.editor.insertVariable")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => { setFilter(""); setShowDropdown((open) => !open) }}

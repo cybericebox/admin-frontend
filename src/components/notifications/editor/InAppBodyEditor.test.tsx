@@ -117,7 +117,8 @@ describe('InAppBodyEditor', () => {
     const invalid = editor.querySelector('[data-var="ghost"]')
     expect(invalid).toHaveAttribute('data-invalid', 'true')
     expect(invalid).toHaveClass('text-destructive')
-    expect(invalid).toHaveAttribute('title', t('admin.notif.editor.unknownVariable', { name: 'ghost' }))
+    expect(invalid).not.toHaveAttribute('title')
+    expect(invalid).toHaveAttribute('tabindex', '0')
   })
 
   it('leaves tokens as text while the variable list is empty, then decorates them when it loads', () => {

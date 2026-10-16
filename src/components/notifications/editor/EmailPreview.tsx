@@ -1,7 +1,9 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { Monitor, Smartphone, Tablet } from "lucide-react"
+import { Expand, Monitor, Smartphone, Tablet, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { ApiError } from "@/api/client"
 import { LoadError } from "@/components/ui/load-error"
 import { previewEmailTemplate, type PreviewEmailTemplateResult } from "@/api/notifications/emailTemplates"
@@ -39,11 +41,10 @@ const VIEWPORTS = [
   { key: "mobile", width: 390, icon: Smartphone },
 ] as const
 
-export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string; className?: string }) {
-  const [device, setDevice] = useState<(typeof VIEWPORTS)[number]["key"]>("desktop")
+/** A fixed responsive document viewport, scaled to fit its own visible container. */
+function EmailViewport({ html, width, className }: { html: string; width: number; className: string }) {
   const viewport = useRef<HTMLDivElement>(null)
   const [available, setAvailable] = useState({ width: 0, height: 0 })
-  const width = VIEWPORTS.find((preset) => preset.key === device)!.width
   const scale = available.width > 0 ? Math.min(1, available.width / width) : 1
 
   useEffect(() => {
@@ -63,7 +64,23 @@ export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string
     return () => observer.disconnect()
   }, [])
 
+  return <div ref={viewport} className={`relative w-full overflow-hidden bg-secondary ${className}`}>
+    <div className="relative mx-auto h-full" style={{ width: width * scale }}>
+      <iframe title={t("admin.notif.editor.previewTitle")} sandbox="" scrolling="yes" srcDoc={previewDocument(html)}
+        className="absolute left-0 top-0 border-0 bg-white"
+        style={{ width, height: available.height > 0 ? available.height / scale : "100%", transform: `scale(${scale})`, transformOrigin: "top left" }} />
+    </div>
+  </div>
+}
+
+export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string; className?: string }) {
+  const [device, setDevice] = useState<(typeof VIEWPORTS)[number]["key"]>("desktop")
+  const [expanded, setExpanded] = useState(false)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const width = VIEWPORTS.find((preset) => preset.key === device)!.width
+
   return (
+    <Dialog open={expanded} onOpenChange={setExpanded}>
     <div className="min-w-0 w-full overflow-hidden">
       <div role="group" aria-label={t("admin.emailPreview.viewport")} className="flex flex-wrap gap-1 border-b border-border bg-card p-2">
         {VIEWPORTS.map(({ key, width: presetWidth, icon: Icon }) => (
@@ -74,18 +91,19 @@ export function EmailHtmlFrame({ html, className = "h-[480px]" }: { html: string
           </Button>
         ))}
       </div>
-      <div ref={viewport} className={`relative w-full overflow-hidden bg-secondary ${className}`}>
-        <div className="relative mx-auto h-full" style={{ width: width * scale }}>
-          <iframe
-            title={t("admin.notif.editor.previewTitle")}
-            sandbox=""
-            srcDoc={previewDocument(html)}
-            className="absolute left-0 top-0 border-0 bg-white"
-            style={{ width, height: available.height > 0 ? available.height / scale : "100%", transform: `scale(${scale})`, transformOrigin: "top left" }}
-          />
-        </div>
+      <div className="flex justify-end border-b border-border bg-card px-2 pb-2">
+        <DialogTrigger asChild><Button type="button" variant="ghost" size="sm"><Expand className="mr-1.5 h-4 w-4" aria-hidden />{t("admin.emailPreview.expand")}</Button></DialogTrigger>
       </div>
+      <EmailViewport html={html} width={width} className={className} />
+        <DialogContent className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col overflow-hidden" aria-describedby={undefined} onOpenAutoFocus={(event) => { event.preventDefault(); heading.current?.focus() }}>
+          <div className="flex shrink-0 items-center justify-between gap-3">
+            <DialogTitle ref={heading} tabIndex={-1} className="focus:outline-none">{t("admin.emailPreview.expanded")}</DialogTitle>
+            <HoverTooltip text={t("admin.emailPreview.close")}><DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label={t("admin.emailPreview.close")}><X className="h-4 w-4" aria-hidden /></Button></DialogClose></HoverTooltip>
+          </div>
+          <EmailViewport html={html} width={width} className="min-h-0 flex-1" />
+        </DialogContent>
     </div>
+    </Dialog>
   )
 }
 

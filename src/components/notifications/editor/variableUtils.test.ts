@@ -79,7 +79,8 @@ describe('rawToHtml – unknown variables are flagged', () => {
   it('turns an unknown name into an invalid pill once the list is loaded', () => {
     const result = rawToHtml('Hi {{ghost}} and {{Name}}', ['Name'])
     expect(result).toContain('class="var-pill var-pill-invalid" data-var="ghost" data-invalid="true"')
-    expect(result).toContain('title="Невідома змінна «ghost»')
+    expect(result).not.toContain('title=')
+    expect(result).toContain('tabindex="0"')
     expect(result).toContain('<span class="var-pill" data-var="Name">Name</span>')
     expect(htmlToRaw(result)).toBe('Hi {{ghost}} and {{Name}}')
   })
@@ -128,7 +129,8 @@ describe('convertTypedToken', () => {
     const pill = document.querySelector('[data-var="ghost"]')
     expect(pill?.getAttribute('data-invalid')).toBe('true')
     expect(pill?.className).toContain('var-pill-invalid')
-    expect(pill?.getAttribute('title')).toContain('ghost')
+    expect(pill).not.toHaveAttribute('title')
+    expect(pill).toHaveAttribute('tabindex', '0')
   })
 
   it('does nothing for an unfinished token or while the list is empty', () => {

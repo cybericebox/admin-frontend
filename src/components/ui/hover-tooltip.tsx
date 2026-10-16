@@ -24,12 +24,21 @@ type Props = {
   truncated?: boolean
   // Field help: a tap, click, Enter or Space toggles the bubble (touch never opens it by hover) and focus alone does not open it.
   help?: boolean
+  // Allows a touch tap / click to pin an otherwise hover-and-focus tooltip.
+  tap?: boolean
+  // Delegate to DOM-owned children (contentEditable pills) without rewriting serialized HTML.
+  delegate?: string
+  textForTarget?: (target: HTMLElement) => string
 }
 
 // With describe (field help) the bubble stays in the DOM, hidden, so aria-describedby always points at a real node;
 // any other tooltip is mounted only while it is open.
-export function HoverTooltip({ text, content, children, className, side = "top", describe = false, truncated = false, help = false }: Props) {
+export function HoverTooltip({ text, content, children, className, side = "top", describe = false, truncated = false, help = false, tap = false, delegate, textForTarget }: Props) {
   const id = useId()
+  const delegated = useRef<HTMLElement | null>(null)
+  const [delegatedTarget, setDelegatedTarget] = useState<HTMLElement | null>(null)
+  const [delegatedText, setDelegatedText] = useState("")
+  if (delegate) text = delegatedText
   const [mounted, setMounted] = useState(false)
   const [position, setPosition] = useState<Position | null>(null)
   const [hovered, setHovered] = useState(false)
@@ -51,22 +60,23 @@ export function HoverTooltip({ text, content, children, className, side = "top",
   }, [])
 
   const place = useCallback((): boolean => {
-    const rect = trigger.current?.getBoundingClientRect()
+    const rect = (delegated.current ?? trigger.current)?.getBoundingClientRect()
     if (!rect) return false
-    const child = trigger.current?.firstElementChild
+    const child = delegate ? delegated.current : trigger.current?.firstElementChild
     if (truncated && child && child.scrollWidth <= child.clientWidth) return false
     if (side === "right") {
       setPosition({ left: rect.right + GAP, top: rect.top + rect.height / 2, below: false })
       return true
     }
-    const halfWidth = Math.min(long ? 220 : 152, window.innerWidth / 2)
+    const targetLong = delegate && delegated.current ? (textForTarget?.(delegated.current)?.length ?? 0) > 180 : long
+    const halfWidth = Math.min(targetLong ? 220 : 152, window.innerWidth / 2)
     setPosition({
       left: Math.max(halfWidth, Math.min(window.innerWidth - halfWidth, rect.left + rect.width / 2)),
       top: rect.top >= 56 ? rect.top - 7 : rect.bottom + 7,
       below: rect.top < 56,
     })
     return true
-  }, [long, side, truncated])
+  }, [long, side, truncated, delegate, textForTarget])
 
   const hide = useCallback(() => {
     window.clearTimeout(enterTimer.current)
@@ -100,7 +110,7 @@ export function HoverTooltip({ text, content, children, className, side = "top",
   }
 
   const toggleOnClick = () => {
-    if (!help) return
+    if (!help && !tap && !delegate) return
     setDismissed(false)
     if (pinned) { setPinned(false); return }
     if (place()) setPinned(true)
@@ -108,7 +118,7 @@ export function HoverTooltip({ text, content, children, className, side = "top",
 
   useLayoutEffect(() => {
     if (!visible) return
-    const anchor = trigger.current?.getBoundingClientRect()
+    const anchor = (delegated.current ?? trigger.current)?.getBoundingClientRect()
     const height = tooltip.current?.getBoundingClientRect().height ?? 0
     if (!anchor || !height || !position) return
     if (side === "right") {
@@ -125,23 +135,23 @@ export function HoverTooltip({ text, content, children, className, side = "top",
   }, [visible, position, side])
 
   useEffect(() => {
-    const child = trigger.current?.firstElementChild
+    const child = delegate ? delegated.current : trigger.current?.firstElementChild
     if (!describe || !child) return
     const previous = child.getAttribute("aria-describedby")
     child.setAttribute("aria-describedby", previous ? `${previous} ${id}` : id)
     return () => { if (previous) child.setAttribute("aria-describedby", previous); else child.removeAttribute("aria-describedby") }
-  }, [describe, id, mounted])
+  }, [describe, id, mounted, delegatedTarget, delegate])
 
   // Help triggers expose the open state.
   useEffect(() => {
-    const child = trigger.current?.firstElementChild
+    const child = delegate ? delegated.current : trigger.current?.firstElementChild
     if (!help || !child) return
     child.setAttribute("aria-expanded", pinned ? "true" : "false")
-  }, [help, pinned])
+  }, [help, tap, pinned, delegate])
 
   useEffect(() => {
     if (!visible) return
-    const inside = (node: EventTarget | null) => !!(node as Node | null) && (trigger.current?.contains(node as Node) || tooltip.current?.contains(node as Node))
+    const inside = (node: EventTarget | null) => !!(node as Node | null) && ((delegate ? delegated.current : trigger.current)?.contains(node as Node) || tooltip.current?.contains(node as Node))
     const outsideMove = (event: PointerEvent) => { if (!inside(event.target)) setHovered(false) }
     const outsideDown = (event: PointerEvent) => { if (!inside(event.target)) hide() }
     const exitWindow = (event: PointerEvent) => { if (!event.relatedTarget) setHovered(false) }
@@ -151,7 +161,7 @@ export function HoverTooltip({ text, content, children, className, side = "top",
       hide()
       setDismissed(true)
       // A bubble opened by tap or Enter returns focus to its trigger.
-      if (wasPinned) (trigger.current?.firstElementChild as HTMLElement | null)?.focus()
+      if (wasPinned) (delegated.current ?? trigger.current?.firstElementChild as HTMLElement | null)?.focus()
     }
     document.addEventListener("pointermove", outsideMove, true)
     document.addEventListener("pointerdown", outsideDown, true)
@@ -171,20 +181,45 @@ export function HoverTooltip({ text, content, children, className, side = "top",
       window.removeEventListener("scroll", hide, true)
       window.removeEventListener("resize", hide)
     }
-  }, [visible, pinned, hide])
+  }, [visible, pinned, hide, delegate])
+
+  const selectTarget = (target: EventTarget | null): boolean => {
+    if (!delegate) return true
+    const element = target instanceof Element ? target.closest<HTMLElement>(delegate) : null
+    if (!element || !trigger.current?.contains(element)) return false
+    if (delegated.current !== element) {
+      hide()
+      delegated.current = element
+      setDelegatedTarget(element)
+      setDelegatedText(textForTarget?.(element) ?? "")
+      setDismissed(false)
+    }
+    return true
+  }
 
   return <>
     <span
       ref={trigger}
       className={cn("inline-flex", className)}
-      onPointerEnter={enter}
+      onPointerEnter={delegate ? undefined : enter}
+      onPointerOver={delegate ? (event) => { if (selectTarget(event.target)) enter(event) } : undefined}
+      onPointerOut={delegate ? (event) => { if (!delegated.current?.contains(event.relatedTarget as Node | null)) leave() } : undefined}
       onPointerLeave={leave}
-      onMouseEnter={() => enter({})}
+      onMouseEnter={delegate ? undefined : () => enter({})}
       onMouseLeave={leave}
-      onFocusCapture={focusIn}
-      onBlurCapture={() => { setFocused(false); setDismissed(false) }}
-      onPointerDownCapture={() => { pressed.current = true }}
-      onClick={toggleOnClick}
+      onFocusCapture={(event) => { if (selectTarget(event.target)) focusIn(); else if (delegate) { pressed.current = false; hide() } }}
+      onInputCapture={delegate ? hide : undefined}
+      onKeyDownCapture={delegate ? (event) => {
+        pressed.current = false
+        if (event.target === delegated.current && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault()
+          event.stopPropagation()
+          toggleOnClick()
+        }
+      } : undefined}
+      onBlurCapture={(event) => { setFocused(false); setDismissed(false); if (delegate && !delegated.current?.contains(event.relatedTarget as Node | null)) hide() }}
+      onPointerDownCapture={(event) => { pressed.current = !delegate || (event.target instanceof Element && !!event.target.closest(delegate)) }}
+      onClick={(event) => { if (selectTarget(event.target)) toggleOnClick() }}
     >{children}</span>
     {mounted && (describe || help || visible) && createPortal(
       <div

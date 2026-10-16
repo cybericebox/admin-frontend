@@ -133,6 +133,26 @@ describe('EmailPreview', () => {
     expect(preview).toHaveBeenCalledTimes(1)
   })
 
+  it('opens an enlarged isolated preview with the selected mobile viewport', async () => {
+    render(<EmailPreview notificationType="broadcast" body={body} styling={styling} />)
+    await flushDebounce()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.mobile' }))
+    const expand = screen.getByRole('button', { name: 'admin.emailPreview.expand' })
+    expand.focus()
+    fireEvent.click(expand)
+    const dialog = screen.getByRole('dialog')
+    expect(screen.getByRole('heading', { name: 'admin.emailPreview.expanded' })).toHaveFocus()
+    const frame = dialog.querySelector('iframe')!
+    expect(frame).toHaveStyle({ width: '390px' })
+    expect(frame).toHaveAttribute('sandbox', '')
+    expect(frame.getAttribute('srcdoc')).toContain('Hello Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(expand).toHaveFocus()
+    expect(preview).toHaveBeenCalledTimes(1)
+  })
+
   it('passes inline data: images through without injecting a <base href>', async () => {
     const img = '<img src="data:image/png;base64,iVBORw0KGgo="/>'
     preview.mockResolvedValue({ Subject: '', Preheader: '', HTML: img })
@@ -246,6 +266,32 @@ describe('EmailPreview', () => {
 
 
 describe('EmailHtmlFrame fitting', () => {
+  it('fits an enlarged mobile viewport to a narrower dialog without changing its responsive width', () => {
+    const callbacks: (() => void)[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 320, height: 480 } as DOMRect)
+    try {
+      render(<EmailHtmlFrame html="<p>Long responsive email</p>" />)
+      fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.mobile' }))
+      fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.expand' }))
+      const frame = screen.getByRole('dialog').querySelector('iframe')!
+      expect(frame).toHaveStyle({ width: '390px', height: '585px', transform: 'scale(0.8205128205128205)' })
+      expect(frame.parentElement).toHaveStyle({ width: '320px' })
+      expect(frame.parentElement?.parentElement).toHaveClass('overflow-hidden')
+      expect(frame).toHaveAttribute('sandbox', '')
+      bounds.mockReturnValue({ width: 1200, height: 480 } as DOMRect)
+      act(() => callbacks.at(-1)!())
+      expect(frame).toHaveStyle({ width: '390px', height: '480px', transform: 'scale(1)' })
+    } finally {
+      bounds.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('keeps the iframe viewport fixed while scaling to a smaller container and disconnects its observer', () => {
     let resize!: () => void
     const disconnect = vi.fn()
