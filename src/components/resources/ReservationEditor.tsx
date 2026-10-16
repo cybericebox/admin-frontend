@@ -1,5 +1,6 @@
 "use client"
 
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useEffect, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { getEventSchedule } from "@/api/events/catalog"
@@ -136,6 +137,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
   const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(EMPTY_FORM, (value) => inputFromForm(value, windowRequired))
   const [preview, setPreview] = useState<ReservationResult | null>(null)
   const [busy, setBusy] = useState<"preview" | "save" | null>(null)
+  const [windowError, setWindowError] = useState("")
   const [error, setError] = useState("")
   const [confirmConflicts, setConfirmConflicts] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -145,7 +147,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
     if (!eventID) return
     let alive = true
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor reloads for each event it opens
-    setPhase("loading"); setPreview(null); setError(""); setConfirmConflicts(false); setForm(EMPTY_FORM); accept(EMPTY_FORM, inputFromForm(EMPTY_FORM, windowRequired))
+    setWindowError(""); setPhase("loading"); setPreview(null); setError(""); setConfirmConflicts(false); setForm(EMPTY_FORM); accept(EMPTY_FORM, inputFromForm(EMPTY_FORM, windowRequired))
     // The schedule only decides the required marker: when it cannot be read, nothing is marked and the backend still checks.
     const schedule = getEventSchedule(eventID).then((s) => needsWindow(s), () => false)
     getEventReservation(eventID).then(async (result) => {
@@ -162,13 +164,13 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only opening/retrying an event resets this editor
   }, [eventID, attempt, accept, setForm])
 
-  const set = (patch: Partial<EditorForm>) => { revision.current += 1; setForm((current) => ({ ...current, ...patch })); setPreview(null); setError("") }
+  const set = (patch: Partial<EditorForm>) => { revision.current += 1; setWindowError(""); setForm((current) => ({ ...current, ...patch })); setPreview(null); setError("") }
   const disabled = !canWrite
 
   async function send(mode: "preview" | "save", allowConflicts = false) {
     if (!eventID || !canWrite || busy !== null || (mode === "save" && existing && !dirty)) return
     const input = inputFromForm(form, windowRequired)
-    if (input === null || input === "window") { setError(t(windowRequired && !form.start && !form.end ? "admin.resources.editor.windowRequired" : "admin.resources.editor.invalidWindow")); return }
+    if (input === null || input === "window") { setWindowError(t(windowRequired && !form.start && !form.end ? "admin.resources.editor.windowRequired" : "admin.resources.editor.invalidWindow")); return }
     setBusy(mode)
     const submittedRevision = revision.current
     setError("")
@@ -183,7 +185,8 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
       if (isDoesNotFit(err)) {
         if (mode === "save") setConfirmConflicts(true)
         else setError(t("admin.resources.editor.noFit"))
-      } else setError(localizedError(err))
+      } else if (err instanceof ApiError && err.code === 22501) setWindowError(localizedError(err))
+      else setError(localizedError(err))
     } finally {
       setBusy(null)
     }
@@ -213,10 +216,10 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
               <AmountFields label={t("admin.resources.editor.dynamic")} value={form.dynamic} onChange={(dynamic) => set({ dynamic })} disabled={disabled} />
             </Field>
             <Field label={t("admin.resources.editor.windowStart")} help={t("admin.resources.editor.windowHelp")} required={windowRequired}>
-              <DateTimePicker value={form.start} onChange={(start) => set({ start })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowStart")} aria-required={windowRequired || undefined} />
+              <DateTimePicker aria-invalid={Boolean(windowError && !form.start)} aria-describedby={windowError && !form.start ? "reservation-window-error" : undefined} value={form.start} onChange={(start) => set({ start })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowStart")} aria-required={windowRequired || undefined} />
             </Field>
             <Field label={t("admin.resources.editor.windowEnd")} help={t("admin.resources.editor.windowEndHelp")} required={windowRequired}>
-              <DateTimePicker value={form.end} onChange={(end) => set({ end })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowEnd")} aria-required={windowRequired || undefined} />
+              <FieldValidation errorId="reservation-window-error" label={t("admin.resources.editor.windowEnd")} error={windowError}><DateTimePicker value={form.end} onChange={(end) => set({ end })} allowClear={!windowRequired} disabled={disabled} aria-label={t("admin.resources.editor.windowEnd")} aria-required={windowRequired || undefined} /></FieldValidation>
             </Field>
             <Field label={t("admin.resources.editor.tailGap")} help={t("admin.resources.editor.tailGapHelp")}>
               <NumberInput value={form.tailGap} onChange={(tailGap) => set({ tailGap })} placeholder="60" disabled={disabled} />

@@ -30,6 +30,7 @@ const toastError = vi.fn()
 const toastSuccess = vi.fn()
 vi.mock("@/components/ui/toast", () => ({ toast: { error: (m: string) => toastError(m), success: (m: string) => toastSuccess(m), warning: vi.fn() } }))
 
+import { ApiError } from "@/api/client"
 import { MailProvidersCard } from "./MailProvidersCard"
 
 function provider(id: string, name: string, priority: number, extra: Partial<MailProvider> = {}): MailProvider {
@@ -270,6 +271,20 @@ describe("MailProvidersCard", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(toastSuccess).toHaveBeenCalledWith("Провайдера додано.")
     expect(latest?.Providers).toHaveLength(1)
+  })
+
+  it("associates a duplicate provider name with the name control instead of the dialog footer", async () => {
+    saveMailProvider.mockRejectedValueOnce(new ApiError(409, {}, undefined, undefined, 72107))
+    render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
+    fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))
+    const name = screen.getByLabelText(/Назва/)
+    fireEvent.change(name, { target: { value: "Duplicate" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    const error = await screen.findByRole("alert")
+    expect(name.closest('[role="group"]')).toContainElement(error)
+    expect(name.closest('[role="group"]')).toHaveAttribute("aria-describedby", error.id)
+    fireEvent.change(name, { target: { value: "Unique" } })
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
   it("validates the form before calling the API", async () => {

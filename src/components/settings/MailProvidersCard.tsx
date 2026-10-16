@@ -1,4 +1,6 @@
 "use client"
+import { ApiError } from "@/api/client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react"
 import {
@@ -71,17 +73,17 @@ function formFrom(provider: MailProvider): ProviderForm {
   }
 }
 
-function validate(form: ProviderForm): string {
-  if (!form.Name.trim()) return t("admin.mail.providers.error.nameRequired")
-  if (form.Name.trim().length > MAIL_NAME_MAX) return t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
-  if (!form.Host.trim()) return t("admin.mail.error.hostRequired")
+function validate(form: ProviderForm): Partial<Record<keyof ProviderForm, string>> {
+  const errors: Partial<Record<keyof ProviderForm, string>> = {}
+  if (!form.Name.trim()) errors.Name = t("admin.mail.providers.error.nameRequired")
+  for (const key of ["Name", "SenderName", "ReplyToName"] as const) if (form[key].trim().length > MAIL_NAME_MAX) errors[key] = t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
+  if (!form.Host.trim()) errors.Host = t("admin.mail.error.hostRequired")
   const port = Number(form.Port)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return t("admin.mail.error.portInvalid")
-  if (form.SenderName.trim().length > MAIL_NAME_MAX || form.ReplyToName.trim().length > MAIL_NAME_MAX) return t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
-  if (!isValidEmail(form.SenderAddress.trim()) || !isValidEmail(form.ReplyToAddress.trim())) return t("admin.mail.error.emailInvalid")
-  if (Number.isNaN(parseNumberInput(form.MaxPerSecond))) return t("admin.mail.error.perSecondInvalid")
-  if (Number.isNaN(parseNumberInput(form.DailyQuota, true))) return t("admin.mail.error.dailyQuotaInvalid")
-  return ""
+  if (!Number.isInteger(port) || port < 1 || port > 65535) errors.Port = t("admin.mail.error.portInvalid")
+  for (const key of ["SenderAddress", "ReplyToAddress"] as const) if (!isValidEmail(form[key].trim())) errors[key] = t("admin.mail.error.emailInvalid")
+  if (Number.isNaN(parseNumberInput(form.MaxPerSecond))) errors.MaxPerSecond = t("admin.mail.error.perSecondInvalid")
+  if (Number.isNaN(parseNumberInput(form.DailyQuota, true))) errors.DailyQuota = t("admin.mail.error.dailyQuotaInvalid")
+  return errors
 }
 
 function inputFrom(form: ProviderForm): MailProviderInput {
@@ -383,6 +385,9 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
   onTested: () => Promise<void>
 }) {
   const [form, setForm] = useState<ProviderForm>(() => (provider ? formFrom(provider) : EMPTY_FORM))
+  const [validated, setValidated] = useState(false)
+  const [serverFields, setServerFields] = useState<Partial<Record<keyof ProviderForm, string>>>({})
+  const fields = { ...serverFields, ...(validated ? validate(form) : {}) }
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [testingForm, setTestingForm] = useState(false)
@@ -393,13 +398,16 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
 
   function change<K extends keyof ProviderForm>(key: K, value: ProviderForm[K]) {
     edits.current += 1
+    setServerFields((current) => ({ ...current, [key]: undefined }))
     setForm((current) => ({ ...current, [key]: value }))
   }
 
   async function save() {
     if (saving || !dirty) return
     const invalid = validate(form)
-    if (invalid) { setError(invalid); return }
+    setError("")
+    setValidated(true)
+    if (Object.keys(invalid).length) return
     setSaving(true)
     setError("")
     const seen = edits.current
@@ -412,7 +420,9 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
       const savedID = provider?.ID ?? next.Providers.find((p) => p.Name === input.Name)?.ID
       onSaved(next, !provider, edits.current === seen ? undefined : savedID)
     } catch (err) {
-      setError(localizedError(err))
+      if (err instanceof ApiError && err.code === 72107) setServerFields({ Name: localizedError(err) })
+      else if (err instanceof ApiError && err.code === 22109) setServerFields({ Password: localizedError(err) })
+      else setError(localizedError(err))
     } finally {
       setSaving(false)
     }
@@ -421,7 +431,9 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
   async function test() {
     if (testFlight.current) return
     const invalid = validate(form)
-    if (invalid) { setError(invalid); return }
+    setError("")
+    setValidated(true)
+    if (Object.keys(invalid).length) return
     setTestingForm(true)
     setError("")
     setResult(null)
@@ -429,7 +441,9 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
       try {
         setResult(await testMailProviderForm(inputFrom(form), provider?.ID))
       } catch (err) {
-        setError(localizedError(err))
+        if (err instanceof ApiError && err.code === 72107) setServerFields({ Name: localizedError(err) })
+      else if (err instanceof ApiError && err.code === 22109) setServerFields({ Password: localizedError(err) })
+      else setError(localizedError(err))
       } finally {
         await onTested()
         setTestingForm(false)
@@ -449,14 +463,14 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
           <DialogDescription>{t("admin.mail.providers.dialogDescription")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field id="mail-provider-name" label={t("admin.mail.providers.name")} required>
+          <Field error={fields.Name} id="mail-provider-name" label={t("admin.mail.providers.name")} required>
             <Input id="mail-provider-name" value={form.Name} maxLength={MAIL_NAME_MAX} onChange={(event) => change("Name", event.target.value)} autoComplete="off" />
           </Field>
-          <Field id="mail-host" label={t("admin.mail.host")} required>
+          <Field error={fields.Host} id="mail-host" label={t("admin.mail.host")} required>
             <Input id="mail-host" value={form.Host} onChange={(event) => change("Host", event.target.value)} placeholder="email-smtp.eu-central-1.amazonaws.com" autoComplete="off" />
           </Field>
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
-            <Field id="mail-port" label={t("admin.mail.port")} required>
+            <Field error={fields.Port} id="mail-port" label={t("admin.mail.port")} required>
               <Input id="mail-port" type="number" min={1} max={65535} value={form.Port} onChange={(event) => change("Port", event.target.value)} />
             </Field>
             <div className="space-y-1.5">
@@ -477,7 +491,7 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
           <Field id="mail-username" label={t("admin.mail.username")}>
             <Input id="mail-username" value={form.Username} onChange={(event) => change("Username", event.target.value)} autoComplete="off" />
           </Field>
-          <Field id="mail-password" label={t("admin.mail.password")}>
+          <Field error={fields.Password} id="mail-password" label={t("admin.mail.password")}>
             {form.ClearPassword ? (
               <div className="flex h-10 items-center justify-between gap-3 rounded-md border border-border bg-secondary px-3 text-sm">
                 <span className="text-muted-foreground">{t("admin.mail.passwordWillClear")}</span>
@@ -491,10 +505,10 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
             )}
             {passwordSet && !form.ClearPassword && <p className="text-xs text-muted-foreground">{t("admin.mail.passwordKeepHint")}</p>}
           </Field>
-          <Field id="mail-max-per-second" label={t("admin.mail.maxPerSecond")} help={t("admin.mail.maxPerSecondHelp")}>
+          <Field error={fields.MaxPerSecond} id="mail-max-per-second" label={t("admin.mail.maxPerSecond")} help={t("admin.mail.maxPerSecondHelp")}>
             <NumberInput id="mail-max-per-second" decimal value={form.MaxPerSecond} onChange={(value) => change("MaxPerSecond", value)} placeholder={t("admin.mail.limitPlaceholder")} />
           </Field>
-          <Field id="mail-daily-quota" label={t("admin.mail.providers.dailyLimit")} help={t("admin.mail.providers.dailyLimitHelp")}>
+          <Field error={fields.DailyQuota} id="mail-daily-quota" label={t("admin.mail.providers.dailyLimit")} help={t("admin.mail.providers.dailyLimitHelp")}>
             <NumberInput id="mail-daily-quota" value={form.DailyQuota} onChange={(value) => change("DailyQuota", value)} placeholder={t("admin.mail.limitPlaceholder")} />
           </Field>
         </div>
@@ -502,16 +516,16 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
         <section className="space-y-2">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{t("admin.mail.providers.senderTitle")}<FieldHelp text={t("admin.mail.providers.senderHelp")} /></h3>
           <div className="grid gap-4 md:grid-cols-2">
-            <Field id="mail-provider-sender-name" label={t("admin.mail.senderName")}>
+            <Field error={fields.SenderName} id="mail-provider-sender-name" label={t("admin.mail.senderName")}>
               <Input id="mail-provider-sender-name" value={form.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => change("SenderName", event.target.value)} autoComplete="off" />
             </Field>
-            <Field id="mail-provider-sender-address" label={t("admin.mail.senderAddress")}>
+            <Field error={fields.SenderAddress} id="mail-provider-sender-address" label={t("admin.mail.senderAddress")}>
               <Input id="mail-provider-sender-address" type="email" value={form.SenderAddress} onChange={(event) => change("SenderAddress", event.target.value)} autoComplete="off" />
             </Field>
-            <Field id="mail-provider-reply-name" label={t("admin.mail.providers.replyToName")}>
+            <Field error={fields.ReplyToName} id="mail-provider-reply-name" label={t("admin.mail.providers.replyToName")}>
               <Input id="mail-provider-reply-name" value={form.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => change("ReplyToName", event.target.value)} autoComplete="off" />
             </Field>
-            <Field id="mail-provider-reply-address" label={t("admin.mail.providers.replyToAddress")}>
+            <Field error={fields.ReplyToAddress} id="mail-provider-reply-address" label={t("admin.mail.providers.replyToAddress")}>
               <Input id="mail-provider-reply-address" type="email" value={form.ReplyToAddress} onChange={(event) => change("ReplyToAddress", event.target.value)} autoComplete="off" />
             </Field>
           </div>
@@ -530,7 +544,7 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
   )
 }
 
-function Field({ id, label, help, required, children }: { id: string; label: string; help?: string; required?: boolean; children: React.ReactNode }) {
+function Field({ id, label, help, required, children, error }: { id: string; label: string; help?: string; required?: boolean; children: React.ReactNode; error?: string }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
@@ -538,7 +552,7 @@ function Field({ id, label, help, required, children }: { id: string; label: str
         {required && <span aria-hidden="true" className="-ml-1 text-sm text-destructive">*</span>}
         {help && <FieldHelp text={help} />}
       </div>
-      {children}
+      <FieldValidation label={label} error={error}>{children}</FieldValidation>
     </div>
   )
 }

@@ -1,4 +1,6 @@
 "use client"
+import { ApiError } from "@/api/client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { MAIL_NAME_MAX, getMailSettings, isValidEmail, isValidSendingDomain, saveMailIdentity, type MailFieldSource, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
@@ -33,11 +35,12 @@ function identityInput(form: IdentityForm) {
   }
 }
 
-function validateIdentity(form: IdentityForm): string {
-  if (form.SenderName.trim().length > MAIL_NAME_MAX || form.ReplyToName.trim().length > MAIL_NAME_MAX) return t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
-  if (!isValidEmail(form.SenderAddress.trim()) || !isValidEmail(form.ReplyToAddress.trim())) return t("admin.mail.error.emailInvalid")
-  if (!isValidSendingDomain(form.SendingDomain.trim().toLowerCase())) return t("admin.mail.error.domainInvalid")
-  return ""
+function validateIdentity(form: IdentityForm): Partial<Record<keyof IdentityForm, string>> {
+  const errors: Partial<Record<keyof IdentityForm, string>> = {}
+  for (const key of ["SenderName", "ReplyToName"] as const) if (form[key].trim().length > MAIL_NAME_MAX) errors[key] = t("admin.mail.error.nameTooLong", { max: MAIL_NAME_MAX })
+  for (const key of ["SenderAddress", "ReplyToAddress"] as const) if (!isValidEmail(form[key].trim())) errors[key] = t("admin.mail.error.emailInvalid")
+  if (!isValidSendingDomain(form.SendingDomain.trim().toLowerCase())) errors.SendingDomain = t("admin.mail.error.domainInvalid")
+  return errors
 }
 
 export default function Page() {
@@ -47,6 +50,9 @@ export default function Page() {
   const [settings, setSettings] = useState<MailSettings | null>(null)
   const [identity, setIdentity] = useState<IdentityForm | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  const [validated, setValidated] = useState(false)
+  const [domainError, setDomainError] = useState("")
+  const fields = validated && identity ? validateIdentity(identity) : {}
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   // The save busies only its own button: nothing else on the page is disabled while it runs.
@@ -72,6 +78,7 @@ export default function Page() {
 
   function changeIdentity<K extends keyof IdentityForm>(key: K, value: IdentityForm[K]) {
     identityEdits.current += 1
+    if (key === "SendingDomain") setDomainError("")
     setIdentity((current) => current && { ...current, [key]: value })
     setNotice("")
   }
@@ -79,7 +86,10 @@ export default function Page() {
   function saveIdentity() {
     if (!identity || identityBusy || !identityDirty) return
     const invalid = validateIdentity(identity)
-    if (invalid) { setError(invalid); return }
+    setError("")
+    setValidated(true)
+    setDomainError("")
+    if (Object.keys(invalid).length) return
     setIdentityBusy(true)
     setError("")
     setNotice("")
@@ -91,7 +101,7 @@ export default function Page() {
         EnvSendingDomain: next.EnvSendingDomain, Sources: next.Sources })
       if (identityEdits.current === seen) setIdentity(identityFrom(next))
       setNotice(t("admin.mail.identitySaved"))
-    }).catch((err) => setError(localizedError(err))).finally(() => setIdentityBusy(false))
+    }).catch((err) => { if (err instanceof ApiError && err.code === 22106) setDomainError(localizedError(err)); else setError(localizedError(err)) }).finally(() => setIdentityBusy(false))
   }
 
   // A failed instant change of the providers list re-reads the settings: only the list is replaced, the sender form keeps its edits.
@@ -126,21 +136,21 @@ export default function Page() {
               <CardContent className="space-y-6">
                 <section className="space-y-2">
                   <SectionTitle id="mail-sending-domain-title" title={t("admin.mail.sendingDomain")} help={withSource(t("admin.mail.sendingDomainHelp"), settings.Sources.SendingDomain, "SMTP_SENDER_EMAIL")} />
-                  <div className="grid gap-4 md:grid-cols-2"><Input id="mail-sending-domain" aria-labelledby="mail-sending-domain-title" value={identity.SendingDomain} onChange={(event) => changeIdentity("SendingDomain", event.target.value)} disabled={disabled} placeholder={settings.EnvSendingDomain || t("admin.mail.domainPlaceholder")} autoComplete="off" spellCheck={false} /></div>
+                  <FieldValidation label={t("admin.mail.sendingDomain")} error={fields.SendingDomain || domainError}><div className="grid gap-4 md:grid-cols-2"><Input id="mail-sending-domain" aria-labelledby="mail-sending-domain-title" value={identity.SendingDomain} onChange={(event) => changeIdentity("SendingDomain", event.target.value)} disabled={disabled} placeholder={settings.EnvSendingDomain || t("admin.mail.domainPlaceholder")} autoComplete="off" spellCheck={false} /></div></FieldValidation>
                   <p className="text-sm text-muted-foreground">{t("admin.mail.eventSenderHint", { domain: sendingDomain || t("admin.mail.domainPlaceholder") })}</p>
                 </section>
                 <section className="space-y-2">
                   <SectionTitle title={t("admin.mail.senderTitle")} help={t("admin.mail.senderDescription")} />
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field id="mail-sender-name" label={t("admin.mail.senderName")} help={withSource(t("admin.mail.senderNameHelp"), settings.Sources.SenderName, "SMTP_SENDER_NAME")}><Input id="mail-sender-name" value={identity.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("SenderName", event.target.value)} disabled={disabled} placeholder={effective.Sender.Name} autoComplete="off" /></Field>
-                    <Field id="mail-sender-address" label={t("admin.mail.senderAddress")} help={withSource(t("admin.mail.senderAddressHelp"), settings.Sources.SenderAddress, "SMTP_SENDER_EMAIL")}><Input id="mail-sender-address" type="email" value={identity.SenderAddress} onChange={(event) => changeIdentity("SenderAddress", event.target.value)} disabled={disabled} placeholder={effective.Sender.Address} autoComplete="off" /></Field>
+                    <Field error={fields.SenderName} id="mail-sender-name" label={t("admin.mail.senderName")} help={withSource(t("admin.mail.senderNameHelp"), settings.Sources.SenderName, "SMTP_SENDER_NAME")}><Input id="mail-sender-name" value={identity.SenderName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("SenderName", event.target.value)} disabled={disabled} placeholder={effective.Sender.Name} autoComplete="off" /></Field>
+                    <Field error={fields.SenderAddress} id="mail-sender-address" label={t("admin.mail.senderAddress")} help={withSource(t("admin.mail.senderAddressHelp"), settings.Sources.SenderAddress, "SMTP_SENDER_EMAIL")}><Input id="mail-sender-address" type="email" value={identity.SenderAddress} onChange={(event) => changeIdentity("SenderAddress", event.target.value)} disabled={disabled} placeholder={effective.Sender.Address} autoComplete="off" /></Field>
                   </div>
                 </section>
                 <section className="space-y-2">
                   <SectionTitle title={t("admin.mail.replyToTitle")} help={t("admin.mail.replyToHelp")} />
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field id="mail-reply-to-name" label={t("admin.mail.replyToName")} help={withSource(t("admin.mail.replyToNameHelp"), settings.Sources.ReplyToName, "SMTP_REPLY_TO_NAME")}><Input id="mail-reply-to-name" value={identity.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("ReplyToName", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Name} autoComplete="off" /></Field>
-                    <Field id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
+                    <Field error={fields.ReplyToName} id="mail-reply-to-name" label={t("admin.mail.replyToName")} help={withSource(t("admin.mail.replyToNameHelp"), settings.Sources.ReplyToName, "SMTP_REPLY_TO_NAME")}><Input id="mail-reply-to-name" value={identity.ReplyToName} maxLength={MAIL_NAME_MAX} onChange={(event) => changeIdentity("ReplyToName", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Name} autoComplete="off" /></Field>
+                    <Field error={fields.ReplyToAddress} id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
                   </div>
                 </section>
                 <RequirePermission perm="platform.settings.write">
@@ -172,7 +182,7 @@ function SectionTitle({ id, title, help }: { id?: string; title: string; help: s
   return <h3 id={id} className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{title}<FieldHelp text={help} /></h3>
 }
 
-function Field({ id, label, help, required, children }: { id: string; label: string; help?: string; required?: boolean; children: React.ReactNode }) {
+function Field({ id, label, help, required, children, error }: { id: string; label: string; help?: string; required?: boolean; children: React.ReactNode; error?: string }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
@@ -180,7 +190,7 @@ function Field({ id, label, help, required, children }: { id: string; label: str
         {required && <span aria-hidden="true" className="-ml-1 text-sm text-destructive">*</span>}
         {help && <FieldHelp text={help} />}
       </div>
-      {children}
+      <FieldValidation label={label} error={error}>{children}</FieldValidation>
     </div>
   )
 }

@@ -606,7 +606,11 @@ describe('BlockEditor', () => {
     const input = screen.getByTestId('image-file-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
-    expect(await screen.findByText('Не вдалося прочитати зображення. Оберіть інший файл.')).toBeInTheDocument()
+    const error = await screen.findByText('Не вдалося прочитати зображення. Оберіть інший файл.')
+    expect(error).toBeInTheDocument()
+    const upload = screen.getByRole('button', { name: 'Завантажити' })
+    expect(upload).toHaveAttribute('aria-invalid', 'true')
+    expect(upload).toHaveAttribute('aria-describedby', error.id)
   })
 
   it('the URL input is still editable and clears file_id when typed into', () => {

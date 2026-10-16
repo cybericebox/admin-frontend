@@ -23,6 +23,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Send } from "lucide-react"
 import { t } from "@/i18n/t"
+import { localizedError } from "@/i18n/apiError"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { ApiError } from "@/api/client"
@@ -93,6 +95,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
   const busy = busyAction !== ""
   const [versionRevision, setVersionRevision] = useState(0)
+  const [bodyError, setBodyError] = useState("")
+  const [stylingError, setStylingError] = useState("")
   const [publishOpen, setPublishOpen] = useState(false)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
@@ -168,6 +172,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
   // ── Styling helpers ───────────────────────────────────────────────────────
   function setStylingKey(key: string, val: unknown) {
+    setStylingError("")
     setStyling((prev) => ({ ...prev, [key]: val }))
   }
 
@@ -179,6 +184,15 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const ctaFontSize   = parseInt(String(styling.cta_font_size ?? '14px'), 10) || 14
 
   // ── Actions ───────────────────────────────────────────────────────────────
+
+  function showFieldError(cause: unknown): boolean {
+    if (!(cause instanceof ApiError)) return false
+    if (cause.code === 20212) setStylingError(localizedError(cause))
+    else if (cause.code === 20213 || cause.code === 20214 || cause.code === 20215) setBodyError(localizedError(cause))
+    else return false
+    setPublishOpen(false)
+    return true
+  }
 
   async function handleSave() {
     if (busy || !isDirty || !notificationType) return
@@ -209,8 +223,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         setVersionRevision((value) => value + 1)
         toast.success(t("admin.notif.tpl.saved"))
       }
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      if (!showFieldError(cause)) toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusyAction("")
     }
@@ -224,8 +238,8 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setTemplate(updated)
       setVersionRevision((value) => value + 1)
       toast.success(t("admin.notif.tpl.published"))
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (cause) {
+      if (!showFieldError(cause)) toast.error(t("admin.notif.tpl.saveError"))
     } finally {
       setBusyAction("")
     }
@@ -453,9 +467,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             {isReadOnly ? null : (
               <BlockEditor
                 key={`body-${loadNonce}`}
-                error={templateFieldError(bodyContent, emailVariables)}
+                error={bodyError || templateFieldError(bodyContent, emailVariables)}
                 value={bodyContent}
-                onChange={setBodyContent}
+                onChange={(value) => { setBodyError(""); setBodyContent(value) }}
                 variables={emailVariables}
                 presets={presets}
                 onSavePreset={handleSavePreset}
@@ -472,7 +486,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               <span className="text-sm font-semibold text-foreground">{t("admin.notif.tpl.styling")}</span>
               <FieldHelp text={t("admin.notif.editor.advancedStylingHelp")} />
             </div>
-            <div
+            <FieldValidation label={t("admin.notif.tpl.styling")} error={stylingError}><div
               data-testid="styling-wrapper"
               {...(isReadOnly ? { inert: true } : {})}
               className={`grid grid-cols-2 gap-4`}
@@ -564,7 +578,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                   )}
                 </div>
               </details>
-            </div>
+            </div></FieldValidation>
           </div>
         </div>
 

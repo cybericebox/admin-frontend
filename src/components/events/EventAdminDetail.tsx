@@ -21,7 +21,8 @@ import { LoadError } from "@/components/ui/load-error"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
-import { eventErrorMessage } from "@/lib/eventErrors"
+import { FieldValidation } from "@/components/ui/field-validation"
+import { eventErrorField, eventErrorMessage } from "@/lib/eventErrors"
 import { eventFormSchema, isoToLocal, localToIso } from "@/lib/eventSchemas"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -57,6 +58,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [managersLoading, setManagersLoading] = useState(true)
   const [managersError, setManagersError] = useState<{ cause: unknown } | null>(null)
+  const [fields, setFields] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
   const [infraTarget, setInfraTarget] = useState<boolean | null>(null)
@@ -129,9 +131,10 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
     setSaveError("")
     const result = eventFormSchema.safeParse(draft)
     if (!result.success) {
-      setSaveError(result.error.issues[0]?.message ?? t("admin.events.err.generic"))
+      setFields(Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message])))
       return
     }
+    setFields({})
     setSaving(true)
     const submitted = payloadOf(draft)!
     try {
@@ -140,7 +143,9 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       accept(formOf(next), submitted)
       toast.success(t("admin.events.details.saved"))
     } catch (error) {
-      toast.error(eventErrorMessage(error))
+      const field = eventErrorField(error)
+      if (field) setFields({ [field]: eventErrorMessage(error) })
+      else toast.error(eventErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -186,10 +191,10 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       <div className="mb-4"><h2 className="text-base font-semibold text-foreground">{t("admin.events.details.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.details.description")}</p></div>
       <form className="space-y-4" onSubmit={(e) => void save(e)}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><Input id="event-name" value={draft.Name} onChange={(e) => setDraft({ ...draft, Name: e.target.value })} required disabled={!writable} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><Input id="event-tag" value={draft.Tag} onChange={(e) => setDraft({ ...draft, Tag: e.target.value })} required disabled={!writable} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><DateTimePicker value={draft.AvailableFrom} onChange={(value) => setDraft({ ...draft, AvailableFrom: value })} aria-label={t("admin.events.field.availableFrom")} disabled={!writable} /></div>
-          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><DateTimePicker value={draft.ArchiveAt} onChange={(value) => setDraft({ ...draft, ArchiveAt: value })} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable} /></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><FieldValidation label={t("admin.events.field.name")} error={fields.Name}><Input id="event-name" value={draft.Name} onChange={(e) => { setFields((current) => ({ ...current, Name: "" })); setDraft({ ...draft, Name: e.target.value }) }} required disabled={!writable} /></FieldValidation></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><FieldValidation label={t("admin.events.field.tag")} error={fields.Tag}><Input id="event-tag" value={draft.Tag} onChange={(e) => { setFields((current) => ({ ...current, Tag: "" })); setDraft({ ...draft, Tag: e.target.value }) }} required disabled={!writable} /></FieldValidation></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.availableFrom")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.availableFromHelp")} /></div><FieldValidation label={t("admin.events.field.availableFrom")} error={fields.AvailableFrom}><DateTimePicker value={draft.AvailableFrom} onChange={(value) => { setFields((current) => ({ ...current, AvailableFrom: "" })); setDraft({ ...draft, AvailableFrom: value }) }} aria-label={t("admin.events.field.availableFrom")} disabled={!writable} /></FieldValidation></div>
+          <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label className="text-sm font-medium">{t("admin.events.field.archiveAt")}</label><FieldHelp text={t("admin.events.field.archiveAtHelp")} /></div><FieldValidation label={t("admin.events.field.archiveAt")} error={fields.ArchiveAt}><DateTimePicker value={draft.ArchiveAt} onChange={(value) => { setFields((current) => ({ ...current, ArchiveAt: "" })); setDraft({ ...draft, ArchiveAt: value }) }} aria-label={t("admin.events.field.archiveAt")} allowClear disabled={!writable} /></FieldValidation></div>
         </div>
         <div className="flex items-center gap-1.5" data-testid="event-infrastructure">
           {infraEditable
