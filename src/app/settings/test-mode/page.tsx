@@ -1,5 +1,8 @@
 "use client"
 
+import { ApiError } from "@/api/client"
+import { localizedError } from "@/i18n/apiError"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react"
 import { X } from "lucide-react"
 import { getPreviewCatalog, getPreviewSettings, previewSelectionIdentity, savePreviewSettings, type PreviewDefaultsDraft, type PreviewSettings, type PreviewCatalogItem } from "@/api/participantPreviewSettings"
@@ -40,6 +43,7 @@ export function PreviewDefaultsEditor() {
   const latest = useRef(draft)
   useLayoutEffect(() => { latest.current = draft }, [draft])
   const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState("")
   const [saveError, setSaveError] = useState(false)
   const model = draft ?? query.data
   const selected = model?.Selections ?? []
@@ -57,7 +61,7 @@ export function PreviewDefaultsEditor() {
       setQuery({ data: saved, isPending: false })
       if (latest.current === submitted) setDraft(null)
       toast.success(t("admin.previewSettings.saved"))
-    } catch { setSaveError(true) } finally { setSaving(false) }
+    } catch (error) { if (error instanceof ApiError && error.code === 22705) setNameError(localizedError(error)); else setSaveError(true) } finally { setSaving(false) }
   }
   if (query.isPending) return <LoadingArea className="min-h-72" label={t("admin.loading")} />
   if (query.error) return <LoadError className="min-h-72" message={t("admin.previewSettings.loadFailed")} error={query.error} onRetry={() => void load()} />
@@ -65,7 +69,7 @@ export function PreviewDefaultsEditor() {
     <Card><CardContent className="space-y-5 pt-5">
       <div><h2 className="font-semibold">{t("admin.previewSettings.selection")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.previewSettings.inheritance")}</p></div>
       <div className="space-y-2"><label className="block text-sm font-medium" htmlFor="preview-group-name">{t("admin.previewSettings.groupName")}</label>
-        {canWrite ? <Input id="preview-group-name" value={groupName} maxLength={100} required onChange={event => setDraft({ GroupName: event.target.value, Selections: selected })} /> : <p>{groupName}</p>}
+        <FieldValidation label={t("admin.previewSettings.groupName")} error={nameError}>{canWrite ? <Input id="preview-group-name" value={groupName} maxLength={100} required onChange={event => { setNameError(""); setDraft({ GroupName: event.target.value, Selections: selected }) }} /> : <p>{groupName}</p>}</FieldValidation>
       </div>
       {selected.length === 0 ? <EmptyState compact message={t("admin.previewSettings.empty")} /> : <ul className="min-h-24 divide-y divide-border">{selected.map(item => <li key={item.ExerciseVersionID} className="flex min-h-12 items-center justify-between gap-3 py-2">
         <span className="min-w-0 break-words">{item.Name || item.ExerciseVersionID}</span>

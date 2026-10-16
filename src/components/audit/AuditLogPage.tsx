@@ -145,10 +145,11 @@ export function AuditLogPage() {
       <Input value={targetIDInput} onChange={(event) => setTargetIDInput(event.target.value)} placeholder={t("admin.audit.filter.targetID")} aria-label={t("admin.audit.filter.targetIDLabel")} />
     </FilterField>
     <FilterField label={t("admin.audit.filter.from")}>
-      <DateTimePicker value={fromLocal} onChange={(value) => setUrl({ from: value })} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} />
+      <DateTimePicker value={fromLocal} onChange={(value) => setUrl({ from: value })} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} aria-describedby={badRange ? "audit-range-error" : undefined} />
     </FilterField>
     <FilterField label={t("admin.audit.filter.to")}>
-      <DateTimePicker value={toLocal} onChange={(value) => setUrl({ to: value })} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} />
+      <DateTimePicker value={toLocal} onChange={(value) => setUrl({ to: value })} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} aria-describedby={badRange ? "audit-range-error" : undefined} />
+      {badRange && <p id="audit-range-error" role="alert" className="text-xs text-destructive">{t("admin.audit.filter.rangeError")}</p>}
     </FilterField>
   </>
 
@@ -156,7 +157,6 @@ export function AuditLogPage() {
     <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
       <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")}
         filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-end gap-x-3 gap-y-3">{filterControls}</div>} />
-      {badRange && <p role="alert" className="text-sm text-destructive">{t("admin.audit.filter.rangeError")}</p>}
 
       <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0">
         <table aria-label={t("admin.audit.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">

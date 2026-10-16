@@ -18,3 +18,11 @@ export function templateFieldError(value: unknown, variables: VariableDef[], req
   const unknown = template.variables.filter((name) => !known.has(name))
   return unknown.length ? t("admin.notif.validation.unknownVariables", { names: unknown.join(", ") }) : ""
 }
+
+/** Mirrors inapp.ValidLink, used to locate the control after a server rejection. */
+export function validTemplateLink(raw: string): boolean {
+  const value = raw.trim()
+  if (!value || value.startsWith("{{")) return true
+  if (value.startsWith("/")) return !value.startsWith("//") && !value.startsWith("/\\")
+  return /^https:\/\//i.test(value) && !/[ \t\r\n\0]/.test(value)
+}

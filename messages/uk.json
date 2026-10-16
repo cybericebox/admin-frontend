@@ -2519,11 +2519,11 @@
   "admin.notif.banners.targets.selected": "На обраних сайтах",
   "admin.notif.banners.targets.site.main": "Головний сайт",
   "admin.notif.banners.targets.site.id": "Сайт облікового запису",
-  "admin.notif.banners.targets.site.admin": "Панель адміністратора",
-  "admin.notif.banners.targets.site.exercises": "Платформа вправ",
-  "admin.notif.banners.targets.site.event": "Сайти всіх заходів",
+  "admin.notif.banners.targets.site.admin": "Панель платформи",
+  "admin.notif.banners.targets.site.exercises": "Каталог завдань",
+  "admin.notif.banners.targets.site.event": "Сайти заходів",
   "admin.notif.banners.targets.events": "Окремі заходи",
-  "admin.notif.banners.targets.eventsHint": "Обрані заходи доповнюють обрані сайти. «Сайти всіх заходів» охоплює також майбутні заходи.",
+  "admin.notif.banners.targets.eventsHint": "Обрані заходи доповнюють обрані сайти. «Сайти заходів» охоплюють також майбутні заходи.",
   "admin.notif.banners.targets.required": "Оберіть хоча б один сайт або захід.",
   "admin.notif.banners.targets.eventCount": "Окремі заходи: {count}",
   "admin.notif.banners.targets.separator": ", ",
@@ -2545,5 +2545,11 @@
   "admin.notif.broadcast.template.unsupportedNames": "Змінні {names} недоступні в розсилці — їхні значення будуть порожніми.",
   "admin.emailPreview.expand": "Збільшити перегляд",
   "admin.emailPreview.close": "Закрити перегляд",
-  "admin.emailPreview.expanded": "Перегляд листа"
+  "admin.emailPreview.expanded": "Перегляд листа",
+  "admin.notif.banners.textRequired": "Вкажіть текст банера.",
+  "admin.form.maxLength": "Максимальна довжина — {max} символів.",
+  "admin.form.fieldValidation": "Перевірка поля",
+  "admin.notif.broadcast.textInvalid": "Вкажіть текст, до {max} символів.",
+  "admin.notif.inapp.linkInvalid": "Посилання має бути шляхом на сайті або адресою https://.",
+  "admin.errors.filter.refInvalid": "Вкажіть коректний номер звернення, наприклад 50310-a1b2c3d4."
 }

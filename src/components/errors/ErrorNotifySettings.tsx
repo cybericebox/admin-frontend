@@ -1,4 +1,5 @@
 "use client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useEffect, useMemo, useState } from "react"
 import { Plus, X } from "lucide-react"
 import {
@@ -147,10 +148,11 @@ export function ErrorNotifySettings() {
         <p className="text-sm text-muted-foreground">{t("admin.errors.settings.telegramHelp")}</p>
         {draft.chats.map((chat, index) => {
           const state = failing.get(chat.chatID.trim())
+          const chatError = issuesOf("chats").find((issue) => issue.vars?.value === chat.chatID.trim())
           return (
             <div key={index} className="space-y-1">
               <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[14rem_minmax(0,1fr)_auto]">
-                <Input value={chat.chatID} disabled={!writable} onChange={(event) => set({ chats: draft.chats.map((value, at) => at === index ? { ...value, chatID: event.target.value } : value) })} aria-label={t("admin.errors.settings.chatIDN", { n: index + 1 })} placeholder={t("admin.errors.settings.chatIDPlaceholder")} className="col-start-1 min-w-0 font-mono" />
+                <FieldValidation label={t("admin.errors.settings.chatIDN", { n: index + 1 })} error={chatError ? t(chatError.key, chatError.vars) : ""}><Input value={chat.chatID} disabled={!writable} onChange={(event) => set({ chats: draft.chats.map((value, at) => at === index ? { ...value, chatID: event.target.value } : value) })} aria-label={t("admin.errors.settings.chatIDN", { n: index + 1 })} placeholder={t("admin.errors.settings.chatIDPlaceholder")} className="col-start-1 min-w-0 font-mono" /></FieldValidation>
                 <Input value={chat.label} disabled={!writable} onChange={(event) => set({ chats: draft.chats.map((value, at) => at === index ? { ...value, label: event.target.value } : value) })} aria-label={t("admin.errors.settings.chatLabelN", { n: index + 1 })} placeholder={t("admin.errors.settings.chatLabelPlaceholder")} className="col-start-1 row-start-2 min-w-0 sm:col-start-2 sm:row-start-1" />
                 {writable && <Button type="button" variant="outline" size="icon" className="col-start-2 row-start-1 sm:col-start-3" aria-label={t("admin.errors.settings.removeChat", { value: chat.chatID || String(index + 1) })} onClick={() => set({ chats: draft.chats.filter((_, at) => at !== index) })}><X aria-hidden="true" className="h-4 w-4" /></Button>}
               </div>
@@ -159,7 +161,7 @@ export function ErrorNotifySettings() {
           )
         })}
         {draft.chats.length === 0 && <EmptyState compact message={t("admin.errors.settings.noChats")} />}
-        {issuesOf("chats").map((issue, index) => <p key={index} role="alert" className="text-sm text-destructive">{t(issue.key, issue.vars)}</p>)}
+        {issuesOf("chats").filter((issue) => issue.vars?.value === undefined).map((issue, index) => <p key={index} role="alert" className="text-sm text-destructive">{t(issue.key, issue.vars)}</p>)}
         {writable && <Button type="button" variant="outline" size="sm" disabled={draft.chats.length >= MAX_NOTIFY_CHATS} onClick={() => set({ chats: [...draft.chats, { chatID: "", label: "" }] })}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.errors.settings.addChat")}</Button>}
       </section>
 

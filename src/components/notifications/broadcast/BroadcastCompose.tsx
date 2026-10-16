@@ -1,4 +1,6 @@
 "use client"
+import { ApiError } from "@/api/client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { t } from "@/i18n/t"
@@ -49,6 +51,8 @@ export function BroadcastCompose() {
   // A template chosen over existing content waits here for the replacement to be confirmed.
   const [pendingTemplate, setPendingTemplate] = useState<BroadcastTemplate | null>(null)
   const [sending, setSending] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const clearField = (field: string) => setFieldErrors((current) => ({ ...current, [field]: "" }))
   const [sendError, setSendError] = useState("")
 
   const variables = useMemo<VariableDef[]>(() => BROADCAST_VARIABLES.map((name) => ({ name, description: t(`admin.notif.broadcast.var.${name}`), example: broadcastSample(name) })), [])
@@ -126,7 +130,17 @@ export function BroadcastCompose() {
       })
       router.push(`/notifications/broadcasts/detail?id=${encodeURIComponent(created.ID)}`)
     } catch (cause) {
-      setSendError(localizedError(cause))
+      const message = cause instanceof ApiError ? (cause.body as { Status?: { Message?: string } } | null)?.Status?.Message ?? cause.message : ""
+      const field = cause instanceof ApiError && cause.code === 20222 ? "audience" : cause instanceof ApiError && cause.code === 20221 ? ({
+        "Email subject is required": "subject", "Email body is required": "body", "In-app title is required": "title",
+        "Select at least one channel": "channels", "Unsupported channel": "channels",
+        "Select at least one role": "audience", "Unknown role": "audience", "Select at least one user": "audience",
+      } as Record<string, string>)[message] : undefined
+      if (field) {
+        const text = field === "audience" ? t(cause instanceof ApiError && cause.code === 20222 ? "admin.notif.broadcast.count.zero" : "admin.notif.broadcast.audience.incomplete") : field === "channels" ? t("admin.notif.broadcast.channelsRequired") : field === "body" ? t("admin.notif.validation.required") : t("admin.notif.broadcast.textInvalid", { max: 200 })
+        setFieldErrors((current) => ({ ...current, [field]: text }))
+        setConfirmOpen(false)
+      } else setSendError(localizedError(cause))
       setSending(false)
     }
   }
@@ -145,11 +159,11 @@ export function BroadcastCompose() {
 
           <section className="space-y-2" aria-labelledby="bc-channels">
             <h2 id="bc-channels" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.channels")}</h2>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <Checkbox checked={email} onChange={(event) => setEmail(event.target.checked)} label={t("admin.notif.broadcast.channel.email")} />
-              <Checkbox checked={inApp} onChange={(event) => setInApp(event.target.checked)} label={t("admin.notif.broadcast.channel.in_app")} />
+            <FieldValidation label={t("admin.notif.broadcast.channels")} error={fieldErrors.channels || (channels.length === 0 ? t("admin.notif.broadcast.channelsRequired") : "")}><div className="flex flex-wrap gap-x-6 gap-y-2">
+              <Checkbox checked={email} onChange={(event) => { clearField("channels"); setEmail(event.target.checked) }} label={t("admin.notif.broadcast.channel.email")} />
+              <Checkbox checked={inApp} onChange={(event) => { clearField("channels"); setInApp(event.target.checked) }} label={t("admin.notif.broadcast.channel.in_app")} />
             </div>
-            {channels.length === 0 && <p className="text-xs text-destructive">{t("admin.notif.broadcast.channelsRequired")}</p>}
+            </FieldValidation>
           </section>
 
           {email && (
@@ -157,7 +171,7 @@ export function BroadcastCompose() {
               <h2 id="bc-email" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.emailPart")}</h2>
               <div>
                 <label className={label}>{t("admin.notif.tpl.subject")}</label>
-                <VariableRichText value={subject} onChange={setSubject} error={templateFieldError(subject, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
+                <VariableRichText value={subject} onChange={(value) => { clearField("subject"); setSubject(value) }} error={fieldErrors.subject || templateFieldError(subject, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
               </div>
               <div>
                 <label className={label}>{t("admin.notif.tpl.preheader")}</label>
@@ -168,7 +182,7 @@ export function BroadcastCompose() {
                   <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.body")}</label>
                   <FieldHelp text={t("admin.notif.broadcast.noImages")} />
                 </div>
-                <BlockEditor error={hasBody(body) ? templateFieldError(body, variables) : t("admin.notif.validation.required")} value={body} onChange={setBody} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
+                <BlockEditor error={fieldErrors.body || (hasBody(body) ? templateFieldError(body, variables) : t("admin.notif.validation.required"))} value={body} onChange={(value) => { clearField("body"); setBody(value) }} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
               </div>
             </section>
           )}
@@ -178,7 +192,7 @@ export function BroadcastCompose() {
               <h2 id="bc-inapp" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.inAppPart")}</h2>
               <div>
                 <label className={label}>{t("admin.notif.tpl.title")}</label>
-                <VariableRichText value={title} onChange={setTitle} error={templateFieldError(title, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
+                <VariableRichText value={title} onChange={(value) => { clearField("title"); setTitle(value) }} error={fieldErrors.title || templateFieldError(title, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
               </div>
               <div>
                 <label className={label}>{t("admin.notif.tpl.body")}</label>
@@ -196,7 +210,7 @@ export function BroadcastCompose() {
 
           <section className="space-y-3" aria-labelledby="bc-audience">
             <h2 id="bc-audience" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.audience.title")}</h2>
-            <AudiencePicker value={audience} onChange={setAudience} />
+            <FieldValidation label={t("admin.notif.broadcast.audience.title")} error={fieldErrors.audience}><AudiencePicker value={audience} onChange={(value) => { clearField("audience"); setAudience(value) }} /></FieldValidation>
             <div className="flex min-h-6 items-center gap-2 text-sm" aria-live="polite">
               {!complete ? <span className="text-muted-foreground">{t("admin.notif.broadcast.audience.incomplete")}</span>
                 : countError ? <><span className="text-destructive">{t("admin.notif.broadcast.count.error")}</span><Button variant="outline" size="sm" onClick={() => { setCounted(null); setCountReload((n) => n + 1) }}>{t("error.load.retry")}</Button></>
@@ -217,7 +231,6 @@ export function BroadcastCompose() {
             email={email ? { notificationType: "broadcast", subject: shown.subject, preheader: shown.preheader, body: shown.body, styling: {} } : undefined}
             inApp={inApp ? { title: shown.title, body: shown.inAppBody, link: shown.link, icon: "bell", tone: "neutral", accentColor: "", surface: "inbox", autoDismissMs: null, actions: [], previewValues } : undefined}
           />
-          {!email && !inApp && <Alert variant="warning">{t("admin.notif.broadcast.channelsRequired")}</Alert>}
         </div>
       </div>
 

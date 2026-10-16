@@ -2519,11 +2519,11 @@
   "admin.notif.banners.targets.selected": "On selected sites",
   "admin.notif.banners.targets.site.main": "Main site",
   "admin.notif.banners.targets.site.id": "Account site",
-  "admin.notif.banners.targets.site.admin": "Administrator panel",
-  "admin.notif.banners.targets.site.exercises": "Exercises platform",
-  "admin.notif.banners.targets.site.event": "All event sites",
+  "admin.notif.banners.targets.site.admin": "Platform panel",
+  "admin.notif.banners.targets.site.exercises": "Challenge catalog",
+  "admin.notif.banners.targets.site.event": "Event sites",
   "admin.notif.banners.targets.events": "Specific events",
-  "admin.notif.banners.targets.eventsHint": "Selected events are added to the selected sites. “All event sites” also includes future events.",
+  "admin.notif.banners.targets.eventsHint": "Selected events are added to the selected sites. “Event sites” also includes future events.",
   "admin.notif.banners.targets.required": "Select at least one site or event.",
   "admin.notif.banners.targets.eventCount": "Specific events: {count}",
   "admin.notif.banners.targets.separator": ", ",
@@ -2545,5 +2545,11 @@
   "admin.notif.broadcast.template.unsupportedNames": "Variables {names} are unavailable in broadcasts — their values will be empty.",
   "admin.emailPreview.expand": "Expand preview",
   "admin.emailPreview.close": "Close preview",
-  "admin.emailPreview.expanded": "Email preview"
+  "admin.emailPreview.expanded": "Email preview",
+  "admin.notif.banners.textRequired": "Enter the banner text.",
+  "admin.form.maxLength": "Maximum length is {max} characters.",
+  "admin.form.fieldValidation": "Field validation",
+  "admin.notif.broadcast.textInvalid": "Enter text, up to {max} characters.",
+  "admin.notif.inapp.linkInvalid": "The link must be a site path or an https:// address.",
+  "admin.errors.filter.refInvalid": "Enter a valid reference, for example 50310-a1b2c3d4."
 }

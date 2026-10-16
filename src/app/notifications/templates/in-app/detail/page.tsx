@@ -18,6 +18,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Send } from "lucide-react"
@@ -45,7 +46,7 @@ import type { InAppTemplate, InAppAction } from "@/api/notifications/inAppTempla
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
 import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
 import { NotificationPreview } from "@/components/notifications/editor/NotificationPreview"
-import { templateFieldError } from "@/components/notifications/editor/templateValidation"
+import { templateFieldError, validTemplateLink } from "@/components/notifications/editor/templateValidation"
 import { popInDuration } from "@/components/notifications/popInDuration"
 import { NotificationAppearancePicker } from "@/components/notifications/editor/NotificationAppearancePicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
@@ -74,6 +75,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
   const busy = busyAction !== ""
+  const [rejectedLinks, setRejectedLinks] = useState(false)
   const [formError, setFormError] = useState(false)
   const [versionRevision, setVersionRevision] = useState(0)
   const [publishOpen, setPublishOpen] = useState(false)
@@ -147,6 +149,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
+  function showLinkErrors(cause: unknown): boolean {
+    if (!(cause instanceof ApiError) || cause.code !== 20225 || (validTemplateLink(link) && actions.every((action) => validTemplateLink(action.href)))) return false
+    setRejectedLinks(true)
+    setPublishOpen(false)
+    return true
+  }
+
   async function handleSave() {
     if (busy || !isDirty || !notificationType) return
     if (actions.length > 1 || actions.some((action) => !action.label.trim() || !/^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(action.href.trim()) || action.href.includes("{{"))) {
@@ -186,7 +195,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         toast.success(t("admin.notif.tpl.saved"))
       }
     } catch (cause) {
-      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
+      if (!showLinkErrors(cause)) toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -201,7 +210,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       setVersionRevision((value) => value + 1)
       toast.success(t("admin.notif.tpl.published"))
     } catch (cause) {
-      toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
+      if (!showLinkErrors(cause)) toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
     }
@@ -356,7 +365,6 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
-          {formError && <span className="text-sm text-destructive">{t("admin.notif.inapp.actionsInvalid")}</span>}
         </>}
       />
 
@@ -441,7 +449,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </div>
               <VariableRichText
                 key={`link-${loadNonce}`}
-                error={templateFieldError(link, inAppVariables)}
+                error={rejectedLinks && !validTemplateLink(link) ? t("admin.notif.inapp.linkInvalid") : templateFieldError(link, inAppVariables)}
                 value={link}
                 onChange={setLink}
                 variables={inAppVariables}
@@ -497,25 +505,25 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                   {t("admin.notif.inapp.addAction")}
                 </Button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" role="group" aria-label={t("admin.notif.inapp.actions")} aria-invalid={formError && actions.length > 1} aria-describedby={formError && actions.length > 1 ? "inapp-action-count-error" : undefined}>
                 {actions.map((action, i) => (
-                  <div key={i} className="grid min-w-0 grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                    <input
+                  <div key={i} className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                    <FieldValidation label={t("admin.notif.inapp.actionLabelN", { n: i + 1 })} error={formError && !action.label.trim() ? t("admin.notif.inapp.actionsInvalid") : ""}><input
                       type="text"
                       value={action.label}
                       onChange={(e) => updateAction(i, "label", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionLabel")}
                       aria-label={t("admin.notif.inapp.actionLabelN", { n: i + 1 })}
                       className="min-w-0 w-full rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <input
+                    /></FieldValidation>
+                    <FieldValidation label={t("admin.notif.inapp.actionHrefN", { n: i + 1 })} error={(formError && (!/^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(action.href.trim()) || action.href.includes("{{"))) || (rejectedLinks && !validTemplateLink(action.href)) ? t("admin.notif.inapp.actionsInvalid") : ""}><input
                       type="text"
                       value={action.href}
                       onChange={(e) => updateAction(i, "href", e.target.value)}
                       placeholder={t("admin.notif.inapp.actionHref")}
                       aria-label={t("admin.notif.inapp.actionHrefN", { n: i + 1 })}
                       className="min-w-0 w-full rounded-md border border-border bg-secondary/40 px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
+                    /></FieldValidation>
                     <Button
                       variant="outline"
                       size="sm"
@@ -526,6 +534,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                     </Button>
                   </div>
                 ))}
+                {formError && actions.length > 1 && <p id="inapp-action-count-error" role="alert" className="mt-1 text-xs text-destructive">{t("admin.notif.inapp.actionsInvalid")}</p>}
               </div>
             </div>
 

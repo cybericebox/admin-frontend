@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { ApiError } from "@/api/client"
 import NewEventPage from "./page"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
@@ -15,6 +16,38 @@ describe("new event page", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getInfrastructureAvailable).mockResolvedValue(true)
+  })
+
+  it("shows every schema error beside its own field before making a request", async () => {
+    render(<NewEventPage />)
+    const name = screen.getByRole("textbox", { name: /admin.events.field.name/ })
+    const tag = screen.getByRole("textbox", { name: /admin.events.field.tag/ })
+    const end = screen.getByLabelText("admin.events.field.archiveAt")
+    fireEvent.change(name, { target: { value: " " } })
+    fireEvent.change(tag, { target: { value: "??" } })
+    fireEvent.change(screen.getByLabelText("admin.events.field.availableFrom"), { target: { value: "2026-10-02T09:00" } })
+    fireEvent.change(end, { target: { value: "2026-10-01T09:00" } })
+    fireEvent.submit(document.querySelector("form")!)
+    for (const control of [name, tag, end]) {
+      const group = control.closest('[role="group"]')!
+      expect(group).toHaveAttribute("aria-invalid", "true")
+      expect(group).toContainElement(document.getElementById(group.getAttribute("aria-describedby")!))
+    }
+    expect(screen.getAllByRole("alert")).toHaveLength(3)
+    expect(createEvent).not.toHaveBeenCalled()
+  })
+
+  it("routes the backend duplicate tag error to the tag control", async () => {
+    vi.mocked(createEvent).mockRejectedValueOnce(new ApiError(409, { Status: { Code: 41102 } }, undefined, undefined, 41102))
+    render(<NewEventPage />)
+    fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Event" } })
+    const tag = screen.getByRole("textbox", { name: /admin.events.field.tag/ })
+    fireEvent.change(tag, { target: { value: "winter" } })
+    fireEvent.change(screen.getByLabelText("admin.events.field.availableFrom"), { target: { value: "2026-10-01T09:00" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
+    const error = await screen.findByRole("alert")
+    expect(error).toHaveTextContent("admin.events.err.exists")
+    expect(tag.closest('[role="group"]')).toContainElement(error)
   })
 
   it("creates an unpublished open-ended event and opens moderator assignment", async () => {
