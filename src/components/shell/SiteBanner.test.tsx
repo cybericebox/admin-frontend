@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { SiteBanner, SiteBannerBar } from "./SiteBanner"
 
 const api = vi.hoisted(() => ({ fetch: vi.fn() }))
@@ -15,15 +15,19 @@ describe("site banner bar", () => {
     api.fetch.mockResolvedValue([critical, info])
   })
 
-  it("shows the most severe banner with its link and level", async () => {
+  it("shows only the primary banner until the remaining announcements are opened", async () => {
     render(<SiteBannerBar />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
-    expect(screen.getByRole("status")).toHaveAttribute("data-level", "critical")
+    expect(screen.getAllByRole("status")[0]).toHaveAttribute("data-level", "critical")
     expect(screen.getByRole("link", { name: "Деталі" })).toHaveAttribute("href", "/status")
     expect(screen.queryByText("Нова функція")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Ще 1 оголошення" }))
+    expect(await screen.findByRole("dialog", { name: "Інші оголошення" })).toBeInTheDocument()
+    expect(screen.getByText("Нова функція")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Інші оголошення" })).toHaveFocus())
   })
 
-  it("remembers a dismissal by id and version, then shows the next banner", async () => {
+  it("dismisses only the chosen banner by id and version, keeping the other banner visible", async () => {
     render(<SiteBannerBar />)
     await screen.findByText("Планові роботи")
     fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
@@ -77,4 +81,37 @@ describe("site banner bar", () => {
     render(<SiteBanner banner={{ Text: "Текст", LinkURL: "javascript:alert(1)", LinkLabel: "Тут", Level: "info", Dismissible: false }} />)
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
+  it("keeps ten banners behind a bounded disclosure and dismisses only the chosen remaining banner", async () => {
+    api.fetch.mockResolvedValue(Array.from({ length: 10 }, (_, index) => ({ ...critical, ID: `b${index}`, Text: `Оголошення ${index + 1}` })))
+    render(<SiteBannerBar />)
+    expect(await screen.findByText("Оголошення 1")).toBeInTheDocument()
+    expect(screen.getAllByRole("status")).toHaveLength(1)
+    const more = screen.getByRole("button", { name: "Ще 9 оголошень" })
+    fireEvent.click(more)
+    const panel = await screen.findByRole("dialog", { name: "Інші оголошення" })
+    expect(within(panel).queryByText("Оголошення 1")).not.toBeInTheDocument()
+    expect(within(panel).getAllByRole("status")).toHaveLength(9)
+    fireEvent.click(within(panel).getAllByRole("button", { name: "Закрити банер" })[0])
+    expect(screen.queryByText("Оголошення 2")).not.toBeInTheDocument()
+    expect(screen.getByText("Оголошення 1")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Ще 8 оголошень" })).toBeInTheDocument()
+    fireEvent.keyDown(panel, { key: "Escape" })
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    await waitFor(() => expect(more).toHaveFocus())
+    expect(screen.getAllByRole("status")).toHaveLength(1)
+  })
+
+  it("promotes the next primary and removes the extra action after the last remaining banner", async () => {
+    api.fetch.mockResolvedValue([critical, { ...critical, ID: "b3", Text: "Друге" }, info])
+    render(<SiteBannerBar />)
+    await screen.findByText("Планові роботи")
+    expect(screen.getByRole("button", { name: "Ще 2 оголошення" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
+    expect(screen.getByText("Друге")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Ще 1 оголошення" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
+    expect(screen.getByText("Нова функція")).toBeInTheDocument()
+    expect(screen.queryByRole("button")).not.toBeInTheDocument()
+  })
+
 })

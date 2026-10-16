@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { BannersAdmin } from "./BannersAdmin"
 
-const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() }))
+const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), events: vi.fn(), event: vi.fn() }))
+vi.mock("@/api/events/catalog", () => ({ listEventsPage: api.events, getEvent: api.event }))
 vi.mock("@/api/notifications/banners", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/notifications/banners")>()),
   listBanners: api.list, createBanner: api.create, updateBanner: api.update, deleteBanner: api.remove,
@@ -18,6 +19,8 @@ describe("banners admin page", () => {
     api.create.mockResolvedValue(banner)
     api.update.mockResolvedValue(banner)
     api.remove.mockResolvedValue(undefined)
+    api.events.mockResolvedValue({ Items: [], Total: 0 })
+    api.event.mockImplementation((id: string) => Promise.resolve({ ID: id, Name: id === "event-1" ? "Зимовий CTF" : "Осінній CTF" }))
   })
 
   it("shows the empty state", async () => {
@@ -115,4 +118,52 @@ describe("banners admin page", () => {
     fireEvent.click(buttons[buttons.length - 1])
     await waitFor(() => expect(api.remove).toHaveBeenCalledWith("b1"))
   })
+  it("requires a target in selected mode, preserves draft selections across modes, and clears all-mode payload", async () => {
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Створити банер" }))
+    fireEvent.change(screen.getByLabelText("Текст"), { target: { value: "Текст" } })
+    fireEvent.click(screen.getByRole("radio", { name: "На обраних сайтах" }))
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+    expect(screen.getByText("Оберіть хоча б один сайт або захід.")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("checkbox", { name: "Головний сайт" }))
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("radio", { name: "На всіх сайтах" }))
+    fireEvent.click(screen.getByRole("radio", { name: "На обраних сайтах" }))
+    expect(screen.getByRole("checkbox", { name: "Головний сайт" })).toBeChecked()
+    fireEvent.click(screen.getByRole("radio", { name: "На всіх сайтах" }))
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    await waitFor(() => expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ TargetMode: "all", TargetSites: [], TargetEventIDs: [] })))
+  })
+
+  it("roundtrips existing service and event targets, searches all event pages, and retains selected events", async () => {
+    const scoped = { ...banner, TargetMode: "selected", TargetSites: ["id"], TargetEventIDs: ["event-1"] }
+    api.list.mockResolvedValue([scoped])
+    api.update.mockImplementation((_id, input) => Promise.resolve({ ...scoped, ...input }))
+    api.events.mockImplementation((filter) => Promise.resolve({ Items: filter.search ? [{ ID: "event-2", Name: "Осінній CTF" }] : [], Total: filter.search ? 51 : 0 }))
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Редагувати" }))
+    expect(screen.getByRole("radio", { name: "На обраних сайтах" })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Сайт облікового запису" })).toBeChecked()
+    expect(await screen.findByRole("button", { name: "Прибрати захід Зимовий CTF" })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole("searchbox", { name: "Пошук заходів" }), { target: { value: "Осінній" } })
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Осінній CTF" }))
+    fireEvent.click(screen.getByRole("button", { name: "Далі" }))
+    await waitFor(() => expect(api.events).toHaveBeenCalledWith(expect.objectContaining({ search: "Осінній", page: 2 })))
+    expect(screen.getByRole("button", { name: "Прибрати захід Зимовий CTF" })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Текст"), { target: { value: "Оновлений банер" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith("b1", expect.objectContaining({ TargetMode: "selected", TargetSites: ["id"], TargetEventIDs: ["event-1", "event-2"] })))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole("button", { name: "Редагувати" }))
+    expect(await screen.findByRole("button", { name: "Прибрати захід Зимовий CTF" })).toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Сайт облікового запису" })).toBeChecked()
+  })
+
+  it("keeps selected targets when toggling activation", async () => {
+    api.list.mockResolvedValue([{ ...banner, TargetMode: "selected", TargetSites: ["event"], TargetEventIDs: ["event-1"] }])
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вимкнути" }))
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith("b1", expect.objectContaining({ IsActive: false, TargetMode: "selected", TargetSites: ["event"], TargetEventIDs: ["event-1"] })))
+  })
+
 })

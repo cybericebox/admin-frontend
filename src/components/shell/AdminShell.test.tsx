@@ -13,7 +13,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span>, CREST_SRC: "/crest.png" }))
 vi.mock("./TopBar", () => ({ TopBar: ({ crumbs, onMenuClick }: { crumbs: { label: string }[]; onMenuClick: () => void }) => <><button onClick={onMenuClick}>menu</button><p data-testid="bar-title">{crumbs.map((crumb) => crumb.label).join(" > ")}</p></> }))
 vi.mock("./Sidebar", () => ({ Sidebar: ({ onClose }: { onClose?: () => void }) => <aside aria-label="sidebar">{onClose && <button onClick={onClose}>admin.shell.closeMenu</button>}</aside> }))
-vi.mock("./SiteBanner", () => ({ SiteBannerBar: () => null }))
+vi.mock("./SiteBanner", () => ({ SiteBannerBar: () => <div data-testid="site-banners" /> }))
 
 const replace = vi.fn()
 const original = window.location
@@ -104,6 +104,13 @@ describe("admin shell", () => {
     render(<AdminShell><span>content</span></AdminShell>)
     expect(screen.getByTestId("bar-title")).toHaveTextContent("admin.shell.title")
     expect(document.title).toBe("meta.title")
+  })
+
+  it("places site banners above both navigation areas", () => {
+    render(<AdminShell><span>content</span></AdminShell>)
+    const banners = screen.getByTestId("site-banners")
+    expect(banners.compareDocumentPosition(screen.getByRole("complementary", { name: "sidebar" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(banners.compareDocumentPosition(screen.getByTestId("bar-title")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it("has no compact sidebar mode", () => {
