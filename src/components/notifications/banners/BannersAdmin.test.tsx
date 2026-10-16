@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { ApiError } from "@/api/client"
 import { BannersAdmin } from "./BannersAdmin"
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), events: vi.fn(), event: vi.fn() }))
@@ -75,6 +76,78 @@ describe("banners admin page", () => {
     fireEvent.change(screen.getByLabelText("Текст"), { target: { value: "Текст" } })
     fireEvent.change(screen.getByLabelText("Посилання"), { target: { value: "javascript:1" } })
     expect(save).toBeDisabled()
+  })
+
+  it("associates required text with its field before preview and never sends an invalid banner", async () => {
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Створити банер" }))
+    const input = screen.getByLabelText("Текст")
+    expect(input).not.toHaveAttribute("aria-invalid", "true")
+    fireEvent.blur(input)
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    const message = document.getElementById(input.getAttribute("aria-describedby")!)!
+    expect(message).toHaveTextContent("Вкажіть текст банера.")
+    expect(input.parentElement).toContainElement(message)
+    expect(message.compareDocumentPosition(screen.getByTestId("banner-preview")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    expect(api.create).not.toHaveBeenCalled()
+  })
+
+  it("keeps generic backend validation form-wide without blaming an arbitrary field", async () => {
+    api.create.mockRejectedValueOnce(new ApiError(400, {}, undefined, undefined, 20224))
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Створити банер" }))
+    const input = screen.getByLabelText("Текст")
+    fireEvent.change(input, { target: { value: "Текст" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    const message = await screen.findByRole("alert")
+    expect(input.parentElement).not.toContainElement(message)
+    expect(input).not.toHaveAttribute("aria-invalid", "true")
+  })
+
+  it("places the backend text-required message at the text control and clears it on edit", async () => {
+    api.create.mockRejectedValueOnce(new ApiError(400, { Status: { Message: "Banner text is required" } }, undefined, undefined, 20224))
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Створити банер" }))
+    const text = screen.getByLabelText("Текст")
+    fireEvent.change(text, { target: { value: "Текст" } })
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    const error = await screen.findByText("Вкажіть текст банера.")
+    expect(text).toHaveAttribute("aria-describedby", error.id)
+    expect(text.parentElement).toContainElement(error)
+    expect(screen.getAllByRole("alert")).toHaveLength(1)
+    fireEvent.change(text, { target: { value: "Оновлено" } })
+    expect(screen.queryByText("Вкажіть текст банера.")).not.toBeInTheDocument()
+  })
+
+  it("keeps simultaneous text and link errors beside their own fields", async () => {
+    render(<BannersAdmin />)
+    fireEvent.click(await screen.findByRole("button", { name: "Створити банер" }))
+    const text = screen.getByLabelText("Текст")
+    const link = screen.getByLabelText("Посилання")
+    fireEvent.blur(text)
+    fireEvent.change(link, { target: { value: "javascript:1" } })
+    for (const control of [text, link]) {
+      expect(control).toHaveAttribute("aria-invalid", "true")
+      expect(control.parentElement).toContainElement(document.getElementById(control.getAttribute("aria-describedby")!))
+    }
+    expect(screen.getAllByRole("alert")).toHaveLength(2)
+    expect(api.create).not.toHaveBeenCalled()
+  })
+
+  it("uses icon actions and the requested target names without a separate event heading", async () => {
+    render(<BannersAdmin />)
+    const edit = await screen.findByRole("button", { name: "Редагувати" })
+    for (const name of ["Редагувати", "Вимкнути", "Видалити"]) {
+      const button = screen.getByRole("button", { name })
+      expect(button).toHaveTextContent("")
+      expect(button.querySelector("svg")).toHaveAttribute("stroke-width", "2")
+    }
+    fireEvent.click(edit)
+    fireEvent.click(screen.getByRole("radio", { name: "На обраних сайтах" }))
+    for (const name of ["Головний сайт", "Сайт облікового запису", "Панель платформи", "Каталог завдань", "Сайти заходів"]) expect(screen.getByRole("checkbox", { name })).toBeInTheDocument()
+    expect(screen.queryByText("Окремі заходи", { exact: true })).not.toBeInTheDocument()
+    expect(screen.getByRole("searchbox", { name: "Пошук заходів" })).toBeInTheDocument()
   })
 
   it("deactivates a banner", async () => {

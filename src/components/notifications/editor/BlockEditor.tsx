@@ -451,6 +451,8 @@ export function BlockEditor({
                     type="button"
                     variant="outline"
                     size="sm"
+                    aria-invalid={Boolean(uploadState[stableKey]?.error)}
+                    aria-describedby={uploadState[stableKey]?.error ? `image-upload-error-${stableKey}` : undefined}
                     busy={uploadState[stableKey]?.uploading}
                     onClick={() => fileInputRefs.current[stableKey]?.click()}
                   >
@@ -466,7 +468,7 @@ export function BlockEditor({
                   )}
                 </div>
                 {uploadState[stableKey]?.error && (
-                  <p className="text-xs text-destructive">{uploadState[stableKey]?.error}</p>
+                  <p id={`image-upload-error-${stableKey}`} role="alert" className="text-xs text-destructive">{uploadState[stableKey]?.error}</p>
                 )}
                 <Input
                   value={(block as ImageBlock).alt ?? ""}

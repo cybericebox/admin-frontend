@@ -118,7 +118,8 @@ export function ErrorGroupsList() {
           <Input value={qInput} onChange={(event) => { setQInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.search")} aria-label={t("admin.errors.filter.search")} />
         </FilterField>
         <FilterField label={t("admin.errors.filter.refLabel")} className="min-w-[min(100%,12rem)] flex-1 lg:max-w-[14rem]">
-          <Input value={refInput} onChange={(event) => { setRefInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.refPlaceholder")} aria-label={t("admin.errors.filter.refLabel")} aria-invalid={refInvalid || undefined} className="font-mono" />
+          <Input value={refInput} onChange={(event) => { setRefInput(event.target.value); resetPage() }} placeholder={t("admin.errors.filter.refPlaceholder")} aria-label={t("admin.errors.filter.refLabel")} aria-invalid={refInvalid || undefined} aria-describedby={refInvalid ? "error-reference-validation" : undefined} className="font-mono" />
+          {refInvalid && <p id="error-reference-validation" role="alert" className="text-xs text-destructive">{t("admin.errors.filter.refInvalid")}</p>}
         </FilterField>
         <FilterField label={t("admin.errors.filter.kindLabel")} className="min-w-44">
           <DropdownMenu modal={false}>

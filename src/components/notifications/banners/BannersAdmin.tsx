@@ -1,4 +1,6 @@
 "use client"
+import { ApiError } from "@/api/client"
+import { Pencil, Power, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
@@ -57,9 +59,22 @@ function toInput(form: Form): BannerInput {
   return { TargetMode: form.targetMode, TargetSites: form.targetMode === "selected" ? form.targetSites : [], TargetEventIDs: form.targetMode === "selected" ? form.targetEventIDs : [], Text: form.text.trim(), LinkURL: form.linkURL.trim(), LinkLabel: form.linkLabel.trim(), Level: form.level, ActiveFrom: toISO(form.from), ActiveTo: toISO(form.to), Dismissible: form.dismissible, Audience: form.audience, IsActive: form.active }
 }
 
+const BANNER_FIELDS: Record<string, keyof Form> = {
+  "Banner text is required": "text",
+  "Banner link label is too long": "linkLabel",
+  "Banner link must be an https address or a site path": "linkURL",
+  "Banner end must be after its start": "to",
+  "Select at least one banner target": "targetMode",
+}
+function bannerErrorField(error: unknown): keyof Form | undefined {
+  if (!(error instanceof ApiError) || error.code !== 20224) return undefined
+  const body = error.body as { Status?: { Message?: string } } | null
+  return BANNER_FIELDS[body?.Status?.Message ?? error.message]
+}
+
 function linkValid(url: string): boolean {
   const value = url.trim()
-  return value === "" || (value.startsWith("/") && !value.startsWith("//")) || /^https?:\/\//i.test(value)
+  return value.length <= 500 && (value === "" || (value.startsWith("/") && !value.startsWith("//")) || /^https?:\/\//i.test(value))
 }
 
 function windowLabel(banner: Banner): string {
@@ -77,10 +92,15 @@ function targetSummary(banner: Pick<Banner, "TargetMode" | "TargetSites" | "Targ
 
 function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; onClose: () => void; onSaved: (saved: Banner, close: boolean) => void }) {
   const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(banner === "new" ? EMPTY_FORM : toForm(banner), toInput)
+  const [serverFields, setServerFields] = useState<Partial<Record<keyof Form, string>>>({})
+  const [textTouched, setTextTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }))
+  const set = <K extends keyof Form>(key: K, value: Form[K]) => { setServerFields((current) => ({ ...current, [key]: undefined, ...(key === "from" ? { to: undefined } : {}), ...(key === "targetSites" || key === "targetEventIDs" ? { targetMode: undefined } : {}) })); setForm((current) => ({ ...current, [key]: value })) }
 
+  const textError = serverFields.text || (textTouched && !form.text.trim() ? t("admin.notif.banners.textRequired") : form.text.length > BANNER_TEXT_MAX ? t("admin.form.maxLength", { max: BANNER_TEXT_MAX }) : "")
+  const linkError = serverFields.linkURL || (!linkValid(form.linkURL) ? t("admin.notif.banners.linkInvalid") : "")
+  const labelError = serverFields.linkLabel || (form.linkLabel.length > BANNER_LABEL_MAX ? t("admin.form.maxLength", { max: BANNER_LABEL_MAX }) : "")
   const rangeInvalid = form.from !== "" && form.to !== "" && new Date(form.to) <= new Date(form.from)
   const targetInvalid = form.targetMode === "selected" && form.targetSites.length === 0 && form.targetEventIDs.length === 0
   const valid = form.text.trim() !== "" && form.text.length <= BANNER_TEXT_MAX && form.linkLabel.length <= BANNER_LABEL_MAX && linkValid(form.linkURL) && !rangeInvalid && !targetInvalid
@@ -94,7 +114,11 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
       const saved = banner === "new" ? await createBanner(submitted) : await updateBanner(banner.ID, submitted)
       onSaved(saved, accept(toForm(saved), submitted))
     } catch (cause) {
-      setError(localizedError(cause))
+      const field = bannerErrorField(cause)
+      if (field) {
+        const message = field === "text" ? t("admin.notif.banners.textRequired") : field === "linkLabel" ? t("admin.form.maxLength", { max: BANNER_LABEL_MAX }) : field === "linkURL" ? t("admin.notif.banners.linkInvalid") : field === "to" ? t("admin.notif.banners.rangeInvalid") : t("admin.notif.banners.targets.required")
+        setServerFields({ [field]: message })
+      } else setError(localizedError(cause))
     } finally {
       setBusy(false)
     }
@@ -108,18 +132,20 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
         <div className="space-y-4">
           <div>
             <label htmlFor="banner-text" className={label}>{t("admin.notif.banners.text")}</label>
-            <Textarea id="banner-text" rows={3} value={form.text} maxLength={BANNER_TEXT_MAX} onChange={(event) => set("text", event.target.value)} />
+            <Textarea id="banner-text" aria-invalid={Boolean(textError)} aria-describedby={textError ? "banner-text-error" : undefined} onBlur={() => setTextTouched(true)} rows={3} value={form.text} maxLength={BANNER_TEXT_MAX} onChange={(event) => set("text", event.target.value)} />
+            {textError && <p id="banner-text-error" role="alert" className="mt-1 text-xs text-destructive">{textError}</p>}
             <p className="mt-1 text-right text-xs text-muted-foreground">{form.text.length} / {BANNER_TEXT_MAX}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="banner-link" className={label}>{t("admin.notif.banners.linkUrl")}</label>
-              <Input id="banner-link" value={form.linkURL} onChange={(event) => set("linkURL", event.target.value)} placeholder="https://… / /path" aria-invalid={!linkValid(form.linkURL)} />
-              {!linkValid(form.linkURL) && <p className="mt-1 text-xs text-destructive">{t("admin.notif.banners.linkInvalid")}</p>}
+              <Input id="banner-link" value={form.linkURL} onChange={(event) => set("linkURL", event.target.value)} placeholder="https://… / /path" aria-invalid={Boolean(linkError)} aria-describedby={linkError ? "banner-link-error" : undefined} />
+              {linkError && <p id="banner-link-error" role="alert" className="mt-1 text-xs text-destructive">{linkError}</p>}
             </div>
             <div>
               <label htmlFor="banner-label" className={label}>{t("admin.notif.banners.linkLabel")}</label>
-              <Input id="banner-label" value={form.linkLabel} maxLength={BANNER_LABEL_MAX} onChange={(event) => set("linkLabel", event.target.value)} />
+              <Input aria-invalid={Boolean(labelError)} aria-describedby={labelError ? "banner-label-error" : undefined} id="banner-label" value={form.linkLabel} maxLength={BANNER_LABEL_MAX} onChange={(event) => set("linkLabel", event.target.value)} />
+              {labelError && <p id="banner-label-error" role="alert" className="mt-1 text-xs text-destructive">{labelError}</p>}
             </div>
             <div>
               <span className={label}>{t("admin.notif.banners.level")}</span>
@@ -135,11 +161,11 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
             </div>
             <div>
               <span className={label}>{t("admin.notif.banners.activeTo")}</span>
-              <DateTimePicker value={form.to} onChange={(value) => set("to", value)} allowClear aria-label={t("admin.notif.banners.activeTo")} />
-              {rangeInvalid && <p className="mt-1 text-xs text-destructive">{t("admin.notif.banners.rangeInvalid")}</p>}
+              <DateTimePicker aria-invalid={rangeInvalid || Boolean(serverFields.to)} aria-describedby={rangeInvalid || serverFields.to ? "banner-range-error" : undefined} value={form.to} onChange={(value) => set("to", value)} allowClear aria-label={t("admin.notif.banners.activeTo")} />
+              {(rangeInvalid || serverFields.to) && <p id="banner-range-error" role="alert" className="mt-1 text-xs text-destructive">{t("admin.notif.banners.rangeInvalid")}</p>}
             </div>
           </div>
-          <fieldset className="space-y-3 rounded-md border border-border p-3">
+          <fieldset aria-invalid={targetInvalid || Boolean(serverFields.targetMode)} aria-describedby={targetInvalid || serverFields.targetMode ? "banner-target-error" : undefined} className="space-y-3 rounded-md border border-border p-3">
             <legend className="px-1 text-sm font-medium">{t("admin.notif.banners.targets.title")}</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {(["all", "selected"] as const).map((mode) => <label key={mode} className="flex items-center gap-2 text-sm">
@@ -152,11 +178,10 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
                 {TARGET_SITES.map((site) => <Checkbox key={site} checked={form.targetSites.includes(site)} label={t(`admin.notif.banners.targets.site.${site}`)} onChange={() => set("targetSites", form.targetSites.includes(site) ? form.targetSites.filter((item) => item !== site) : [...form.targetSites, site])} />)}
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-medium">{t("admin.notif.banners.targets.events")}</p>
                 <p className="text-xs text-muted-foreground">{t("admin.notif.banners.targets.eventsHint")}</p>
                 <EventPicker value={form.targetEventIDs} onChange={(ids) => set("targetEventIDs", ids)} />
               </div>
-              {targetInvalid && <p className="text-xs text-destructive">{t("admin.notif.banners.targets.required")}</p>}
+              {(targetInvalid || serverFields.targetMode) && <p id="banner-target-error" role="alert" className="text-xs text-destructive">{t("admin.notif.banners.targets.required")}</p>}
             </>}
             <p className="text-xs text-muted-foreground">{targetSummary({ TargetMode: form.targetMode, TargetSites: form.targetSites, TargetEventIDs: form.targetEventIDs })}</p>
           </fieldset>
@@ -272,9 +297,9 @@ export function BannersAdmin() {
                   {canWrite && (
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setEditing(banner)}>{t("admin.notif.banners.edit")}</Button>
-                        <Button variant="outline" size="sm" onClick={() => void toggle(banner)}>{t(banner.IsActive ? "admin.notif.banners.deactivate" : "admin.notif.banners.activate")}</Button>
-                        <Button variant="outline" size="sm" onClick={() => { setRemoveError(""); setRemoving(banner) }}>{t("admin.notif.banners.delete")}</Button>
+                        <HoverTooltip text={t("admin.notif.banners.edit")}><Button variant="outline" size="icon" aria-label={t("admin.notif.banners.edit")} onClick={() => setEditing(banner)}><Pencil className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></Button></HoverTooltip>
+                        <HoverTooltip text={t(banner.IsActive ? "admin.notif.banners.deactivate" : "admin.notif.banners.activate")}><Button variant="outline" size="icon" aria-label={t(banner.IsActive ? "admin.notif.banners.deactivate" : "admin.notif.banners.activate")} onClick={() => void toggle(banner)}><Power className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></Button></HoverTooltip>
+                        <HoverTooltip text={t("admin.notif.banners.delete")}><Button variant="outline" size="icon" aria-label={t("admin.notif.banners.delete")} onClick={() => { setRemoveError(""); setRemoving(banner) }}><Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></Button></HoverTooltip>
                       </div>
                     </td>
                   )}

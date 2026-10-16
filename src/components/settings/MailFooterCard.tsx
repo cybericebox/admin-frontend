@@ -1,4 +1,6 @@
 "use client"
+import { ApiError } from "@/api/client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useEffect, useMemo, useState } from "react"
 import { MAIL_FOOTER_MAX_BYTES, previewMailFooter, saveMailFooter, type LexicalState, type MailFooter, type MailFooterPreview, type MailSettings } from "@/api/mail/settings"
 import { localizedError } from "@/i18n/apiError"
@@ -61,6 +63,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
   const { draft, setDraft, dirty, accept } = useSavedDraft(footerDraft(footer), footerValue)
   const [preview, setPreview] = useState<PreviewState>({ status: "loading" })
   const [busy, setBusy] = useState(false)
+  const [fieldError, setFieldError] = useState("")
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [retry, setRetry] = useState(0)
@@ -79,6 +82,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
 
   function change(value: LexicalState) {
     setDraft(value)
+    setFieldError("")
     setPreview({ status: "loading" })
     setNotice("")
     setError("")
@@ -86,7 +90,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
 
   async function save() {
     if (busy || !dirty) return
-    if (byteLength(draft) > MAIL_FOOTER_MAX_BYTES) { setError(t("admin.mail.footer.tooLong")); return }
+    if (byteLength(draft) > MAIL_FOOTER_MAX_BYTES) { setFieldError(t("admin.mail.footer.tooLong")); return }
     const submitted = footerValue(draft)
     setBusy(true)
     setError("")
@@ -98,7 +102,8 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
       onSaved(next)
       setNotice(t("admin.mail.footer.saved"))
     } catch (err) {
-      setError(localizedError(err))
+      if (err instanceof ApiError && err.code === 22105) setFieldError(localizedError(err))
+      else setError(localizedError(err))
     } finally {
       setBusy(false)
     }
@@ -118,7 +123,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
               <span className="block text-sm font-medium">{t("admin.mail.footer.text")}</span>
               <FieldHelp text={t("admin.mail.footer.textHelp")} />
             </div>
-            <RichTextEditor
+            <FieldValidation error={fieldError} label={t("admin.mail.footer.text")}><RichTextEditor
               showVariableNames
               className={PILL_CLASS}
               value={draft}
@@ -126,7 +131,7 @@ export function MailFooterCard({ footer, canWrite, onSaved }: { footer: MailFoot
               variables={variables}
               disabled={!canWrite}
               placeholder={t("admin.mail.footer.placeholder")}
-            />
+            /></FieldValidation>
           </div>
           <div className="min-w-0 space-y-2">
             <span className="block text-sm font-medium">{t("admin.mail.footer.preview")}</span>

@@ -1,4 +1,5 @@
 "use client"
+import { FieldValidation } from "@/components/ui/field-validation"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { NoAccess } from "@/components/rbac/NoAccess"
@@ -56,6 +57,7 @@ export default function Page() {
   const canWrite = useRole().can("platform.settings.write")
   const [items, setItems] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
+  const [fieldError, setFieldError] = useState("")
   const [error, setError] = useState("")
   const [loadFailed, setLoadFailed] = useState<{ cause: unknown } | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -102,6 +104,7 @@ export default function Page() {
   }
 
   function startEdit(item: Setting) {
+    setFieldError("")
     setEditing(item.Key)
     setDraft(typeof item.Value === "string" ? item.Value : kindOf(item.Value) === "number" ? String(item.Value) : JSON.stringify(item.Value, null, 2))
     setError("")
@@ -111,8 +114,9 @@ export default function Page() {
     if (inFlight.current.has(item.Key) || !canWrite) return
     const kind = kindOf(item.Value)
     const { valid, value } = parsedValue(kind, draft)
-    if (!valid) { setError(t(kind === "number" ? "admin.settings.invalidNumber" : "admin.settings.invalidJson")); return }
+    if (!valid) { setFieldError(t(kind === "number" ? "admin.settings.invalidNumber" : "admin.settings.invalidJson")); return }
     if (sameTemplateValue(value, item.Value)) return
+    setFieldError("")
     inFlight.current.add(item.Key)
     setSaving(new Set(inFlight.current))
     setError("")
@@ -156,9 +160,9 @@ export default function Page() {
                 </div>
                 {open && <form className="mt-3 space-y-3" onSubmit={(event) => { event.preventDefault(); void save(item) }}>
                   <label className="block text-sm font-medium" htmlFor="setting-value">{t("admin.settings.value")}</label>
-                  {kind === "json"
-                    ? <textarea id="setting-value" value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} className="min-h-32 w-full rounded-md border border-border bg-card p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-primary" />
-                    : <Input id="setting-value" value={draft} inputMode={kind === "number" ? "decimal" : undefined} onChange={(event) => setDraft(event.target.value)} autoComplete="off" />}
+                  <FieldValidation error={fieldError} label={t("admin.settings.value")}>{kind === "json"
+                    ? <textarea id="setting-value" value={draft} onChange={(event) => { setFieldError(""); setDraft(event.target.value) }} rows={5} className="min-h-32 w-full rounded-md border border-border bg-card p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                    : <Input id="setting-value" value={draft} inputMode={kind === "number" ? "decimal" : undefined} onChange={(event) => { setFieldError(""); setDraft(event.target.value) }} autoComplete="off" />}</FieldValidation>
                   <div className="flex gap-2"><SaveButton type="submit" dirty={dirty} busy={saving.has(item.Key)}>{t("admin.settings.save")}</SaveButton><Button type="button" variant="outline" onClick={() => setEditing(null)}>{t("admin.settings.cancel")}</Button></div>
                 </form>}
               </div>

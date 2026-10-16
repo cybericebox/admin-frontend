@@ -47,3 +47,14 @@ export function eventErrorMessage(e: unknown): string {
   }
   return t('admin.events.err.generic')
 }
+
+/** Only codes that identify a specific edit control belong beside that control. */
+export function eventErrorField(error: unknown): "Name" | "Tag" | "ArchiveAt" | "InfrastructureAllowed" | null {
+  switch (eventErrorCode(error)) {
+    case 41102: case 21104: case 21142: return "Tag"
+    case 21106: case 21114: return "Name"
+    case 21105: return "ArchiveAt"
+    case 71123: return "InfrastructureAllowed"
+    default: return null
+  }
+}
