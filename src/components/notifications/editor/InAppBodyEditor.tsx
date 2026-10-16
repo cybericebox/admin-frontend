@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import DOMPurify from "isomorphic-dompurify"
 import { Bold, Braces, ChevronDown, Italic } from "lucide-react"
 import { t } from "@/i18n/t"
@@ -52,7 +52,7 @@ function variablePill(name: string, invalid = false): HTMLSpanElement {
   pill.className = invalid ? INVALID_PILL_STYLE : VALID_PILL_CLASS
   if (invalid) {
     pill.dataset.invalid = "true"
-    pill.title = unknownVariableHint(name)
+    pill.tabIndex = 0
   }
   pill.textContent = name
   return pill
@@ -87,9 +87,10 @@ function decorateVariables(editor: HTMLElement, variables: VariableDef[]) {
   }
 }
 
-type Props = { value: string; onChange: (value: string) => void; variables: VariableDef[]; disabled?: boolean }
+type Props = { value: string; onChange: (value: string) => void; variables: VariableDef[]; disabled?: boolean; error?: string }
 
-export function InAppBodyEditor({ value, onChange, variables, disabled = false }: Props) {
+export function InAppBodyEditor({ value, onChange, variables, disabled = false, error }: Props) {
+  const errorId = useId()
   const editorRef = useRef<HTMLDivElement>(null)
   const savedRange = useRef<Range | null>(null)
   const lastValue = useRef("")
@@ -179,8 +180,11 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
     </div>
     <div className="editor-scroll min-h-28 has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-ring">
     <div className="editor-scroll__body">
+    <HoverTooltip text="" delegate="[data-invalid='true']" textForTarget={(target) => unknownVariableHint(target.dataset.var ?? "")} describe className="contents">
     <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true"
       aria-label={t("admin.notif.tpl.body")}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? errorId : undefined}
       onKeyDown={(event) => {
         const direction = historyDirection(event)
         if (!direction || event.nativeEvent.isComposing || disabled) return
@@ -197,7 +201,9 @@ export function InAppBodyEditor({ value, onChange, variables, disabled = false }
       onBlur={() => { if (editorRef.current) decorateVariables(editorRef.current, variables) }}
       onPaste={(event) => { event.preventDefault(); insertNode(document.createTextNode(event.clipboardData.getData("text/plain"))) }}
       className="px-3 py-2 text-sm leading-relaxed text-foreground outline-none" />
+    </HoverTooltip>
     </div>
     </div>
+    {error && <p id={errorId} role="alert" className="px-3 pb-2 text-xs text-destructive">{error}</p>}
   </div>
 }

@@ -58,7 +58,8 @@ describe("broadcast compose", () => {
     render(<BroadcastCompose />)
     expect(screen.getByTestId("email-preview")).toHaveTextContent("broadcast")
     expect(screen.getByRole("button", { name: "add-block" })).toHaveAttribute("data-hidden", "image")
-    expect(screen.getByTestId("inapp-preview")).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Лист" })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getAllByRole("tab")).toHaveLength(3)
     await wait()
   })
 
@@ -136,11 +137,22 @@ describe("broadcast compose", () => {
     it("warns about a variable a broadcast cannot fill and previews it empty", async () => {
       render(<BroadcastCompose />)
       await pick()
-      expect(screen.getByText("Змінна team_name недоступна в розсилці — буде порожньою")).toBeInTheDocument()
+      expect(screen.getByText("Змінні team_name недоступні в розсилці — їхні значення будуть порожніми.")).toBeInTheDocument()
       expect(screen.queryByText(/Змінна user_name недоступна/)).not.toBeInTheDocument()
       const preview = screen.getByTestId("email-preview")
       expect(preview.getAttribute("data-subject")).toBe("Привіт, {{.user_name}} ")
       expect(preview.getAttribute("data-body")).not.toContain("team_name")
+      await wait()
+    })
+
+    it("groups all unavailable names into one warning", async () => {
+      api.emails.mockResolvedValueOnce([{ NotificationType: "team.invite", Published: { Subject: "{{.team_name}} {{.invite_url}}", Preheader: "", Body: [{ type: "rich_text", content: "{{team_url}} {{team_name}}" }] } }])
+      api.inApps.mockResolvedValueOnce([])
+      render(<BroadcastCompose />)
+      await pick()
+      const warning = screen.getByRole("alert")
+      expect(warning).toHaveTextContent("team_name, invite_url, team_url")
+      expect(warning.querySelectorAll("li")).toHaveLength(0)
       await wait()
     })
 

@@ -13,7 +13,7 @@
  * uncontrolled after mount).
  */
 
-import React, { useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, Trash2, Save, Upload } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -51,6 +51,7 @@ export type BlockEditorProps = {
   showPresetSave?: boolean;
   /** Block types that cannot be added (e.g. image for broadcasts, which have no image upload yet). */
   hiddenBlockTypes?: Array<EmailBodyBlock["type"]>;
+  error?: string;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -113,10 +114,12 @@ export function BlockEditor({
   onSavePreset,
   showPresetSave = true,
   hiddenBlockTypes = [],
+  error,
 }: BlockEditorProps) {
   // Keys follow internal add/remove/reorder operations. For a parent-initiated
   // length change, adjust them before rendering children so mounted editors keep
   // their identity and no ref is read or mutated during render.
+  const errorId = useId();
   const [keyState, setKeyState] = useState(() => ({ value, keys: value.map(newKey) }));
   if (keyState.value !== value) {
     setKeyState({
@@ -245,8 +248,9 @@ export function BlockEditor({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="group" aria-label={t("admin.notif.tpl.body")} aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}>
 
+      {error && <p id={errorId} role="alert" className="text-xs text-destructive">{error}</p>}
       {/* ── Selection toolbar (appears when ≥1 block selected) ── */}
       {showPresetSave && selectedIdxs.size > 0 && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-foreground text-background px-4 py-2.5">

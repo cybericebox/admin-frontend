@@ -133,6 +133,25 @@ describe('EmailPreview', () => {
     expect(preview).toHaveBeenCalledTimes(1)
   })
 
+  it('opens an enlarged isolated preview with the selected mobile viewport', async () => {
+    render(<EmailPreview notificationType="broadcast" body={body} styling={styling} />)
+    await flushDebounce()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.mobile' }))
+    const expand = screen.getByRole('button', { name: 'admin.emailPreview.expand' })
+    expand.focus()
+    fireEvent.click(expand)
+    const dialog = screen.getByRole('dialog')
+    const frame = dialog.querySelector('iframe')!
+    expect(frame).toHaveStyle({ width: '390px' })
+    expect(frame).toHaveAttribute('sandbox', '')
+    expect(frame.getAttribute('srcdoc')).toContain('Hello Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.emailPreview.close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(expand).toHaveFocus()
+    expect(preview).toHaveBeenCalledTimes(1)
+  })
+
   it('passes inline data: images through without injecting a <base href>', async () => {
     const img = '<img src="data:image/png;base64,iVBORw0KGgo="/>'
     preview.mockResolvedValue({ Subject: '', Preheader: '', HTML: img })

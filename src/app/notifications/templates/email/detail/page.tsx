@@ -51,7 +51,8 @@ import type { EmailBodyBlock, PresetBlock } from "@/components/notifications/edi
 import { BlockEditor } from "@/components/notifications/editor/BlockEditor"
 import { EmailFooterEditor } from "@/components/notifications/editor/EmailFooterEditor"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
-import { EmailPreview } from "@/components/notifications/editor/EmailPreview"
+import { NotificationPreview } from "@/components/notifications/editor/NotificationPreview"
+import { templateFieldError } from "@/components/notifications/editor/templateValidation"
 import { ColorPicker } from "@/components/notifications/editor/ColorPicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
 import { notifTypeLabel } from "@/utils/notifType"
@@ -412,6 +413,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             >
               <VariableRichText
                 key={`subject-${loadNonce}`}
+                error={templateFieldError(subject, emailVariables)}
                 value={subject}
                 onChange={setSubject}
                 variables={emailVariables}
@@ -433,6 +435,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             >
               <VariableRichText
                 key={`preheader-${loadNonce}`}
+                error={templateFieldError(preheader, emailVariables)}
                 value={preheader}
                 onChange={setPreheader}
                 variables={emailVariables}
@@ -450,6 +453,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             {isReadOnly ? null : (
               <BlockEditor
                 key={`body-${loadNonce}`}
+                error={templateFieldError(JSON.stringify(bodyContent), emailVariables)}
                 value={bodyContent}
                 onChange={setBodyContent}
                 variables={emailVariables}
@@ -570,13 +574,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             {t("admin.notif.editor.previewTitle")}
           </div>
           <div className="sticky top-4">
-            <EmailPreview
-              notificationType={notificationType}
-              subject={subject}
-              preheader={preheader}
-              body={body}
-              styling={styling}
-            />
+            <NotificationPreview email={{
+              notificationType, subject, preheader, body, styling,
+            }} />
           </div>
         </div>
 

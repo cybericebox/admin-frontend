@@ -3,6 +3,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { t } from "@/i18n/t"
 import { accentOf } from "./inAppOptions"
 import { NotificationMessageCard } from "../NotificationMessageCard"
+import { NotificationPopIn } from "../NotificationPopIn"
 import { popInDuration } from "../popInDuration"
 
 // ── Variable substitution ─────────────────────────────────────────────────────
@@ -93,6 +94,11 @@ export function InAppPreview({
   // Body may contain admin-authored HTML; sanitize to prevent stored-XSS.
   const bodyRaw   = substituteHtml(body, previewValues)
   const cleanBody = DOMPurify.sanitize(bodyRaw)
+
+  if (_surface === "toast") return <div className="flex min-h-52 items-center justify-center overflow-auto rounded-md bg-secondary p-4">
+    <NotificationPopIn preview message={{ ID: "preview", Title: titleText, Body: cleanBody, Icon: icon, Tone: tone, AccentColor: accentColor, AutoDismissMs: _autoDismissMs,
+      Actions: [...(linkText ? [{ label: t("admin.notif.inapp.openLink"), href: safeURL(linkText) }] : []), ...actions.map((action) => ({ ...action, href: safeURL(action.href) }))] }} onClose={() => {}} onAction={() => {}} />
+  </div>
 
   return (
     <div>

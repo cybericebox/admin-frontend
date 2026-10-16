@@ -27,10 +27,12 @@ function safeHref(value: string): string | null {
   return null
 }
 
-export function NotificationPopIn({ message, onClose, onAction }: {
+export function NotificationPopIn({ message, onClose, onAction, preview = false }: {
   message: PopInMessage
   onClose: () => void
   onAction: (href: string) => void
+  /** Static editor preview retains the production card without starting its delivery timer. */
+  preview?: boolean
 }) {
   const action = message.Actions?.find((item) => item.label && safeHref(item.href ?? ""))
   // A pop-in with an action stays until the user decides.
@@ -44,14 +46,14 @@ export function NotificationPopIn({ message, onClose, onAction }: {
   useEffect(() => { remaining.current = duration }, [duration, message.ID])
 
   useEffect(() => {
-    if (duration <= 0 || paused) return
+    if (preview || duration <= 0 || paused) return
     const started = Date.now()
     const timer = window.setTimeout(() => onCloseRef.current(), remaining.current)
     return () => {
       window.clearTimeout(timer)
       remaining.current = Math.max(0, remaining.current - (Date.now() - started))
     }
-  }, [duration, message.ID, paused])
+  }, [duration, message.ID, paused, preview])
 
   return <div role="status" aria-label={t("inbox.new")} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onTouchStart={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }} className="relative w-[min(22.5rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-popover px-4 pb-5 pt-4 text-popover-foreground">
     <button type="button" onClick={onClose} aria-label={t("inbox.dismiss")} className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">

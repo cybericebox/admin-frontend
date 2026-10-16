@@ -273,10 +273,11 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
     style={cleanStyle} aria-label={t("admin.exPh.editNamed", { name: content })}
     onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
-    <HoverTooltip text={hint} className="inline">
+    <HoverTooltip text={hint} className="inline" tap={unknown} describe={unknown}>
       <span
         data-notif-variable={showNames ? name : undefined}
         data-notif-variable-invalid={unknown ? name : undefined}
+        tabIndex={unknown ? 0 : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}

@@ -2534,5 +2534,16 @@
   "siteBanner.moreAnnouncements.one": "{count} more announcement",
   "siteBanner.moreAnnouncements.few": "{count} more announcements",
   "siteBanner.moreAnnouncements.many": "{count} more announcements",
-  "siteBanner.moreAnnouncements.other": "{count} more announcements"
+  "siteBanner.moreAnnouncements.other": "{count} more announcements",
+  "admin.notif.preview.tabs": "Preview",
+  "admin.notif.preview.email": "Email",
+  "admin.notif.preview.inbox": "Notification feed",
+  "admin.notif.preview.toast": "Pop-up notification",
+  "admin.notif.validation.required": "Fill in this field.",
+  "admin.notif.validation.syntax": "Complete the variable expression: {{…}}.",
+  "admin.notif.validation.unknownVariables": "Unavailable variables: {names}. Select variables from the list or remove them.",
+  "admin.notif.broadcast.template.unsupportedNames": "Variables {names} are unavailable in broadcasts — their values will be empty.",
+  "admin.emailPreview.expand": "Expand preview",
+  "admin.emailPreview.close": "Close preview",
+  "admin.emailPreview.expanded": "Email preview"
 }
