@@ -207,9 +207,10 @@ export function HoverTooltip({ text, content, children, className, side = "top",
       onPointerLeave={leave}
       onMouseEnter={delegate ? undefined : () => enter({})}
       onMouseLeave={leave}
-      onFocusCapture={(event) => { if (selectTarget(event.target)) focusIn(); else if (delegate) hide() }}
+      onFocusCapture={(event) => { if (selectTarget(event.target)) focusIn(); else if (delegate) { pressed.current = false; hide() } }}
       onInputCapture={delegate ? hide : undefined}
       onKeyDownCapture={delegate ? (event) => {
+        pressed.current = false
         if (event.target === delegated.current && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault()
           event.stopPropagation()
@@ -217,7 +218,7 @@ export function HoverTooltip({ text, content, children, className, side = "top",
         }
       } : undefined}
       onBlurCapture={(event) => { setFocused(false); setDismissed(false); if (delegate && !delegated.current?.contains(event.relatedTarget as Node | null)) hide() }}
-      onPointerDownCapture={() => { pressed.current = true }}
+      onPointerDownCapture={(event) => { pressed.current = !delegate || (event.target instanceof Element && !!event.target.closest(delegate)) }}
       onClick={(event) => { if (selectTarget(event.target)) toggleOnClick() }}
     >{children}</span>
     {mounted && (describe || help || visible) && createPortal(

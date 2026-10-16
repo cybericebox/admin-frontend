@@ -20,6 +20,16 @@ describe.each(editors)("unknown variable tooltip in $name", (Editor) => {
     expect(screen.queryByRole("tooltip")).toBeNull()
     expect(change).not.toHaveBeenCalled()
   })
+  it("opens on Tab focus after a pointer click in the editable field", () => {
+    const { container } = render(<Editor value="Hi {{.ghost}}" onChange={vi.fn()} variables={[{ name: "Name" }]} />)
+    const textbox = screen.getByRole("textbox")
+    const pill = container.querySelector<HTMLElement>('[data-var="ghost"]')!
+    fireEvent.pointerDown(textbox, { pointerType: "mouse" })
+    fireEvent.focus(textbox)
+    fireEvent.keyDown(textbox, { key: "Tab" })
+    fireEvent.focus(pill)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("ghost")
+  })
   it("associates an inline field error with the editable control", () => {
     render(<Editor value="" onChange={vi.fn()} variables={[]} error="Complete the subject" />)
     const textbox = screen.getByRole("textbox")

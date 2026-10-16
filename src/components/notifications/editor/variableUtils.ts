@@ -27,6 +27,26 @@ export type VariableDef = { name: string; description?: string; example?: string
 /** Any accepted spelling of a variable token; group 1 is the name. */
 export const VARIABLE_TOKEN = /\{\{\s*\.?\s*([A-Za-z_]\w*)\s*\}\}/
 
+/** Read actual template strings and Lexical variable nodes; JSON syntax is never message content. */
+export function inspectTemplate(value: unknown): { texts: string[]; variables: string[] } {
+  const texts: string[] = []
+  const variables = new Set<string>()
+  function visit(node: unknown) {
+    if (typeof node === 'string') {
+      texts.push(node)
+      for (const match of node.matchAll(new RegExp(VARIABLE_TOKEN.source, 'g'))) variables.add(match[1])
+    } else if (Array.isArray(node)) {
+      node.forEach(visit)
+    } else if (node && typeof node === 'object') {
+      const record = node as Record<string, unknown>
+      if (record.type === 'variable' && typeof record.varName === 'string') variables.add(record.varName)
+      Object.values(record).forEach(visit)
+    }
+  }
+  visit(value)
+  return { texts, variables: [...variables] }
+}
+
 // ── HTML escaping ─────────────────────────────────────────────────────────────
 
 function escapeHtml(text: string): string {

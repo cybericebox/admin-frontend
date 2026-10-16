@@ -56,7 +56,7 @@ export function BroadcastCompose() {
 
   // Template variables the broadcast cannot fill: flagged here and empty in the previews.
   const unsupported = useMemo(() => unsupportedVariables([
-    ...(email ? [subject, preheader, JSON.stringify(body)] : []),
+    ...(email ? [subject, preheader, body] : []),
     ...(inApp ? [title, inAppBody, link] : []),
   ]), [email, inApp, subject, preheader, body, title, inAppBody, link])
   const shown = useMemo(() => ({
@@ -168,7 +168,7 @@ export function BroadcastCompose() {
                   <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.body")}</label>
                   <FieldHelp text={t("admin.notif.broadcast.noImages")} />
                 </div>
-                <BlockEditor error={hasBody(body) ? templateFieldError(JSON.stringify(body), variables) : t("admin.notif.validation.required")} value={body} onChange={setBody} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
+                <BlockEditor error={hasBody(body) ? templateFieldError(body, variables) : t("admin.notif.validation.required")} value={body} onChange={setBody} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
               </div>
             </section>
           )}

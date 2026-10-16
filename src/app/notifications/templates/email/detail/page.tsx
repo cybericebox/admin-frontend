@@ -453,7 +453,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             {isReadOnly ? null : (
               <BlockEditor
                 key={`body-${loadNonce}`}
-                error={templateFieldError(JSON.stringify(bodyContent), emailVariables)}
+                error={templateFieldError(bodyContent, emailVariables)}
                 value={bodyContent}
                 onChange={setBodyContent}
                 variables={emailVariables}

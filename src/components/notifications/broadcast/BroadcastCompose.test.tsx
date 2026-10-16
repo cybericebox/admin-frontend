@@ -156,6 +156,15 @@ describe("broadcast compose", () => {
       await wait()
     })
 
+    it("includes unavailable Lexical variable nodes in the single warning", async () => {
+      api.emails.mockResolvedValueOnce([{ NotificationType: "team.invite", Published: { Subject: "{{.team_name}}", Preheader: "", Body: [{ type: "rich_text", content: { root: { children: [{ type: "paragraph", children: [{ type: "variable", varName: "ghost" }] }] } } }] } }])
+      api.inApps.mockResolvedValueOnce([])
+      render(<BroadcastCompose />)
+      await pick()
+      expect(screen.getByRole("alert")).toHaveTextContent("team_name, ghost")
+      await wait()
+    })
+
     it("asks before replacing existing content, and keeps it on cancel", async () => {
       render(<BroadcastCompose />)
       fireEvent.change(screen.getByLabelText("Тема"), { target: { value: "Моя тема" } })
