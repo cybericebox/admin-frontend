@@ -2495,5 +2495,22 @@
   "admin.errors.settings.promoteHelp": "{email} will receive full platform access immediately. This is a platform role change, even if you do not save these notification settings.",
   "admin.errors.settings.invitedNotFound": "Invitation sent, but the super administrator account could not be found. Search for the address again before adding it.",
   "admin.errors.delivery.preparation": "Preparing notification recipients",
-  "admin.errors.settings.channel.prepare": "Preparation"
+  "admin.errors.settings.channel.prepare": "Preparation",
+  "admin.previewSettings.title": "Event test mode",
+  "admin.previewSettings.description": "The default selection used by all events.",
+  "admin.previewSettings.saved": "Selection saved",
+  "admin.previewSettings.loadFailed": "Could not load test exercises",
+  "admin.previewSettings.empty": "No test exercises selected yet.",
+  "admin.previewSettings.remove": "Remove “{name}”",
+  "admin.previewSettings.catalog": "Catalog exercises",
+  "admin.previewSettings.search": "Exercise name",
+  "admin.previewSettings.catalogFailed": "Could not load the catalog",
+  "admin.previewSettings.noMatches": "No exercises found.",
+  "admin.previewSettings.variant": "Variant of “{name}”",
+  "admin.previewSettings.variantNumber": "Variant {number}",
+  "admin.previewSettings.saveFailed": "Could not save the selection. Please try again.",
+  "admin.previewSettings.selection": "Default exercises",
+  "admin.previewSettings.inheritance": "Organizers can replace this selection in their event settings.",
+  "admin.previewSettings.groupName": "Group name",
+  "admin.previewSettings.defaultGroupName": "Test tasks"
 }

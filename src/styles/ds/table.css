@@ -56,7 +56,7 @@
 .ib-table__sort{display:inline-flex;align-items:center;gap:var(--ib-1);height:28px;margin:0 calc(var(--ib-1) * -1);padding:0 var(--ib-1);
   border:0;border-radius:var(--ib-r-sm);background:none;font:inherit;color:inherit;cursor:pointer}
 .ib-table__sort:hover{color:var(--ib-ink)}
-.ib-table__sort svg{width:12px;height:12px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.45}
+.ib-table__sort svg{width:12px;height:12px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.45}
 .ib-table th.ib-table__num .ib-table__sort{flex-direction:row-reverse}
 .ib-table th[aria-sort="ascending"],.ib-table th[aria-sort="descending"]{color:var(--ib-ink)}
 .ib-table th[aria-sort="ascending"] .ib-table__sort svg,.ib-table th[aria-sort="descending"] .ib-table__sort svg{opacity:1}
@@ -87,7 +87,7 @@
 .ib-table__act{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:var(--ib-r);
   background:none;color:var(--ib-dim);cursor:pointer}
 .ib-table__act:hover{background:var(--ib-soft);color:var(--ib-ink)}
-.ib-table__act svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ib-table__act svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ib-table__act[disabled]{opacity:.4;cursor:default}
 .ib-table__act[disabled]:hover{background:none;color:var(--ib-dim)}
 

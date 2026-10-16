@@ -13,7 +13,7 @@
 .ib-pagination__page:hover,.ib-pagination__step:hover{background:var(--ib-soft);color:var(--ib-ink)}
 .ib-pagination__page[aria-current="page"]{background:var(--ib-action);border-color:var(--ib-action);color:var(--ib-on-action);cursor:default}
 .ib-pagination__step[disabled],.ib-pagination__step[aria-disabled="true"]{color:var(--ib-faint);opacity:.55;cursor:default;background:none}
-.ib-pagination__step svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ib-pagination__step svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ib-pagination__gap{display:inline-flex;align-items:center;justify-content:center;min-width:24px;color:var(--ib-faint);font-family:var(--ib-mono)}
 
 /* per-page select slot */

@@ -6,6 +6,7 @@ import { t } from "@/i18n/t"
 const TABS = [
   { href: "/settings", labelKey: "admin.settings.tab.general" },
   { href: "/settings/mail", labelKey: "admin.settings.tab.mail" },
+  { href: "/settings/test-mode", labelKey: "admin.previewSettings.title" },
 ]
 
 /** Sub-pages of «Налаштування»: every tab needs only platform.settings.read. */
