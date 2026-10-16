@@ -72,7 +72,7 @@ export default function Page() {
   const load = useCallback(async () => {
     try {
       setLoadFailed(null)
-      setItems(await apiGet<Setting[]>("/api/settings"))
+      setItems((await apiGet<Setting[]>("/api/settings")).filter(item => item.Key !== "participant_preview_exercises"))
     } catch (cause) {
       setLoadFailed({ cause })
     } finally {

@@ -20,6 +20,7 @@ function findSource() {
 const source = process.env.DS_DIR ?? findSource()
 // from (relative to the design system) -> to (relative to this repo). transform runs on the text before it is written.
 const FILES = [
+  { from: "components/modal/radix-motion.css", to: "src/styles/motion.css" },
   { from: "tokens.css", to: "src/styles/ds/tokens.css", transform: dropFontFace },
   { from: "patterns/admin-sidebar/admin-sidebar.css", to: "src/styles/ds/admin-sidebar.css" },
   { from: "components/tooltip/tooltip.css", to: "src/styles/ds/tooltip.css" },
