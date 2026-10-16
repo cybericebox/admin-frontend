@@ -2,6 +2,7 @@ import type { EmailBodyBlock } from "@/components/notifications/editor/emailBloc
 import { latestEmailTemplates } from "@/api/notifications/emailTemplates"
 import { latestInAppTemplates } from "@/api/notifications/inAppTemplates"
 import { BROADCAST_VARIABLES } from "@/api/notifications/broadcasts"
+import { inspectTemplate } from "@/components/notifications/editor/variableUtils"
 import { notifTypeLabel } from "@/utils/notifType"
 
 // A published template of one notification type, per channel: what a broadcast can start from.
@@ -34,10 +35,8 @@ const TOKEN = /\{\{\s*\.?\s*([A-Za-z_]\w*)\s*\}\}/g
 const SUPPORTED: readonly string[] = BROADCAST_VARIABLES
 
 // Variable names used in the texts that a broadcast cannot fill, in order of first use.
-export function unsupportedVariables(texts: string[]): string[] {
-  const found = new Set<string>()
-  for (const text of texts) for (const match of text.matchAll(TOKEN)) if (!SUPPORTED.includes(match[1])) found.add(match[1])
-  return [...found]
+export function unsupportedVariables(values: unknown[]): string[] {
+  return inspectTemplate(values).variables.filter((name) => !SUPPORTED.includes(name))
 }
 
 // The text as a recipient would get it: variables the broadcast cannot fill come out empty.

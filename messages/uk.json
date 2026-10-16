@@ -2534,5 +2534,16 @@
   "siteBanner.moreAnnouncements.one": "Ще {count} оголошення",
   "siteBanner.moreAnnouncements.few": "Ще {count} оголошення",
   "siteBanner.moreAnnouncements.many": "Ще {count} оголошень",
-  "siteBanner.moreAnnouncements.other": "Ще {count} оголошення"
+  "siteBanner.moreAnnouncements.other": "Ще {count} оголошення",
+  "admin.notif.preview.tabs": "Попередній перегляд",
+  "admin.notif.preview.email": "Лист",
+  "admin.notif.preview.inbox": "Стрічка сповіщень",
+  "admin.notif.preview.toast": "Спливаюче повідомлення",
+  "admin.notif.validation.required": "Заповніть це поле.",
+  "admin.notif.validation.syntax": "Завершіть вираз змінної: {{…}}.",
+  "admin.notif.validation.unknownVariables": "Недоступні змінні: {names}. Виберіть змінні зі списку або видаліть їх.",
+  "admin.notif.broadcast.template.unsupportedNames": "Змінні {names} недоступні в розсилці — їхні значення будуть порожніми.",
+  "admin.emailPreview.expand": "Збільшити перегляд",
+  "admin.emailPreview.close": "Закрити перегляд",
+  "admin.emailPreview.expanded": "Перегляд листа"
 }

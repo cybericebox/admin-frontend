@@ -44,7 +44,8 @@ import {
 import type { InAppTemplate, InAppAction } from "@/api/notifications/inAppTemplates"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
 import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
-import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
+import { NotificationPreview } from "@/components/notifications/editor/NotificationPreview"
+import { templateFieldError } from "@/components/notifications/editor/templateValidation"
 import { popInDuration } from "@/components/notifications/popInDuration"
 import { NotificationAppearancePicker } from "@/components/notifications/editor/NotificationAppearancePicker"
 import { useNotificationTypes } from "@/components/notifications/templateTypes"
@@ -408,6 +409,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </label>
               <VariableRichText
                 key={`title-${loadNonce}`}
+                error={templateFieldError(title, inAppVariables)}
                 value={title}
                 onChange={setTitle}
                 variables={inAppVariables}
@@ -423,6 +425,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </label>
               <InAppBodyEditor
                 key={`body-${loadNonce}`}
+                error={templateFieldError(body, inAppVariables)}
                 value={body}
                 onChange={setBody}
                 variables={inAppVariables}
@@ -438,6 +441,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
               </div>
               <VariableRichText
                 key={`link-${loadNonce}`}
+                error={templateFieldError(link, inAppVariables)}
                 value={link}
                 onChange={setLink}
                 variables={inAppVariables}
@@ -534,18 +538,9 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
             {t("admin.notif.editor.previewInApp")}
           </div>
           <div className="sticky top-4">
-            <InAppPreview
-              title={title}
-              body={body}
-              link={link}
-              icon={icon}
-              tone={tone}
-              accentColor={accentColor}
-              surface={surface}
-              autoDismissMs={autoDismissMs}
-              actions={actions}
-              previewValues={previewValues}
-            />
+            <NotificationPreview inApp={{
+              title, body, link, icon, tone, accentColor, surface, autoDismissMs, actions, previewValues,
+            }} />
           </div>
         </div>
 

@@ -166,6 +166,14 @@ describe('RichTextEditor', () => {
     expect(state).toContain('"varName":"event_name"')
     expect(state).toContain('"varName":"ghost"')
     expect(state).not.toContain('{{')
+    expect(invalid).not.toHaveAttribute('title')
+    expect(invalid).toHaveAttribute('tabindex', '0')
+    fireEvent.focus(invalid!)
+    expect(screen.getByText(/Невідома змінна «ghost»/)).toBeVisible()
+    fireEvent.keyDown(invalid!, { key: 'Escape' })
+    fireEvent.pointerDown(invalid!, { pointerType: 'touch' })
+    fireEvent.click(invalid!)
+    expect(screen.getByText(/Невідома змінна «ghost»/)).toBeVisible()
   })
 
   it('does not convert plain tokens while the variable list is empty or the editor is read-only', async () => {

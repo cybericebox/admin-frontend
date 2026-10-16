@@ -13,8 +13,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { BlockEditor } from "@/components/notifications/editor/BlockEditor"
 import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
 import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
-import { EmailPreview } from "@/components/notifications/editor/EmailPreview"
-import { InAppPreview } from "@/components/notifications/editor/InAppPreview"
+import { NotificationPreview } from "@/components/notifications/editor/NotificationPreview"
+import { templateFieldError } from "@/components/notifications/editor/templateValidation"
 import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
 import type { VariableDef } from "@/components/notifications/editor/variableUtils"
 import { BROADCAST_VARIABLES, broadcastAudienceCount, sendBroadcast, type BroadcastChannel } from "@/api/notifications/broadcasts"
@@ -56,7 +56,7 @@ export function BroadcastCompose() {
 
   // Template variables the broadcast cannot fill: flagged here and empty in the previews.
   const unsupported = useMemo(() => unsupportedVariables([
-    ...(email ? [subject, preheader, JSON.stringify(body)] : []),
+    ...(email ? [subject, preheader, body] : []),
     ...(inApp ? [title, inAppBody, link] : []),
   ]), [email, inApp, subject, preheader, body, title, inAppBody, link])
   const shown = useMemo(() => ({
@@ -157,18 +157,18 @@ export function BroadcastCompose() {
               <h2 id="bc-email" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.emailPart")}</h2>
               <div>
                 <label className={label}>{t("admin.notif.tpl.subject")}</label>
-                <VariableRichText value={subject} onChange={setSubject} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
+                <VariableRichText value={subject} onChange={setSubject} error={templateFieldError(subject, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
               </div>
               <div>
                 <label className={label}>{t("admin.notif.tpl.preheader")}</label>
-                <VariableRichText value={preheader} onChange={setPreheader} variables={variables} placeholder={t("admin.notif.tpl.preheader")} dotted />
+                <VariableRichText value={preheader} onChange={setPreheader} error={templateFieldError(preheader, variables)} variables={variables} placeholder={t("admin.notif.tpl.preheader")} dotted />
               </div>
               <div>
                 <div className="mb-1 flex items-center gap-1.5">
                   <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.body")}</label>
                   <FieldHelp text={t("admin.notif.broadcast.noImages")} />
                 </div>
-                <BlockEditor value={body} onChange={setBody} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
+                <BlockEditor error={hasBody(body) ? templateFieldError(body, variables) : t("admin.notif.validation.required")} value={body} onChange={setBody} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
               </div>
             </section>
           )}
@@ -178,18 +178,18 @@ export function BroadcastCompose() {
               <h2 id="bc-inapp" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.inAppPart")}</h2>
               <div>
                 <label className={label}>{t("admin.notif.tpl.title")}</label>
-                <VariableRichText value={title} onChange={setTitle} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
+                <VariableRichText value={title} onChange={setTitle} error={templateFieldError(title, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
               </div>
               <div>
                 <label className={label}>{t("admin.notif.tpl.body")}</label>
-                <InAppBodyEditor value={inAppBody} onChange={setInAppBody} variables={variables} />
+                <InAppBodyEditor value={inAppBody} onChange={setInAppBody} error={templateFieldError(inAppBody, variables, true)} variables={variables} />
               </div>
               <div>
                 <div className="mb-1 flex items-center gap-1.5">
                   <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.link")}</label>
                   <FieldHelp text={t("admin.notif.inapp.linkHelp")} />
                 </div>
-                <VariableRichText value={link} onChange={setLink} variables={variables} placeholder={t("admin.notif.tpl.link")} dotted />
+                <VariableRichText value={link} onChange={setLink} error={templateFieldError(link, variables)} variables={variables} placeholder={t("admin.notif.tpl.link")} dotted />
               </div>
             </section>
           )}
@@ -210,21 +210,13 @@ export function BroadcastCompose() {
         <div className="min-w-0 space-y-6">
           {unsupported.length > 0 && (
             <Alert variant="warning">
-              <ul className="space-y-1">{unsupported.map((name) => <li key={name}>{t("admin.notif.broadcast.template.unsupported", { name })}</li>)}</ul>
+              {t("admin.notif.broadcast.template.unsupportedNames", { names: unsupported.join(", ") })}
             </Alert>
           )}
-          {email && (
-            <div>
-              <div className="mb-2 text-sm font-semibold text-foreground">{t("admin.notif.broadcast.previewEmail")}</div>
-              <EmailPreview notificationType="broadcast" subject={shown.subject} preheader={shown.preheader} body={shown.body} styling={{}} />
-            </div>
-          )}
-          {inApp && (
-            <div>
-              <div className="mb-2 text-sm font-semibold text-foreground">{t("admin.notif.broadcast.previewInApp")}</div>
-              <InAppPreview title={shown.title} body={shown.inAppBody} link={shown.link} icon="bell" tone="neutral" accentColor="" surface="inbox" autoDismissMs={null} actions={[]} previewValues={previewValues} />
-            </div>
-          )}
+          <NotificationPreview
+            email={email ? { notificationType: "broadcast", subject: shown.subject, preheader: shown.preheader, body: shown.body, styling: {} } : undefined}
+            inApp={inApp ? { title: shown.title, body: shown.inAppBody, link: shown.link, icon: "bell", tone: "neutral", accentColor: "", surface: "inbox", autoDismissMs: null, actions: [], previewValues } : undefined}
+          />
           {!email && !inApp && <Alert variant="warning">{t("admin.notif.broadcast.channelsRequired")}</Alert>}
         </div>
       </div>
