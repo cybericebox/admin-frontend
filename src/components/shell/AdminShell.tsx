@@ -61,14 +61,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PageTitleContext.Provider value={setPageMeta}>
-      <div className="flex h-dvh overflow-hidden bg-background">
-        <a className="ib-skip" href="#main">{t("admin.shell.skip")}</a>
-        {desktop && <Sidebar />}
-        {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} />}
-        <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
-          <TopBar crumbs={crumbs} onMenuClick={() => setMenuOpen(true)} />
-          <SiteBannerBar />
-          <main id="main" tabIndex={-1} data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
+      <div className="flex h-dvh flex-col overflow-hidden bg-background">
+        <SiteBannerBar />
+        <div className="flex min-h-0 flex-1">
+          <a className="ib-skip" href="#main">{t("admin.shell.skip")}</a>
+          {desktop && <Sidebar />}
+          {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} />}
+          <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
+            <TopBar crumbs={crumbs} onMenuClick={() => setMenuOpen(true)} />
+            <main id="main" tabIndex={-1} data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
+          </div>
         </div>
       </div>
     </PageTitleContext.Provider>

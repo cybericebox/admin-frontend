@@ -8,6 +8,9 @@ import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
 const BASE = '/api/notifications/site-banners'
 
 export type BannerLevel = 'info' | 'warning' | 'critical'
+export type BannerTargetMode = 'all' | 'selected'
+export type BannerTargetSite = 'main' | 'id' | 'admin' | 'exercises' | 'event'
+
 export type BannerAudience = 'everyone' | 'signed_in' | 'participants'
 
 export type SiteBannerDTO = {
@@ -23,6 +26,9 @@ export type SiteBannerDTO = {
 export type Banner = {
   ID: string
   ScopeEventID?: string | null
+  TargetMode?: BannerTargetMode
+  TargetSites?: BannerTargetSite[]
+  TargetEventIDs?: string[]
   Text: string
   LinkURL: string
   LinkLabel: string
@@ -37,6 +43,9 @@ export type Banner = {
 }
 
 export type BannerInput = {
+  TargetMode?: BannerTargetMode
+  TargetSites?: BannerTargetSite[]
+  TargetEventIDs?: string[]
   Text: string
   LinkURL: string
   LinkLabel: string
@@ -69,5 +78,5 @@ export function deleteBanner(id: string): Promise<void> {
 
 /** Public banners for the render place (works without a session). */
 export function fetchSiteBanners(): Promise<SiteBannerDTO[]> {
-  return apiGet<SiteBannerDTO[] | null>('/api/banners').then((rows) => rows ?? [])
+  return apiGet<SiteBannerDTO[] | null>('/api/banners?site=admin').then((rows) => rows ?? [])
 }

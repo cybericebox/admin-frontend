@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import * as Popover from "@radix-ui/react-popover"
 import { X } from "lucide-react"
 import { fetchSiteBanners, type BannerLevel, type SiteBannerDTO } from "@/api/notifications/banners"
 import { onServiceRestored } from "@/lib/serviceStatus"
@@ -12,7 +13,7 @@ import { siteBannerDismissedKey } from "@/lib/storageKeys"
 
 /*
  * Site banner look (shared markup, copy it into the other frontends):
- *   <div role="status" class="border-b px-4 py-2.5 md:px-6 {tone}">   full-width bar under the navbar
+ *   <div role="status" class="border-b px-4 py-2.5 md:px-6 {tone}">   full-width bar above the navbar
  *     <p class="flex-1 text-sm">text + optional <a class="font-medium underline"> link</p>
  *     <button aria-label="close" class="rounded-md p-1.5 hover:bg-[var(--ib-hover)]">X</button>   only when Dismissible
  *   </div>
@@ -20,7 +21,7 @@ import { siteBannerDismissedKey } from "@/lib/storageKeys"
  *   info     bg var(--ib-soft)      text var(--ib-ink)   border var(--ib-line)
  *   warning  bg var(--ib-warn-bg)   text var(--ib-warn)  border var(--ib-warn) at 25%
  *   critical bg var(--ib-danger-bg) text var(--ib-danger) border var(--ib-danger) at 25%
- * Data: GET /api/banners every ~60 s and on tab focus; critical first; the first non-dismissed one is shown.
+ * Data: GET /api/banners every ~60 s and on tab focus; critical first; one non-dismissed banner is shown; the rest are available in an anchored panel.
  * Dismissal: localStorage key `cib_site_banner_dismissed_${ID}_${Version}` = "1" (Version changes when the text is edited).
  */
 
@@ -42,7 +43,7 @@ function safeHref(href: string): string | null {
 }
 
 /** Pure presentation of one banner; also used by the admin banner editor preview. */
-export function SiteBanner({ banner, onDismiss, className }: { banner: SiteBannerView; onDismiss?: () => void; className?: string }) {
+export function SiteBanner({ banner, onDismiss, extraAction, className }: { banner: SiteBannerView; onDismiss?: () => void; extraAction?: ReactNode; className?: string }) {
   const href = safeHref(banner.LinkURL ?? "")
   const external = href ? /^https?:\/\//i.test(href) : false
   return (
@@ -50,6 +51,7 @@ export function SiteBanner({ banner, onDismiss, className }: { banner: SiteBanne
       <p className="min-w-0 flex-1 text-sm leading-6">
         <span>{keepBrand(banner.Text)}</span>
         {href && <>{" "}<a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="font-medium underline underline-offset-2">{keepBrand(banner.LinkLabel || t("admin.shell.banner.more"))}</a></>}
+        {extraAction && <span className="ml-3 inline-block align-middle">{extraAction}</span>}
       </p>
       {banner.Dismissible && (
         <HoverTooltip text={t("admin.shell.banner.close")}>
@@ -74,8 +76,10 @@ function rememberDismissed(banner: SiteBannerDTO): void {
   try { window.localStorage.setItem(storageKey(banner), "1") } catch { /* storage unavailable: dismissal lasts until reload */ }
 }
 
-/** Polls the public banner endpoint and renders the first banner the visitor has not dismissed. */
+/** Polls the public banner endpoint and renders the primary banner and a disclosure for the rest. */
 export function SiteBannerBar() {
+  const panelTitle = useId()
+  const panelTitleRef = useRef<HTMLHeadingElement>(null)
   const [banners, setBanners] = useState<SiteBannerDTO[]>([])
   const [dismissed, setDismissed] = useState<string[]>([])
 
@@ -94,13 +98,26 @@ export function SiteBannerBar() {
     return () => { active = false; unsubscribe(); window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh) }
   }, [])
 
-  const current = banners.find((banner) => !dismissed.includes(storageKey(banner)) && !(banner.Dismissible && isDismissed(banner)))
-  const dismiss = useCallback(() => {
-    if (!current) return
-    rememberDismissed(current)
-    setDismissed((keys) => [...keys, storageKey(current)])
-  }, [current])
+  const visible = banners.filter((banner) => !banner.Dismissible || (!dismissed.includes(storageKey(banner)) && !isDismissed(banner)))
+  function dismiss(banner: SiteBannerDTO) {
+    rememberDismissed(banner)
+    setDismissed((keys) => [...keys, storageKey(banner)])
+  }
 
-  if (!current) return null
-  return <SiteBanner banner={current} onDismiss={current.Dismissible ? dismiss : undefined} />
+  if (visible.length === 0) return null
+  const [primary, ...remaining] = visible
+  const category = new Intl.PluralRules("uk").select(remaining.length)
+  return <div className="shrink-0">
+    <Popover.Root modal={false}>
+      <SiteBanner banner={primary} onDismiss={primary.Dismissible ? () => dismiss(primary) : undefined} extraAction={remaining.length > 0 ? <Popover.Trigger asChild>
+        <button type="button" className="rounded-sm text-sm font-medium underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current">{t(`siteBanner.moreAnnouncements.${category}`, { count: remaining.length })}</button>
+      </Popover.Trigger> : undefined} />
+      {remaining.length > 0 && <Popover.Portal>
+        <Popover.Content align="end" sideOffset={8} collisionPadding={16} aria-labelledby={panelTitle} onOpenAutoFocus={(event) => { event.preventDefault(); panelTitleRef.current?.focus() }} className="z-50 w-[min(640px,calc(100vw-32px))] max-h-[min(60dvh,480px)] overflow-auto rounded-lg border border-border bg-background focus:outline-none">
+          <h2 ref={panelTitleRef} id={panelTitle} tabIndex={-1} className="px-4 py-3 text-sm font-semibold text-foreground focus:outline-none">{t("siteBanner.others")}</h2>
+          {remaining.map((banner) => <SiteBanner key={storageKey(banner)} banner={banner} onDismiss={banner.Dismissible ? () => dismiss(banner) : undefined} />)}
+        </Popover.Content>
+      </Popover.Portal>}
+    </Popover.Root>
+  </div>
 }

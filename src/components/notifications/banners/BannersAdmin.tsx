@@ -2,14 +2,16 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
-import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel } from "@/api/notifications/banners"
+import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel, type BannerTargetMode, type BannerTargetSite } from "@/api/notifications/banners"
+import { Checkbox } from "@/components/ui/checkbox"
+import { EventPicker } from "./EventPicker"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
 import { useSavedDraft } from "@/lib/useSavedDraft"
 import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { LoadError } from "@/components/ui/load-error"
@@ -29,8 +31,10 @@ const LEVEL_CHIP: Record<BannerLevel, string> = {
   critical: "bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]",
 }
 
-type Form = { text: string; linkURL: string; linkLabel: string; level: BannerLevel; from: string; to: string; dismissible: boolean; audience: "everyone" | "signed_in"; active: boolean }
-const EMPTY_FORM: Form = { text: "", linkURL: "", linkLabel: "", level: "info", from: "", to: "", dismissible: true, audience: "everyone", active: true }
+const TARGET_SITES: BannerTargetSite[] = ["main", "id", "admin", "exercises", "event"]
+
+type Form = { targetMode: BannerTargetMode; targetSites: BannerTargetSite[]; targetEventIDs: string[]; text: string; linkURL: string; linkLabel: string; level: BannerLevel; from: string; to: string; dismissible: boolean; audience: "everyone" | "signed_in"; active: boolean }
+const EMPTY_FORM: Form = { targetMode: "all", targetSites: [], targetEventIDs: [], text: "", linkURL: "", linkLabel: "", level: "info", from: "", to: "", dismissible: true, audience: "everyone", active: true }
 
 const pad = (value: number) => String(value).padStart(2, "0")
 // The picker works with wall-clock "YYYY-MM-DDTHH:mm"; the API with ISO instants.
@@ -46,11 +50,11 @@ function toISO(local: string): string | null {
 }
 
 function toForm(banner: Banner): Form {
-  return { text: banner.Text, linkURL: banner.LinkURL ?? "", linkLabel: banner.LinkLabel ?? "", level: banner.Level, from: toLocal(banner.ActiveFrom), to: toLocal(banner.ActiveTo), dismissible: banner.Dismissible, audience: banner.Audience === "signed_in" ? "signed_in" : "everyone", active: banner.IsActive }
+  return { targetMode: banner.TargetMode === "selected" ? "selected" : "all", targetSites: banner.TargetSites ?? [], targetEventIDs: banner.TargetEventIDs ?? [], text: banner.Text, linkURL: banner.LinkURL ?? "", linkLabel: banner.LinkLabel ?? "", level: banner.Level, from: toLocal(banner.ActiveFrom), to: toLocal(banner.ActiveTo), dismissible: banner.Dismissible, audience: banner.Audience === "signed_in" ? "signed_in" : "everyone", active: banner.IsActive }
 }
 
 function toInput(form: Form): BannerInput {
-  return { Text: form.text.trim(), LinkURL: form.linkURL.trim(), LinkLabel: form.linkLabel.trim(), Level: form.level, ActiveFrom: toISO(form.from), ActiveTo: toISO(form.to), Dismissible: form.dismissible, Audience: form.audience, IsActive: form.active }
+  return { TargetMode: form.targetMode, TargetSites: form.targetMode === "selected" ? form.targetSites : [], TargetEventIDs: form.targetMode === "selected" ? form.targetEventIDs : [], Text: form.text.trim(), LinkURL: form.linkURL.trim(), LinkLabel: form.linkLabel.trim(), Level: form.level, ActiveFrom: toISO(form.from), ActiveTo: toISO(form.to), Dismissible: form.dismissible, Audience: form.audience, IsActive: form.active }
 }
 
 function linkValid(url: string): boolean {
@@ -64,6 +68,13 @@ function windowLabel(banner: Banner): string {
   return `${banner.ActiveFrom ? fmt(banner.ActiveFrom) : "…"} — ${banner.ActiveTo ? fmt(banner.ActiveTo) : "…"}`
 }
 
+function targetSummary(banner: Pick<Banner, "TargetMode" | "TargetSites" | "TargetEventIDs">): string {
+  if (banner.TargetMode !== "selected") return t("admin.notif.banners.targets.all")
+  const parts = (banner.TargetSites ?? []).map((site) => t(`admin.notif.banners.targets.site.${site}`))
+  if (banner.TargetEventIDs?.length) parts.push(t("admin.notif.banners.targets.eventCount", { count: banner.TargetEventIDs.length }))
+  return parts.join(t("admin.notif.banners.targets.separator"))
+}
+
 function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; onClose: () => void; onSaved: (saved: Banner, close: boolean) => void }) {
   const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(banner === "new" ? EMPTY_FORM : toForm(banner), toInput)
   const [busy, setBusy] = useState(false)
@@ -71,7 +82,8 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }))
 
   const rangeInvalid = form.from !== "" && form.to !== "" && new Date(form.to) <= new Date(form.from)
-  const valid = form.text.trim() !== "" && form.text.length <= BANNER_TEXT_MAX && form.linkLabel.length <= BANNER_LABEL_MAX && linkValid(form.linkURL) && !rangeInvalid
+  const targetInvalid = form.targetMode === "selected" && form.targetSites.length === 0 && form.targetEventIDs.length === 0
+  const valid = form.text.trim() !== "" && form.text.length <= BANNER_TEXT_MAX && form.linkLabel.length <= BANNER_LABEL_MAX && linkValid(form.linkURL) && !rangeInvalid && !targetInvalid
 
   async function save() {
     if (busy || !valid || (banner !== "new" && !dirty)) return
@@ -92,7 +104,7 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-auto">
-        <DialogHeader><DialogTitle>{t(banner === "new" ? "admin.notif.banners.create" : "admin.notif.banners.edit")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t(banner === "new" ? "admin.notif.banners.create" : "admin.notif.banners.edit")}</DialogTitle><DialogDescription>{t("admin.notif.banners.scopeHint")}</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <div>
             <label htmlFor="banner-text" className={label}>{t("admin.notif.banners.text")}</label>
@@ -127,6 +139,27 @@ function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; on
               {rangeInvalid && <p className="mt-1 text-xs text-destructive">{t("admin.notif.banners.rangeInvalid")}</p>}
             </div>
           </div>
+          <fieldset className="space-y-3 rounded-md border border-border p-3">
+            <legend className="px-1 text-sm font-medium">{t("admin.notif.banners.targets.title")}</legend>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {(["all", "selected"] as const).map((mode) => <label key={mode} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="banner-target-mode" value={mode} checked={form.targetMode === mode} onChange={() => set("targetMode", mode)} className="h-4 w-4 accent-primary" />
+                {t(`admin.notif.banners.targets.${mode}`)}
+              </label>)}
+            </div>
+            {form.targetMode === "selected" && <>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {TARGET_SITES.map((site) => <Checkbox key={site} checked={form.targetSites.includes(site)} label={t(`admin.notif.banners.targets.site.${site}`)} onChange={() => set("targetSites", form.targetSites.includes(site) ? form.targetSites.filter((item) => item !== site) : [...form.targetSites, site])} />)}
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t("admin.notif.banners.targets.events")}</p>
+                <p className="text-xs text-muted-foreground">{t("admin.notif.banners.targets.eventsHint")}</p>
+                <EventPicker value={form.targetEventIDs} onChange={(ids) => set("targetEventIDs", ids)} />
+              </div>
+              {targetInvalid && <p className="text-xs text-destructive">{t("admin.notif.banners.targets.required")}</p>}
+            </>}
+            <p className="text-xs text-muted-foreground">{targetSummary({ TargetMode: form.targetMode, TargetSites: form.targetSites, TargetEventIDs: form.targetEventIDs })}</p>
+          </fieldset>
           <div className="flex flex-wrap gap-x-8 gap-y-3">
             <label className="flex items-center gap-2 text-sm text-foreground"><Switch checked={form.dismissible} onCheckedChange={(value) => set("dismissible", value)} aria-label={t("admin.notif.banners.dismissible")} />{t("admin.notif.banners.dismissible")}</label>
             <label className="flex items-center gap-2 text-sm text-foreground"><Switch checked={form.active} onCheckedChange={(value) => set("active", value)} aria-label={t("admin.notif.banners.isActive")} />{t("admin.notif.banners.isActive")}</label>
@@ -219,6 +252,7 @@ export function BannersAdmin() {
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.text")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.level")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.window")}</th>
+                <th className="px-3 py-2 font-medium">{t("admin.notif.banners.targets.title")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.audience")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.state")}</th>
                 {canWrite && <th className="px-3 py-2 text-right font-medium">{t("admin.notif.banners.actions")}</th>}
@@ -232,6 +266,7 @@ export function BannersAdmin() {
                   </td>
                   <td className="px-3 py-2"><span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", LEVEL_CHIP[banner.Level])}>{t(`admin.notif.banners.level.${banner.Level}`)}</span></td>
                   <td className="px-3 py-2 text-muted-foreground">{windowLabel(banner)}</td>
+                  <td className="max-w-64 px-3 py-2 text-foreground">{targetSummary(banner)}</td>
                   <td className="px-3 py-2 text-foreground">{t(`admin.notif.banners.audience.${banner.Audience}`)}</td>
                   <td className="px-3 py-2 text-foreground">{banner.IsActive ? t("admin.notif.banners.stateActive") : t("admin.notif.banners.stateInactive")}</td>
                   {canWrite && (
