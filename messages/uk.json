@@ -2495,5 +2495,22 @@
   "admin.errors.settings.promoteHelp": "{email} одразу отримає повний доступ до платформи. Роль зміниться, навіть якщо не зберегти ці налаштування сповіщень.",
   "admin.errors.settings.invitedNotFound": "Запрошення надіслано, але обліковий запис суперадміністратора не знайдено. Повторіть пошук за адресою перед додаванням.",
   "admin.errors.delivery.preparation": "Підготовка одержувачів сповіщень",
-  "admin.errors.settings.channel.prepare": "Підготовка"
+  "admin.errors.settings.channel.prepare": "Підготовка",
+  "admin.previewSettings.title": "Тестовий режим заходу",
+  "admin.previewSettings.description": "Набір, який за замовчуванням використовують усі заходи.",
+  "admin.previewSettings.saved": "Набір збережено",
+  "admin.previewSettings.loadFailed": "Не вдалося завантажити тестові завдання",
+  "admin.previewSettings.empty": "Тестових завдань ще не вибрано.",
+  "admin.previewSettings.remove": "Прибрати «{name}»",
+  "admin.previewSettings.catalog": "Завдання з каталогу",
+  "admin.previewSettings.search": "Назва завдання",
+  "admin.previewSettings.catalogFailed": "Не вдалося завантажити каталог",
+  "admin.previewSettings.noMatches": "Завдань не знайдено.",
+  "admin.previewSettings.variant": "Варіант завдання «{name}»",
+  "admin.previewSettings.variantNumber": "Варіант {number}",
+  "admin.previewSettings.saveFailed": "Не вдалося зберегти набір. Спробуйте ще раз.",
+  "admin.previewSettings.selection": "Завдання за замовчуванням",
+  "admin.previewSettings.inheritance": "Організатори можуть замінити цей набір у налаштуваннях свого заходу.",
+  "admin.previewSettings.groupName": "Назва групи",
+  "admin.previewSettings.defaultGroupName": "Тестові завдання"
 }
