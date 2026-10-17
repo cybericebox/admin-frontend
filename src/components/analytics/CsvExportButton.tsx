@@ -7,6 +7,7 @@ import { exportUrl, type AnalyticsParams } from "@/api/platformAnalytics"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { useOptionalPeriodQuery } from "./useOptionalPeriodQuery"
 
 function save(blob: Blob, name: string) {
@@ -40,8 +41,8 @@ export function CsvExportButton({ section, table, params, disabled = false, labe
     try {
       const { blob, filename } = await apiGetBlob(exportUrl(section, { ...period(), ...params, table }))
       save(blob, filename ?? `${section.replace(/\//g, "-")}-${table}.csv`)
-    } catch {
-      toast.error(t("admin.platformAnalytics.csv.failed"))
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.platformAnalytics.csv.failed")))
     } finally {
       setBusy(false)
     }

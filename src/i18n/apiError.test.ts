@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { ApiError } from "@/api/client"
-import { errorOr, formatWait, localizedError } from "./apiError"
+import { errorOr, formatWait, localizedError, overloadOr } from "./apiError"
 import { t } from "./t"
 import en from "../../messages/en.json"
 import uk from "../../messages/uk.json"
@@ -40,5 +40,14 @@ describe("localizedError", () => {
   it("errorOr falls back for unknown errors", () => {
     expect(errorOr(new Error("boom"), "fallback")).toBe("fallback")
     expect(errorOr(new ApiError(400, null, "x", undefined, 20225), "fallback")).not.toBe("fallback")
+  })
+
+  it("overloadOr shows the overloaded text for an overload error, else the fallback", () => {
+    expect(overloadOr(new ApiError(503, null, "x", undefined, undefined, 1), "fallback")).toBe(t("error.overloaded"))
+    expect(overloadOr(new ApiError(429, null), "fallback")).toBe(t("error.overloaded"))
+    // A coded error keeps the fixed message (overloadOr is not errorOr).
+    expect(overloadOr(new ApiError(400, null, "x", undefined, 20225), "fallback")).toBe("fallback")
+    expect(overloadOr(new ApiError(503, null), "fallback")).toBe("fallback")
+    expect(overloadOr(new Error("boom"), "fallback")).toBe("fallback")
   })
 })

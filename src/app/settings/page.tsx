@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { tRich } from "@/i18n/tRich"
 
 type Setting = {
@@ -99,9 +100,9 @@ export default function Page() {
       try {
         const saved = await apiPut<Setting>(`/api/settings/${encodeURIComponent(item.Key)}`, { Value: value, RequiredPermission: item.RequiredPermission })
         if (pending.current.get(item.Key) === ticket && saved.Value !== value) replace(saved)
-      } catch {
+      } catch (err) {
         if (pending.current.get(item.Key) === ticket) setItems((previous) => previous.map((current) => current.Key === item.Key ? { ...current, Value: before } : current))
-        toast.error(t("admin.settings.saveError"))
+        toast.error(overloadOr(err, t("admin.settings.saveError")))
       }
     })
   }
@@ -126,8 +127,8 @@ export default function Page() {
     try {
       replace(await apiPut<Setting>(`/api/settings/${encodeURIComponent(item.Key)}`, { Value: value, RequiredPermission: item.RequiredPermission }))
       if (latest.current.editing === item.Key && sameTemplateValue(parsedValue(kind, latest.current.draft).value, value)) setEditing(null)
-    } catch {
-      setError(t("admin.settings.saveError"))
+    } catch (err) {
+      setError(overloadOr(err, t("admin.settings.saveError")))
     } finally {
       inFlight.current.delete(item.Key)
       setSaving(new Set(inFlight.current))

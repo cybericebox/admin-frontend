@@ -20,7 +20,7 @@ import { assignableRoles } from "@/lib/assignableRoles"
 import { useRole, type Role } from "@/lib/useRole"
 import { eventRoleLabel, hasPlatformEventRead, roleLabel } from "@/lib/roles"
 import { t } from "@/i18n/t"
-import { errorOr } from "@/i18n/apiError"
+import { errorOr, overloadOr } from "@/i18n/apiError"
 
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string; Role?: string }
 type InviteResult = { Email: string; Error?: string }
@@ -109,8 +109,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         setMatches([])
         setAdding(false)
       }
-    } catch {
-      toast.error(t("admin.events.manager.saveError"))
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.events.manager.saveError")))
     } finally {
       setBusyID("")
     }
@@ -133,9 +133,9 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
         if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
         onChanged(result)
         toast.success(t("admin.events.manager.saved"))
-      } catch {
+      } catch (err) {
         if (wantedRoles.current[userID] === wanted) clearPendingRole(userID)
-        toast.error(t("admin.events.manager.saveError"))
+        toast.error(overloadOr(err, t("admin.events.manager.saveError")))
       }
     })
   }
@@ -186,8 +186,8 @@ export function EventManagersCard({ eventID, managers, editable, onChanged, onRe
       onRemoved?.(removing.UserID)
       toast.success(t("admin.events.manager.removed"))
       setRemoving(null)
-    } catch {
-      setRemoveError(t("admin.events.manager.removeError"))
+    } catch (err) {
+      setRemoveError(overloadOr(err, t("admin.events.manager.removeError")))
     } finally {
       setBusyID("")
     }

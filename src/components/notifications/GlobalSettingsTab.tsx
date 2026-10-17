@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { Switch } from "@/components/ui/switch"
 import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -62,8 +63,8 @@ export function GlobalSettingsTab() {
       if (!wanted) return
       try {
         await apiPut("/api/notifications/settings/global", wanted)
-      } catch {
-        toast.error(t("admin.notif.settings.saveError"))
+      } catch (err) {
+        toast.error(overloadOr(err, t("admin.notif.settings.saveError")))
         // Roll back only this field, and only if the user has not changed it again since.
         if (latest.current.find((r) => rowKey(r) === key)?.[field] === value) patchRow(key, field, previous)
       }

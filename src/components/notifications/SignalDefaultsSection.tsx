@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { Switch } from "@/components/ui/switch"
 import { notifTypeLabel, notifChannelLabel, notifAudienceLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -95,8 +96,8 @@ export function SignalDefaultsSection() {
           setItems(next)
         }
         toast.success(t("admin.notif.signalDefaults.saved"))
-      } catch {
-        toast.error(t("admin.notif.settings.saveError"))
+      } catch (err) {
+        toast.error(overloadOr(err, t("admin.notif.settings.saveError")))
         if (latest.current.find((i) => rowKey(i) === key)?.Enabled === enabled) setEnabled(key, previous)
       }
     })

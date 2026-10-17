@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 
 type Participant = { UserID: string; Status: number; CreatedAt: string; DecidedAt: string | null; Invited?: boolean; InvitedTeamName?: string | null }
 type UserSummary = { ID: string; FirstName: string; LastName: string; Email: string }
@@ -104,9 +105,9 @@ export function EventParticipantsCard({ eventID, editable }: { eventID: string; 
         : current.map((entry) => entry.UserID === item.UserID ? { ...entry, Status: decision === "approve" ? 2 : 3, DecidedAt: new Date().toISOString() } : entry))
       setRejecting(null)
       toast.success(t(decision === "approve" ? "admin.events.participants.approved" : "admin.events.participants.rejected"))
-    } catch {
-      if (decision === "reject") setRejectError(t("admin.events.participants.rejectError"))
-      else toast.error(t("admin.events.participants.approveError"))
+    } catch (err) {
+      if (decision === "reject") setRejectError(overloadOr(err, t("admin.events.participants.rejectError")))
+      else toast.error(overloadOr(err, t("admin.events.participants.approveError")))
     } finally {
       setBusyIDs((ids) => ids.filter((id) => id !== item.UserID))
     }
