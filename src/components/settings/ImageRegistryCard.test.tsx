@@ -35,6 +35,16 @@ describe("ImageRegistryCard", () => {
     expect((screen.getByLabelText("Токен для отримання образів") as HTMLInputElement).placeholder).toBe("збережено")
   })
 
+  it("keeps password managers off the account and the tokens", () => {
+    renderCard(saved)
+    for (const label of ["Обліковий запис", "Токен для завантаження образів", "Токен для отримання образів"]) {
+      const field = screen.getByLabelText(label)
+      expect(field).toHaveAttribute("autocomplete", "off")
+      expect(field).toHaveAttribute("data-1p-ignore")
+      expect(field).toHaveAttribute("data-lpignore", "true")
+    }
+  })
+
   it("keeps the repository dropdown disabled until the repositories are listed", async () => {
     renderCard(empty)
     fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "icebox" } })

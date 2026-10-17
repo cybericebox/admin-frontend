@@ -751,6 +751,8 @@
   "admin.labs.obs.titleHelp": "What the laboratory agent reports about stands right now: each lab, VPN client and access rule inside a stand.",
   "admin.labs.capacity.titleHelp": "How much cluster CPU and memory the stands use out of what is available.",
   "admin.labs.stands.col.reasonHelp": "Why the stand failed: the message from the laboratory.",
+  "admin.labs.imageUnavailable": "Image unavailable",
+  "admin.labs.imageUnavailable.image": "Image unavailable: {image}",
   "admin.labs.stands.col.generationHelp": "How many times the stand was created anew. Each recreate adds 1.",
   "admin.labs.title": "Labs",
   "admin.labs.subtitle": "Agent status, team stands, exercise test labs and the current state of platform laboratories.",
@@ -2588,7 +2590,7 @@
   "admin.imageRegistry.token.push": "push token",
   "admin.imageRegistry.token.pull": "pull token",
   "admin.imageRegistry.reason.unauthorized": "The registry rejected the token or the account.",
-  "admin.imageRegistry.reason.unreachable": "The registry is unreachable. Try again later.",
+  "admin.imageRegistry.reason.unreachable": "The image registry is not responding.",
   "admin.imageRegistry.reason.rate_limited": "The registry is rate limiting requests. Try again later.",
   "admin.imageRegistry.reason.not_found": "The repository or account was not found in the registry.",
   "admin.imageRegistry.reason.other": "The registry did not respond properly."

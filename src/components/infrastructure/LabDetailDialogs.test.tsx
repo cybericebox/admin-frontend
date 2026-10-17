@@ -43,6 +43,14 @@ describe("managed stand detail", () => {
     expect(apiPost).not.toHaveBeenCalled()
   })
 
+  it("reads the image-unavailable reasons of the stand and its labs as sentences", async () => {
+    const value = standDetail()
+    apiGet.mockResolvedValue({ ...value, Reason: "ImageUnavailable: acme/web:1", Labs: [{ ...value.Labs[0], Reason: "ImageUnavailable: acme/db:2" }] })
+    render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
+    expect(await screen.findByText("Образ недоступний: acme/web:1")).toBeInTheDocument()
+    expect(screen.getByText("Образ недоступний: acme/db:2")).toBeInTheDocument()
+  })
+
   it("preserves legacy inspection and device permissions when lifecycle fields are absent", async () => {
     apiGet.mockResolvedValue(standDetail(false))
     render(<StandDetailDialog stand={stand} canWrite onClose={() => {}} />)
