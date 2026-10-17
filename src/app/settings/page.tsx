@@ -32,6 +32,9 @@ type Setting = {
 
 type Kind = "boolean" | "number" | "string" | "json"
 
+// Typed settings with their own tab and endpoint; the generic list never shows them.
+const TYPED_KEYS = new Set(["participant_preview_exercises", "retention_policy", "exercise_archive_limits", "exercise_test_runs"])
+
 const kindOf = (value: unknown): Kind => typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : typeof value === "string" ? "string" : "json"
 
 // A known key has a human label (admin.settings.key.<key>); an unknown one shows the key itself in monospace.
@@ -74,7 +77,7 @@ export default function Page() {
   const load = useCallback(async () => {
     try {
       setLoadFailed(null)
-      setItems((await apiGet<Setting[]>("/api/settings")).filter(item => item.Key !== "participant_preview_exercises"))
+      setItems((await apiGet<Setting[]>("/api/settings")).filter(item => !TYPED_KEYS.has(item.Key)))
     } catch (cause) {
       setLoadFailed({ cause })
     } finally {

@@ -2556,7 +2556,6 @@
   "admin.errors.filter.refInvalid": "Вкажіть коректний номер звернення, наприклад 50310-a1b2c3d4.",
   "admin.imageRegistry.title": "Сховище образів",
   "admin.imageRegistry.description": "Сховище, куди платформа зберігає образи завдань і звідки заходи їх отримують.",
-  "admin.imageRegistry.tab": "Сховище образів",
   "admin.imageRegistry.loadError": "Не вдалося завантажити налаштування сховища образів.",
   "admin.imageRegistry.note": "Використовуйте окремий обліковий запис для сховища: токени діють на весь обліковий запис, а не на один репозиторій.",
   "admin.imageRegistry.secretsKeyMissing": "Ключ шифрування секретів платформи не задано, тому токени не можна зберегти. Задайте ключ і перезапустіть платформу.",
@@ -2649,5 +2648,17 @@
   "admin.limits.field.ArchiveBytes": "Розмір архіву",
   "admin.limits.field.EntryBytes": "Один файл в архіві",
   "admin.limits.field.UnpackedBytes": "Усі файли після розпакування",
-  "admin.limits.field.Entries": "Кількість файлів в архіві"
+  "admin.limits.field.Entries": "Кількість файлів в архіві",
+  "admin.settings.tab.tasks": "Завдання",
+  "admin.settings.tab.dataRetention": "Зберігання даних",
+  "admin.settings.tasks.title": "Завдання",
+  "admin.settings.tasks.description": "Сховище образів, ліміти архівів, тестові запуски та набір для перевірки.",
+  "admin.settings.dataRetention.title": "Зберігання даних",
+  "admin.settings.dataRetention.description": "Як довго платформа зберігає дані до видалення.",
+  "admin.limits.card.archive.title": "Ліміти архівів",
+  "admin.limits.card.archive.description": "Найбільший розмір архіву завдання та його вмісту.",
+  "admin.limits.card.testRuns.title": "Тестові запуски",
+  "admin.limits.card.testRuns.description": "Скільки триває тестовий запуск завдання.",
+  "admin.limits.card.retention.title": "Строки зберігання",
+  "admin.limits.card.retention.description": "Після цього строку дані видаляються автоматично."
 }

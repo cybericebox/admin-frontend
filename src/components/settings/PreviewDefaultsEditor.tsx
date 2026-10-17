@@ -6,12 +6,8 @@ import { FieldValidation } from "@/components/ui/field-validation"
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react"
 import { X } from "lucide-react"
 import { getPreviewCatalog, getPreviewSettings, previewSelectionIdentity, savePreviewSettings, type PreviewDefaultsDraft, type PreviewSettings, type PreviewCatalogItem } from "@/api/participantPreviewSettings"
-import { RequirePermission } from "@/components/rbac/RequirePermission"
-import { NoAccess } from "@/components/rbac/NoAccess"
 import { useRole } from "@/lib/useRole"
-import { SettingsTabs } from "@/components/settings/SettingsTabs"
-import { PageHeader } from "@/components/ui/page-header"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
@@ -66,7 +62,7 @@ export function PreviewDefaultsEditor() {
   if (query.isPending) return <LoadingArea className="min-h-72" label={t("admin.loading")} />
   if (query.error) return <LoadError className="min-h-72" message={t("admin.previewSettings.loadFailed")} error={query.error} onRetry={() => void load()} />
   return <form onSubmit={save} className="space-y-5">
-    <Card><CardContent className="space-y-5 pt-5">
+    <Card><CardHeader><CardTitle className="text-base">{t("admin.previewSettings.title")}</CardTitle><CardDescription>{t("admin.previewSettings.description")}</CardDescription></CardHeader><CardContent className="space-y-5">
       <div><h2 className="font-semibold">{t("admin.previewSettings.selection")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.previewSettings.inheritance")}</p></div>
       <div className="space-y-2"><label className="block text-sm font-medium" htmlFor="preview-group-name">{t("admin.previewSettings.groupName")}</label>
         <FieldValidation label={t("admin.previewSettings.groupName")} error={nameError}>{canWrite ? <Input id="preview-group-name" value={groupName} maxLength={100} required onChange={event => { setNameError(""); setDraft({ GroupName: event.target.value, Selections: selected }) }} /> : <p>{groupName}</p>}</FieldValidation>
@@ -91,10 +87,4 @@ export function PreviewDefaultsEditor() {
     {saveError && <p role="alert" className="text-sm text-destructive">{t("admin.previewSettings.saveFailed")}</p>}
     {canWrite && <SaveButton type="submit" dirty={dirty} busy={saving}>{t("admin.settings.save")}</SaveButton>}
   </form>
-}
-
-export default function PreviewSettingsPage() {
-  return <RequirePermission perm="platform.settings.read" fallback={<NoAccess message={t("admin.settings.noAccess")} />}><div className="flex min-h-full flex-col gap-5">
-    <PageHeader title={t("admin.previewSettings.title")} sub={t("admin.previewSettings.description")} /><SettingsTabs /><PreviewDefaultsEditor />
-  </div></RequirePermission>
 }

@@ -1,6 +1,6 @@
 import {beforeEach, expect, it, vi} from "vitest"
 import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
-import {PreviewDefaultsEditor} from "./page"
+import {PreviewDefaultsEditor} from "./PreviewDefaultsEditor"
 
 const api = vi.hoisted(() => ({get: vi.fn(), catalog: vi.fn(), save: vi.fn(), write: true}))
 vi.mock("@/api/participantPreviewSettings", async original => ({...await original<typeof import("@/api/participantPreviewSettings")>(), getPreviewSettings: api.get, getPreviewCatalog: api.catalog, savePreviewSettings: api.save}))

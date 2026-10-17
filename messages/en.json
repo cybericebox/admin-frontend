@@ -2556,7 +2556,6 @@
   "admin.errors.filter.refInvalid": "Enter a valid reference, for example 50310-a1b2c3d4.",
   "admin.imageRegistry.title": "Image registry",
   "admin.imageRegistry.description": "The registry where the platform stores task images and from which events pull them.",
-  "admin.imageRegistry.tab": "Image registry",
   "admin.imageRegistry.loadError": "Could not load the image registry settings.",
   "admin.imageRegistry.note": "Use a dedicated registry account: tokens apply to the whole account, not to a single repository.",
   "admin.imageRegistry.secretsKeyMissing": "The platform secrets encryption key is not set, so tokens cannot be stored. Set the key and restart the platform.",
@@ -2649,5 +2648,17 @@
   "admin.limits.field.ArchiveBytes": "Archive size",
   "admin.limits.field.EntryBytes": "One file in the archive",
   "admin.limits.field.UnpackedBytes": "All files after unpacking",
-  "admin.limits.field.Entries": "Files in the archive"
+  "admin.limits.field.Entries": "Files in the archive",
+  "admin.settings.tab.tasks": "Tasks",
+  "admin.settings.tab.dataRetention": "Data retention",
+  "admin.settings.tasks.title": "Tasks",
+  "admin.settings.tasks.description": "Image registry, archive limits, test runs and the preview set.",
+  "admin.settings.dataRetention.title": "Data retention",
+  "admin.settings.dataRetention.description": "How long the platform keeps data before deleting it.",
+  "admin.limits.card.archive.title": "Archive limits",
+  "admin.limits.card.archive.description": "The largest size of a task archive and its contents.",
+  "admin.limits.card.testRuns.title": "Test runs",
+  "admin.limits.card.testRuns.description": "How long a task test run lasts.",
+  "admin.limits.card.retention.title": "Retention periods",
+  "admin.limits.card.retention.description": "After this period the data is deleted automatically."
 }
