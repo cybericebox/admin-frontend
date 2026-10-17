@@ -2568,6 +2568,7 @@
   "admin.imageRegistry.pushToken": "Токен для завантаження образів",
   "admin.imageRegistry.pushTokenHelp": "Потрібен для завантаження образів у сховище. Після збереження його не видно.",
   "admin.imageRegistry.pullToken": "Токен для отримання образів",
+  "admin.imageRegistry.noPullTokenWarning": "Токен для отримання образів не збережено: заходи отримуватимуть образи за допомогою токена для завантаження. Додайте окремий токен лише для читання.",
   "admin.imageRegistry.pullTokenHelp": "Необовʼязково. Токен лише для читання, який отримують заходи. Без нього використовується токен для завантаження.",
   "admin.imageRegistry.tokenSet": "збережено",
   "admin.imageRegistry.tokenPlaceholder": "Вставте токен",

@@ -35,6 +35,14 @@ describe("ImageRegistryCard", () => {
     expect((screen.getByLabelText("Токен для отримання образів") as HTMLInputElement).placeholder).toBe("збережено")
   })
 
+  it("warns that the push token pulls when no pull token is saved", () => {
+    const { unmount } = render(<ImageRegistryCard settings={saved} canWrite onChange={vi.fn()} />)
+    expect(screen.getByText(/заходи отримуватимуть образи/)).toBeTruthy()
+    unmount()
+    render(<ImageRegistryCard settings={{ ...saved, PullTokenSet: true }} canWrite onChange={vi.fn()} />)
+    expect(screen.queryByText(/заходи отримуватимуть образи/)).toBeNull()
+  })
+
   it("keeps password managers off the account and the tokens", () => {
     renderCard(saved)
     for (const label of ["Обліковий запис", "Токен для завантаження образів", "Токен для отримання образів"]) {
@@ -73,7 +81,7 @@ describe("ImageRegistryCard", () => {
     const body = { Status: { Code: 72802, Context: { reason: "unauthorized", token: "push" } } }
     save.mockRejectedValue(new ApiError(409, body, "x", undefined, 72802))
     fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
-    expect((await screen.findByRole("alert")).textContent).toContain("Сховище відхилило токен або обліковий запис")
+    expect(await screen.findByText(/Сховище відхилило токен або обліковий запис/)).toBeTruthy()
   })
 
   it("requires confirmation before disconnecting", async () => {

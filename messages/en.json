@@ -2568,6 +2568,7 @@
   "admin.imageRegistry.pushToken": "Image push token",
   "admin.imageRegistry.pushTokenHelp": "Needed to upload images to the registry. It is not shown after saving.",
   "admin.imageRegistry.pullToken": "Image pull token",
+  "admin.imageRegistry.noPullTokenWarning": "No pull token is saved, so events will pull images with the push token. Add a separate read-only token.",
   "admin.imageRegistry.pullTokenHelp": "Optional. A read-only token that events receive. Without it the push token is used.",
   "admin.imageRegistry.tokenSet": "saved",
   "admin.imageRegistry.tokenPlaceholder": "Paste a token",

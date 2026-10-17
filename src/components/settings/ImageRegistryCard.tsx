@@ -150,6 +150,10 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
         {settings.SecretsKeyMissing && <Alert variant="warning">{t("admin.imageRegistry.secretsKeyMissing")}</Alert>}
         <p className="text-sm text-muted-foreground">{t("admin.imageRegistry.note")}</p>
 
+        {settings.Configured && pullToken === "" && !(settings.PullTokenSet && sameAccount && !clearPull) && (
+          <Alert variant="warning">{t("admin.imageRegistry.noPullTokenWarning")}</Alert>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t("admin.imageRegistry.provider")}>
             <SelectMenu
