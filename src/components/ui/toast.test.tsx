@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ToastProvider, toast } from "./toast"
+import { ToastProvider, toast, toastApiError } from "./toast"
+import { ApiError } from "@/api/client"
 
 function Actions() {
   return <>
@@ -62,5 +63,27 @@ describe("ToastProvider", () => {
     fireEvent.focus(within(screen.getByRole("status")).getByRole("button", { name: "Закрити сповіщення" }))
     act(() => { vi.advanceTimersByTime(20_000) })
     expect(screen.getByText("Збережено")).toBeInTheDocument()
+  })
+
+  it("offers «Спробувати ще раз» on an overload error and runs the retry once, closing the toast", () => {
+    const retry = vi.fn()
+    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, null), retry)}>Busy</button></ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Busy" }))
+    const alert = screen.getByRole("alert")
+    expect(alert).toHaveTextContent("Сервер перевантажений, спробуйте за кілька секунд")
+    fireEvent.click(within(alert).getByRole("button", { name: "Спробувати ще раз" }))
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("shows no retry button for other errors or without a retry handler", () => {
+    render(<ToastProvider>
+      <button onClick={() => toastApiError(new ApiError(500, null), vi.fn())}>Broken</button>
+      <button onClick={() => toastApiError(new ApiError(503, null))}>Busy</button>
+    </ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Broken" }))
+    fireEvent.click(screen.getByRole("button", { name: "Busy" }))
+    expect(screen.getAllByRole("alert")).toHaveLength(2)
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { apiGet, apiPost, ApiError } from "./client"
-import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
+import { isServiceDown, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -9,14 +9,60 @@ afterEach(() => {
 
 describe("API outage detection", () => {
   it.each([502, 503, 504])("reports an outage on a proxy HTTP %i without X-Request-ID", async (status) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
-    await expect(apiGet("/api/auth/me", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status })))
+    await expect(apiGet("/api/auth/me", undefined, { required: false, retry: false })).rejects.toBeInstanceOf(ApiError)
     expect(isServiceDown()).toBe(true)
   })
 
+  it("does not report an outage on a 503 that a retry recovers from", async () => {
+    vi.useFakeTimers()
+    try {
+      const reports = vi.fn()
+      const unsubscribe = subscribeServiceStatus(reports)
+      let call = 0
+      const fetchMock = vi.fn(async () => (call++ === 0 ? new Response("", { status: 503 }) : new Response("{}", { status: 200, headers: { "content-type": "application/json" } })))
+      vi.stubGlobal("fetch", fetchMock)
+      const result = apiGet("/api/x", undefined, { required: false })
+      await vi.runAllTimersAsync()
+      await expect(result).resolves.toBeUndefined()
+      unsubscribe()
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(reports).not.toHaveBeenCalled()
+      expect(isServiceDown()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("reports the outage only on the final 503, after the retries", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn(async () => new Response("", { status: 503 }))
+      vi.stubGlobal("fetch", fetchMock)
+      const result = apiGet("/api/x", undefined, { required: false })
+      const settled = expect(result).rejects.toBeInstanceOf(ApiError)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(isServiceDown()).toBe(false)
+      await vi.runAllTimersAsync()
+      await settled
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+      expect(isServiceDown()).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("never repeats a POST answered 503", async () => {
+    const fetchMock = vi.fn(async () => new Response("", { status: 503 }))
+    vi.stubGlobal("fetch", fetchMock)
+    await expect(apiPost("/api/x", {}, undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it.each([500, 501, 502, 503, 504, 599])("a backend HTTP %i with X-Request-ID is a real error, not an outage", async (status) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status, headers: { "X-Request-ID": "01a112da-1" } })))
-    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status, headers: { "X-Request-ID": "01a112da-1" } })))
+    await expect(apiGet("/api/x", undefined, { required: false, retry: false })).rejects.toBeInstanceOf(ApiError)
     expect(isServiceDown()).toBe(false)
   })
 
@@ -33,8 +79,8 @@ describe("API outage detection", () => {
   })
 
   it.each([400, 401, 403, 404, 429])("does not report an outage on HTTP %i", async (status) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
-    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status })))
+    await expect(apiGet("/api/x", undefined, { required: false, retry: false })).rejects.toBeInstanceOf(ApiError)
     expect(isServiceDown()).toBe(false)
   })
 

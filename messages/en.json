@@ -1965,6 +1965,8 @@
   "admin.agents.clearCa.done": "The CA certificate of agent “{name}” was removed.",
   "error.rateLimited": "Too many attempts. Try again in {wait}.",
   "error.rateLimitedNoWait": "Too many requests. Try again in a moment.",
+  "error.overloaded": "The server is overloaded, try again in a few seconds",
+  "error.overloaded.retry": "Try again",
   "error.wait.seconds": "{count} s",
   "error.wait.minutes": "{count} min",
   "error.wait.hours": "{count} h",

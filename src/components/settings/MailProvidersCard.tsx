@@ -25,7 +25,7 @@ import { NumberInput, parseNumberInput } from "@/components/ui/number-input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "@/components/ui/toast"
+import { toast, toastApiError } from "@/components/ui/toast"
 import { mailTransportLabel } from "@/utils/notifType"
 import { cn } from "@/utils/cn"
 
@@ -183,7 +183,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
       const result = await run()
       setResults((current) => ({ ...current, [key]: result }))
     } catch (err) {
-      toast.error(localizedError(err))
+      toastApiError(err, () => void runTest(key, run))
     } finally {
       await refreshUsage()
       setTesting((current) => ({ ...current, [key]: false }))
