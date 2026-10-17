@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { apiGet, apiPost, ApiError } from "./client"
+import { isOverloadError } from "./retry"
 import { isServiceDown, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
 
 afterEach(() => {
@@ -59,6 +60,14 @@ describe("API outage detection", () => {
     await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(isServiceDown()).toBe(true)
+  })
+
+  it.each(["1", "0", "Sun, 18 Oct 2026 11:59:00 GMT"])("keeps Retry-After %s on the error, so the 503 is an overload error", async (header) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503, headers: { "Retry-After": header, "X-Request-ID": "01a112da-1" } })))
+    const err = await apiGet("/api/x", undefined, { required: false, retry: false }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).retryAfter).toBeTypeOf("number")
+    expect(isOverloadError(err)).toBe(true)
   })
 
   it("never repeats a POST answered 503", async () => {

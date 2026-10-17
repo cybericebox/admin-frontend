@@ -1,6 +1,15 @@
-// Retry for reads the server turned away because it is overloaded (429 / 503).
+// Retry for reads the server turned away because it is overloaded.
 // Framework-free and dependency-free: the same file is copied verbatim into
 // every frontend; only the call site in each client differs.
+//
+// Port contract (what each client must do for this file to work):
+// - wrap the fetch of every request in fetchWithOverloadRetry, passing the
+//   method and the caller's AbortSignal; only the returned (final) Response
+//   may reach the outage report and the error mapping;
+// - store parseRetryAfterSeconds(res.headers.get("Retry-After")) on the thrown
+//   error as `retryAfter` or `retryAfterSeconds` (a number, 0 included, when the
+//   header was present; undefined otherwise), next to its numeric `status`.
+//   isOverloadError reads exactly these fields.
 
 /** Statuses that can mean "busy, ask again shortly" (a 503 only with Retry-After). */
 export const OVERLOAD_STATUSES = [429, 503]
@@ -12,22 +21,37 @@ const MAX_BACKOFF_MS = 4_000
 const DEFAULT_MAX_ATTEMPTS = 4
 
 /**
- * Delay before retry number `attempt` (0 = the first retry). Retry-After as
- * delta-seconds or an HTTP-date wins; above 10 s it returns null (do not retry).
- * Without it: exponential backoff capped at 4 s, with jitter in [50%, 100%].
+ * Retry-After in milliseconds from now: delta-seconds or an HTTP-date (a past
+ * date gives 0). Anything else (absent, "-1", junk) gives null.
+ */
+function retryAfterMs(header: string | null | undefined): number | null {
+  const value = header?.trim()
+  if (!value) return null
+  if (/^\d+(\.\d+)?$/.test(value)) return Number(value) * 1000
+  // An HTTP-date always has a weekday or month name; this keeps numeric junk away from Date.parse.
+  if (!/[a-z]/i.test(value)) return null
+  const at = Date.parse(value)
+  return Number.isFinite(at) ? Math.max(0, at - Date.now()) : null
+}
+
+/** Retry-After as whole seconds (rounded up, 0 allowed) for the client's error; undefined when absent or unparseable. */
+export function parseRetryAfterSeconds(header: string | null): number | undefined {
+  const ms = retryAfterMs(header)
+  return ms === null ? undefined : Math.ceil(ms / 1000)
+}
+
+/**
+ * Delay before retry number `attempt` (0 = the first retry). The backoff is
+ * min(4 s, 500 ms * 2^attempt) with jitter in [50%, 100%]. A Retry-After above
+ * 10 s returns null (do not retry); otherwise its delay gets +0..25% jitter and
+ * is never shorter than the backoff, so "0" or a past date does not hammer.
  */
 export function retryDelayMs(attempt: number, retryAfterHeader: string | null, random: () => number = Math.random): number | null {
-  const header = retryAfterHeader?.trim()
-  if (header) {
-    let ms: number | null = null
-    if (/^\d+(\.\d+)?$/.test(header)) ms = Number(header) * 1000
-    else {
-      const at = Date.parse(header)
-      if (Number.isFinite(at)) ms = Math.max(0, at - Date.now())
-    }
-    if (ms !== null) return ms > MAX_RETRY_AFTER_MS ? null : ms
-  }
-  return Math.min(MAX_BACKOFF_MS, BASE_DELAY_MS * 2 ** attempt) * (0.5 + random() / 2)
+  const backoff = Math.min(MAX_BACKOFF_MS, BASE_DELAY_MS * 2 ** attempt) * (0.5 + random() / 2)
+  const after = retryAfterMs(retryAfterHeader)
+  if (after === null) return backoff
+  if (after > MAX_RETRY_AFTER_MS) return null
+  return Math.max(backoff, after * (1 + random() / 4))
 }
 
 function abortReason(signal: AbortSignal): unknown {
@@ -44,12 +68,16 @@ function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
   })
 }
 
+function isOverloadStatus(status: number, hasRetryAfter: boolean): boolean {
+  return OVERLOAD_STATUSES.includes(status) && (status !== 503 || hasRetryAfter)
+}
+
 /**
  * The server shed the request: a 429, or a 503 with Retry-After (the daemon's
  * overload answer). A 503 without it is a domain or edge "unavailable" error.
  */
 export function isOverloadResponse(res: Response): boolean {
-  return res.status === 429 || (res.status === 503 && res.headers.has("Retry-After"))
+  return isOverloadStatus(res.status, res.headers.has("Retry-After"))
 }
 
 export type OverloadRetryOptions = {
@@ -83,11 +111,11 @@ export async function fetchWithOverloadRetry(doFetch: () => Promise<Response>, o
 }
 
 /**
- * An API error the user can simply repeat in a moment: a 429, or a 503 that
- * carried Retry-After (the clients store it as retryAfter or retryAfterSeconds).
+ * An API error the user can simply repeat in a moment: a 429, or a 503 whose
+ * response had Retry-After (see the port contract above for the fields).
  */
 export function isOverloadError(err: unknown): boolean {
   if (!(err instanceof Error)) return false
   const { status, retryAfter, retryAfterSeconds } = err as { status?: unknown; retryAfter?: unknown; retryAfterSeconds?: unknown }
-  return status === 429 || (status === 503 && (retryAfter != null || retryAfterSeconds != null))
+  return typeof status === "number" && isOverloadStatus(status, retryAfter != null || retryAfterSeconds != null)
 }

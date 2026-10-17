@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { t } from "@/i18n/t"
-import { localizedError } from "@/i18n/apiError"
-import { isOverloadError } from "@/api/retry"
 import { CheckCircle2, CircleAlert, TriangleAlert, X } from "lucide-react"
 
 type Tone = "success" | "warning" | "error"
 /** A button in the toast; clicking it runs `onClick` and closes the toast. */
 export type ToastAction = { label: string; onClick: () => void }
-type ToastOptions = { action?: ToastAction }
+export type ToastOptions = { action?: ToastAction }
 type Toast = { id: number; message: string; tone: Tone; action?: ToastAction }
 let nextToastId = 0
 const listeners = new Set<(item: Toast) => void>()
@@ -23,11 +21,6 @@ export const toast = {
   success: (message: string, options?: ToastOptions) => show("success", message, options),
   warning: (message: string, options?: ToastOptions) => show("warning", message, options),
   error: (message: string, options?: ToastOptions) => show("error", message, options),
-}
-
-/** The localized API error; an overload (429/503) also offers «Спробувати ще раз» when `retry` is given. */
-export function toastApiError(err: unknown, retry?: () => void) {
-  toast.error(localizedError(err), retry && isOverloadError(err) ? { action: { label: t("error.overloaded.retry"), onClick: retry } } : undefined)
 }
 
 const toneStyle: Record<Tone, string> = {
