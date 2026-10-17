@@ -2,17 +2,32 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { t } from "@/i18n/t"
+import { localizedError } from "@/i18n/apiError"
+import { isOverloadError } from "@/api/retry"
 import { CheckCircle2, CircleAlert, TriangleAlert, X } from "lucide-react"
 
 type Tone = "success" | "warning" | "error"
-type Toast = { id: number; message: string; tone: Tone }
+/** A button in the toast; clicking it runs `onClick` and closes the toast. */
+export type ToastAction = { label: string; onClick: () => void }
+type ToastOptions = { action?: ToastAction }
+type Toast = { id: number; message: string; tone: Tone; action?: ToastAction }
 let nextToastId = 0
 const listeners = new Set<(item: Toast) => void>()
 
+function show(tone: Tone, message: string, options?: ToastOptions) {
+  const item = { id: ++nextToastId, message, tone, action: options?.action }
+  listeners.forEach((listener) => listener(item))
+}
+
 export const toast = {
-  success: (message: string) => { const item = { id: ++nextToastId, message, tone: "success" as const }; listeners.forEach((listener) => listener(item)) },
-  warning: (message: string) => { const item = { id: ++nextToastId, message, tone: "warning" as const }; listeners.forEach((listener) => listener(item)) },
-  error: (message: string) => { const item = { id: ++nextToastId, message, tone: "error" as const }; listeners.forEach((listener) => listener(item)) },
+  success: (message: string, options?: ToastOptions) => show("success", message, options),
+  warning: (message: string, options?: ToastOptions) => show("warning", message, options),
+  error: (message: string, options?: ToastOptions) => show("error", message, options),
+}
+
+/** The localized API error; an overload (429/503) also offers «Спробувати ще раз» when `retry` is given. */
+export function toastApiError(err: unknown, retry?: () => void) {
+  toast.error(localizedError(err), retry && isOverloadError(err) ? { action: { label: t("error.overloaded.retry"), onClick: retry } } : undefined)
 }
 
 const toneStyle: Record<Tone, string> = {
@@ -47,6 +62,10 @@ function ToastItem({ item, onDismiss }: { item: Toast; onDismiss: (id: number) =
       : item.tone === "warning" ? <TriangleAlert aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />
         : <CircleAlert aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />}
     <span className="min-w-0 flex-1">{item.message}</span>
+    {item.action && <button type="button" onClick={() => { onDismiss(item.id); item.action?.onClick() }}
+      className="shrink-0 rounded font-medium text-foreground underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-primary">
+      {item.action.label}
+    </button>}
     <button type="button" aria-label={t("ui.toast.close")} onClick={() => onDismiss(item.id)}
       className="rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
       <X aria-hidden="true" className="h-4 w-4" />

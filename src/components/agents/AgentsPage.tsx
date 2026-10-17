@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { Spinner, LoadingArea } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "@/components/ui/toast"
+import { toast, toastApiError } from "@/components/ui/toast"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
@@ -112,7 +112,7 @@ export function AgentsPage() {
       upsert(saved)
       done?.(saved)
     } catch (err) {
-      toast.error(localizedError(err))
+      toastApiError(err, () => void run(agent, action, call, done))
     } finally {
       setAction(agent.ID, undefined)
     }
@@ -130,7 +130,7 @@ export function AgentsPage() {
       if (preview.RunningGroups > 0) setBlocked({ agent, preview })
       else { setConfirmError(""); setConfirm({ kind: "delete", agent, preview }) }
     } catch (err) {
-      toast.error(localizedError(err))
+      toastApiError(err, () => void startDelete(agent))
     } finally {
       setAction(agent.ID, undefined)
     }

@@ -1965,6 +1965,8 @@
   "admin.agents.clearCa.done": "Сертифікат CA агента «{name}» прибрано.",
   "error.rateLimited": "Забагато спроб. Спробуйте за {wait}.",
   "error.rateLimitedNoWait": "Забагато запитів. Спробуйте за хвилину.",
+  "error.overloaded": "Сервер перевантажений, спробуйте за кілька секунд",
+  "error.overloaded.retry": "Спробувати ще раз",
   "error.wait.seconds": "{count} с",
   "error.wait.minutes": "{count} хв",
   "error.wait.hours": "{count} год",
