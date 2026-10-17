@@ -33,8 +33,8 @@ export function localizedError(err: unknown): string {
     const msg = uk[key] ?? en[key]
     if (msg) return msg
   }
-  // A 503 without a catalog message is the server shedding load; reads were already retried.
-  if (err instanceof ApiError && err.status === 503) return t("error.overloaded")
+  // An overload 503 (with Retry-After) without a catalog message; reads were already retried.
+  if (err instanceof ApiError && err.status === 503 && isOverloadError(err)) return t("error.overloaded")
   return t("error.generic")
 }
 
