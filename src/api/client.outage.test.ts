@@ -20,7 +20,7 @@ describe("API outage detection", () => {
       const reports = vi.fn()
       const unsubscribe = subscribeServiceStatus(reports)
       let call = 0
-      const fetchMock = vi.fn(async () => (call++ === 0 ? new Response("", { status: 503 }) : new Response("{}", { status: 200, headers: { "content-type": "application/json" } })))
+      const fetchMock = vi.fn(async () => (call++ === 0 ? new Response("", { status: 503, headers: { "Retry-After": "1" } }) : new Response("{}", { status: 200, headers: { "content-type": "application/json" } })))
       vi.stubGlobal("fetch", fetchMock)
       const result = apiGet("/api/x", undefined, { required: false })
       await vi.runAllTimersAsync()
@@ -37,7 +37,7 @@ describe("API outage detection", () => {
   it("reports the outage only on the final 503, after the retries", async () => {
     vi.useFakeTimers()
     try {
-      const fetchMock = vi.fn(async () => new Response("", { status: 503 }))
+      const fetchMock = vi.fn(async () => new Response("", { status: 503, headers: { "Retry-After": "1" } }))
       vi.stubGlobal("fetch", fetchMock)
       const result = apiGet("/api/x", undefined, { required: false })
       const settled = expect(result).rejects.toBeInstanceOf(ApiError)
@@ -53,8 +53,16 @@ describe("API outage detection", () => {
     }
   })
 
-  it("never repeats a POST answered 503", async () => {
+  it("does not repeat a GET 503 without Retry-After and reports it at once", async () => {
     const fetchMock = vi.fn(async () => new Response("", { status: 503 }))
+    vi.stubGlobal("fetch", fetchMock)
+    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(isServiceDown()).toBe(true)
+  })
+
+  it("never repeats a POST answered 503", async () => {
+    const fetchMock = vi.fn(async () => new Response("", { status: 503, headers: { "Retry-After": "1" } }))
     vi.stubGlobal("fetch", fetchMock)
     await expect(apiPost("/api/x", {}, undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
