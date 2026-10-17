@@ -123,8 +123,59 @@ describe("LimitSettingsCard", () => {
     save.mockRejectedValue(new ApiError(400, { Status: { Code: 20107, Context: { field: "LeaseMax" } } }, "x", undefined, 20107))
     fireEvent.click(saveButton())
     const block = document.querySelector('[data-field="LeaseMax"]') as HTMLElement
-    await waitFor(() => expect(within(block).getByRole("alert")).toBeTruthy())
+    await waitFor(() => expect(within(block).getByRole("alert").textContent).toBe("Найдовший тестовий запуск не може бути коротшим за один строк дії"))
     expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it("toasts a server error that names a field the card does not show", async () => {
+    get.mockResolvedValue(leases)
+    render(<LimitSettingsCard card="test-runs" title="Тестові запуски" groups={[{ keys: ["Lease"] }]}
+      units={{ Lease: ["hours", "days"] }} labelKey={(key) => `admin.limits.field.${key}`} />)
+    fireEvent.change(await screen.findByLabelText(label("Lease")), { target: { value: "5" } })
+    save.mockRejectedValue(new ApiError(400, { Status: { Code: 20107, Context: { field: "LeaseMax" } } }, "x", undefined, 20107))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Найдовший тестовий запуск не може бути коротшим за один строк дії"))
+  })
+
+  it("does not validate fields the card does not show", async () => {
+    get.mockResolvedValue({ ...leases, Fields: [leases.Fields[0], { ...leases.Fields[1], Value: 0 }] })
+    render(<LimitSettingsCard card="test-runs" title="Тестові запуски" groups={[{ keys: ["Lease"] }]}
+      units={{ Lease: ["hours", "days"] }} labelKey={(key) => `admin.limits.field.${key}`} />)
+    fireEvent.change(await screen.findByLabelText(label("Lease")), { target: { value: "5" } })
+    save.mockResolvedValue(leases)
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalled())
+  })
+
+  it("drops the answer of a save that a reset overtook", async () => {
+    renderLeases()
+    fireEvent.change(await screen.findByLabelText(label("Lease")), { target: { value: "5" } })
+    let finish!: (v: LimitSettings) => void
+    save.mockReturnValue(new Promise<LimitSettings>((r) => { finish = r }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(saveButton()).toHaveAttribute("aria-busy", "true"))
+    const defaults = { ...leases, Custom: false, Fields: leases.Fields.map((f) => ({ ...f, Value: f.Default })) }
+    reset.mockResolvedValue(defaults)
+    fireEvent.click(screen.getByRole("button", { name: t("admin.limits.reset") }))
+    fireEvent.click(await screen.findByRole("button", { name: t("admin.limits.resetConfirm") }))
+    await waitFor(() => expect(screen.getByLabelText(label("Lease"))).toHaveValue("2"))
+    finish({ ...leases, Fields: [{ ...leases.Fields[0], Value: 5 * HOUR }, leases.Fields[1]] })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(screen.getByLabelText(label("Lease"))).toHaveValue("2")
+  })
+
+  it("does not show a server error on a field edited during the save", async () => {
+    renderLeases()
+    const lease = await screen.findByLabelText(label("Lease"))
+    fireEvent.change(lease, { target: { value: "5" } })
+    let fail!: (e: unknown) => void
+    save.mockReturnValue(new Promise<LimitSettings>((_, r) => { fail = r }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(saveButton()).toHaveAttribute("aria-busy", "true"))
+    fireEvent.change(lease, { target: { value: "6" } })
+    fail(new ApiError(400, { Status: { Code: 20104, Context: { field: "Lease", min: HOUR, max: 7 * DAY } } }, "x", undefined, 20104))
+    await waitFor(() => expect(saveButton()).not.toHaveAttribute("aria-busy"))
+    expect(document.querySelector('[data-field="Lease"]')!.querySelector('[role="alert"]')).toBeNull()
   })
 
   it("renders a server range error with the field's units", async () => {

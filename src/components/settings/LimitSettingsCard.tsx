@@ -93,8 +93,12 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   const [resetBusy, setResetBusy] = useState(false)
   const [resetError, setResetError] = useState("")
   const edits = useRef(0)
-  const unitsRef = useRef(units)
-  useEffect(() => { unitsRef.current = units }, [units])
+  // The newest save/reset: an older answer arriving later is dropped.
+  const requestSeq = useRef(0)
+  // The units are fixed for the life of the card: one source for the load, the save and the render.
+  const [fixedUnits] = useState(units)
+  const draftRef = useRef(draft)
+  useEffect(() => { draftRef.current = draft }, [draft])
 
   const load = useCallback(async () => {
     setLoadError(null)
@@ -102,27 +106,30 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     try {
       const next = await getLimitSettings(card)
       setSettings(next)
-      setDraft(draftOf(next, unitsRef.current))
+      setDraft(draftOf(next, fixedUnits))
     } catch (cause) {
       setLoadError({ cause })
     }
-  }, [card])
+  }, [card, fixedUnits])
 
   useEffect(() => { queueMicrotask(() => void load()) }, [load])
 
   const fields = settings?.Fields ?? []
   const byKey = new Map(fields.map((field) => [field.Key, field]))
-  const allowed = (key: string) => units[key] ?? []
+  // Only grouped fields render, so only they are validated and can show a server error.
+  const rendered = new Set(groups.flatMap((group) => group.keys))
+  const shown = fields.filter((field) => rendered.has(field.Key))
+  const allowed = (key: string) => fixedUnits[key] ?? []
 
   function validate(): Record<string, string> {
     const errors: Record<string, string> = {}
-    for (const field of fields) {
+    for (const field of shown) {
       const base = baseOf(draft[field.Key])
       if (base === null) errors[field.Key] = t("admin.limits.error.required")
       else if (Number.isNaN(base) || base < field.Min || base > field.Max) errors[field.Key] = rangeMessage(field, field.Min, field.Max, allowed(field.Key))
     }
     for (const rule of RULES) {
-      if (!byKey.has(rule.key) || !byKey.has(rule.other) || errors[rule.key] || errors[rule.other]) continue
+      if (!rendered.has(rule.key) || !rendered.has(rule.other) || !byKey.has(rule.key) || !byKey.has(rule.other) || errors[rule.key] || errors[rule.other]) continue
       const value = baseOf(draft[rule.key]) as number
       const other = baseOf(draft[rule.other]) as number
       if (!rule.holds(value, other)) errors[rule.key] = t(rule.message, { field: t(labelKey(rule.other)) })
@@ -151,19 +158,26 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     setSaveBusy(true)
     setServerErrors({})
     const seen = edits.current
+    const seq = ++requestSeq.current
+    const submitted = draftRef.current
     const values = Object.fromEntries(fields.map((field) => [field.Key, baseOf(draft[field.Key]) as number]))
     try {
       const next = await saveLimitSettings(card, values)
+      if (seq !== requestSeq.current) return
       setSettings(next)
       // Edits typed while the save was running stay in the form.
-      if (edits.current === seen) { setDraft(draftOf(next, units)); setChecked(false) }
+      if (edits.current === seen) { setDraft(draftOf(next, fixedUnits)); setChecked(false) }
       toast.success(t("admin.limits.saved"))
     } catch (err) {
+      if (seq !== requestSeq.current) return
       const named = serverField(err)
-      const field = named && byKey.get(named.field)
+      const field = named && rendered.has(named.field) ? byKey.get(named.field) : undefined
       if (named && field) {
-        const message = named.min !== undefined && named.max !== undefined ? rangeMessage(field, named.min, named.max, allowed(field.Key)) : localizedError(err)
-        setServerErrors({ [field.Key]: message })
+        // The field was edited during the save: the error is about the old value.
+        if (draftRef.current[field.Key] === submitted[field.Key]) {
+          const message = named.min !== undefined && named.max !== undefined ? rangeMessage(field, named.min, named.max, allowed(field.Key)) : localizedError(err)
+          setServerErrors({ [field.Key]: message })
+        }
       } else {
         toast.error(localizedError(err))
       }
@@ -175,11 +189,13 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   async function reset() {
     setResetBusy(true)
     setResetError("")
+    const seq = ++requestSeq.current
     try {
       const next = await resetLimitSettings(card)
+      if (seq !== requestSeq.current) return
       edits.current += 1
       setSettings(next)
-      setDraft(draftOf(next, units))
+      setDraft(draftOf(next, fixedUnits))
       setChecked(false)
       setServerErrors({})
       setResetting(false)
