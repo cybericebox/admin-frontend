@@ -28,7 +28,7 @@ function failureText(err: unknown): string {
   return failure.token ? t("admin.imageRegistry.failedToken", { reason, token: t(`admin.imageRegistry.token.${failure.token}`) }) : t("admin.imageRegistry.failed", { reason })
 }
 
-function Field({ id, label, help, children }: { id: string; label: string; help?: string; children: React.ReactNode }) {
+function Field({ id, label, help, children }: { id?: string; label: string; help?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
@@ -59,10 +59,13 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
   const [listBusy, setListBusy] = useState(false)
   const [saveBusy, setSaveBusy] = useState(false)
   const [error, setError] = useState("")
+  const [info, setInfo] = useState("")
   const [disconnecting, setDisconnecting] = useState(false)
   const [disconnectBusy, setDisconnectBusy] = useState(false)
   const [disconnectError, setDisconnectError] = useState("")
   const edits = useRef(0)
+  // Bumped when the provider or account changes: a repository list requested before it is stale.
+  const target = useRef(0)
 
   const disabled = !canWrite
   const account_ = account.trim()
@@ -70,7 +73,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
   const dirty = provider !== (settings.Provider || "dockerhub") || account_ !== settings.Account || repository !== settings.Repository
     || pushToken !== "" || pullToken !== "" || clearPull
   // A new provider account has no stored token to reuse: a token must be typed.
-  const canSave = !!account_ && !!repository && (sameAccount ? settings.PushTokenSet : pushToken !== "")
+  const canSave = !settings.SecretsKeyMissing && !!account_ && !!repository && (pushToken !== "" || (sameAccount && settings.PushTokenSet))
   const repoOptions = (repositories ?? (settings.Repository ? [settings.Repository] : [])).map((value) => ({ value, label: value }))
   if (repository && !repoOptions.some((o) => o.value === repository)) repoOptions.unshift({ value: repository, label: repository })
 
@@ -78,20 +81,24 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
     edits.current += 1
     apply()
     setError("")
-    if (resetRepository) { setRepositories(null); setRepository("") }
+    setInfo("")
+    if (resetRepository) { target.current += 1; setRepositories(null); setRepository(""); setClearPull(false) }
   }
 
   async function list() {
     if (listBusy) return
     setListBusy(true)
     setError("")
+    setInfo("")
+    const generation = target.current
     try {
       const found = await listImageRegistryRepositories({ Provider: provider, Account: account_, Token: pushToken })
+      if (generation !== target.current) return
       setRepositories(found)
-      if (found.length === 0) setError(t("admin.imageRegistry.noRepositories"))
+      if (found.length === 0) setInfo(t("admin.imageRegistry.noRepositories"))
       else if (repository && !found.includes(repository)) setRepository("")
     } catch (err) {
-      setError(failureText(err))
+      if (generation === target.current) setError(failureText(err))
     } finally {
       setListBusy(false)
     }
@@ -144,7 +151,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
         <p className="text-sm text-muted-foreground">{t("admin.imageRegistry.note")}</p>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field id="registry-provider" label={t("admin.imageRegistry.provider")}>
+          <Field label={t("admin.imageRegistry.provider")}>
             <SelectMenu
               ariaLabel={t("admin.imageRegistry.provider")}
               className="w-full"
@@ -176,7 +183,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
         </div>
 
         <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-          <Field id="registry-repository" label={t("admin.imageRegistry.repository")}>
+          <Field label={t("admin.imageRegistry.repository")}>
             <SelectMenu
               ariaLabel={t("admin.imageRegistry.repository")}
               className="w-full"
@@ -192,7 +199,8 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
           )}
         </div>
 
-        {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
+        {error && <Alert variant="destructive">{error}</Alert>}
+        {info && <Alert variant="info">{info}</Alert>}
 
         {canWrite && (
           <div className="flex flex-wrap items-center gap-3">

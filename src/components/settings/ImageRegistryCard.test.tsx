@@ -87,4 +87,55 @@ describe("ImageRegistryCard", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Відʼєднати сховище" })).toBeNull()
   })
+
+  it("drops the clear-pull flag when the account changes", async () => {
+    renderCard({ ...saved, PullTokenSet: true })
+    fireEvent.click(screen.getByLabelText("Прибрати токен для отримання образів"))
+    fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "other" } })
+    expect(screen.getByLabelText("Токен для отримання образів")).toBeEnabled()
+    fireEvent.change(screen.getByLabelText("Токен для завантаження образів"), { target: { value: "tok" } })
+    list.mockResolvedValue(["other/a"])
+    fireEvent.click(screen.getByRole("button", { name: "Показати репозиторії" }))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Репозиторій" })).toBeEnabled())
+    fireEvent.keyDown(screen.getByRole("button", { name: "Репозиторій" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "other/a" }))
+    save.mockResolvedValue(saved)
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ ClearPullToken: false })))
+  })
+
+  it("saves with a typed push token when the same account has none stored", async () => {
+    renderCard({ ...saved, PushTokenSet: false })
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText("Токен для завантаження образів"), { target: { value: "tok" } })
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeEnabled()
+  })
+
+  it("ignores a repository list that arrives after the account changed", async () => {
+    renderCard(empty)
+    fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "first" } })
+    let resolve!: (v: string[]) => void
+    list.mockReturnValue(new Promise<string[]>((r) => { resolve = r }))
+    fireEvent.click(screen.getByRole("button", { name: "Показати репозиторії" }))
+    fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "second" } })
+    resolve(["first/a"])
+    await waitFor(() => expect(screen.getByRole("button", { name: "Показати репозиторії" })).toBeEnabled())
+    expect(screen.getByRole("button", { name: "Репозиторій" })).toBeDisabled()
+  })
+
+  it("shows an empty repository list as information, not an error", async () => {
+    renderCard(empty)
+    fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "icebox" } })
+    list.mockResolvedValue([])
+    fireEvent.click(screen.getByRole("button", { name: "Показати репозиторії" }))
+    const note = await screen.findByText("Токен не бачить жодного репозиторію.")
+    expect(note.closest("[role=alert]")?.className ?? "").not.toMatch(/destructive/)
+    expect(note.closest("[role=alert]")).not.toBeNull()
+  })
+
+  it("disables Save while the secrets key is missing", () => {
+    renderCard({ ...saved, SecretsKeyMissing: true })
+    fireEvent.change(screen.getByLabelText("Токен для завантаження образів"), { target: { value: "tok" } })
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+  })
 })
