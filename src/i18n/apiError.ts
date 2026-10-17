@@ -46,3 +46,8 @@ export function errorOr(err: unknown, fallback: string): string {
   }
   return fallback
 }
+
+/** The overloaded text when the server shed the request, else `fallback` (for fixed-message failure toasts). */
+export function overloadOr(err: unknown, fallback: string): string {
+  return isOverloadError(err) ? t("error.overloaded") : fallback
+}

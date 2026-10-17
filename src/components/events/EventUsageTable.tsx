@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast"
 import { apiGetBlob } from "@/api/client"
 import { getEventAnalyticsUsage, isForbidden, usageExportPath, type UsageUser } from "@/api/events/analytics"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { formatBytes, formatCount, formatDateTime, formatDuration } from "./eventAnalyticsFormat"
 import { useEventReport } from "./useEventReport"
 
@@ -83,8 +84,8 @@ function ExportButton({ eventID, disabled }: { eventID: string; disabled: boolea
       link.click()
       link.remove()
       URL.revokeObjectURL(url)
-    } catch {
-      toast.error(t("admin.platformAnalytics.csv.failed"))
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.platformAnalytics.csv.failed")))
     } finally {
       setBusy(false)
     }
