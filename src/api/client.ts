@@ -7,7 +7,7 @@
 import { apiOrigin, idOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
-import { fetchWithOverloadRetry } from "./retry"
+import { fetchWithOverloadRetry, parseRetryAfterSeconds } from "./retry"
 const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
@@ -21,7 +21,7 @@ export class ApiError extends Error {
     // Stable numeric FullCode from the envelope (Status.Code). This — not the
     // English message — is the i18n key callers localize against (see i18n/apiError).
     public readonly code?: number,
-    // Seconds from the Retry-After header of a 429 (undefined when absent).
+    // Seconds from the Retry-After header (undefined when absent; 0 when it says now).
     public readonly retryAfter?: number,
     // X-Request-ID of the failed response: the id the backend journals the 5xx under (platform error journal).
     public readonly requestId?: string
@@ -84,13 +84,6 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
   redirectToSignInPage(signInUrl)
 }
 
-// Retry-After as whole seconds (the backend sends seconds, never a date).
-function parseRetryAfter(value: string | null): number | undefined {
-  if (!value) return undefined
-  const seconds = Number(value)
-  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined
-}
-
 // Shared by request() and apiPostMultipart(): 401 redirect, then envelope
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
@@ -133,7 +126,7 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
       envelope?.Status?.Code,
-      parseRetryAfter(res.headers.get("Retry-After")),
+      parseRetryAfterSeconds(res.headers.get("Retry-After")),
       res.headers.get("X-Request-ID") ?? undefined
     )
   }
