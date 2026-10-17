@@ -6,6 +6,7 @@ import { t } from "@/i18n/t"
 const TABS = [
   { href: "/settings", labelKey: "admin.settings.tab.general" },
   { href: "/settings/mail", labelKey: "admin.settings.tab.mail" },
+  { href: "/settings/images", labelKey: "admin.imageRegistry.tab" },
   { href: "/settings/test-mode", labelKey: "admin.previewSettings.title" },
 ]
 
