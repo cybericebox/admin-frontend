@@ -63,7 +63,7 @@ export function PreviewDefaultsEditor() {
   if (query.error) return <LoadError className="min-h-72" message={t("admin.previewSettings.loadFailed")} error={query.error} onRetry={() => void load()} />
   return <form onSubmit={save} className="space-y-5">
     <Card><CardHeader><CardTitle className="text-base">{t("admin.previewSettings.title")}</CardTitle><CardDescription>{t("admin.previewSettings.description")}</CardDescription></CardHeader><CardContent className="space-y-5">
-      <div><h2 className="font-semibold">{t("admin.previewSettings.selection")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.previewSettings.inheritance")}</p></div>
+      <p className="text-sm text-muted-foreground">{t("admin.previewSettings.inheritance")}</p>
       <div className="space-y-2"><label className="block text-sm font-medium" htmlFor="preview-group-name">{t("admin.previewSettings.groupName")}</label>
         <FieldValidation label={t("admin.previewSettings.groupName")} error={nameError}>{canWrite ? <Input id="preview-group-name" value={groupName} maxLength={100} required onChange={event => { setNameError(""); setDraft({ GroupName: event.target.value, Selections: selected }) }} /> : <p>{groupName}</p>}</FieldValidation>
       </div>

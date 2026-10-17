@@ -187,6 +187,34 @@ describe("LimitSettingsCard", () => {
     await waitFor(() => expect(within(block).getByRole("alert").textContent).toBe(t("admin.limits.error.range", { min: "1 год", max: "7 днів" })))
   })
 
+  it("toasts when the server error field was edited during the save", async () => {
+    renderLeases()
+    const lease = await screen.findByLabelText(label("Lease"))
+    fireEvent.change(lease, { target: { value: "5" } })
+    let fail!: (e: unknown) => void
+    save.mockReturnValue(new Promise<LimitSettings>((_, r) => { fail = r }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(saveButton()).toHaveAttribute("aria-busy", "true"))
+    fireEvent.change(lease, { target: { value: "6" } })
+    fail(new ApiError(400, { Status: { Code: 20104, Context: { field: "Lease", min: HOUR, max: 7 * DAY } } }, "x", undefined, 20104))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Значення налаштування поза допустимими межами"))
+  })
+
+  it("closes the reset dialog when a save overtakes the reset", async () => {
+    renderLeases()
+    fireEvent.change(await screen.findByLabelText(label("Lease")), { target: { value: "5" } })
+    let finish!: (v: LimitSettings) => void
+    reset.mockReturnValue(new Promise<LimitSettings>((r) => { finish = r }))
+    const saveBtn = saveButton()
+    fireEvent.click(screen.getByRole("button", { name: t("admin.limits.reset") }))
+    fireEvent.click(await screen.findByRole("button", { name: t("admin.limits.resetConfirm") }))
+    save.mockReturnValue(new Promise(() => {}))
+    fireEvent.click(saveBtn)
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    finish(leases)
+    await waitFor(() => expect(screen.queryByRole("button", { name: t("admin.limits.resetConfirm") })).toBeNull())
+  })
+
   it("toasts a server error without a field", async () => {
     renderLeases()
     fireEvent.change(await screen.findByLabelText(label("Lease")), { target: { value: "5" } })

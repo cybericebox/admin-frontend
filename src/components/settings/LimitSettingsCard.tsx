@@ -177,6 +177,8 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
         if (draftRef.current[field.Key] === submitted[field.Key]) {
           const message = named.min !== undefined && named.max !== undefined ? rangeMessage(field, named.min, named.max, allowed(field.Key)) : localizedError(err)
           setServerErrors({ [field.Key]: message })
+        } else {
+          toast.error(localizedError(err))
         }
       } else {
         toast.error(localizedError(err))
@@ -192,7 +194,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     const seq = ++requestSeq.current
     try {
       const next = await resetLimitSettings(card)
-      if (seq !== requestSeq.current) return
+      if (seq !== requestSeq.current) { setResetting(false); return }
       edits.current += 1
       setSettings(next)
       setDraft(draftOf(next, fixedUnits))
@@ -201,7 +203,8 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
       setResetting(false)
       toast.success(t("admin.limits.resetDone"))
     } catch (err) {
-      setResetError(localizedError(err))
+      if (seq !== requestSeq.current) setResetting(false)
+      else setResetError(localizedError(err))
     } finally {
       setResetBusy(false)
     }
