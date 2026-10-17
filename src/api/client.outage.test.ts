@@ -35,7 +35,7 @@ describe("API outage detection", () => {
     }
   })
 
-  it("reports the outage only on the final 503, after the retries", async () => {
+  it("does not report an outage on the final overload 503 either, GET or POST", async () => {
     vi.useFakeTimers()
     try {
       const fetchMock = vi.fn(async () => new Response("", { status: 503, headers: { "Retry-After": "1" } }))
@@ -48,10 +48,16 @@ describe("API outage detection", () => {
       await vi.runAllTimersAsync()
       await settled
       expect(fetchMock).toHaveBeenCalledTimes(4)
-      expect(isServiceDown()).toBe(true)
+      expect(isServiceDown()).toBe(false)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("does not report an outage on an overload 503 to a mutation (no X-Request-ID)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503, headers: { "Retry-After": "1" } })))
+    await expect(apiPost("/api/x", {}, undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
   })
 
   it("does not repeat a GET 503 without Retry-After and reports it at once", async () => {
