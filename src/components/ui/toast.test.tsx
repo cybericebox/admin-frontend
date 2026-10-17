@@ -67,7 +67,7 @@ describe("ToastProvider", () => {
 
   it("offers «Спробувати ще раз» on an overload error and runs the retry once, closing the toast", () => {
     const retry = vi.fn()
-    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, null), retry)}>Busy</button></ToastProvider>)
+    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, null, "x", undefined, undefined, 1), retry)}>Busy</button></ToastProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Busy" }))
     const alert = screen.getByRole("alert")
     expect(alert).toHaveTextContent("Сервер перевантажений, спробуйте за кілька секунд")
@@ -76,14 +76,16 @@ describe("ToastProvider", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
-  it("shows no retry button for other errors or without a retry handler", () => {
+  it("shows no retry button for a 500, a 503 without Retry-After, or without a retry handler", () => {
     render(<ToastProvider>
       <button onClick={() => toastApiError(new ApiError(500, null), vi.fn())}>Broken</button>
-      <button onClick={() => toastApiError(new ApiError(503, null))}>Busy</button>
+      <button onClick={() => toastApiError(new ApiError(503, null), vi.fn())}>Unavailable</button>
+      <button onClick={() => toastApiError(new ApiError(503, null, "x", undefined, undefined, 1))}>Busy</button>
     </ToastProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Broken" }))
+    fireEvent.click(screen.getByRole("button", { name: "Unavailable" }))
     fireEvent.click(screen.getByRole("button", { name: "Busy" }))
-    expect(screen.getAllByRole("alert")).toHaveLength(2)
+    expect(screen.getAllByRole("alert")).toHaveLength(3)
     expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).not.toBeInTheDocument()
   })
 })

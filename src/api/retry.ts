@@ -2,7 +2,7 @@
 // Framework-free and dependency-free: the same file is copied verbatim into
 // every frontend; only the call site in each client differs.
 
-/** Statuses that mean "busy, ask again shortly". */
+/** Statuses that can mean "busy, ask again shortly" (a 503 only with Retry-After). */
 export const OVERLOAD_STATUSES = [429, 503]
 
 /** A Retry-After longer than this is not worth waiting for in a pending request. */
@@ -44,6 +44,14 @@ function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
   })
 }
 
+/**
+ * The server shed the request: a 429, or a 503 with Retry-After (the daemon's
+ * overload answer). A 503 without it is a domain or edge "unavailable" error.
+ */
+export function isOverloadResponse(res: Response): boolean {
+  return res.status === 429 || (res.status === 503 && res.headers.has("Retry-After"))
+}
+
 export type OverloadRetryOptions = {
   method: string
   signal?: AbortSignal | null
@@ -53,7 +61,7 @@ export type OverloadRetryOptions = {
 }
 
 /**
- * Runs `doFetch` and, for a GET or HEAD answered 429/503, tries again after
+ * Runs `doFetch` and, for a GET or HEAD with an overload answer, tries again after
  * retryDelayMs. Mutations are never repeated. Returns the last Response (the
  * caller handles it as before); an abort during the wait rejects with the
  * AbortError and no further request is sent.
@@ -65,7 +73,7 @@ export async function fetchWithOverloadRetry(doFetch: () => Promise<Response>, o
   const wait = opts.sleep ?? sleep
   for (let attempt = 0; ; attempt++) {
     const res = await doFetch()
-    if (!retryable || attempt + 1 >= maxAttempts || !OVERLOAD_STATUSES.includes(res.status)) return res
+    if (!retryable || attempt + 1 >= maxAttempts || !isOverloadResponse(res)) return res
     const delay = retryDelayMs(attempt, res.headers.get("Retry-After"))
     if (delay === null) return res
     // Release the connection held by the unread body of the discarded answer.
@@ -74,9 +82,12 @@ export async function fetchWithOverloadRetry(doFetch: () => Promise<Response>, o
   }
 }
 
-/** An API error the user can simply repeat in a moment: 429 or 503. */
+/**
+ * An API error the user can simply repeat in a moment: a 429, or a 503 that
+ * carried Retry-After (the clients store it as retryAfter or retryAfterSeconds).
+ */
 export function isOverloadError(err: unknown): boolean {
   if (!(err instanceof Error)) return false
-  const status = (err as { status?: unknown }).status
-  return typeof status === "number" && OVERLOAD_STATUSES.includes(status)
+  const { status, retryAfter, retryAfterSeconds } = err as { status?: unknown; retryAfter?: unknown; retryAfterSeconds?: unknown }
+  return status === 429 || (status === 503 && (retryAfter != null || retryAfterSeconds != null))
 }

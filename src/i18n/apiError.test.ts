@@ -16,11 +16,15 @@ describe("localizedError", () => {
     expect(localizedError(new ApiError(429, null))).toBe(t("error.rateLimitedNoWait"))
   })
 
-  it("answers a 503 with the overloaded message", () => {
-    expect(localizedError(new ApiError(503, null))).toBe(t("error.overloaded"))
-    expect(localizedError(new ApiError(503, null, "x", undefined, 10503))).toBe(t("error.overloaded"))
+  it("answers an overload 503 (with Retry-After) with the overloaded message", () => {
+    expect(localizedError(new ApiError(503, null, "x", undefined, undefined, 1))).toBe(t("error.overloaded"))
+    expect(localizedError(new ApiError(503, null, "x", undefined, 10503, 1))).toBe(t("error.overloaded"))
+    // A 503 without Retry-After is a domain or edge error, not an overload.
+    expect(localizedError(new ApiError(503, null))).toBe(t("error.generic"))
+    // A 429 keeps the rate-limit text.
+    expect(localizedError(new ApiError(429, null))).toBe(t("error.rateLimitedNoWait"))
     // A domain 503 with a catalog code keeps its own message.
-    expect(localizedError(new ApiError(503, null, "x", undefined, 20225))).not.toBe(t("error.overloaded"))
+    expect(localizedError(new ApiError(503, null, "x", undefined, 20225, 1))).not.toBe(t("error.overloaded"))
     expect(uk["error.overloaded"]).toBe("Сервер перевантажений, спробуйте за кілька секунд")
     expect(en["error.overloaded"]).toBe("The server is overloaded, try again in a few seconds")
     expect(uk["error.overloaded.retry"]).toBe("Спробувати ще раз")

@@ -1,15 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "./client"
-import { fetchWithOverloadRetry, isOverloadError, retryDelayMs } from "./retry"
+import { fetchWithOverloadRetry, isOverloadError, isOverloadResponse, retryDelayMs } from "./retry"
 
 const answer = (status: number, headers: Record<string, string> = {}) => new Response(status === 200 ? "ok" : "", { status, headers })
+/** The daemon's overload answer: 503 with Retry-After. */
+const overloaded = () => answer(503, { "Retry-After": "1" })
 
-/** A doFetch mock that answers with `statuses` in order (the last one repeats). */
+/** A doFetch mock that answers with `statuses` in order (the last one repeats); 503 means the overload 503. */
 function answers(...statuses: Array<number | Response>) {
   let call = 0
   return vi.fn(async () => {
     const next = statuses[Math.min(call++, statuses.length - 1)]
-    return typeof next === "number" ? answer(next) : next
+    if (typeof next !== "number") return next
+    return next === 503 ? overloaded() : answer(next)
   })
 }
 
@@ -98,8 +101,15 @@ describe("fetchWithOverloadRetry", () => {
     expect(doFetch).toHaveBeenCalledTimes(1)
   })
 
+  it("does not retry a GET 503 without Retry-After (a domain or edge error)", async () => {
+    const doFetch = answers(answer(503), 200)
+    const result = await fetchWithOverloadRetry(doFetch, { method: "GET" })
+    expect(result.status).toBe(503)
+    expect(doFetch).toHaveBeenCalledTimes(1)
+  })
+
   it("gives up after 4 tries and returns the last 503", async () => {
-    const last = answer(503)
+    const last = overloaded()
     const doFetch = answers(503, 503, 503, last, 200)
     const result = fetchWithOverloadRetry(doFetch, { method: "GET" })
     await vi.runAllTimersAsync()
@@ -127,11 +137,24 @@ describe("fetchWithOverloadRetry", () => {
   })
 })
 
+describe("isOverloadResponse", () => {
+  it("is a 429, or a 503 with Retry-After", () => {
+    expect(isOverloadResponse(answer(429))).toBe(true)
+    expect(isOverloadResponse(overloaded())).toBe(true)
+    expect(isOverloadResponse(answer(503))).toBe(false)
+    expect(isOverloadResponse(answer(502, { "Retry-After": "1" }))).toBe(false)
+    expect(isOverloadResponse(answer(200))).toBe(false)
+  })
+})
+
 describe("isOverloadError", () => {
-  it("is true only for an API 429 or 503", () => {
-    expect(isOverloadError(new ApiError(503, null))).toBe(true)
+  it("is an API 429, or a 503 that carried Retry-After", () => {
     expect(isOverloadError(new ApiError(429, null))).toBe(true)
-    expect(isOverloadError(new ApiError(500, null))).toBe(false)
+    expect(isOverloadError(new ApiError(503, null, "x", undefined, 70431, 1))).toBe(true)
+    expect(isOverloadError(Object.assign(new Error("busy"), { status: 503, retryAfterSeconds: 1 }))).toBe(true)
+    expect(isOverloadError(new ApiError(503, null))).toBe(false)
+    expect(isOverloadError(new ApiError(503, null, "x", undefined, 20225))).toBe(false)
+    expect(isOverloadError(new ApiError(500, null, "x", undefined, undefined, 1))).toBe(false)
     expect(isOverloadError(new Error("503"))).toBe(false)
     expect(isOverloadError(null)).toBe(false)
   })
