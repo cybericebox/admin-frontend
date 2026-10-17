@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toast"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -35,8 +36,8 @@ export function EmailFooterEditor({ presetId, presets, variables, readOnly, onSe
       setCreating(false)
       setName("")
       setBlocks([])
-    } catch {
-      toast.error(t("admin.notif.tpl.saveError"))
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.notif.tpl.saveError")))
     } finally {
       setSaving(false)
     }

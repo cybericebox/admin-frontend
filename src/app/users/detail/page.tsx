@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
+import { overloadOr } from "@/i18n/apiError"
 import { useRole, type Role } from "@/lib/useRole"
 import { assignableRoles } from "@/lib/assignableRoles"
 import { roleLabel } from "@/lib/roles"
@@ -75,8 +76,8 @@ function Detail() {
       try {
         await apiPatch(`/api/users/${id}/${path}`, body)
         toast.success(t(successKey))
-      } catch {
-        toast.error(t("admin.userDetail.actionError"))
+      } catch (err) {
+        toast.error(overloadOr(err, t("admin.userDetail.actionError")))
         // Roll back by re-reading the user silently: no loader, the page keeps its content.
         try { setUser(await apiGet<UserDetail>(`/api/users/${id}`)) } catch { /* keep the shown value */ }
       }

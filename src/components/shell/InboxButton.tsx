@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 
 import { apiGet, apiPatch, apiPost } from "@/api/client"
-import { localizedError } from "@/i18n/apiError"
+import { localizedError, overloadOr } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { onServiceRestored } from "@/lib/serviceStatus"
@@ -296,8 +296,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       setPopIns((current) => current.filter((entry) => entry.ID !== item.ID))
       announceRead()
       return true
-    } catch {
-      setActionError(t("inbox.markReadError"))
+    } catch (err) {
+      setActionError(overloadOr(err, t("inbox.markReadError")))
       return false
     }
   }
@@ -349,8 +349,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       announceRead()
       // Category totals come from the server; the poll corrects the bell right away.
       if (current !== "all") pollNowRef.current()
-    } catch {
-      setActionError(t("inbox.readAllError"))
+    } catch (err) {
+      setActionError(overloadOr(err, t("inbox.readAllError")))
     }
   }
 
