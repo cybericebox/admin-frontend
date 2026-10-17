@@ -2603,6 +2603,7 @@
   "admin.limits.cancel": "Cancel",
   "admin.limits.loadError": "Could not load the settings",
   "admin.limits.default": "Default: {value}",
+  "admin.limits.ignored": "The saved values are not applied; the defaults are in force. Save or reset.",
   "admin.limits.inPrivacyPolicy": "Stated in the Privacy Policy",
   "admin.limits.unitLabel": "Unit: {field}",
   "admin.limits.amount": "{count} {unit}",

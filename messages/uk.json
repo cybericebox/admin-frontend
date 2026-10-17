@@ -2603,6 +2603,7 @@
   "admin.limits.cancel": "Скасувати",
   "admin.limits.loadError": "Не вдалося завантажити налаштування",
   "admin.limits.default": "За замовчуванням: {value}",
+  "admin.limits.ignored": "Збережені значення не застосовано, діють типові. Збережіть або скиньте.",
   "admin.limits.inPrivacyPolicy": "Указано в Політиці конфіденційності",
   "admin.limits.unitLabel": "Одиниця: {field}",
   "admin.limits.amount": "{count} {unit}",

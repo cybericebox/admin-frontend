@@ -30,6 +30,13 @@ const RULES: { key: string; other: string; holds: (value: number, other: number)
   { key: "EntryBytes", other: "UnpackedBytes", holds: (value, other) => value <= other, message: "admin.limits.error.atMost" },
 ]
 
+/** Room for the loaded form (two columns of ~6.5rem rows, group headings, buttons), so loader → data does not shift. */
+export function reservedHeight(groups: LimitGroup[], withButtons: boolean): string {
+  const rem = groups.reduce((sum, group) => sum + (group.titleKey ? 1.75 : 0) + Math.ceil(group.keys.length / 2) * 6.5, 0)
+    + Math.max(0, groups.length - 1) * 1.5 + (withButtons ? 4.5 : 0)
+  return `${rem}rem`
+}
+
 /** «36 год», «3 дні», «512 МіБ», «1000»: the value in the largest allowed unit that divides it. */
 function formatAmount(kind: LimitKind, value: number, allowed: Unit[]): string {
   const unit = bestUnit(kind, value, allowed)
@@ -255,11 +262,16 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
       </CardHeader>
       <CardContent className="space-y-6">
         {loadError ? (
-          <LoadError message={t("admin.limits.loadError")} error={loadError.cause} onRetry={() => void load()} />
+          <div data-testid="limit-reserve" className="flex flex-col" style={{ minHeight: reservedHeight(groups, canWrite) }}>
+            <LoadError className="flex-1" message={t("admin.limits.loadError")} error={loadError.cause} onRetry={() => void load()} />
+          </div>
         ) : !settings ? (
-          <LoadingArea className="min-h-40" label={t("admin.loading")} />
+          <div data-testid="limit-reserve" className="flex flex-col" style={{ minHeight: reservedHeight(groups, canWrite) }}>
+            <LoadingArea className="flex-1" label={t("admin.loading")} />
+          </div>
         ) : (
           <>
+            {settings.Ignored && <p role="status" className="text-sm text-muted-foreground">{t("admin.limits.ignored")}</p>}
             {groups.map((group, index) => {
               const groupFields = group.keys.map((key) => byKey.get(key)).filter((field): field is LimitField => !!field)
               if (groupFields.length === 0) return null

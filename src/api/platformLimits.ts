@@ -23,7 +23,8 @@ export type LimitField = {
   InPrivacyPolicy: boolean
 }
 
-export type LimitSettings = { Custom: boolean; UpdatedAt: string | null; Fields: LimitField[] }
+/** Ignored: a saved row exists but does not apply, the defaults are in force. */
+export type LimitSettings = { Custom: boolean; Ignored?: boolean; UpdatedAt: string | null; Fields: LimitField[] }
 
 export type LimitCard = "retention" | "archive-limits" | "test-runs"
 

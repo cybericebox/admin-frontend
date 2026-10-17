@@ -291,6 +291,25 @@ describe("LimitSettingsCard", () => {
     expect(screen.queryByRole("button", { name: t("admin.limits.reset") })).toBeNull()
   })
 
+  it("tells that a saved row is ignored", async () => {
+    renderLeases({ ...leases, Ignored: true })
+    expect(await screen.findByText(t("admin.limits.ignored"))).toBeTruthy()
+  })
+
+  it("does not show the note when nothing is ignored", async () => {
+    renderLeases()
+    await screen.findByLabelText(label("Lease"))
+    expect(screen.queryByText(t("admin.limits.ignored"))).toBeNull()
+  })
+
+  it("reserves the height of the loaded form while loading", () => {
+    get.mockReturnValue(new Promise(() => {}))
+    render(<LimitSettingsCard card="retention" title="Зберігання" labelKey={(key) => key} units={{}}
+      groups={[{ titleKey: "admin.limits.group.accounts", keys: ["A", "B", "C", "D"] }, { titleKey: "admin.limits.group.sessions", keys: ["E"] }]} />)
+    // (1.75 + 2 rows) + (1.75 + 1 row) rows of 6.5rem, one group gap, the buttons
+    expect(screen.getByTestId("limit-reserve").style.minHeight).toBe(`${1.75 + 13 + 1.75 + 6.5 + 1.5 + 4.5}rem`)
+  })
+
   it("shows a load error with retry", async () => {
     get.mockRejectedValueOnce(new ApiError(500, null, "x")).mockResolvedValueOnce(leases)
     render(<LimitSettingsCard card="test-runs" title="Тестові запуски" groups={[{ keys: ["Lease", "LeaseMax"] }]}
