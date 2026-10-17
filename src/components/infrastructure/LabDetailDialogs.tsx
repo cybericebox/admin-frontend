@@ -19,6 +19,7 @@ import {
 } from "@/api/infrastructure"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
+import { standReasonText } from "@/lib/standReason"
 
 const BLOCK = "flex min-h-64 items-center justify-center"
 
@@ -93,7 +94,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
         <StandStatusBadge status={detail.Status} />
         {stand.Queue && <QueueBadge position={stand.Queue.Position} length={stand.Queue.Length} reason={stand.Queue.Reason} labs={stand.Queue.QueuedLabs} />}
         {stand.ImageWarning && <ImageWarningIcon />}
-        {detail.Reason && <span className="break-words text-sm text-muted-foreground">{detail.Reason}</span>}
+        {detail.Reason && <span className="break-words text-sm text-muted-foreground">{standReasonText(detail.Reason)}</span>}
       </div>
       {detail.Group && <GroupLifecycleFacts group={detail.Group} stale={!!error} />}
       {!detail.LaboratoriesAvailable ? <EmptyState compact message={t("admin.labs.detail.unavailable")} />
@@ -102,7 +103,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="min-w-0 break-words font-medium text-foreground">{lab.Lab?.ExerciseName ?? lab.ChallengeName}</h3>
             <StandStatusBadge status={lab.Status} />
-            {lab.Reason && <span className="break-words text-sm text-muted-foreground">{lab.Reason}</span>}
+            {lab.Reason && <span className="break-words text-sm text-muted-foreground">{standReasonText(lab.Reason)}</span>}
           </div>
           {lab.Lab && <LifecycleFacts lab={lab.Lab} stale={!!error} />}
           {!!lab.Questions?.length && <div className="min-w-0 text-sm">

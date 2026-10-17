@@ -16,6 +16,7 @@ import { EventSiteLink } from "@/components/events/EventSiteLink"
 import type { Stand, StandEventOption } from "@/api/infrastructure"
 import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
+import { standReasonText } from "@/lib/standReason"
 
 export const STAND_STATUS_FILTERS = ["active", "creating", "ready", "failed", "removed"] as const
 
@@ -92,7 +93,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
                 <td><span className="ib-table__name block">{stand.EventName || stand.EventTag}</span><EventSiteLink tag={stand.EventTag} path="/manage/labs" tooltip={t("admin.labs.stands.openManage")} /></td>
                 <td>{teamLabel(stand)}</td>
                 <td><span className="inline-flex flex-wrap items-center gap-1.5"><StandStatusBadge status={stand.Status} />{stand.Queue && <QueueBadge position={stand.Queue.Position} length={stand.Queue.Length} reason={stand.Queue.Reason} labs={stand.Queue.QueuedLabs} />}{stand.ImageWarning && <ImageWarningIcon />}</span></td>
-                <td className="ib-table__dim">{stand.Reason || "—"}</td>
+                <td className="ib-table__dim">{stand.Reason ? standReasonText(stand.Reason) : "—"}</td>
                 <td><ResourceCell resources={stand.Resources} kind="cpu" /></td>
                 <td><ResourceCell resources={stand.Resources} kind="memory" /></td>
                 <td className="ib-table__dim"><TimeText iso={stand.UpdatedAt}>{formatListDateTime(stand.UpdatedAt)}</TimeText></td>
