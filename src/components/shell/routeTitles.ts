@@ -24,6 +24,7 @@ const ROUTE_TITLES: [prefix: string, key: string][] = [
   ["/audit", "admin.nav.audit"],
   ["/errors", "admin.nav.errors"],
   ["/settings", "admin.nav.settings"],
+  ["/settings/images", "admin.imageRegistry.title"],
 ]
 
 // usePathname ends with a slash (trailingSlash export), the prefixes do not.
