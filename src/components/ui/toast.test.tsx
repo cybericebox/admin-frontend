@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ToastProvider, toast, toastApiError } from "./toast"
+import { ToastProvider, toast } from "./toast"
+import { toastApiError } from "./toastApiError"
 import { ApiError } from "@/api/client"
 
 function Actions() {
