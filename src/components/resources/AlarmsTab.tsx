@@ -5,8 +5,7 @@ import { RefreshCw } from "lucide-react"
 import { acknowledgeAlarm, listOpenAlarms, recheckNow, type Alarm } from "@/api/resourceCalendar"
 import { Button } from "@/components/ui/button"
 import { TableState, TableWrap, TimeText } from "@/components/common/DsTable"
-import { toast } from "@/components/ui/toast"
-import { localizedError } from "@/i18n/apiError"
+import { toast, toastApiError } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
 import { Badge, Th, formatAmount, useCalendarResource } from "./resourceView"
@@ -23,7 +22,7 @@ export function AlarmsTab({ canWrite, version, onChanged }: { canWrite: boolean;
       setData((current) => current && current.map((item) => (item.ID === alarm.ID ? { ...item, ...saved } : item)))
       onChanged()
     } catch (err) {
-      toast.error(localizedError(err))
+      toastApiError(err, () => void acknowledge(alarm))
     } finally {
       setBusy(null)
     }
@@ -37,7 +36,7 @@ export function AlarmsTab({ canWrite, version, onChanged }: { canWrite: boolean;
       await refresh(true)
       onChanged()
     } catch (err) {
-      toast.error(localizedError(err))
+      toastApiError(err, () => void recheck())
     } finally {
       setRechecking(false)
     }

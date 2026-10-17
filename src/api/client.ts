@@ -7,6 +7,7 @@
 import { apiOrigin, idOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
+import { fetchWithOverloadRetry } from "./retry"
 const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
@@ -37,7 +38,10 @@ export class ApiError extends Error {
 //       runs on the caller.
 //   required: false — opt out (e.g. fetchMe, which treats 401 as "anonymous").
 //       The 401 is thrown as ApiError so the caller can handle it.
-export type ApiOptions = { required?: boolean }
+//   retry (default true) — a GET answered 429/503 is tried again with backoff
+//       (api/retry); the promise stays pending meanwhile. Mutations never repeat.
+//   retry: false — return the first answer (a caller that retries on its own).
+export type ApiOptions = { required?: boolean; retry?: boolean }
 
 // portless strips the port from a URL and forces https:, matching the backend's
 // expectations for return_to (port-free, https-only). Returns the input unchanged
@@ -145,16 +149,21 @@ async function request<T>(
 ): Promise<T> {
   const url = `${BASE_URL}${path}`
 
+  const doFetch = () => fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  })
+
   let res: Response
   try {
-    res = await fetch(url, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
-    })
+    // Only the final answer reaches finishRequest, so a retried 503 never reports an outage.
+    res = (opts.retry ?? true)
+      ? await fetchWithOverloadRetry(doFetch, { method: init.method ?? "GET", signal: init.signal })
+      : await doFetch()
   } catch (error) {
     // A caller-initiated abort or timeout is not an outage.
     if (isNetworkOutage(error, init.signal)) reportServiceUnavailable()
@@ -233,7 +242,8 @@ export async function apiGetBlob(path: string, opts: ApiOptions = {}): Promise<B
   const url = `${BASE_URL}${path}`
   let res: Response
   try {
-    res = await fetch(url, { method: "GET", credentials: "include" })
+    const doFetch = () => fetch(url, { method: "GET", credentials: "include" })
+    res = (opts.retry ?? true) ? await fetchWithOverloadRetry(doFetch, { method: "GET" }) : await doFetch()
   } catch (error) {
     if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error
