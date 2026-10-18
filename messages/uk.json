@@ -2608,7 +2608,6 @@
   "admin.limits.resetDone": "Типові значення відновлено",
   "admin.limits.cancel": "Скасувати",
   "admin.limits.loadError": "Не вдалося завантажити налаштування",
-  "admin.limits.default": "За замовчуванням: {value}",
   "admin.limits.ignored": "Збережені значення не застосовано, діють типові. Збережіть або скиньте.",
   "admin.limits.unitLabel": "Одиниця: {field}",
   "admin.limits.amount": "{count} {unit}",
