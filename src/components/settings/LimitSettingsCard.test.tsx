@@ -11,6 +11,8 @@ vi.mock("@/api/platformLimits", async (importOriginal) => ({
   saveLimitSettings: (card: string, values: unknown) => save(card, values),
   resetLimitSettings: (card: string) => reset(card),
 }))
+const policyGet = vi.fn()
+vi.mock("@/api/privacyPolicy", () => ({ getPolicyRetention: () => policyGet() }))
 const toastError = vi.fn()
 vi.mock("@/components/ui/toast", () => ({ toast: { error: (m: string) => toastError(m), success: vi.fn(), warning: vi.fn() } }))
 let permissions = ["platform.settings.read", "platform.settings.write"]
@@ -59,7 +61,8 @@ const saveButton = () => screen.getByRole("button", { name: new RegExp(`${t("adm
 describe("LimitSettingsCard", () => {
   beforeEach(() => {
     permissions = ["platform.settings.read", "platform.settings.write"]
-    get.mockReset(); save.mockReset(); reset.mockReset(); toastError.mockReset()
+    get.mockReset(); save.mockReset(); reset.mockReset(); toastError.mockReset(); policyGet.mockReset()
+    policyGet.mockResolvedValue({ InactiveAccount: 2 * 365 * DAY })
   })
 
   it("shows each value in the largest unit that divides it exactly", async () => {
@@ -272,13 +275,55 @@ describe("LimitSettingsCard", () => {
     expect(screen.queryByRole("button", { name: t("admin.limits.reset") })).toBeNull()
   })
 
-  it("marks only fields published in the privacy policy", async () => {
+  it("shows the Policy period under the fields published in it", async () => {
     renderRetention()
     await screen.findByLabelText(label("InactiveAccount"))
-    const note = t("admin.limits.inPrivacyPolicy")
-    expect(within(document.querySelector('[data-field="InactiveAccount"]') as HTMLElement).getByText(note)).toBeTruthy()
-    expect(within(document.querySelector('[data-field="InactivityGrace"]') as HTMLElement).queryByText(note)).toBeNull()
+    const note = t("admin.limits.inPrivacyPolicy", { value: "2 років" })
+    expect(await within(document.querySelector('[data-field="InactiveAccount"]') as HTMLElement).findByText(note)).toBeTruthy()
+    expect(within(document.querySelector('[data-field="InactivityGrace"]') as HTMLElement).queryByText(/Політиці/)).toBeNull()
     expect(screen.getByText(t("admin.limits.group.accounts"))).toBeTruthy()
+  })
+
+  it("blocks a value longer than the Policy with an inline error, and saves a shorter or equal one", async () => {
+    renderRetention()
+    const input = await screen.findByLabelText(label("InactiveAccount"))
+    await screen.findByText(/Політиці: до/)
+    fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
+    fireEvent.change(input, { target: { value: String(2 * 365 + 1) } })
+    fireEvent.click(saveButton())
+    expect(await screen.findByText(t("admin.limits.error.overPolicy", { value: "2 років" }))).toBeTruthy()
+    expect(save).not.toHaveBeenCalled()
+    save.mockResolvedValue({ ...retention, Custom: true })
+    fireEvent.change(input, { target: { value: String(2 * 365) } })
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalledWith("retention", { InactiveAccount: 2 * 365 * DAY, InactivityGrace: 30 * DAY }))
+  })
+
+  it("does not block saving when the Policy cannot be loaded", async () => {
+    policyGet.mockRejectedValue(new Error("offline"))
+    renderRetention()
+    const input = await screen.findByLabelText(label("InactiveAccount"))
+    expect(await screen.findByText(t("admin.limits.policyLoadError"))).toBeTruthy()
+    expect(screen.queryByText(/Політиці: до/)).toBeNull()
+    save.mockResolvedValue({ ...retention, Custom: true })
+    fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
+    fireEvent.change(input, { target: { value: String(5 * 365) } })
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalled())
+  })
+
+  it("asks for the Policy again on retry", async () => {
+    policyGet.mockRejectedValueOnce(new Error("offline"))
+    renderRetention()
+    fireEvent.click(await screen.findByRole("button", { name: t("error.load.retry") }))
+    expect(await screen.findByText(/Політиці: до/)).toBeTruthy()
+    expect(policyGet).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not read the Policy for other cards", async () => {
+    renderLeases()
+    await screen.findByLabelText(label("Lease"))
+    expect(policyGet).not.toHaveBeenCalled()
   })
 
   it("is read-only text without the write permission", async () => {
