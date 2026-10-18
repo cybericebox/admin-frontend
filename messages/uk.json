@@ -373,6 +373,7 @@
   "admin.notif.editor.altPlaceholder": "Альт-текст…",
   "admin.notif.editor.logoWidth": "Ширина логотипа (px)",
   "admin.notif.editor.uploadImage": "Завантажити",
+  "admin.images.autoShrink": "Великі зображення автоматично зменшуються до {side} пікселів по довшій стороні.",
   "admin.notif.editor.uploading": "Завантаження…",
   "admin.notif.editor.selectPreset": "Оберіть спільний блок…",
   "admin.notif.editor.sharedPresets": "Спільні блоки",

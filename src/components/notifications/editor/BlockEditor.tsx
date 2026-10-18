@@ -37,6 +37,7 @@ import type { VariableDef } from "@/components/notifications/editor/variableUtil
 import { uploadEmailImage, emailImageUrl } from "@/api/notifications/emailTemplates";
 import type { BlockPreset } from "@/api/notifications/emailTemplates";
 import { mediaUrl } from "@/api/client";
+import { fitImage, fitImageMaxSide } from "@/lib/fitImage";
 import { errorOr } from "@/i18n/apiError";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -156,7 +157,7 @@ export function BlockEditor({
   const handleImageUpload = async (key: string, file: File) => {
     setUploadState((prev) => ({ ...prev, [key]: { uploading: true, error: null } }));
     try {
-      const { FileID } = await uploadEmailImage(file);
+      const { FileID } = await uploadEmailImage(await fitImage(file));
       const idx = latestKeysRef.current.indexOf(key);
       const current = idx === -1 ? undefined : latestValueRef.current[idx];
       // Block gone (removed while uploading) or no longer an image block —
@@ -467,6 +468,7 @@ export function BlockEditor({
                     />
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground">{t("admin.images.autoShrink", { side: fitImageMaxSide })}</p>
                 {uploadState[stableKey]?.error && (
                   <p id={`image-upload-error-${stableKey}`} role="alert" className="text-xs text-destructive">{uploadState[stableKey]?.error}</p>
                 )}
