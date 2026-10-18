@@ -63,3 +63,15 @@ it("saves the single group name with the selected exercises", async () => {
   fireEvent.click(screen.getByRole("button", {name: "Зберегти"}))
   await waitFor(() => expect(api.save).toHaveBeenCalledWith({GroupName: "Підготовка", Selections: [selected]}))
 })
+
+it("lists tasks that cannot be chosen muted with a reason, after the choosable ones", async () => {
+  api.catalog.mockResolvedValue([
+    {ID: "e3", ExerciseVersionID: "v3", Name: "Чернетка", Infrastructure: false, Eligible: false, Reason: "not_published", Variants: []},
+    ...catalog,
+  ])
+  render(<PreviewDefaultsEditor />)
+  expect(await screen.findByText("Не опубліковано")).toBeInTheDocument()
+  expect(screen.queryByRole("checkbox", {name: "Чернетка"})).toBeNull()
+  const names = screen.getAllByRole("listitem").map(item => item.textContent ?? "")
+  expect(names.findIndex(text => text.includes("Сервіс"))).toBeLessThan(names.findIndex(text => text.includes("Чернетка")))
+})
