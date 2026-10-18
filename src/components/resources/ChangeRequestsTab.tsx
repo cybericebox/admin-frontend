@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { decideChangeRequest, listChangeRequests, type ChangeRequest, type ChangeStatus } from "@/api/resourceCalendar"
+import { decideChangeRequest, listChangeRequests, type Amount, type ChangeRequest, type ChangeStatus } from "@/api/resourceCalendar"
 import { ApiError } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { TableState, TableWrap, TimeText } from "@/components/common/DsTable"
@@ -13,17 +13,19 @@ import { toast } from "@/components/ui/toast"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
-import { CODE_ALREADY_DECIDED, isAmountEmpty, isDoesNotFit } from "@/lib/resourceCalendar"
-import { AllowConflictsDialog, Badge, Th, formatAmount, formatWindow, useCalendarResource, type Tone } from "./resourceView"
+import { CODE_ALREADY_DECIDED, formatGBValue, isAmountEmpty, isDoesNotFit } from "@/lib/resourceCalendar"
+import { AllowConflictsDialog, Badge, Th, formatWindow, useCalendarResource, type Tone } from "./resourceView"
 
 const STATUSES: ("all" | ChangeStatus)[] = ["all", "pending", "approved", "rejected"]
 const STATUS_TONE: Record<ChangeStatus, Tone> = { pending: "warn", approved: "ok", rejected: "muted" }
 
+const gb = (amount: Amount) => t("admin.resources.gb", { gb: formatGBValue(amount.MemoryBytes) })
+
 /** What the request asks for, one line per changed part, against what the reservation has now. */
 function Asked({ request }: { request: ChangeRequest }) {
   const lines: string[] = []
-  if (request.Size && !isAmountEmpty(request.Size)) lines.push(t("admin.resources.requests.askSize", { amount: formatAmount(request.Size), current: formatAmount(request.CurrentSize) }))
-  if (request.Dynamic && !isAmountEmpty(request.Dynamic)) lines.push(t("admin.resources.requests.askDynamic", { amount: formatAmount(request.Dynamic) }))
+  if (request.Size && !isAmountEmpty(request.Size)) lines.push(t("admin.resources.requests.askSize", { amount: gb(request.Size), current: gb(request.CurrentSize) }))
+  if (request.Dynamic && !isAmountEmpty(request.Dynamic)) lines.push(t("admin.resources.requests.askDynamic", { amount: gb(request.Dynamic) }))
   if (request.WindowStart || request.WindowEnd) lines.push(t("admin.resources.requests.askWindow", { window: formatWindow(request.WindowStart ?? request.CurrentFrom, request.WindowEnd ?? request.CurrentTo), current: formatWindow(request.CurrentFrom, request.CurrentTo) }))
   return <ul className="space-y-0.5">{lines.map((line) => <li key={line}>{line}</li>)}</ul>
 }

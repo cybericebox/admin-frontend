@@ -150,3 +150,22 @@ export function textToAmount(text: AmountText): Amount | null {
 }
 
 export const isAmountEmpty = (amount: Amount | null | undefined) => !amount || (amount.CPUMillicores === 0 && amount.MemoryBytes === 0)
+
+export const GIB = 1024 ** 3
+/** The platform ties CPU to memory: 250 millicores per GiB (the backend's milliCPUPerGiB). */
+export const MILLICPU_PER_GIB = 250
+
+/** Memory in GB as the form shows it: at most two decimals, no trailing zeros; "0" for none. */
+export function gbText(bytes: number): string {
+  return String(Math.round((bytes / GIB) * 100) / 100)
+}
+
+/** An amount from a memory text in GB; CPU follows the memory. null when the text is not a number. */
+export function gbToAmount(text: string): Amount | null {
+  const value = text.trim() === "" ? 0 : Number(text)
+  if (!Number.isFinite(value) || value < 0) return null
+  return { CPUMillicores: Math.round(value * MILLICPU_PER_GIB), MemoryBytes: Math.round(value * GIB) }
+}
+
+/** «3,4» for 3.4 GB, with the platform's decimal comma. */
+export const formatGBValue = (bytes: number) => new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 }).format(bytes / GIB)
