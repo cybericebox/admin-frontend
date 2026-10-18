@@ -188,12 +188,12 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
               onChange={(event) => edit(() => setAccount(event.target.value), true)} />
           </Field>
           <Field id="registry-push-token" label={t("admin.imageRegistry.pushToken")} help={t("admin.imageRegistry.pushTokenHelp")}>
-            <PasswordInput id="registry-push-token" value={pushToken} disabled={disabled} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
+            <PasswordInput writeOnly id="registry-push-token" value={pushToken} disabled={disabled} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
               placeholder={settings.PushTokenSet && sameAccount ? t("admin.imageRegistry.tokenSet") : t("admin.imageRegistry.tokenPlaceholder")}
               onChange={(event) => edit(() => setPushToken(event.target.value))} />
           </Field>
           <Field id="registry-pull-token" label={t("admin.imageRegistry.pullToken")} help={t("admin.imageRegistry.pullTokenHelp")}>
-            <PasswordInput id="registry-pull-token" value={pullToken} disabled={disabled || clearPull} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
+            <PasswordInput writeOnly id="registry-pull-token" value={pullToken} disabled={disabled || clearPull} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
               placeholder={settings.PullTokenSet && sameAccount && !clearPull ? t("admin.imageRegistry.tokenSet") : t("admin.imageRegistry.tokenPlaceholder")}
               onChange={(event) => edit(() => setPullToken(event.target.value))} />
             {canWrite && settings.PullTokenSet && sameAccount && (

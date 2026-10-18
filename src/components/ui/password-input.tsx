@@ -10,11 +10,13 @@ type PasswordInputProps = Omit<InputProps, "type"> & {
   // Controlled reveal state, so a password + confirmation pair shows / hides together.
   shown?: boolean
   onShownChange?: (shown: boolean) => void
+  // A write-only secret is never shown back, so it has no «Показати» button.
+  writeOnly?: boolean
 }
 
 // ds-v2 .ib-input-wrap--password: input + «Показати» / «Сховати» text button (as in id-frontend).
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ className, shown: shownProp, onShownChange, ...props }, ref) => {
+  ({ className, shown: shownProp, onShownChange, writeOnly = false, ...props }, ref) => {
     const [shownState, setShownState] = React.useState(false)
     const shown = shownProp ?? shownState
     const toggle = () => {
@@ -26,10 +28,10 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
         <Input
           ref={ref}
           type={shown ? "text" : "password"}
-          className={cn("pr-24", className)}
+          className={cn(!writeOnly && "pr-24", className)}
           {...props}
         />
-        {!props.disabled && (
+        {!props.disabled && !writeOnly && (
           <button
             type="button"
             onClick={toggle}
