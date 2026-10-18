@@ -6,6 +6,7 @@
  *   PUT    /api/settings/image-registry               save (platform.settings.write)
  *   DELETE /api/settings/image-registry               disconnect, returns the cleared view
  *   POST   /api/settings/image-registry/repositories  list the repositories a token can see
+ *   POST   /api/settings/image-registry/check         check the tokens now, returns the settings with the results
  *
  * Tokens are write-only: responses carry PushTokenSet / PullTokenSet only. A PUT with an
  * empty PushToken / PullToken keeps the stored one; ClearPullToken removes the pull token.
@@ -17,6 +18,23 @@ const BASE = "/api/settings/image-registry"
 export type RegistryProvider = "dockerhub" | "ghcr"
 export const REGISTRY_PROVIDERS: RegistryProvider[] = ["dockerhub", "ghcr"]
 
+/** "ok" works, "broken" the registry refused the credential, "" never checked. */
+export type RegistryCheckState = "ok" | "broken" | ""
+
+/**
+ * The last result of the periodic credential check: reason codes and times, never a token. A provider error,
+ * throttling or a timeout is not "broken": the state stays and Failure says why the last attempt gave no verdict.
+ */
+export type RegistryCheck = {
+  State: RegistryCheckState
+  CheckedAt: string | null
+  /** Why a broken credential is broken ("unauthorized"). */
+  Reason: string
+  AttemptedAt: string | null
+  /** Why the last attempt gave no verdict ("" when it did); it is retried. */
+  Failure: string
+}
+
 export type ImageRegistrySettings = {
   Configured: boolean
   Provider: RegistryProvider | ""
@@ -27,6 +45,9 @@ export type ImageRegistrySettings = {
   /** The platform secrets key is not set: tokens cannot be stored. */
   SecretsKeyMissing: boolean
   UpdatedAt: string | null
+  PushCheck: RegistryCheck
+  /** Empty without a pull token (the push token pulls). */
+  PullCheck: RegistryCheck
 }
 
 export type ImageRegistrySaveInput = {
@@ -51,6 +72,10 @@ export function saveImageRegistrySettings(input: ImageRegistrySaveInput): Promis
 
 export function clearImageRegistrySettings(): Promise<ImageRegistrySettings> {
   return apiDelete<ImageRegistrySettings>(BASE)
+}
+
+export function checkImageRegistryNow(): Promise<ImageRegistrySettings> {
+  return apiPost<ImageRegistrySettings>(`${BASE}/check`, {})
 }
 
 export async function listImageRegistryRepositories(input: ImageRegistryListInput): Promise<string[]> {
