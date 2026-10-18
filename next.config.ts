@@ -33,7 +33,7 @@ const devOrigins = process.env.DEV_ALLOWED_ORIGINS
 function devContentSecurityPolicy(): string {
   const api = `https://api.${DOMAIN}`
   const script = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
-  const connect = ["'self'", api, "ws:", "wss:"]
+  const connect = ["'self'", api, `https://${DOMAIN}`, "ws:", "wss:"]
   if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID?.trim()) {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")
