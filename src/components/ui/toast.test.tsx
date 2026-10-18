@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ToastProvider, toast } from "./toast"
 import { toastApiError } from "./toastApiError"
 import { ApiError } from "@/api/client"
+import { formatWait } from "@/i18n/apiError"
+import { t } from "@/i18n/t"
 
 function Actions() {
   return <>
@@ -75,6 +77,23 @@ describe("ToastProvider", () => {
     fireEvent.click(within(alert).getByRole("button", { name: "Спробувати ще раз" }))
     expect(retry).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("treats the overload code (70431) as the overload signal, Retry-After or not", () => {
+    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, null, "x", undefined, 70431), vi.fn())}>Busy</button></ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Busy" }))
+    const alert = screen.getByRole("alert")
+    expect(alert).toHaveTextContent("Сервер перевантажений, спробуйте за кілька секунд")
+    expect(within(alert).getByRole("button", { name: "Спробувати ще раз" })).toBeInTheDocument()
+  })
+
+  it("keeps a personal rate limit (429) on its own message with the wait, without the retry button", () => {
+    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(429, null, "x", undefined, 70428, 30), vi.fn())}>Limited</button></ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Limited" }))
+    const alert = screen.getByRole("alert")
+    expect(alert).toHaveTextContent(t("error.rateLimited", { wait: formatWait(30) }))
+    expect(alert).not.toHaveTextContent("Сервер перевантажений")
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).not.toBeInTheDocument()
   })
 
   it("shows no retry button for a 500, a 503 without Retry-After, or without a retry handler", () => {

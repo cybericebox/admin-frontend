@@ -42,9 +42,24 @@ describe("localizedError", () => {
     expect(errorOr(new ApiError(400, null, "x", undefined, 20225), "fallback")).not.toBe("fallback")
   })
 
+  it("answers the overload codes without a catalog message with the overloaded message", () => {
+    expect(localizedError(new ApiError(503, null, "x", undefined, 70431))).toBe(t("error.overloaded"))
+    expect(localizedError(new ApiError(503, null, "x", undefined, 70432, 2))).toBe(t("error.overloaded"))
+    expect(errorOr(new ApiError(503, null, "x", undefined, 70431), "fallback")).toBe(t("error.overloaded"))
+  })
+
+  it("keeps a personal rate limit (429) on its own message with the wait, never the overloaded one", () => {
+    const limited = new ApiError(429, null, "x", undefined, 70428, 30)
+    expect(localizedError(limited)).toBe(t("error.rateLimited", { wait: formatWait(30) }))
+    expect(errorOr(limited, "fallback")).toBe(t("error.rateLimited", { wait: formatWait(30) }))
+    expect(overloadOr(limited, "fallback")).toBe(t("error.rateLimited", { wait: formatWait(30) }))
+    expect(errorOr(new ApiError(429, null), "fallback")).toBe(t("error.rateLimitedNoWait"))
+    expect(overloadOr(new ApiError(429, null), "fallback")).toBe(t("error.rateLimitedNoWait"))
+  })
+
   it("overloadOr shows the overloaded text for an overload error, else the fallback", () => {
     expect(overloadOr(new ApiError(503, null, "x", undefined, undefined, 1), "fallback")).toBe(t("error.overloaded"))
-    expect(overloadOr(new ApiError(429, null), "fallback")).toBe(t("error.overloaded"))
+    expect(overloadOr(new ApiError(503, null, "x", undefined, 70431), "fallback")).toBe(t("error.overloaded"))
     // A coded error keeps the fixed message (overloadOr is not errorOr).
     expect(overloadOr(new ApiError(400, null, "x", undefined, 20225), "fallback")).toBe("fallback")
     expect(overloadOr(new ApiError(503, null), "fallback")).toBe("fallback")
