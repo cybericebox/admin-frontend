@@ -33,21 +33,26 @@ export function localizedError(err: unknown): string {
     const msg = uk[key] ?? en[key]
     if (msg) return msg
   }
-  // An overload 503 (with Retry-After) without a catalog message; reads were already retried.
-  if (err instanceof ApiError && err.status === 503 && isOverloadError(err)) return t("error.overloaded")
+  // The server's overload signal (a 503 with Retry-After, an overload code) without a catalog message; reads were already retried.
+  if (isOverloadError(err)) return t("error.overloaded")
   return t("error.generic")
 }
 
 /** The catalog message when the error carries a known code, else `fallback`. */
 export function errorOr(err: unknown, fallback: string): string {
-  if (err instanceof ApiError && (err.code != null || isOverloadError(err))) {
+  if (err instanceof ApiError && (err.code != null || err.status === 429 || isOverloadError(err))) {
     const message = localizedError(err)
     if (message !== t("error.generic")) return message
   }
   return fallback
 }
 
-/** The overloaded text when the server shed the request, else `fallback` (for fixed-message failure toasts). */
+/**
+ * The overloaded text for the server's overload signal, the rate-limit message (with its wait) for a
+ * personal 429, else `fallback` (for fixed-message failure toasts).
+ */
 export function overloadOr(err: unknown, fallback: string): string {
-  return isOverloadError(err) ? t("error.overloaded") : fallback
+  if (isOverloadError(err)) return t("error.overloaded")
+  if (err instanceof Error && (err as { status?: unknown }).status === 429) return localizedError(err)
+  return fallback
 }
