@@ -4,6 +4,7 @@ import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/utils/cn"
+import { useScrollActiveTab } from "./useScrollActiveTab"
 
 // DS underline tabs (components/tabs/tabs.css). Radix gives the roving tabindex, arrows, Home/End and aria-controls;
 // focus follows selection (automatic activation). A tablist holds tabs only: no remove buttons inside it.
@@ -17,9 +18,15 @@ type TabsListProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> &
 }
 
 const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, TabsListProps>(
-  ({ className, variant = "page", scroll, ...props }, ref) => (
-    <TabsPrimitive.List
-      ref={ref}
+  ({ className, variant = "page", scroll, ...props }, ref) => {
+    const own = React.useRef<HTMLDivElement | null>(null)
+    useScrollActiveTab(own)
+    return <TabsPrimitive.List
+      ref={(node) => {
+        own.current = node
+        if (typeof ref === "function") ref(node)
+        else if (ref) ref.current = node
+      }}
       className={cn(
         "ib-tabs min-w-0 max-w-full",
         variant === "page" && "ib-tabs--page",
@@ -29,7 +36,7 @@ const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, T
       )}
       {...props}
     />
-  )
+  }
 )
 TabsList.displayName = TabsPrimitive.List.displayName
 
