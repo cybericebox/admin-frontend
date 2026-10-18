@@ -80,7 +80,7 @@ function serverField(err: unknown): { field: string; min?: number; max?: number 
 
 /**
  * A card of typed integer limits (durations, sizes, counts) for one settings object. Loads itself; each
- * field is a number with a unit, the default and the privacy-policy note shown only when the value differs from them. The
+ * field is a number with a unit, the privacy-policy note shown only when the value differs from the Policy. The
  * save sends every field in base units, busies only its own button and keeps edits typed meanwhile.
  */
 export function LimitSettingsCard({ card, title, description, groups, units, labelKey }: {
@@ -289,9 +289,6 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
           </FieldValidation>
         ) : (
           <p className="text-sm">{formatAmount(field.Kind, field.Value, fieldUnits)}</p>
-        )}
-        {current !== null && !Number.isNaN(current) && current !== field.Default && (
-          <p className="text-xs text-muted-foreground">{t("admin.limits.default", { value: formatAmount(field.Kind, field.Default, fieldUnits) })}</p>
         )}
         {field.InPrivacyPolicy && policy.status === "loading" && <Spinner size="sm" className="h-4" />}
         {policyNote(field, current, fieldUnits)}

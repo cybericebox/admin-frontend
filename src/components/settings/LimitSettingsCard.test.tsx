@@ -74,11 +74,6 @@ describe("LimitSettingsCard", () => {
     expect(get).toHaveBeenCalledWith("test-runs")
   })
 
-  it("shows the default value as a hint", async () => {
-    renderLeases()
-    expect(await screen.findByText(t("admin.limits.default", { value: "2 год" }))).toBeTruthy()
-  })
-
   it("saves every field in seconds without rounding", async () => {
     renderLeases()
     const lease = await screen.findByLabelText(label("Lease"))
@@ -275,23 +270,13 @@ describe("LimitSettingsCard", () => {
     expect(screen.queryByRole("button", { name: t("admin.limits.reset") })).toBeNull()
   })
 
-  it("shows neither hint when the value equals the default and matches the Policy", async () => {
+  it("shows no hint when the value matches the Policy", async () => {
     policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind: "upTo" } })
     renderRetention()
     await screen.findByLabelText(label("InactiveAccount"))
     await waitFor(() => expect(policyGet).toHaveBeenCalled())
-    expect(screen.queryByText(/За замовчуванням/)).toBeNull()
     expect(screen.queryByText(/Політиці/)).toBeNull()
     expect(screen.getByText(t("admin.limits.group.accounts"))).toBeTruthy()
-  })
-
-  it("shows only the default hint when the value differs from the default", async () => {
-    renderRetention({ ...retention, Fields: [field("InactiveAccount", 3 * 365 * DAY, { Default: 2 * 365 * DAY, Min: 180 * DAY, InPrivacyPolicy: true }), retention.Fields[1]] })
-    await screen.findByLabelText(label("InactiveAccount"))
-    await waitFor(() => expect(policyGet).toHaveBeenCalled())
-    const box = document.querySelector('[data-field="InactiveAccount"]') as HTMLElement
-    expect(within(box).getByText(t("admin.limits.default", { value: "2 роки" }))).toBeTruthy()
-    expect(within(box).queryByText(/Політиці/)).toBeNull()
   })
 
   it("shows the coloured Policy line only when the value mismatches the Policy", async () => {
@@ -302,7 +287,7 @@ describe("LimitSettingsCard", () => {
     const box = document.querySelector('[data-field="InactiveAccount"]') as HTMLElement
     const line = await within(box).findByText(t("admin.limits.policy.over", { value: "3 років" }))
     expect(line.closest("p")).toHaveClass("text-destructive")
-    expect(within(box).getByText(/За замовчуванням/)).toBeTruthy()
+    expect(screen.queryByText(/За замовчуванням/)).toBeNull()
   })
 
   it("warns in danger color when longer, in warning color when shorter, nothing when equal, and still saves", async () => {
