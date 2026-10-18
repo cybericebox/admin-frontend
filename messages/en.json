@@ -373,6 +373,7 @@
   "admin.notif.editor.altPlaceholder": "Alt text…",
   "admin.notif.editor.logoWidth": "Logo width (px)",
   "admin.notif.editor.uploadImage": "Upload",
+  "admin.images.autoShrink": "Large pictures are shrunk automatically to {side} pixels on the long side.",
   "admin.notif.editor.uploading": "Uploading…",
   "admin.notif.editor.selectPreset": "Select a preset…",
   "admin.notif.editor.sharedPresets": "Shared presets",

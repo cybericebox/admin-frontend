@@ -597,6 +597,27 @@ describe('BlockEditor', () => {
     expect(uploadEmailImage).toHaveBeenCalledWith(file)
   })
 
+  it('shrinks an oversized picture before uploading it', async () => {
+    ;(uploadEmailImage as unknown as Mock).mockResolvedValue({ FileID: 'file-1', Url: '/x' })
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 10368, height: 5184, close: vi.fn() })))
+    vi.stubGlobal('OffscreenCanvas', class {
+      constructor(public width: number, public height: number) {}
+      getContext() { return { drawImage: vi.fn(), imageSmoothingQuality: 'low' } }
+      convertToBlob({ type }: { type: string }) { return Promise.resolve(new Blob(['x'], { type })) }
+    })
+    try {
+      render(<BlockEditor value={[makeImage()]} onChange={onChange} presets={[]} onSavePreset={onSavePreset} />)
+      const file = new File(['fake'], 'banner.png', { type: 'image/png' })
+      fireEvent.change(screen.getByTestId('image-file-input') as HTMLInputElement, { target: { files: [file] } })
+      await waitFor(() => expect(uploadEmailImage).toHaveBeenCalled())
+      const sent = (uploadEmailImage as unknown as Mock).mock.calls[0][0] as File
+      expect(sent).not.toBe(file)
+      expect(sent.type).toBe('image/png')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('a failed upload shows the localized error for its code inline on the block', async () => {
     ;(uploadEmailImage as unknown as Mock).mockRejectedValue(new ApiError(400, {}, 'invalid image type', undefined, 21005))
     render(
@@ -656,6 +677,8 @@ describe('BlockEditor', () => {
     const file = new File(['fake'], 'a.png', { type: 'image/png' })
     const input = screen.getByTestId('image-file-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
+    // The picture goes through the size check first; the upload starts a tick later.
+    await waitFor(() => expect(uploadEmailImage).toHaveBeenCalled())
 
     // Reorder while the upload is still in flight: move block A down.
     fireEvent.click(screen.getAllByRole('button', { name: 'Перемістити блок вниз' })[0])
@@ -691,6 +714,8 @@ describe('BlockEditor', () => {
     const file = new File(['fake'], 'a.png', { type: 'image/png' })
     const input = screen.getByTestId('image-file-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
+    // The picture goes through the size check first; the upload starts a tick later.
+    await waitFor(() => expect(uploadEmailImage).toHaveBeenCalled())
 
     // Edit alt text while the upload is still pending.
     fireEvent.change(screen.getByPlaceholderText('Альт-текст…'), {
@@ -724,6 +749,8 @@ describe('BlockEditor', () => {
     const file = new File(['fake'], 'a.png', { type: 'image/png' })
     const input = screen.getByTestId('image-file-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
+    // The picture goes through the size check first; the upload starts a tick later.
+    await waitFor(() => expect(uploadEmailImage).toHaveBeenCalled())
 
     // Delete the block while the upload is still pending.
     fireEvent.click(screen.getByRole('button', { name: 'Видалити блок' }))
