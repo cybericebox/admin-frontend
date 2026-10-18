@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
+import { getPolicyRetention, type PolicyRetention } from "@/api/privacyPolicy"
 import { getLimitSettings, resetLimitSettings, saveLimitSettings, type LimitCard, type LimitField, type LimitKind, type LimitSettings } from "@/api/platformLimits"
 import { localizedError } from "@/i18n/apiError"
 import { tPlural } from "@/i18n/plural"
@@ -15,7 +16,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { NumberInput, parseNumberInput } from "@/components/ui/number-input"
 import { SaveButton } from "@/components/ui/save-button"
 import { Select } from "@/components/ui/select"
-import { LoadingArea } from "@/components/ui/spinner"
+import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 
 export type LimitGroup = { titleKey?: string; keys: string[] }
@@ -37,11 +38,11 @@ export function reservedHeight(groups: LimitGroup[], withButtons: boolean): stri
   return `${rem}rem`
 }
 
-/** «36 год», «3 дні», «512 МіБ», «1000»: the value in the largest allowed unit that divides it. */
-function formatAmount(kind: LimitKind, value: number, allowed: Unit[]): string {
+/** «36 год», «3 дні», «512 МіБ», «1000»: the value in the largest allowed unit that divides it; `genitive` reads after «до» («3 років»). */
+function formatAmount(kind: LimitKind, value: number, allowed: Unit[], genitive = false): string {
   const unit = bestUnit(kind, value, allowed)
   const count = fromBase(value, unit)
-  return unit ? t("admin.limits.amount", { count, unit: tPlural(`admin.limits.unit.${unit}`, count) }) : String(count)
+  return unit ? t("admin.limits.amount", { count, unit: tPlural(`admin.limits.${genitive ? "unitGen" : "unit"}.${unit}`, count) }) : String(count)
 }
 
 function draftOf(settings: LimitSettings, units: Record<string, Unit[]>): Draft {
@@ -92,6 +93,9 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   const idPrefix = useId()
   const [settings, setSettings] = useState<LimitSettings | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  // The Privacy Policy's periods (retention card only): they cap the values and fill the note under the fields.
+  // A failed load only costs the note and the check, never the saving.
+  const [policy, setPolicy] = useState<{ status: "loading" } | { status: "error"; cause: unknown } | { status: "ready"; periods: PolicyRetention }>({ status: "loading" })
   const [draft, setDraft] = useState<Draft>({})
   const [checked, setChecked] = useState(false)
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
@@ -121,6 +125,20 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
 
   useEffect(() => { queueMicrotask(() => void load()) }, [load])
 
+  const loadPolicy = useCallback(async () => {
+    setPolicy({ status: "loading" })
+    try {
+      setPolicy({ status: "ready", periods: await getPolicyRetention() })
+    } catch (cause) {
+      setPolicy({ status: "error", cause })
+    }
+  }, [])
+
+  useEffect(() => { if (card === "retention") queueMicrotask(() => void loadPolicy()) }, [card, loadPolicy])
+
+  /** The Policy's period for a published field in seconds; none while the Policy is not loaded or does not name the field. */
+  const policyOf = (field: LimitField): number | undefined => (field.InPrivacyPolicy && policy.status === "ready" ? policy.periods[field.Key] : undefined)
+
   const fields = settings?.Fields ?? []
   const byKey = new Map(fields.map((field) => [field.Key, field]))
   // Only grouped fields render, so only they are validated and can show a server error.
@@ -134,6 +152,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
       const base = baseOf(draft[field.Key])
       if (base === null) errors[field.Key] = t("admin.limits.error.required")
       else if (Number.isNaN(base) || base < field.Min || base > field.Max) errors[field.Key] = rangeMessage(field, field.Min, field.Max, allowed(field.Key))
+      else if (policyOf(field) !== undefined && base > (policyOf(field) as number)) errors[field.Key] = t("admin.limits.error.overPolicy", { value: formatAmount(field.Kind, policyOf(field) as number, allowed(field.Key), true) })
     }
     for (const rule of RULES) {
       if (!rendered.has(rule.key) || !rendered.has(rule.other) || !byKey.has(rule.key) || !byKey.has(rule.other) || errors[rule.key] || errors[rule.other]) continue
@@ -249,7 +268,8 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
           <p className="text-sm">{formatAmount(field.Kind, field.Value, fieldUnits)}</p>
         )}
         <p className="text-xs text-muted-foreground">{t("admin.limits.default", { value: formatAmount(field.Kind, field.Default, fieldUnits) })}</p>
-        {field.InPrivacyPolicy && <p className="text-xs text-muted-foreground">{t("admin.limits.inPrivacyPolicy")}</p>}
+        {field.InPrivacyPolicy && policy.status === "loading" && <Spinner size="sm" className="h-4" />}
+        {policyOf(field) !== undefined && <p className="text-xs text-muted-foreground">{t("admin.limits.inPrivacyPolicy", { value: formatAmount(field.Kind, policyOf(field) as number, fieldUnits, true) })}</p>}
       </div>
     )
   }
@@ -271,6 +291,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
           </div>
         ) : (
           <>
+            {policy.status === "error" && <LoadError compact message={t("admin.limits.policyLoadError")} error={policy.cause} onRetry={() => void loadPolicy()} />}
             {settings.Ignored && <p role="status" className="text-sm text-muted-foreground">{t("admin.limits.ignored")}</p>}
             {groups.map((group, index) => {
               const groupFields = group.keys.map((key) => byKey.get(key)).filter((field): field is LimitField => !!field)

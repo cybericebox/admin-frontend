@@ -14,7 +14,7 @@
 # and the header snippet interpolates it. frame-ancestors is only honoured as an HTTP header. server.conf includes it in the server block and in every location that sets
 # its own add_header (add_header is not inherited once a location defines one).
 #
-# Operator values come from env: NEXT_PUBLIC_DOMAIN (connect-src is api.<domain>). Vendor sources are added only
+# Operator values come from env: NEXT_PUBLIC_DOMAIN (connect-src is api.<domain> and the main site <domain>). Vendor sources are added only
 # when the app is configured to use them: Google Analytics (NEXT_PUBLIC_GOOGLE_ANALYTICS_ID). Google sign-in is a top-level navigation through the
 # API, so it needs no source here.
 set -e
@@ -107,7 +107,8 @@ awk '!($1 in seen) { seen[$1] = 1; print }' "$tmp/map" > "$tmp/map.unique" && mv
 echo '}' >> "$tmp/map"
 
 script_src="'self'$common \$csp_page_hashes"
-connect_src="'self' https://$host"
+# The main site publishes the Privacy Policy retention periods (/legal/retention.json) that the retention settings read.
+connect_src="'self' https://$host https://$(base_domain_host "")"
 frame_src="'none'"
 
 if [ -n "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}" ]; then
