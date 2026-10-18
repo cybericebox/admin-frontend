@@ -180,6 +180,11 @@ describe("ImageRegistryCard", () => {
       expect(screen.getByText("Токен для отримання").closest("[data-state]")?.getAttribute("data-state")).toBe("broken")
     })
 
+    it("names a missing repository as the reason", () => {
+      renderCard({ ...saved, PushCheck: { ...broken, Reason: "not_found" } })
+      expect(screen.getByText(/не працює: репозиторій не знайдено/)).toBeTruthy()
+    })
+
     it("says so when never checked and hides the pull line without a pull token", () => {
       renderCard(saved)
       expect(screen.getByText(/ще не перевірено/)).toBeTruthy()

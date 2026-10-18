@@ -2,8 +2,8 @@ import type { RegistryCheck } from "@/api/imageRegistry/settings"
 import { t } from "@/i18n/t"
 import { formatListDateTime } from "@/lib/locale"
 
-const KNOWN_REASONS = ["unauthorized"]
-const KNOWN_FAILURES = ["unreachable", "rate_limited", "not_found", "not_configured"]
+const KNOWN_REASONS = ["unauthorized", "not_found"]
+const KNOWN_FAILURES = ["unreachable", "rate_limited", "not_configured"]
 
 /** The status text of one credential: when it was checked and whether the registry accepted it. */
 export function registryCheckText(check: RegistryCheck): string {
