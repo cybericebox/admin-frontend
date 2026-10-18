@@ -50,6 +50,8 @@ export type Reservation = {
   BufferPercent: number
   Dynamic: Amount
   TailGapMinutes: number
+  /** How long before the event start the reservation begins; 0 when the event has no schedule. */
+  StartLeadMinutes: number
   Size: Amount
   Placement: Share[] | null
   Unplaced: number
@@ -106,9 +108,11 @@ export type SettingsResult = { Settings: Settings; Conflicts: Conflict[] | null 
 
 export type ReservationResult = { Reservation: Reservation; Conflicts: Conflict[] | null; Saved: boolean }
 
-/** Every field is optional: what is left out keeps the plan's default (or the saved value). */
+/** Every field is optional: what is left out keeps the saved value (or the plan's default). WindowStart / WindowEnd are an optional fixed window that replaces the two offsets. */
 export type ReservationInput = {
+  /** The maximum number of teams the reserve is granted for; it does not follow registrations. */
   Teams?: number
+  StartLeadMinutes?: number
   PerTeam?: Amount
   BufferPercent?: number
   Dynamic?: Amount
