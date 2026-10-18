@@ -6,8 +6,8 @@ import { t } from "@/i18n/t"
 const TABS = [
   { href: "/settings", labelKey: "admin.settings.tab.general" },
   { href: "/settings/mail", labelKey: "admin.settings.tab.mail" },
-  { href: "/settings/images", labelKey: "admin.imageRegistry.tab" },
-  { href: "/settings/test-mode", labelKey: "admin.previewSettings.title" },
+  { href: "/settings/tasks", labelKey: "admin.settings.tab.tasks" },
+  { href: "/settings/data-retention", labelKey: "admin.settings.tab.dataRetention" },
 ]
 
 /** Sub-pages of «Налаштування»: every tab needs only platform.settings.read. */
