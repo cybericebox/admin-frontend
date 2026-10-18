@@ -1,22 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import type { ImageRegistrySettings } from "@/api/imageRegistry/settings"
+import type { ImageRegistrySettings, RegistryCheck } from "@/api/imageRegistry/settings"
 
 const save = vi.fn()
 const clear = vi.fn()
 const list = vi.fn()
+const check = vi.fn()
 vi.mock("@/api/imageRegistry/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/imageRegistry/settings")>()),
   saveImageRegistrySettings: (input: unknown) => save(input),
   clearImageRegistrySettings: () => clear(),
   listImageRegistryRepositories: (input: unknown) => list(input),
+  checkImageRegistryNow: () => check(),
 }))
 vi.mock("@/components/ui/toast", () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }))
 
 import { ApiError } from "@/api/client"
 import { ImageRegistryCard } from "./ImageRegistryCard"
 
-const empty: ImageRegistrySettings = { Configured: false, Provider: "", Account: "", Repository: "", PushTokenSet: false, PullTokenSet: false, SecretsKeyMissing: false, UpdatedAt: null }
+const never: RegistryCheck = { State: "", CheckedAt: null, Reason: "", AttemptedAt: null, Failure: "" }
+const empty: ImageRegistrySettings = {
+  Configured: false, Provider: "", Account: "", Repository: "", PushTokenSet: false, PullTokenSet: false, SecretsKeyMissing: false, UpdatedAt: null,
+  PushCheck: never, PullCheck: never,
+}
 const saved: ImageRegistrySettings = { ...empty, Configured: true, Provider: "ghcr", Account: "icebox", Repository: "icebox/images", PushTokenSet: true, UpdatedAt: "2026-10-17T10:00:00Z" }
 
 function renderCard(view: ImageRegistrySettings, canWrite = true, onChange = vi.fn()) {
@@ -25,7 +31,7 @@ function renderCard(view: ImageRegistrySettings, canWrite = true, onChange = vi.
 }
 
 describe("ImageRegistryCard", () => {
-  beforeEach(() => { save.mockReset(); clear.mockReset(); list.mockReset() })
+  beforeEach(() => { save.mockReset(); clear.mockReset(); list.mockReset(); check.mockReset() })
 
   it("never pre-fills a token and shows the saved placeholder", () => {
     renderCard({ ...saved, PullTokenSet: true })
@@ -155,5 +161,71 @@ describe("ImageRegistryCard", () => {
     renderCard({ ...saved, SecretsKeyMissing: true })
     fireEvent.change(screen.getByLabelText("Токен для завантаження образів"), { target: { value: "tok" } })
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeDisabled()
+  })
+
+  describe("credential check", () => {
+    const ok: RegistryCheck = { State: "ok", CheckedAt: "2026-10-18T09:00:00Z", Reason: "", AttemptedAt: "2026-10-18T09:00:00Z", Failure: "" }
+    const broken: RegistryCheck = { State: "broken", CheckedAt: "2026-10-18T09:00:00Z", Reason: "unauthorized", AttemptedAt: "2026-10-18T09:00:00Z", Failure: "" }
+
+    it("shows nothing before the registry is configured", () => {
+      renderCard(empty)
+      expect(screen.queryByRole("button", { name: "Перевірити зараз" })).toBeNull()
+    })
+
+    it("reads works / does not work with the reason, per token", () => {
+      renderCard({ ...saved, PullTokenSet: true, PushCheck: ok, PullCheck: broken })
+      expect(screen.getByText(/Перевірено: .+ — працює/)).toBeTruthy()
+      expect(screen.getByText(/Перевірено: .+ — не працює: сховище відхилило токен/)).toBeTruthy()
+      expect(screen.getByText("Токен для завантаження").closest("[data-state]")?.getAttribute("data-state")).toBe("ok")
+      expect(screen.getByText("Токен для отримання").closest("[data-state]")?.getAttribute("data-state")).toBe("broken")
+    })
+
+    it("names a missing repository as the reason", () => {
+      renderCard({ ...saved, PushCheck: { ...broken, Reason: "not_found" } })
+      expect(screen.getByText(/не працює: репозиторій не знайдено/)).toBeTruthy()
+    })
+
+    it("says so when never checked and hides the pull line without a pull token", () => {
+      renderCard(saved)
+      expect(screen.getByText(/ще не перевірено/)).toBeTruthy()
+      expect(screen.queryByText("Токен для отримання")).toBeNull()
+    })
+
+    it("tells a failed attempt will be retried while keeping the previous state", () => {
+      renderCard({ ...saved, PushCheck: { ...ok, AttemptedAt: "2026-10-18T15:00:00Z", Failure: "unreachable" } })
+      expect(screen.getByText(/працює/)).toBeTruthy()
+      expect(screen.getByText(/Остання спроба .+ не вдалася \(сховище не відповідає\), її буде повторено/)).toBeTruthy()
+    })
+
+    it("checks now, busies only its own button and hands the result up", async () => {
+      const onChange = renderCard({ ...saved, PushCheck: ok })
+      fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "typed" } })
+      let resolve!: (v: ImageRegistrySettings) => void
+      check.mockReturnValue(new Promise<ImageRegistrySettings>((r) => { resolve = r }))
+      fireEvent.click(screen.getByRole("button", { name: "Перевірити зараз" }))
+      // the busy button also carries the crest loader's label
+      expect(screen.getByRole("button", { name: /Перевірити зараз/ })).toBeDisabled()
+      expect(screen.getByLabelText("Обліковий запис")).toBeEnabled()
+      expect(screen.getByLabelText("Токен для завантаження образів")).toBeEnabled()
+      const next = { ...saved, PushCheck: broken }
+      resolve(next)
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(next))
+      await waitFor(() => expect(screen.getByRole("button", { name: "Перевірити зараз" })).toBeEnabled())
+      expect((screen.getByLabelText("Обліковий запис") as HTMLInputElement).value).toBe("typed")
+    })
+
+    it("shows a failed check call inline", async () => {
+      renderCard(saved)
+      const body = { Status: { Code: 72801, Context: { reason: "unreachable", token: "" } } }
+      check.mockRejectedValue(new ApiError(409, body, "x", undefined, 72801))
+      fireEvent.click(screen.getByRole("button", { name: "Перевірити зараз" }))
+      expect(await screen.findByText("Сховище образів не відповідає.")).toBeTruthy()
+    })
+
+    it("is not offered without the write permission, but the result is shown", () => {
+      renderCard({ ...saved, PushCheck: ok }, false)
+      expect(screen.queryByRole("button", { name: "Перевірити зараз" })).toBeNull()
+      expect(screen.getByText(/працює/)).toBeTruthy()
+    })
   })
 })

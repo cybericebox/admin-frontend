@@ -1,7 +1,7 @@
 "use client"
 import { useRef, useState } from "react"
 import {
-  REGISTRY_PROVIDERS, clearImageRegistrySettings, listImageRegistryRepositories, registryFailure, saveImageRegistrySettings,
+  REGISTRY_PROVIDERS, checkImageRegistryNow, clearImageRegistrySettings, listImageRegistryRepositories, registryFailure, saveImageRegistrySettings,
   type ImageRegistrySettings, type RegistryProvider,
 } from "@/api/imageRegistry/settings"
 import { localizedError } from "@/i18n/apiError"
@@ -17,6 +17,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { SaveButton } from "@/components/ui/save-button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { toast } from "@/components/ui/toast"
+import { RegistryCheckLine } from "@/components/settings/RegistryCheckLine"
 
 const KNOWN_REASONS = ["unauthorized", "unreachable", "rate_limited", "not_found"]
 
@@ -63,6 +64,8 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
   const [disconnecting, setDisconnecting] = useState(false)
   const [disconnectBusy, setDisconnectBusy] = useState(false)
   const [disconnectError, setDisconnectError] = useState("")
+  const [checkBusy, setCheckBusy] = useState(false)
+  const [checkError, setCheckError] = useState("")
   const edits = useRef(0)
   // Bumped when the provider or account changes: a repository list requested before it is stale.
   const target = useRef(0)
@@ -122,6 +125,20 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
       setError(failureText(err))
     } finally {
       setSaveBusy(false)
+    }
+  }
+
+  // Checking only busies its own button; the form stays editable and keeps what was typed.
+  async function checkNow() {
+    if (checkBusy) return
+    setCheckBusy(true)
+    setCheckError("")
+    try {
+      onChange(await checkImageRegistryNow())
+    } catch (err) {
+      setCheckError(failureText(err))
+    } finally {
+      setCheckBusy(false)
     }
   }
 
@@ -202,6 +219,17 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
             <Button type="button" variant="outline" busy={listBusy} disabled={!account_} onClick={() => void list()}>{t("admin.imageRegistry.listRepositories")}</Button>
           )}
         </div>
+
+        {settings.Configured && (
+          <div className="space-y-2" aria-label={t("admin.imageRegistry.check.title")} role="group">
+            <RegistryCheckLine label={t("admin.imageRegistry.check.push")} check={settings.PushCheck} />
+            {settings.PullTokenSet && <RegistryCheckLine label={t("admin.imageRegistry.check.pull")} check={settings.PullCheck} />}
+            {checkError && <Alert variant="destructive">{checkError}</Alert>}
+            {canWrite && (
+              <Button type="button" variant="outline" size="sm" busy={checkBusy} onClick={() => void checkNow()}>{t("admin.imageRegistry.check.now")}</Button>
+            )}
+          </div>
+        )}
 
         {error && <Alert variant="destructive">{error}</Alert>}
         {info && <Alert variant="info">{info}</Alert>}
