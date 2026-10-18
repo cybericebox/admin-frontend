@@ -226,15 +226,15 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     const count = amount === null || Number.isNaN(amount) ? 0 : amount
     const error = serverErrors[field.Key] ?? clientErrors[field.Key]
     return (
-      <div key={field.Key} data-field={field.Key} className="space-y-1.5">
+      <div key={field.Key} data-field={field.Key} className="min-w-0 space-y-1.5">
         <label htmlFor={canWrite ? id : undefined} className="block text-sm font-medium">{label}</label>
         {canWrite ? (
           <FieldValidation error={error}>
-            <div className="flex items-center gap-2">
-              <NumberInput id={id} className="w-28" value={entry?.text ?? ""} aria-invalid={Boolean(error)}
+            <div className="flex flex-wrap items-center gap-2">
+              <NumberInput id={id} className="w-28 max-w-full" value={entry?.text ?? ""} aria-invalid={Boolean(error)}
                 onChange={(text) => edit(field.Key, { text })} />
               {fieldUnits.length > 1 && entry?.unit ? (
-                <div className="w-32">
+                <div className="w-32 max-w-full">
                   <Select aria-label={t("admin.limits.unitLabel", { field: label })} value={entry.unit}
                     onChange={(event) => edit(field.Key, { unit: event.target.value as Unit })}>
                     {fieldUnits.map((unit) => <option key={unit} value={unit}>{tPlural(`admin.limits.unit.${unit}`, count)}</option>)}
