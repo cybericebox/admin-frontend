@@ -80,7 +80,7 @@ function serverField(err: unknown): { field: string; min?: number; max?: number 
 
 /**
  * A card of typed integer limits (durations, sizes, counts) for one settings object. Loads itself; each
- * field is a number with a unit, the default as a hint and the privacy-policy note when published. The
+ * field is a number with a unit, the default and the privacy-policy note shown only when the value differs from them. The
  * save sends every field in base units, busies only its own button and keeps edits typed meanwhile.
  */
 export function LimitSettingsCard({ card, title, description, groups, units, labelKey }: {
@@ -239,15 +239,15 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
 
   /**
    * The Policy phrase under a published field, in the Policy's own wording. «до N» is an upper bound: longer is danger, shorter
-   * warning, equal neutral. The other phrasings («через N», «понад N», …) are exact promises: any difference is danger.
-   * Never blocks saving.
+   * warning. The other phrasings («через N», «понад N», …) are exact promises: any difference is danger.
+   * Shown only on a mismatch; never blocks saving.
    */
   function policyNote(field: LimitField, base: number | null, fieldUnits: Unit[]) {
     const period = policyOf(field)
     if (period === undefined) return null
     const { kind, seconds } = period
     const value = formatAmount(field.Kind, seconds, fieldUnits, kind === "upTo")
-    if (base === null || Number.isNaN(base) || base === seconds) return <p className="text-xs text-muted-foreground">{t(`admin.limits.policy.note.${kind}`, { value })}</p>
+    if (base === null || Number.isNaN(base) || base === seconds) return null
     const danger = kind !== "upTo" || base > seconds
     const message = kind !== "upTo" ? t(`admin.limits.policy.mismatch.${kind}`, { value }) : t(danger ? "admin.limits.policy.over" : "admin.limits.policy.under", { value })
     return (
@@ -266,6 +266,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     const amount = parseNumberInput(entry?.text ?? "")
     const count = amount === null || Number.isNaN(amount) ? 0 : amount
     const error = serverErrors[field.Key] ?? clientErrors[field.Key]
+    const current = canWrite ? baseOf(entry) : field.Value
     return (
       <div key={field.Key} data-field={field.Key} className="min-w-0 space-y-1.5">
         <label htmlFor={canWrite ? id : undefined} className="block text-sm font-medium">{label}</label>
@@ -289,9 +290,11 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
         ) : (
           <p className="text-sm">{formatAmount(field.Kind, field.Value, fieldUnits)}</p>
         )}
-        <p className="text-xs text-muted-foreground">{t("admin.limits.default", { value: formatAmount(field.Kind, field.Default, fieldUnits) })}</p>
+        {current !== null && !Number.isNaN(current) && current !== field.Default && (
+          <p className="text-xs text-muted-foreground">{t("admin.limits.default", { value: formatAmount(field.Kind, field.Default, fieldUnits) })}</p>
+        )}
         {field.InPrivacyPolicy && policy.status === "loading" && <Spinner size="sm" className="h-4" />}
-        {policyNote(field, canWrite ? baseOf(entry) : field.Value, fieldUnits)}
+        {policyNote(field, current, fieldUnits)}
       </div>
     )
   }
