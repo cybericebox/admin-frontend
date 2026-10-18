@@ -2,7 +2,7 @@
 import { TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
-import { getPolicyRetention, type PolicyRetention } from "@/api/privacyPolicy"
+import { getPolicyRetention, type PolicyPeriod, type PolicyRetention } from "@/api/privacyPolicy"
 import { getLimitSettings, resetLimitSettings, saveLimitSettings, type LimitCard, type LimitField, type LimitKind, type LimitSettings } from "@/api/platformLimits"
 import { localizedError } from "@/i18n/apiError"
 import { tPlural } from "@/i18n/plural"
@@ -139,7 +139,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   useEffect(() => { if (card === "retention") queueMicrotask(() => void loadPolicy()) }, [card, loadPolicy])
 
   /** The Policy's period for a published field in seconds; none while the Policy is not loaded or does not name the field. */
-  const policyOf = (field: LimitField): number | undefined => (field.InPrivacyPolicy && policy.status === "ready" ? policy.periods[field.Key] : undefined)
+  const policyOf = (field: LimitField): PolicyPeriod | undefined => (field.InPrivacyPolicy && policy.status === "ready" ? policy.periods[field.Key] : undefined)
 
   const fields = settings?.Fields ?? []
   const byKey = new Map(fields.map((field) => [field.Key, field]))
@@ -237,17 +237,23 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     }
   }
 
-  /** The Policy period under a published field: neutral when the value matches, danger when longer, warning when shorter. Never blocks saving. */
+  /**
+   * The Policy phrase under a published field, in the Policy's own wording. «до N» is an upper bound: longer is danger, shorter
+   * warning, equal neutral. The other phrasings («через N», «понад N», …) are exact promises: any difference is danger.
+   * Never blocks saving.
+   */
   function policyNote(field: LimitField, base: number | null, fieldUnits: Unit[]) {
     const period = policyOf(field)
     if (period === undefined) return null
-    const value = formatAmount(field.Kind, period, fieldUnits, true)
-    if (base === null || Number.isNaN(base) || base === period) return <p className="text-xs text-muted-foreground">{t("admin.limits.inPrivacyPolicy", { value })}</p>
-    const longer = base > period
+    const { kind, seconds } = period
+    const value = formatAmount(field.Kind, seconds, fieldUnits, kind === "upTo")
+    if (base === null || Number.isNaN(base) || base === seconds) return <p className="text-xs text-muted-foreground">{t(`admin.limits.policy.note.${kind}`, { value })}</p>
+    const danger = kind !== "upTo" || base > seconds
+    const message = kind !== "upTo" ? t(`admin.limits.policy.mismatch.${kind}`, { value }) : t(danger ? "admin.limits.policy.over" : "admin.limits.policy.under", { value })
     return (
-      <p data-policy={longer ? "over" : "under"} className={cn("flex items-start gap-1 text-xs font-medium", longer ? "text-destructive" : "text-[var(--ib-warn)]")}>
+      <p data-policy={danger ? "danger" : "warning"} className={cn("flex items-start gap-1 text-xs font-medium", danger ? "text-destructive" : "text-[var(--ib-warn)]")}>
         <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden />
-        <span>{t(longer ? "admin.limits.policy.over" : "admin.limits.policy.under", { value })}</span>
+        <span>{message}</span>
       </p>
     )
   }
