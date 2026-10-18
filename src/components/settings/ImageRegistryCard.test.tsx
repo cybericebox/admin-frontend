@@ -59,6 +59,11 @@ describe("ImageRegistryCard", () => {
     }
   })
 
+  it("has no show button on the write-only tokens", () => {
+    renderCard(saved)
+    expect(screen.queryByRole("button", { name: "Показати" })).toBeNull()
+  })
+
   it("keeps the repository dropdown disabled until the repositories are listed", async () => {
     renderCard(empty)
     fireEvent.change(screen.getByLabelText("Обліковий запис"), { target: { value: "icebox" } })
@@ -87,12 +92,12 @@ describe("ImageRegistryCard", () => {
     const body = { Status: { Code: 72802, Context: { reason: "unauthorized", token: "push" } } }
     save.mockRejectedValue(new ApiError(409, body, "x", undefined, 72802))
     fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
-    expect(await screen.findByText(/Сховище відхилило токен або обліковий запис/)).toBeTruthy()
+    expect(await screen.findByText(/Реєстр відхилив токен або обліковий запис/)).toBeTruthy()
   })
 
   it("requires confirmation before disconnecting", async () => {
     const onChange = renderCard(saved)
-    fireEvent.click(screen.getByRole("button", { name: "Відʼєднати сховище" }))
+    fireEvent.click(screen.getByRole("button", { name: "Відʼєднати реєстр" }))
     expect(clear).not.toHaveBeenCalled()
     clear.mockResolvedValue(empty)
     fireEvent.click(await screen.findByRole("button", { name: "Відʼєднати" }))
@@ -109,7 +114,7 @@ describe("ImageRegistryCard", () => {
     renderCard(saved, false)
     expect(screen.getByLabelText("Обліковий запис")).toBeDisabled()
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull()
-    expect(screen.queryByRole("button", { name: "Відʼєднати сховище" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Відʼєднати реєстр" })).toBeNull()
   })
 
   it("drops the clear-pull flag when the account changes", async () => {
@@ -175,7 +180,7 @@ describe("ImageRegistryCard", () => {
     it("reads works / does not work with the reason, per token", () => {
       renderCard({ ...saved, PullTokenSet: true, PushCheck: ok, PullCheck: broken })
       expect(screen.getByText(/Перевірено: .+ — працює/)).toBeTruthy()
-      expect(screen.getByText(/Перевірено: .+ — не працює: сховище відхилило токен/)).toBeTruthy()
+      expect(screen.getByText(/Перевірено: .+ — не працює: реєстр відхилив токен/)).toBeTruthy()
       expect(screen.getByText("Токен для завантаження").closest("[data-state]")?.getAttribute("data-state")).toBe("ok")
       expect(screen.getByText("Токен для отримання").closest("[data-state]")?.getAttribute("data-state")).toBe("broken")
     })
@@ -194,7 +199,7 @@ describe("ImageRegistryCard", () => {
     it("tells a failed attempt will be retried while keeping the previous state", () => {
       renderCard({ ...saved, PushCheck: { ...ok, AttemptedAt: "2026-10-18T15:00:00Z", Failure: "unreachable" } })
       expect(screen.getByText(/працює/)).toBeTruthy()
-      expect(screen.getByText(/Остання спроба .+ не вдалася \(сховище не відповідає\), її буде повторено/)).toBeTruthy()
+      expect(screen.getByText(/Остання спроба .+ не вдалася \(реєстр не відповідає\), її буде повторено/)).toBeTruthy()
     })
 
     it("checks now, busies only its own button and hands the result up", async () => {
@@ -219,7 +224,7 @@ describe("ImageRegistryCard", () => {
       const body = { Status: { Code: 72801, Context: { reason: "unreachable", token: "" } } }
       check.mockRejectedValue(new ApiError(409, body, "x", undefined, 72801))
       fireEvent.click(screen.getByRole("button", { name: "Перевірити зараз" }))
-      expect(await screen.findByText("Сховище образів не відповідає.")).toBeTruthy()
+      expect(await screen.findByText("Реєстр образів не відповідає.")).toBeTruthy()
     })
 
     it("is not offered without the write permission, but the result is shown", () => {

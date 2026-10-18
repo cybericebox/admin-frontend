@@ -38,4 +38,10 @@ describe('PasswordInput', () => {
     render(<PasswordInput aria-label="field" disabled />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  it('has no toggle when write-only', () => {
+    render(<PasswordInput aria-label="field" writeOnly />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('field')).toHaveAttribute('type', 'password')
+  })
 })
