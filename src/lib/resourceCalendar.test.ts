@@ -38,7 +38,7 @@ describe("stats observation compatibility", () => {
 
 const reservation = (over: Partial<Reservation>): Reservation => ({
   ID: "r1", Kind: "event", EventID: "e1", EventName: "CTF", EventTag: "ctf", OwnerID: "", From: at(8), To: at(12), Teams: 2,
-  PerTeam: amount(500), LargestDevice: amount(100), BufferPercent: 15, Dynamic: amount(0), TailGapMinutes: 60, Size: amount(1000, 2048),
+  PerTeam: amount(500), LargestDevice: amount(100), BufferPercent: 15, Dynamic: amount(0), TailGapMinutes: 60, StartLeadMinutes: 60, Size: amount(1000, 2048),
   Placement: null, Unplaced: 0, Covered: true, Used: amount(0), Alarms: null, ...over,
 })
 
