@@ -62,7 +62,7 @@ describe("LimitSettingsCard", () => {
   beforeEach(() => {
     permissions = ["platform.settings.read", "platform.settings.write"]
     get.mockReset(); save.mockReset(); reset.mockReset(); toastError.mockReset(); policyGet.mockReset()
-    policyGet.mockResolvedValue({ InactiveAccount: 3 * 365 * DAY })
+    policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind: "upTo" } })
   })
 
   it("shows each value in the largest unit that divides it exactly", async () => {
@@ -278,7 +278,7 @@ describe("LimitSettingsCard", () => {
   it("shows the Policy period under the fields published in it", async () => {
     renderRetention()
     await screen.findByLabelText(label("InactiveAccount"))
-    const note = t("admin.limits.inPrivacyPolicy", { value: "3 років" })
+    const note = t("admin.limits.policy.note.upTo", { value: "3 років" })
     expect(await within(document.querySelector('[data-field="InactiveAccount"]') as HTMLElement).findByText(note)).toBeTruthy()
     expect(within(document.querySelector('[data-field="InactivityGrace"]') as HTMLElement).queryByText(/Політиці/)).toBeNull()
     expect(screen.getByText(t("admin.limits.group.accounts"))).toBeTruthy()
@@ -296,11 +296,33 @@ describe("LimitSettingsCard", () => {
     const under = await screen.findByText(t("admin.limits.policy.under", { value: "3 років" }))
     expect(under.closest("p")).toHaveClass("text-[var(--ib-warn)]")
     fireEvent.change(input, { target: { value: String(3 * 365) } })
-    expect(await screen.findByText(t("admin.limits.inPrivacyPolicy", { value: "3 років" }))).toBeTruthy()
+    expect(await screen.findByText(t("admin.limits.policy.note.upTo", { value: "3 років" }))).toBeTruthy()
     save.mockResolvedValue({ ...retention, Custom: true })
     fireEvent.change(input, { target: { value: String(3 * 365 + 1) } })
     fireEvent.click(saveButton())
     await waitFor(() => expect(save).toHaveBeenCalledWith("retention", { InactiveAccount: (3 * 365 + 1) * DAY, InactivityGrace: 30 * DAY }))
+  })
+
+  it.each([
+    ["after", "через"],
+    ["over", "понад"],
+    ["plus", "до завершення заходу та ще"],
+  ] as const)("reads the Policy's own wording for «%s» and treats any difference as danger", async (kind, phrase) => {
+    policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind } })
+    renderRetention()
+    const input = await screen.findByLabelText(label("InactiveAccount"))
+    const note = await screen.findByText(t(`admin.limits.policy.note.${kind}`, { value: "3 роки" }))
+    expect(note.textContent).toContain(phrase)
+    expect(note.closest("p")).toHaveClass("text-muted-foreground")
+    fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
+    for (const days of [400, 3 * 365 + 1]) {
+      fireEvent.change(input, { target: { value: String(days) } })
+      const mismatch = await screen.findByText(t(`admin.limits.policy.mismatch.${kind}`, { value: "3 роки" }))
+      expect(mismatch.closest("p")).toHaveClass("text-destructive")
+    }
+    save.mockResolvedValue({ ...retention, Custom: true })
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalled())
   })
 
   it("does not block saving when the Policy cannot be loaded", async () => {
