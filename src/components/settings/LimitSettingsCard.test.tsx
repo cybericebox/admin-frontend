@@ -275,19 +275,40 @@ describe("LimitSettingsCard", () => {
     expect(screen.queryByRole("button", { name: t("admin.limits.reset") })).toBeNull()
   })
 
-  it("shows the Policy period under the fields published in it", async () => {
+  it("shows neither hint when the value equals the default and matches the Policy", async () => {
+    policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind: "upTo" } })
     renderRetention()
     await screen.findByLabelText(label("InactiveAccount"))
-    const note = t("admin.limits.policy.note.upTo", { value: "3 років" })
-    expect(await within(document.querySelector('[data-field="InactiveAccount"]') as HTMLElement).findByText(note)).toBeTruthy()
-    expect(within(document.querySelector('[data-field="InactivityGrace"]') as HTMLElement).queryByText(/Політиці/)).toBeNull()
+    await waitFor(() => expect(policyGet).toHaveBeenCalled())
+    expect(screen.queryByText(/За замовчуванням/)).toBeNull()
+    expect(screen.queryByText(/Політиці/)).toBeNull()
     expect(screen.getByText(t("admin.limits.group.accounts"))).toBeTruthy()
   })
 
-  it("warns in danger color when longer, in warning color when shorter, neutral when equal, and still saves", async () => {
+  it("shows only the default hint when the value differs from the default", async () => {
+    renderRetention({ ...retention, Fields: [field("InactiveAccount", 3 * 365 * DAY, { Default: 2 * 365 * DAY, Min: 180 * DAY, InPrivacyPolicy: true }), retention.Fields[1]] })
+    await screen.findByLabelText(label("InactiveAccount"))
+    await waitFor(() => expect(policyGet).toHaveBeenCalled())
+    const box = document.querySelector('[data-field="InactiveAccount"]') as HTMLElement
+    expect(within(box).getByText(t("admin.limits.default", { value: "2 роки" }))).toBeTruthy()
+    expect(within(box).queryByText(/Політиці/)).toBeNull()
+  })
+
+  it("shows the coloured Policy line only when the value mismatches the Policy", async () => {
     renderRetention()
     const input = await screen.findByLabelText(label("InactiveAccount"))
-    await screen.findByText(/Політиці: до/)
+    fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
+    fireEvent.change(input, { target: { value: String(3 * 365 + 1) } })
+    const box = document.querySelector('[data-field="InactiveAccount"]') as HTMLElement
+    const line = await within(box).findByText(t("admin.limits.policy.over", { value: "3 років" }))
+    expect(line.closest("p")).toHaveClass("text-destructive")
+    expect(within(box).getByText(/За замовчуванням/)).toBeTruthy()
+  })
+
+  it("warns in danger color when longer, in warning color when shorter, nothing when equal, and still saves", async () => {
+    renderRetention()
+    const input = await screen.findByLabelText(label("InactiveAccount"))
+    await waitFor(() => expect(policyGet).toHaveBeenCalled())
     fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
     fireEvent.change(input, { target: { value: String(3 * 365 + 1) } })
     const over = await screen.findByText(t("admin.limits.policy.over", { value: "3 років" }))
@@ -296,7 +317,7 @@ describe("LimitSettingsCard", () => {
     const under = await screen.findByText(t("admin.limits.policy.under", { value: "3 років" }))
     expect(under.closest("p")).toHaveClass("text-[var(--ib-warn)]")
     fireEvent.change(input, { target: { value: String(3 * 365) } })
-    expect(await screen.findByText(t("admin.limits.policy.note.upTo", { value: "3 років" }))).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText(/Політиці/)).toBeNull())
     save.mockResolvedValue({ ...retention, Custom: true })
     fireEvent.change(input, { target: { value: String(3 * 365 + 1) } })
     fireEvent.click(saveButton())
@@ -311,14 +332,14 @@ describe("LimitSettingsCard", () => {
     policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind } })
     renderRetention()
     const input = await screen.findByLabelText(label("InactiveAccount"))
-    const note = await screen.findByText(t(`admin.limits.policy.note.${kind}`, { value: "3 роки" }))
-    expect(note.textContent).toContain(phrase)
-    expect(note.closest("p")).toHaveClass("text-muted-foreground")
+    await waitFor(() => expect(policyGet).toHaveBeenCalled())
+    expect(screen.queryByText(/Політиці/)).toBeNull()
     fireEvent.change(unitOf("InactiveAccount"), { target: { value: "days" } })
     for (const days of [400, 3 * 365 + 1]) {
       fireEvent.change(input, { target: { value: String(days) } })
       const mismatch = await screen.findByText(t(`admin.limits.policy.mismatch.${kind}`, { value: "3 роки" }))
       expect(mismatch.closest("p")).toHaveClass("text-destructive")
+      expect(mismatch.textContent).toContain(phrase)
     }
     save.mockResolvedValue({ ...retention, Custom: true })
     fireEvent.click(saveButton())
@@ -342,8 +363,8 @@ describe("LimitSettingsCard", () => {
     policyGet.mockRejectedValueOnce(new Error("offline"))
     renderRetention()
     fireEvent.click(await screen.findByRole("button", { name: t("error.load.retry") }))
-    expect(await screen.findByText(/Політиці: до/)).toBeTruthy()
-    expect(policyGet).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(policyGet).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText(t("admin.limits.policyLoadError"))).toBeNull()
   })
 
   it("does not read the Policy for other cards", async () => {
