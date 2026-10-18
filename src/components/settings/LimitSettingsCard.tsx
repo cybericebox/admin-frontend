@@ -1,4 +1,5 @@
 "use client"
+import { TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { getPolicyRetention, type PolicyRetention } from "@/api/privacyPolicy"
@@ -8,6 +9,7 @@ import { tPlural } from "@/i18n/plural"
 import { t } from "@/i18n/t"
 import { bestUnit, fromBase, toBase, type Unit } from "@/lib/limitUnits"
 import { useRole } from "@/lib/useRole"
+import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -152,7 +154,6 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
       const base = baseOf(draft[field.Key])
       if (base === null) errors[field.Key] = t("admin.limits.error.required")
       else if (Number.isNaN(base) || base < field.Min || base > field.Max) errors[field.Key] = rangeMessage(field, field.Min, field.Max, allowed(field.Key))
-      else if (policyOf(field) !== undefined && base > (policyOf(field) as number)) errors[field.Key] = t("admin.limits.error.overPolicy", { value: formatAmount(field.Kind, policyOf(field) as number, allowed(field.Key), true) })
     }
     for (const rule of RULES) {
       if (!rendered.has(rule.key) || !rendered.has(rule.other) || !byKey.has(rule.key) || !byKey.has(rule.other) || errors[rule.key] || errors[rule.other]) continue
@@ -236,6 +237,21 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
     }
   }
 
+  /** The Policy period under a published field: neutral when the value matches, danger when longer, warning when shorter. Never blocks saving. */
+  function policyNote(field: LimitField, base: number | null, fieldUnits: Unit[]) {
+    const period = policyOf(field)
+    if (period === undefined) return null
+    const value = formatAmount(field.Kind, period, fieldUnits, true)
+    if (base === null || Number.isNaN(base) || base === period) return <p className="text-xs text-muted-foreground">{t("admin.limits.inPrivacyPolicy", { value })}</p>
+    const longer = base > period
+    return (
+      <p data-policy={longer ? "over" : "under"} className={cn("flex items-start gap-1 text-xs font-medium", longer ? "text-destructive" : "text-[var(--ib-warn)]")}>
+        <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden />
+        <span>{t(longer ? "admin.limits.policy.over" : "admin.limits.policy.under", { value })}</span>
+      </p>
+    )
+  }
+
   function renderField(field: LimitField) {
     const id = `${idPrefix}-${field.Key}`
     const label = t(labelKey(field.Key))
@@ -269,7 +285,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
         )}
         <p className="text-xs text-muted-foreground">{t("admin.limits.default", { value: formatAmount(field.Kind, field.Default, fieldUnits) })}</p>
         {field.InPrivacyPolicy && policy.status === "loading" && <Spinner size="sm" className="h-4" />}
-        {policyOf(field) !== undefined && <p className="text-xs text-muted-foreground">{t("admin.limits.inPrivacyPolicy", { value: formatAmount(field.Kind, policyOf(field) as number, fieldUnits, true) })}</p>}
+        {policyNote(field, canWrite ? baseOf(entry) : field.Value, fieldUnits)}
       </div>
     )
   }
