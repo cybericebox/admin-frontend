@@ -194,7 +194,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
       // A change below what already runs is asked first: the cluster would delete the labs that do not fit.
       if (!forceShrink && saved && (saved.Reservation.Parts ?? []).some((part) => part.Groups > 0)) {
         const preview = await putEventReservation(eventID, { ...input, DryRun: true, AllowConflicts: true })
-        if (shrinksBelowUse(saved.Reservation.Parts, preview.Reservation.Size, preview.Reservation.To, saved.Reservation.To)) {
+        if (shrinksBelowUse(saved.Reservation.Parts, preview.Reservation, saved.Reservation.To, Date.now())) {
           setShrinkAsk(true)
           return
         }

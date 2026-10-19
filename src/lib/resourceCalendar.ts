@@ -173,14 +173,26 @@ export const formatGBValue = (bytes: number) => new Intl.NumberFormat("uk-UA", {
 /** The notice the cluster gives before it deletes the labs a shrink leaves out, in minutes (the laboratory default). */
 export const SHRINK_NOTICE_MINUTES = 5
 
+/** One agent's part of a reservation's size, as the backend splits it: ceil(size x units / teams) per resource. */
+export function shareAmount(next: Pick<Reservation, "Size" | "Teams" | "Placement">, agentID: string): Amount {
+  const units = (next.Placement ?? []).find((share) => share.AgentID === agentID)?.Units ?? 0
+  const teams = Math.max(next.Teams, 1)
+  return { CPUMillicores: Math.ceil((next.Size.CPUMillicores * units) / teams), MemoryBytes: Math.ceil((next.Size.MemoryBytes * units) / teams) }
+}
+
 /**
- * Whether a change takes the reservation below what already runs in it: a size under what its parts use, or an end
- * earlier than now while labs run. Such a change is held back by the cluster unless the admin confirms it.
+ * Whether a change takes the reservation below what already runs in it, the way the backend holds it back: a part
+ * whose new share (none when its agent leaves the placement) is under what it uses, or an end earlier than the
+ * cluster's notice from now (and than the current end) while labs run. Such a change waits for the admin's confirmation.
  */
-export function shrinksBelowUse(parts: ReservationPart[] | null | undefined, size: Amount, to: string, currentTo: string): boolean {
+export function shrinksBelowUse(parts: ReservationPart[] | null | undefined, next: Pick<Reservation, "Size" | "Teams" | "Placement" | "To">, currentTo: string, now: number): boolean {
   const live = (parts ?? []).filter((part) => !part.Retiring && part.Groups > 0)
   if (live.length === 0) return false
-  const used = live.reduce((sum, part) => ({ CPUMillicores: sum.CPUMillicores + part.Used.CPUMillicores, MemoryBytes: sum.MemoryBytes + part.Used.MemoryBytes }), { CPUMillicores: 0, MemoryBytes: 0 })
-  if (size.CPUMillicores < used.CPUMillicores || size.MemoryBytes < used.MemoryBytes) return true
-  return Date.parse(to) < Date.parse(currentTo)
+  const below = live.some((part) => {
+    const share = shareAmount(next, part.AgentID)
+    return share.CPUMillicores < part.Used.CPUMillicores || share.MemoryBytes < part.Used.MemoryBytes
+  })
+  if (below) return true
+  const earliest = Math.min(now + SHRINK_NOTICE_MINUTES * 60_000, Date.parse(currentTo))
+  return Date.parse(next.To) < earliest
 }

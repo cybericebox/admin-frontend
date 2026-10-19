@@ -208,8 +208,8 @@ describe("cluster parts", () => {
 
   it("shrink below usage asks with a danger ConfirmDialog, focus on «Скасувати»", async () => {
     serve(result({ Reservation: { ...reservation, Parts: [part()] } }))
-    // The dry run says the new size is below what runs (1.5 CPU, 1 GiB in use).
-    apiPut.mockImplementation(() => Promise.resolve(result({ Reservation: { ...reservation, Teams: 1, Size: { CPUMillicores: 500, MemoryBytes: 512 * MIB }, Parts: [] } })))
+    // The dry run says the agent's new share is below what runs on it (1.5 CPU, 1 GiB in use).
+    apiPut.mockImplementation(() => Promise.resolve(result({ Reservation: { ...reservation, Teams: 1, Size: { CPUMillicores: 500, MemoryBytes: 512 * MIB }, Placement: [{ AgentID: "a1", AgentName: "Київ", Units: 1 }], Parts: [] } })))
     const { onSaved } = renderEditor()
     fireEvent.change(await screen.findByLabelText(t("admin.resources.editor.teams")), { target: { value: "1" } })
     fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
