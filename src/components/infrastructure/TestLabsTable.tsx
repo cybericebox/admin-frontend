@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ExternalLink, Info, Power } from "lucide-react"
-import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
+import { ImageWarningIcon, LabQueueIndicator } from "@/components/infrastructure/LabIndicators"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { TableState, TableWrap, Th, TimeText } from "@/components/common/DsTable"
@@ -88,7 +88,7 @@ export function TestLabsTable({ filters, searchInput, onSearchInput, onFilters, 
                 <td><ResourceCell resources={lab.Resources} kind="memory" /></td>
                 <td className="ib-table__dim"><TimeText iso={lab.CreatedAt}>{formatListDateTime(lab.CreatedAt)}</TimeText></td>
                 <td className="ib-table__dim"><TimeText iso={lab.ExpiresAt}>{formatListDateTime(lab.ExpiresAt)}</TimeText></td>
-                <td><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} />{lab.Queue && lab.Queue.Position > 0 && <QueueBadge position={lab.Queue.Position} length={lab.Queue.Length} reason={lab.Queue.Reason} />}{lab.ImageWarning && <ImageWarningIcon />}{lab.Expired && <Badge size="sm">{t("admin.labs.testLabs.expired")}</Badge>}</span></td>
+                <td><span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} /><LabQueueIndicator queue={lab.Queue} />{lab.ImageWarning && <ImageWarningIcon />}{lab.Expired && <Badge size="sm">{t("admin.labs.testLabs.expired")}</Badge>}</span></td>
                 <td className="ib-table__actions"><span className="inline-flex items-center gap-1">
                   <HoverTooltip text={t("admin.labs.detail.open")}>
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.labs.actionOnPair", { action: t("admin.labs.detail.open"), name: lab.ExerciseName, who: testLabAuthor(lab) })} onClick={() => onDetails(lab)}>

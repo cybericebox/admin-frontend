@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
-import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
+import { ImageWarningIcon, LabQueueIndicator, standQueueLabs } from "@/components/infrastructure/LabIndicators"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import type { Stand, StandEventOption } from "@/api/infrastructure"
 import { formatListDateTime } from "@/lib/locale"
@@ -92,7 +92,7 @@ export function StandsTable({ filters, searchInput, onSearchInput, onFilters, ev
               {items.map((stand) => <tr key={`${stand.EventID}:${stand.TeamID}`}>
                 <td><span className="ib-table__name block">{stand.EventName || stand.EventTag}</span><EventSiteLink tag={stand.EventTag} path="/manage/labs" tooltip={t("admin.labs.stands.openManage")} /></td>
                 <td>{teamLabel(stand)}</td>
-                <td><span className="inline-flex flex-wrap items-center gap-1.5"><StandStatusBadge status={stand.Status} />{stand.Queue && <QueueBadge position={stand.Queue.Position} length={stand.Queue.Length} reason={stand.Queue.Reason} labs={stand.Queue.QueuedLabs} />}{stand.ImageWarning && <ImageWarningIcon />}</span></td>
+                <td><span className="inline-flex flex-wrap items-center gap-1.5"><StandStatusBadge status={stand.Status} /><LabQueueIndicator queue={stand.Queue} labs={standQueueLabs(stand.Queue)} />{stand.ImageWarning && <ImageWarningIcon />}</span></td>
                 <td className="ib-table__dim">{stand.Reason ? standReasonText(stand.Reason) : "—"}</td>
                 <td><ResourceCell resources={stand.Resources} kind="cpu" /></td>
                 <td><ResourceCell resources={stand.Resources} kind="memory" /></td>

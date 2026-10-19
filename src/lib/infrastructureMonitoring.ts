@@ -14,35 +14,33 @@ export function monitoringCount(value: unknown): number | null {
   return Number.isSafeInteger(count) && count >= 0 ? count : null
 }
 
+/** The capacity an agent reports for the platform (protojson of its CapacityResponse). capacity* is the maximum the resource
+ * calendar plans with: the lab nodes that exist plus the ones the cluster may still add (null: no limit). current* is what the
+ * nodes that exist give now (null: the agent does not say). reserved* is what the platform's labs request. */
 export type CapacityMetrics = {
-  allocatableCpuMillicores: number | null
-  requestedCpuMillicores: number | null
-  allocatableMemoryBytes: number | null
-  requestedMemoryBytes: number | null
-  nodes: Array<{ name: string; allocatableCpuMillicores: number | null; requestedCpuMillicores: number | null; allocatableMemoryBytes: number | null; requestedMemoryBytes: number | null }>
+  capacityCpuMillicores: number | null
+  capacityMemoryBytes: number | null
+  reservedCpuMillicores: number
+  reservedMemoryBytes: number
+  currentCpuMillicores: number | null
+  currentMemoryBytes: number | null
 }
+
+const CAPACITY_FIELDS = ["tenant", "hasCpuQuota", "hasMemoryQuota", "cpuReservedMillicores", "memoryReservedBytes", "hasCurrent"]
 
 export function capacityMetrics(payload: unknown): CapacityMetrics | null {
   const source = record(payload)
-  if (!source) return null
-  const fields = ["allocatableCpuMillicores", "requestedCpuMillicores", "allocatableMemoryBytes", "requestedMemoryBytes", "nodes"]
-  if (!fields.some((field) => Object.hasOwn(source, field))) return null
-  const metricValue = (row: RecordValue, field: string) => Object.hasOwn(row, field) ? monitoringCount(row[field]) : 0
+  if (!source || !CAPACITY_FIELDS.some((field) => Object.hasOwn(source, field))) return null
+  // protojson leaves out zero values and false flags.
+  const count = (field: string) => monitoringCount(source[field]) ?? 0
+  const current = source.hasCurrent === true
   return {
-    allocatableCpuMillicores: metricValue(source, "allocatableCpuMillicores"),
-    requestedCpuMillicores: metricValue(source, "requestedCpuMillicores"),
-    allocatableMemoryBytes: metricValue(source, "allocatableMemoryBytes"),
-    requestedMemoryBytes: metricValue(source, "requestedMemoryBytes"),
-    nodes: (Array.isArray(source.nodes) ? source.nodes : []).flatMap((value) => {
-      const node = record(value)
-      return node && typeof node.name === "string" ? [{
-        name: node.name,
-        allocatableCpuMillicores: metricValue(node, "allocatableCpuMillicores"),
-        requestedCpuMillicores: metricValue(node, "requestedCpuMillicores"),
-        allocatableMemoryBytes: metricValue(node, "allocatableMemoryBytes"),
-        requestedMemoryBytes: metricValue(node, "requestedMemoryBytes"),
-      }] : []
-    }),
+    capacityCpuMillicores: source.hasCpuQuota === true ? count("cpuQuotaMillicores") : null,
+    capacityMemoryBytes: source.hasMemoryQuota === true ? count("memoryQuotaBytes") : null,
+    reservedCpuMillicores: count("cpuReservedMillicores"),
+    reservedMemoryBytes: count("memoryReservedBytes"),
+    currentCpuMillicores: current ? count("currentCpuMillicores") : null,
+    currentMemoryBytes: current ? count("currentMemoryBytes") : null,
   }
 }
 

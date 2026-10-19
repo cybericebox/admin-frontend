@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
-import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
+import { ImageWarningIcon, LabQueueIndicator, standQueueLabs } from "@/components/infrastructure/LabIndicators"
 import { LabLiveView } from "@/components/infrastructure/LabLiveView"
 import { GroupLifecycleFacts, LifecycleFacts } from "@/components/infrastructure/LifecycleFacts"
 import { useLabDetail } from "@/components/infrastructure/useLabDetail"
@@ -92,7 +92,7 @@ function StandDetail({ stand, canWrite, onClose }: { stand: Stand; canWrite: boo
     <Body data={data} error={error} onRetry={refresh}>{(detail) => <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <StandStatusBadge status={detail.Status} />
-        {stand.Queue && <QueueBadge position={stand.Queue.Position} length={stand.Queue.Length} reason={stand.Queue.Reason} labs={stand.Queue.QueuedLabs} />}
+        <LabQueueIndicator queue={stand.Queue} labs={standQueueLabs(stand.Queue)} />
         {stand.ImageWarning && <ImageWarningIcon />}
         {detail.Reason && <span className="break-words text-sm text-muted-foreground">{standReasonText(detail.Reason)}</span>}
       </div>
