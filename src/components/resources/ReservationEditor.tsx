@@ -23,8 +23,10 @@ import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { formatCpu } from "@/lib/infrastructureMonitoring"
 import { isoToLocal, localToIso } from "@/lib/eventSchemas"
-import { CODE_NO_RESERVATION, formatGBValue, gbText, gbToAmount } from "@/lib/resourceCalendar"
+import { CODE_NO_RESERVATION, formatGBValue, gbText, gbToAmount, shrinksBelowUse } from "@/lib/resourceCalendar"
 import { formatWindow } from "./resourceView"
+import { ReservationParts } from "./ReservationParts"
+import { ShrinkDialog } from "./ReservationDialogs"
 
 /** The live check waits this long after the last edit. */
 export const PREVIEW_DELAY_MS = 400
@@ -131,19 +133,22 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
   const [windowError, setWindowError] = useState("")
   const [error, setError] = useState("")
   const [attempt, setAttempt] = useState(0)
+  // The saved reservation with its parts (what runs where): a change below it asks first.
+  const [saved, setSaved] = useState<ReservationResult | null>(null)
+  const [shrinkAsk, setShrinkAsk] = useState(false)
   const revision = useRef(0)
 
   useEffect(() => {
     if (!eventID) return
     let alive = true
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor reloads for each event it opens
-    setWindowError(""); setPhase("loading"); setSummary(null); setUsed(null); setError(""); setForm(EMPTY_FORM); accept(EMPTY_FORM, inputFromForm(EMPTY_FORM))
+    setWindowError(""); setPhase("loading"); setSummary(null); setSaved(null); setShrinkAsk(false); setUsed(null); setError(""); setForm(EMPTY_FORM); accept(EMPTY_FORM, inputFromForm(EMPTY_FORM))
     // The schedule only decides whether the fixed window is required: when it cannot be read, nothing is forced and the backend still checks.
     const schedule = getEventSchedule(eventID).then((s) => needsWindow(s), () => false)
     getEventReservation(eventID).then(async (result) => {
       const required = await schedule
       if (!alive) return
-      setWindowRequired(required); setExisting(true); setSummary(result); setUsed(result.Reservation.Used.MemoryBytes)
+      setWindowRequired(required); setExisting(true); setSummary(result); setSaved(result); setUsed(result.Reservation.Used.MemoryBytes)
       accept(formFromResult(result, required)); setPhase("ready")
     }).catch(async (err: unknown) => {
       const required = await schedule
@@ -178,7 +183,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
   const set = (patch: Partial<EditorForm>) => { revision.current += 1; setWindowError(""); setForm((current) => ({ ...current, ...patch })); setError("") }
   const disabled = !canWrite
 
-  async function save() {
+  async function save(forceShrink = false) {
     if (!eventID || !canWrite || busy || (existing && !dirty)) return
     const input = inputFromForm(form)
     if (input === "window") { setWindowError(t(windowRequired && !form.start && !form.end ? "admin.resources.editor.windowRequired" : "admin.resources.editor.invalidWindow")); return }
@@ -186,10 +191,20 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
     setBusy(true)
     setError("")
     try {
-      const result = await putEventReservation(eventID, { ...input, AllowConflicts: true })
+      // A change below what already runs is asked first: the cluster would delete the labs that do not fit.
+      if (!forceShrink && saved && (saved.Reservation.Parts ?? []).some((part) => part.Groups > 0)) {
+        const preview = await putEventReservation(eventID, { ...input, DryRun: true, AllowConflicts: true })
+        if (shrinksBelowUse(saved.Reservation.Parts, preview.Reservation.Size, preview.Reservation.To, saved.Reservation.To)) {
+          setShrinkAsk(true)
+          return
+        }
+      }
+      const result = await putEventReservation(eventID, { ...input, AllowConflicts: true, ...(forceShrink ? { ForceShrink: true } : {}) })
       toast.success(t(existing ? "admin.resources.editor.saved" : "admin.resources.editor.created"))
       setExisting(true)
       setSummary(result)
+      setSaved(result)
+      setShrinkAsk(false)
       onSaved(accept(formFromResult(result, windowRequired), input))
     } catch (err) {
       if (err instanceof ApiError && err.code === 22501) setWindowError(localizedError(err))
@@ -209,6 +224,7 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
       {phase === "failed" && <LoadError className="min-h-56" message={t("admin.resources.editor.loadError")} error={loadError} onRetry={() => setAttempt((n) => n + 1)} />}
       {phase === "ready" && <div className="space-y-4">
         {summary && <Summary result={summary} used={existing ? used : null} />}
+        {saved && <ReservationParts parts={saved.Reservation.Parts} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("admin.resources.editor.teams")} help={t("admin.resources.editor.teamsHelp")}>
             <NumberInput value={form.teams} onChange={(teams) => set({ teams })} aria-label={t("admin.resources.editor.teams")} disabled={disabled} />
@@ -251,5 +267,6 @@ export function ReservationEditor({ target, canWrite, onClose, onSaved, onCancel
         </span>
       </DialogFooter>
     </DialogContent>
+    <ShrinkDialog open={shrinkAsk} busy={busy} error={shrinkAsk ? error : undefined} onCancel={() => setShrinkAsk(false)} onConfirm={() => void save(true)} />
   </Dialog>
 }
