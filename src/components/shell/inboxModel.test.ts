@@ -62,19 +62,16 @@ test("open = ActionRequired and not resolved (§8.3)", () => {
   assert.equal(inbox.isUnread(item("x", { ReadAt: "2026-09-29T10:00:00Z" })), false)
 })
 
-test("«Вирішено» only on open «Лабораторія впала» requests", () => {
-  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed" })), true)
-  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed", ResolvedAt: "2026-09-29T10:00:00Z" })), false)
-  assert.equal(inbox.canResolve(request("app", { Type: "event.application.submitted" })), false)
-  assert.equal(inbox.canResolve(item("fyi", { Type: "event.lab.failed" })), false)
+test("«Вирішено» only where the server says Resolvable on an open request", () => {
+  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true })), true)
+  assert.equal(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" })), false)
+  assert.equal(inbox.canResolve(request("alarm", { Resolvable: false })), false)
+  // No flag, no button: the type alone decides nothing.
+  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed" })), false)
+  assert.equal(inbox.canResolve(item("fyi", { Resolvable: true })), false)
 })
 
-test("«Вирішено» follows the server's Resolvable flag; older backends fall back to the lab type", () => {
-  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true })), true)
-  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: false })), false)
-  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised" })), false)
-  assert.equal(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" })), false)
-})
+
 
 test("an open request needs action even when it was read; a resolved one does not", () => {
   assert.equal(inbox.needsAction(request("o", { ReadAt: "2026-09-29T10:00:00Z" })), true)
