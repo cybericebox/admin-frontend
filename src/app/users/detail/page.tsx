@@ -38,6 +38,11 @@ function fullName(u: UserDetail): string {
   return n || u.Email
 }
 
+type Pending = { kind: "role"; role: string } | { kind: "block" }
+
+// Higher rank = more rights; a change up is a grant (primary button), a change down takes rights away (danger).
+const ROLE_RANK: Record<string, number> = { user: 0, admin_viewer: 1, admin: 2, super_admin: 3 }
+
 const usersCrumb = () => ({ label: t("admin.nav.users"), href: "/users" })
 
 function isNotFound(error: unknown): boolean {
@@ -69,7 +74,7 @@ function Detail() {
     return () => { active = false }
   }, [id, reloadKey])
 
-  // Role and status saves run one after another; the controls react at once and never wait or disable.
+  // Unblocking is instant and optimistic; saves run one after another and never disable a control.
   const saveQueue = useRef<Promise<void>>(Promise.resolve())
   function save(patch: Partial<Pick<UserDetail, "Role" | "Status">>, path: "role" | "status", body: Record<string, string>, successKey: string) {
     setUser((current) => (current ? { ...current, ...patch } : current))
@@ -84,8 +89,35 @@ function Detail() {
       }
     })
   }
-  const changeRole = (role: string) => save({ Role: role }, "role", { Role: role }, "admin.userDetail.roleChanged")
   const setStatus = (status: string) => save({ Status: status }, "status", { Status: status }, "admin.userDetail.statusChanged")
+
+  // A role change and a block change rights, so they wait for a ConfirmDialog and apply only after the server agrees.
+  const [pending, setPending] = useState<Pending | null>(null)
+  const [pendingBusy, setPendingBusy] = useState(false)
+  const [pendingError, setPendingError] = useState<string | null>(null)
+  function ask(next: Pending) { setPendingError(null); setPending(next) }
+  function closePending() { if (!pendingBusy) { setPending(null); setPendingError(null) } }
+  async function applyPending() {
+    if (!pending) return
+    setPendingBusy(true)
+    setPendingError(null)
+    try {
+      if (pending.kind === "role") {
+        await apiPatch(`/api/users/${id}/role`, { Role: pending.role })
+        setUser((current) => (current ? { ...current, Role: pending.role } : current))
+        toast.success(t("admin.userDetail.roleChanged"))
+      } else {
+        await apiPatch(`/api/users/${id}/status`, { Status: "blocked" })
+        setUser((current) => (current ? { ...current, Status: "blocked" } : current))
+        toast.success(t("admin.userDetail.statusChanged"))
+      }
+      setPending(null)
+    } catch (err) {
+      setPendingError(overloadOr(err, t("admin.userDetail.actionError")))
+    } finally {
+      setPendingBusy(false)
+    }
+  }
   async function remove() {
     setDeleteBusy(true)
     setDeleteError(false)
@@ -97,19 +129,19 @@ function Detail() {
   }
 
   if (loading && id) {
-    return <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
+    return <LoadingArea className="h-full" label={t("admin.loading")} />
   }
   if (loadError) {
     return (
-      <div className="frost-panel frost-in rounded-lg p-8">
+      <div className="flex h-full flex-col">
         <PageHeader title={t("admin.nav.users")} crumbs={[usersCrumb()]} />
-        <LoadError message={t("admin.userDetail.loadError")} error={loadError.cause} onRetry={() => { setLoading(true); setLoadError(null); setReloadKey((k) => k + 1) }} />
+        <LoadError message={t("admin.userDetail.loadError")} error={loadError.cause} className="flex-1" onRetry={() => { setLoading(true); setLoadError(null); setReloadKey((k) => k + 1) }} />
       </div>
     )
   }
   if (notFound || !user) {
     return (
-      <div className="frost-panel frost-in flex h-full flex-col rounded-lg p-8">
+      <div className="flex h-full flex-col">
         <PageHeader title={t("admin.nav.users")} crumbs={[usersCrumb()]} />
         <NotFoundBlock title={t("admin.userDetail.notFound")} />
       </div>
@@ -119,84 +151,90 @@ function Detail() {
   // UI-only self-guard; the backend independently enforces this boundary.
   const isSelf = !!me && me.ID === user.ID
   const protectedSuperAdmin = user.Role === "super_admin" && !permissions.includes("*")
+  const name = fullName(user)
+  const canRole = can("users.role.write")
+  const canStatus = can("users.status.write") && (user.Status === "active" || user.Status === "blocked")
+  const canDelete = can("users.delete")
+  const raising = pending?.kind === "role" && (ROLE_RANK[pending.role] ?? 0) > (ROLE_RANK[user.Role] ?? 0)
+  const pendingRole = pending?.kind === "role" ? roleLabel(pending.role) : ""
 
   return (
-    <div className="frost-panel frost-in rounded-lg p-6">
-      <PageHeader title={fullName(user)} crumbs={[usersCrumb(), { label: fullName(user) }]} sub={user.Email}
+    <div className="space-y-6">
+      <PageHeader title={name} crumbs={[usersCrumb(), { label: name }]} sub={user.Email}
         actions={<><RoleBadge role={user.Role} /><StatusBadge status={user.Status} /></>} />
 
-      <dl className="mt-6 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.signInMethods")}</dt>
-          <dd className="text-sm text-foreground">
-            {user.SignInMethods.length ? user.SignInMethods.map((m) => t(`admin.method.${m}`)).join(", ") : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.emailConfirmed")}</dt>
-          <dd className="text-sm text-foreground">{user.EmailConfirmed ? t("admin.userDetail.yes") : t("admin.userDetail.no")}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.lastSeen")}</dt>
-          <dd className="text-sm text-foreground">
-            {!isUnsetDate(user.LastSeen) ? <time dateTime={user.LastSeen}>{formatListDateTime(user.LastSeen)}</time> : t("admin.userDetail.never")}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.created")}</dt>
-          <dd className="text-sm text-foreground">{user.CreatedAt ? <time dateTime={user.CreatedAt}>{formatListDate(user.CreatedAt)}</time> : "—"}</dd>
-        </div>
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+        <Field label={t("admin.userDetail.signInMethods")}>
+          {user.SignInMethods.length ? user.SignInMethods.map((m) => t(`admin.method.${m}`)).join(", ") : "—"}
+        </Field>
+        <Field label={t("admin.userDetail.emailConfirmed")}>{user.EmailConfirmed ? t("admin.userDetail.yes") : t("admin.userDetail.no")}</Field>
+        <Field label={t("admin.userDetail.lastSeen")}>
+          {!isUnsetDate(user.LastSeen) ? <time dateTime={user.LastSeen}>{formatListDateTime(user.LastSeen)}</time> : t("admin.userDetail.never")}
+        </Field>
+        <Field label={t("admin.userDetail.created")}>{user.CreatedAt ? <time dateTime={user.CreatedAt}>{formatListDate(user.CreatedAt)}</time> : "—"}</Field>
       </dl>
 
-      {isSelf && (
-        <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">
-          {t("admin.userDetail.selfNote")}
-        </p>
-      )}
+      {isSelf && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.selfNote")}</p>}
 
-      {protectedSuperAdmin && <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedSuperAdmin")}</p>}
+      {protectedSuperAdmin && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedSuperAdmin")}</p>}
 
-      {!isSelf && !protectedSuperAdmin && (can("users.role.write") || can("users.status.write") || can("users.delete")) && (
-        <div className="mt-8 flex flex-wrap items-end gap-3 border-t border-border pt-6">
-          {can("users.role.write") && (
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-wider text-muted-foreground">
-              {t("admin.userDetail.changeRole")}
-              <SelectMenu
-                value={user.Role}
-                onChange={changeRole}
-                options={Array.from(new Set([user.Role, ...assignableRoles(can, callerRole, user.Role as Role)])).map((r) => ({ value: r, label: roleLabel(r) }))}
-                className="w-48"
-              />
-            </label>
+      {!isSelf && !protectedSuperAdmin && (canRole || canStatus || canDelete) && (
+        // Access controls on the left; the destructive delete stands apart on the right (below them on a phone).
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-border pt-6">
+          {(canRole || canStatus) && <div className="flex flex-wrap items-end gap-3">
+            {canRole && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-foreground">{t("admin.userDetail.changeRole")}</span>
+                <SelectMenu
+                  value={user.Role}
+                  onChange={(role) => { if (role !== user.Role) ask({ kind: "role", role }) }}
+                  options={Array.from(new Set([user.Role, ...assignableRoles(can, callerRole, user.Role as Role)])).map((r) => ({ value: r, label: roleLabel(r) }))}
+                  ariaLabel={t("admin.userDetail.changeRole")}
+                  className="w-48"
+                />
+              </div>
+            )}
+            {canStatus && (
+              user.Status === "blocked" ? (
+                <Button variant="outline" onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
+              ) : (
+                <Button variant="outline" onClick={() => ask({ kind: "block" })}>{t("admin.userDetail.block")}</Button>
+              )
+            )}
+          </div>}
+
+          {canDelete && (
+            <Button variant="destructive" onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
           )}
-
-          {can("users.status.write") && (user.Status === "active" || user.Status === "blocked") && (
-            user.Status === "blocked" ? (
-              <Button variant="outline" onClick={() => setStatus("active")}>{t("admin.userDetail.unblock")}</Button>
-            ) : (
-              <Button variant="outline" onClick={() => setStatus("blocked")}>{t("admin.userDetail.block")}</Button>
-            )
-          )}
-
-          {can("users.delete") && (
-            <>
-              <Button variant="destructive" onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
-              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={deleteBusy} busyLabel={t("busy.deleting")}
-                title={t("admin.userDetail.deleteConfirmTitle")} description={t("admin.userDetail.deleteConfirmBody")}
-                cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.delete")}
-                error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />
-            </>
-          )}
-
         </div>
       )}
+
+      <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={deleteBusy} busyLabel={t("busy.deleting")}
+        title={t("admin.userDetail.deleteConfirmTitle", { name })} description={t("admin.userDetail.deleteConfirmBody")}
+        cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.deleteConfirm")}
+        error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />
+
+      <ConfirmDialog open={pending !== null} onCancel={closePending} busy={pendingBusy}
+        tone={pending?.kind === "role" && raising ? "default" : "danger"}
+        busyLabel={t(pending?.kind === "block" ? "busy.blocking" : "busy.changingRole")}
+        title={pending?.kind === "block" ? t("admin.userDetail.blockConfirm.title", { name })
+          : t(raising ? "admin.userDetail.roleConfirm.raiseTitle" : "admin.userDetail.roleConfirm.lowerTitle", { name, role: pendingRole })}
+        description={pending?.kind === "block" ? t("admin.userDetail.blockConfirm.body")
+          : t(raising ? "admin.userDetail.roleConfirm.raiseBody" : "admin.userDetail.roleConfirm.lowerBody", { role: pendingRole, current: roleLabel(user.Role) })}
+        cancelLabel={t("admin.userDetail.cancel")}
+        confirmLabel={t(pending?.kind === "block" ? "admin.userDetail.block" : "admin.userDetail.roleConfirm.confirm")}
+        error={pendingError} onConfirm={() => void applyPending()} />
     </div>
   )
 }
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words text-sm text-foreground">{children}</dd></div>
+}
+
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />}>
+    <Suspense fallback={<LoadingArea className="h-full" label={t("admin.loading")} />}>
       <Detail />
     </Suspense>
   )
