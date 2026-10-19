@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import type { CapacityObservation, InfrastructureAgent } from "@/api/infrastructure"
-import { agentDisplayName, capacityMetrics, formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
+import { agentDisplayName, capacityMetrics, formatBytes, formatCpu, type CapacityMetrics } from "@/lib/infrastructureMonitoring"
 import { formatListDateTime } from "@/lib/locale"
 import { t } from "@/i18n/t"
 
@@ -17,6 +17,12 @@ function ResourceBar({ label, requested, allocatable, format }: { label: string;
     {hasScale ? <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuenow={Math.min(requested, allocatable)} aria-valuemax={allocatable} className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${overcommitted ? "bg-[var(--ib-warn)]" : "bg-primary"}`} style={{ width: `${Math.min(100, requested / allocatable * 100)}%` }} /></div> : <p className="text-xs text-muted-foreground">{t("admin.labs.noScale")}</p>}
     {overcommitted && <p className="text-xs text-[var(--ib-warn)]">{t("admin.labs.overcommitted")}</p>}
   </div>
+}
+
+// The cluster can still add nodes: what the existing ones give now is below the maximum the calendar plans with.
+function growable(m: CapacityMetrics): boolean {
+  const below = (current: number | null, max: number | null) => current !== null && (max === null || current < max)
+  return below(m.currentCpuMillicores, m.capacityCpuMillicores) || below(m.currentMemoryBytes, m.capacityMemoryBytes)
 }
 
 export function CapacityPanel({ rows, agents, loadError, errorCause, onRetry }: { rows: CapacityObservation[]; agents: InfrastructureAgent[]; loadError: string; errorCause?: unknown; onRetry: () => void }) {
@@ -31,10 +37,10 @@ export function CapacityPanel({ rows, agents, loadError, errorCause, onRetry }: 
           <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-sm font-semibold text-foreground">{name}</h3><time dateTime={row.ObservedAt} className="text-xs text-muted-foreground">{formatListDateTime(row.ObservedAt)}</time></div>
           {metrics ? <>
             <div className="grid gap-4 md:grid-cols-2">
-              <ResourceBar label={t("admin.labs.capacity.cpuLabel", { name })} requested={metrics.requestedCpuMillicores} allocatable={metrics.allocatableCpuMillicores} format={formatCpu} />
-              <ResourceBar label={t("admin.labs.capacity.memoryLabel", { name })} requested={metrics.requestedMemoryBytes} allocatable={metrics.allocatableMemoryBytes} format={formatBytes} />
+              <ResourceBar label={t("admin.labs.capacity.cpuLabel", { name })} requested={metrics.reservedCpuMillicores} allocatable={metrics.capacityCpuMillicores} format={formatCpu} />
+              <ResourceBar label={t("admin.labs.capacity.memoryLabel", { name })} requested={metrics.reservedMemoryBytes} allocatable={metrics.capacityMemoryBytes} format={formatBytes} />
             </div>
-            {metrics.nodes.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-primary">{t("admin.labs.capacity.nodes", { count: metrics.nodes.length })}</summary><div className="mt-3 space-y-3 pl-3">{metrics.nodes.map((node) => <div key={node.name} className="grid gap-2 md:grid-cols-[minmax(8rem,1fr)_1fr_1fr]"><span className="font-medium">{node.name}</span><span className="tabular-nums text-muted-foreground">{t("admin.labs.cpuUsage", { used: formatCpu(node.requestedCpuMillicores), total: formatCpu(node.allocatableCpuMillicores) })}</span><span className="tabular-nums text-muted-foreground">{t("admin.labs.memoryUsage", { used: formatBytes(node.requestedMemoryBytes), total: formatBytes(node.allocatableMemoryBytes) })}</span></div>)}</div></details>}
+            {growable(metrics) && <p className="text-sm text-muted-foreground">{t("admin.labs.capacity.current", { cpu: formatCpu(metrics.currentCpuMillicores), memory: formatBytes(metrics.currentMemoryBytes) })}</p>}
           </> : <p className="text-sm text-muted-foreground">{t("admin.labs.capacity.pending")}</p>}
         </section>
       })}
