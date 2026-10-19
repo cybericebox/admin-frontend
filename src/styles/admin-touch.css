@@ -1,0 +1,22 @@
+/* Touch screens (pointer:coarse): every field is at least 16px, so iOS never zooms the page on focus (contenteditable
+   variable fields included), and every tap target is at least 44 × 44 px. Small controls keep their look: an invisible
+   ::after grows the hit area around them. Rows of options (tabs, segments, menu items, list options) simply grow to 44px.
+   Same contract as event-frontend src/styles/event-touch.css. */
+@media (pointer: coarse) {
+  [contenteditable="true"], [contenteditable="true"] :where(p, li, h1, h2, h3, h4, blockquote, span) { font-size: var(--ib-fs-16); }
+
+  /* An element that is already absolute/fixed/sticky positions its ::after itself. */
+  :where(.admin-tap, .ib-help):not(.absolute, .fixed, .sticky) { position: relative; }
+  :is(.admin-tap, .ib-help)::after {
+    content: ""; position: absolute;
+    inset: min(0px, calc((100% - 44px) / 2)) min(0px, calc((100% - 44px) / 2));
+  }
+  /* A checkbox or switch is tapped through its whole label row, at least 44px tall. */
+  label:has(> input[type="checkbox"]), label:has(> button[role="switch"]) { position: relative; }
+  :is(label:has(> input[type="checkbox"]), label:has(> button[role="switch"]))::after {
+    content: ""; position: absolute; left: 0; right: 0;
+    top: min(0px, calc((100% - 44px) / 2)); bottom: min(0px, calc((100% - 44px) / 2));
+  }
+
+  :is([role="tab"], .ib-seg > button, button[aria-pressed], button[role="radio"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], .ib-pagination button) { min-height: 44px; }
+}

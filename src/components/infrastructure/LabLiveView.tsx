@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Switch } from "@/components/ui/switch"
-import { ImageWarningIcon, QueueBadge } from "@/components/infrastructure/LabIndicators"
+import { ImageWarningIcon, LabQueueIndicator } from "@/components/infrastructure/LabIndicators"
 import type { LabDevice, LabLive } from "@/api/infrastructure"
 import { formatBytes } from "@/lib/infrastructureMonitoring"
 import { formatListDateTime } from "@/lib/locale"
@@ -100,7 +100,7 @@ export function LabLiveView({ live, unavailable = false, canWrite, onReset, onRe
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center gap-2">
       <Chip className={PHASE_STYLE[phase] ?? undefined}>{t(`admin.labs.detail.phase.${phase}`)}</Chip>
-      {live.Queue && live.Queue.Position > 0 && <QueueBadge position={live.Queue.Position} length={live.Queue.Length} reason={live.Queue.Reason} />}
+      <LabQueueIndicator queue={live.Queue} />
       {live.Queue && live.Queue.Pods > 0 && <span className="text-xs text-muted-foreground">{t("admin.labs.detail.queue.pods", { started: live.Queue.Pods - live.Queue.Pending, pods: live.Queue.Pods })}</span>}
       {live.Queue?.Message && <span className="break-words text-xs text-muted-foreground">{live.Queue.Message}</span>}
       {warning && <ImageWarningIcon detail={warning} />}

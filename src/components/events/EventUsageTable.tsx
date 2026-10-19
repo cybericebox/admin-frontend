@@ -90,7 +90,7 @@ function ExportButton({ eventID, disabled }: { eventID: string; disabled: boolea
       setBusy(false)
     }
   }
-  return <Button type="button" variant="outline" size="sm" disabled={disabled} busy={busy} onClick={() => void download()}>
+  return <Button type="button" variant="outline" size="sm" disabled={disabled} busy={busy} busyLabel={t("busy.exporting")} onClick={() => void download()}>
     {!busy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}{t("admin.platformAnalytics.csv.export")}
   </Button>
 }

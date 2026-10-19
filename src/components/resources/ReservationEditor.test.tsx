@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { ApiError } from "@/api/client"
 import type { EventSchedule } from "@/api/events/catalog"
 import type { Reservation, ReservationResult } from "@/api/resourceCalendar"
@@ -179,5 +179,51 @@ describe("ReservationEditor", () => {
     renderEditor({ canWrite: false })
     await screen.findByTestId("editor-summary")
     expect(screen.queryByRole("button", { name: t("admin.resources.editor.save") })).toBeNull()
+  })
+})
+
+describe("cluster parts", () => {
+  const part = (over: Partial<NonNullable<Reservation["Parts"]>[number]> = {}) => ({
+    PartID: "p1", AgentID: "a1", AgentName: "Київ", From: reservation.From, To: reservation.To, Amount: { CPUMillicores: 2300, MemoryBytes: 2 * GIB },
+    Used: { CPUMillicores: 1500, MemoryBytes: GIB }, Groups: 3, Phase: "Active" as const, EndsAt: null, Synced: true, SyncError: "", ShrinkHeld: false, Retiring: false, ...over,
+  })
+
+  it("renders parts with phase and usage", async () => {
+    serve(result({ Reservation: { ...reservation, Parts: [part()] } }))
+    renderEditor()
+    const block = await screen.findByTestId("reservation-parts")
+    expect(block.textContent).toContain(t("admin.resources.parts.title"))
+    expect(block.textContent).toContain("Київ")
+    expect(block.textContent).toContain(t("admin.resources.parts.phase.Active"))
+    expect(block.textContent).toContain(t("admin.resources.parts.synced"))
+    expect(screen.getByTestId("part-p1").textContent).toMatch(/1[,.]5/)
+  })
+
+  it("shows the sync error", async () => {
+    serve(result({ Reservation: { ...reservation, Parts: [part({ Synced: false, SyncError: "agent unreachable" })] } }))
+    renderEditor()
+    expect(await screen.findByText(t("admin.resources.parts.syncError", { error: "agent unreachable" }))).toBeTruthy()
+    expect(screen.queryByText(t("admin.resources.parts.synced"))).toBeNull()
+  })
+
+  it("shrink below usage asks with a danger ConfirmDialog, focus on «Скасувати»", async () => {
+    serve(result({ Reservation: { ...reservation, Parts: [part()] } }))
+    // The dry run says the agent's new share is below what runs on it (1.5 CPU, 1 GiB in use).
+    apiPut.mockImplementation(() => Promise.resolve(result({ Reservation: { ...reservation, Teams: 1, Size: { CPUMillicores: 500, MemoryBytes: 512 * MIB }, Placement: [{ AgentID: "a1", AgentName: "Київ", Units: 1 }], Parts: [] } })))
+    const { onSaved } = renderEditor()
+    fireEvent.change(await screen.findByLabelText(t("admin.resources.editor.teams")), { target: { value: "1" } })
+    fireEvent.click(screen.getByRole("button", { name: t("admin.resources.editor.save") }))
+    const dialog = await screen.findByRole("dialog", { name: t("admin.resources.shrink.title") })
+    expect(dialog.textContent).toContain(t("admin.resources.shrink.body", { minutes: 5 }))
+    const cancel = within(dialog).getByRole("button", { name: t("confirm.cancel") })
+    await waitFor(() => expect(document.activeElement).toBe(cancel))
+    expect(apiPut.mock.calls.every(([, body]) => body.DryRun === true)).toBe(true)
+    expect(onSaved).not.toHaveBeenCalled()
+    const confirm = within(dialog).getByRole("button", { name: t("admin.resources.shrink.confirm") })
+    expect(confirm.className).toMatch(/danger|destructive/)
+    fireEvent.click(confirm)
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    const save = apiPut.mock.calls.find(([, body]) => body.DryRun === undefined)
+    expect(save?.[1]).toMatchObject({ Teams: 1, ForceShrink: true })
   })
 })

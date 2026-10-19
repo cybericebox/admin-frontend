@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
@@ -20,6 +20,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { role, isLoading, error, retry } = useRole()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  // The phone menu opens under the header: its top is the bottom edge of the top bar (banners included), read when it
+  // opens and on resize (the page behind does not scroll while it is open, so the header cannot move otherwise).
+  const topBarRef = useRef<HTMLElement>(null)
+  const [menuTop, setMenuTop] = useState(0)
+  const measureMenuTop = () => setMenuTop(Math.max(0, Math.round(topBarRef.current?.getBoundingClientRect().bottom ?? 0)))
+  useEffect(() => {
+    if (!menuOpen) return
+    window.addEventListener("resize", measureMenuTop)
+    return () => window.removeEventListener("resize", measureMenuTop)
+  }, [menuOpen])
   const desktop = useMediaQuery("(min-width: 768px)")
   // A page that knows its own title and trail (PageHeader with an event name) reports them; otherwise the route's section title is used.
   const [pageMeta, setPageMeta] = useState<PageMeta | null>(null)
@@ -66,9 +76,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-0 flex-1">
           <a className="ib-skip" href="#main">{t("admin.shell.skip")}</a>
           {desktop && <Sidebar />}
-          {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} />}
+          {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} top={menuTop} />}
           <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
-            <TopBar crumbs={crumbs} onMenuClick={() => setMenuOpen(true)} />
+            <TopBar ref={topBarRef} crumbs={crumbs} menuOpen={menuOpen} onMenuClick={() => { measureMenuTop(); setMenuOpen((open) => !open) }} />
             <main id="main" tabIndex={-1} data-admin-scroll-root className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
           </div>
         </div>

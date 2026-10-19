@@ -45,7 +45,7 @@ export function AlarmsTab({ canWrite, version, onChanged }: { canWrite: boolean;
 
   return <div className="space-y-4">
     {canWrite && <div className="flex justify-end">
-      <Button type="button" variant="outline" busy={rechecking} onClick={() => void recheck()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />{t("admin.resources.alarms.recheck")}</Button>
+      <Button type="button" variant="outline" busy={rechecking} busyLabel={t("busy.checking")} onClick={() => void recheck()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />{t("admin.resources.alarms.recheck")}</Button>
     </div>}
     <TableWrap label={t("admin.resources.tabs.alarms")} rows={6}>
       <table aria-label={t("admin.resources.tabs.alarms")} className="ib-table">
@@ -60,7 +60,7 @@ export function AlarmsTab({ canWrite, version, onChanged }: { canWrite: boolean;
             <td>{formatAmount(alarm.Shortage)}</td>
             <td className="ib-table__dim"><TimeText iso={alarm.RaisedAt}>{formatDateTime(alarm.RaisedAt, { dateStyle: "short", timeStyle: "short" })}</TimeText></td>
             <td className="ib-table__actions">{alarm.AckedAt ? <Badge>{t("admin.resources.alarms.acked")}</Badge>
-              : canWrite && <Button type="button" variant="outline" size="sm" busy={busy === alarm.ID} onClick={() => void acknowledge(alarm)}>{t("admin.resources.alarms.acknowledge")}</Button>}</td>
+              : canWrite && <Button type="button" variant="outline" size="sm" busy={busy === alarm.ID} busyLabel={t("busy.confirming")} onClick={() => void acknowledge(alarm)}>{t("admin.resources.alarms.acknowledge")}</Button>}</td>
           </tr>)}</tbody>}
       </table>
     </TableWrap>

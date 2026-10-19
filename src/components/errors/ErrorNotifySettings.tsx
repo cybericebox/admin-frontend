@@ -169,7 +169,7 @@ export function ErrorNotifySettings() {
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SaveButton type="button" onClick={() => void save()} dirty={dirty} busy={saving} disabled={issues.length > 0}>{t("admin.errors.settings.save")}</SaveButton>
-            <Button type="button" variant="outline" onClick={() => void test()} busy={testing}>{t("admin.errors.settings.test")}</Button>
+            <Button type="button" variant="outline" onClick={() => void test()} busy={testing} busyLabel={t("busy.sending")}>{t("admin.errors.settings.test")}</Button>
           </div>
           {dirty && <p className="text-xs text-muted-foreground">{t("admin.errors.settings.testSavedOnly")}</p>}
           {saveError && <p role="alert" className="w-full text-sm text-destructive">{saveError}</p>}

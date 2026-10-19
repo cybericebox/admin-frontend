@@ -42,6 +42,6 @@ export function MailFiltersBar({ filters, options, onChange, onReload, busy }: {
       </label>
       <FieldHelp text={t(P + "filters.includeTestsHint")} />
     </div>
-    <Button type="button" variant="outline" size="sm" busy={busy} onClick={onReload}>{t(P + "reload")}</Button>
+    <Button type="button" variant="outline" size="sm" busy={busy} busyLabel={t("busy.updating")} onClick={onReload}>{t(P + "reload")}</Button>
   </div>
 }

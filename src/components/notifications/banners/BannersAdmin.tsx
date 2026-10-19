@@ -3,6 +3,7 @@ import { ApiError } from "@/api/client"
 import { Pencil, Power, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { t } from "@/i18n/t"
+import { UI_LOCALE } from "@/lib/locale"
 import { localizedError } from "@/i18n/apiError"
 import { BANNER_LABEL_MAX, BANNER_TEXT_MAX, createBanner, deleteBanner, listBanners, updateBanner, type Banner, type BannerInput, type BannerLevel, type BannerTargetMode, type BannerTargetSite } from "@/api/notifications/banners"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -77,10 +78,26 @@ function linkValid(url: string): boolean {
   return value.length <= 500 && (value === "" || (value.startsWith("/") && !value.startsWith("//")) || /^https?:\/\//i.test(value))
 }
 
+const BANNER_STATE_KEY = {
+  active: "admin.notif.banners.stateActive",
+  inactive: "admin.notif.banners.stateInactive",
+  ended: "admin.notif.banners.stateEnded",
+  scheduled: "admin.notif.banners.stateScheduled",
+} as const
+
 function windowLabel(banner: Banner): string {
-  const fmt = (iso: string) => new Date(iso).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" })
+  const fmt = (iso: string) => new Date(iso).toLocaleString(UI_LOCALE, { dateStyle: "short", timeStyle: "short" })
   if (!banner.ActiveFrom && !banner.ActiveTo) return t("admin.notif.banners.windowAlways")
   return `${banner.ActiveFrom ? fmt(banner.ActiveFrom) : "…"} — ${banner.ActiveTo ? fmt(banner.ActiveTo) : "…"}`
+}
+
+// The state a reader expects: a switched-on banner whose window is over has ended, one whose window has not begun is
+// scheduled; only a banner inside its window (or without one) is shown on the sites now.
+export function bannerState(banner: Pick<Banner, "IsActive" | "ActiveFrom" | "ActiveTo">, now = Date.now()): "active" | "inactive" | "ended" | "scheduled" {
+  if (!banner.IsActive) return "inactive"
+  if (banner.ActiveTo && new Date(banner.ActiveTo).getTime() <= now) return "ended"
+  if (banner.ActiveFrom && new Date(banner.ActiveFrom).getTime() > now) return "scheduled"
+  return "active"
 }
 
 function targetSummary(banner: Pick<Banner, "TargetMode" | "TargetSites" | "TargetEventIDs">): string {
@@ -273,7 +290,7 @@ export function BannersAdmin() {
         ) : (
           <table className="w-full min-w-[820px] text-sm">
             <thead>
-              <tr className="sticky top-0 z-10 border-b border-border bg-background text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr className="sticky top-0 z-10 border-b border-border bg-[var(--ib-table-head)] text-left text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.text")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.level")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.banners.window")}</th>
@@ -293,7 +310,7 @@ export function BannersAdmin() {
                   <td className="px-3 py-2 text-muted-foreground">{windowLabel(banner)}</td>
                   <td className="max-w-64 px-3 py-2 text-foreground">{targetSummary(banner)}</td>
                   <td className="px-3 py-2 text-foreground">{t(`admin.notif.banners.audience.${banner.Audience}`)}</td>
-                  <td className="px-3 py-2 text-foreground">{banner.IsActive ? t("admin.notif.banners.stateActive") : t("admin.notif.banners.stateInactive")}</td>
+                  <td className="px-3 py-2 text-foreground">{t(BANNER_STATE_KEY[bannerState(banner)])}</td>
                   {canWrite && (
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-2">
@@ -318,7 +335,7 @@ export function BannersAdmin() {
         title={t("admin.notif.banners.deleteTitle")}
         description={t("admin.notif.banners.deleteBody")}
         confirmLabel={t("admin.notif.banners.delete")}
-        busy={removeBusy}
+        busy={removeBusy} busyLabel={t("busy.deleting")}
         error={removeError}
         onConfirm={() => void remove()}
       >

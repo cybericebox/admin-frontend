@@ -71,6 +71,8 @@ export function ErrorEmailPicker({ selected, canInvite, onSelect, onClose }: {
     onSelect(user.Email.trim(), { Email: user.Email.trim(), UserID: user.ID, FirstName: user.FirstName, LastName: user.LastName, Role: user.Role, Status: user.Status, EmailConfirmed: user.EmailConfirmed, Eligible: user.Role === "super_admin" && user.Status === "active" && user.EmailConfirmed === true })
     onClose()
   }
+  // An invitation creates a super administrator: the typed address is confirmed first (a typo would hand full access to a stranger).
+  const [confirmingInvite, setConfirmingInvite] = useState(false)
   async function invite() {
     if (!canCreate || inviting) return
     setInviting(true); setInviteError("")
@@ -99,10 +101,15 @@ export function ErrorEmailPicker({ selected, canInvite, onSelect, onClose }: {
     } catch (cause) { setPromotionError(errorOr(cause, t("admin.userDetail.actionError"))) }
     finally { setPromotionBusy(false) }
   }
-  return <div className="space-y-2 rounded-md border border-border p-3" onKeyDown={(event) => { if (event.key === "Escape" && !inviting && !promoting && !promotionBusy) { event.stopPropagation(); onClose() } }}>
+  return <div className="space-y-2 rounded-md border border-border p-3" onKeyDown={(event) => { if (event.key === "Escape" && !inviting && !promoting && !promotionBusy && !confirmingInvite) { event.stopPropagation(); onClose() } }}>
     <ConfirmDialog open={promoting !== null} onCancel={() => { if (!promotionBusy) setPromoting(null) }}
       title={t("admin.errors.settings.promoteTitle")} description={t("admin.errors.settings.promoteHelp", { email: promoting?.Email ?? "" })}
-      confirmLabel={t("admin.errors.settings.promoteAndAdd")} busy={promotionBusy} error={promotionError} onConfirm={() => void promote()} />
+      confirmLabel={t("admin.errors.settings.promoteAndAdd")} busy={promotionBusy} busyLabel={t("busy.promoting")} error={promotionError} onConfirm={() => void promote()} />
+    <ConfirmDialog open={confirmingInvite} onCancel={() => { if (!inviting) { setConfirmingInvite(false); setInviteError("") } }}
+      title={t("admin.errors.settings.inviteConfirmTitle")} description={t("admin.errors.settings.inviteConfirmHelp")}
+      confirmLabel={t("admin.errors.settings.inviteConfirm")} busy={inviting} busyLabel={t("busy.inviting")} error={inviteError || null} onConfirm={() => void invite()}>
+      <p className="break-all text-base font-semibold text-foreground">{email}</p>
+    </ConfirmDialog>
     <Input ref={input} role="combobox" aria-expanded="true" aria-controls={`${id}-list`} aria-autocomplete="list" aria-activedescendant={!searching && available.length ? `${id}-${available[focused % available.length]?.ID}` : undefined}
       aria-label={t("admin.errors.settings.searchRecipient")} placeholder={t("admin.errors.settings.searchRecipient")} value={search}
       onChange={(event) => { setSearch(event.target.value); setFocused(0); setInviteError("") }}
@@ -127,9 +134,9 @@ export function ErrorEmailPicker({ selected, canInvite, onSelect, onClose }: {
           </ul>}
     </div>
     <p className="text-xs text-muted-foreground">{t(canInvite ? "admin.errors.settings.inviteHelp" : "admin.errors.settings.selectHelp")}</p>
-    {inviteError && <p role="alert" className="text-sm text-destructive">{inviteError}</p>}
+    {inviteError && !confirmingInvite && <p role="alert" className="text-sm text-destructive">{inviteError}</p>}
     <div className="flex flex-wrap gap-2">
-      {canCreate && <Button type="button" size="sm" className="h-auto min-h-9 whitespace-normal break-all" busy={inviting} onClick={() => void invite()}>{t("admin.errors.settings.inviteAndAdd", { email })}</Button>}
+      {canCreate && <Button type="button" size="sm" className="h-auto min-h-9 whitespace-normal break-all" onClick={() => { setInviteError(""); setConfirmingInvite(true) }}>{t("admin.errors.settings.inviteAndAdd", { email })}</Button>}
       <Button type="button" variant="outline" size="sm" disabled={inviting} onClick={onClose}>{t("confirm.cancel")}</Button>
     </div>
   </div>

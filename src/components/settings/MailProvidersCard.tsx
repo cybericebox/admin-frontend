@@ -252,7 +252,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
                 <p className="text-sm font-medium text-foreground">{t("admin.mail.providers.envName")}</p>
                 <p className="truncate text-sm text-muted-foreground">{t(env.ReplyTo ? "admin.mail.envSummaryReplyTo" : "admin.mail.envSummary", { host: env.Host, port: env.Port, name: env.FromName, address: env.FromAddress, replyTo: env.ReplyTo })}</p>
               </div>
-              {canWrite && <Button size="sm" variant="outline" busy={!!testing.env} onClick={() => void runTest("env", testMailTransportInUse)}>{t("admin.mail.providers.test")}</Button>}
+              {canWrite && <Button size="sm" variant="outline" busy={!!testing.env} busyLabel={t("busy.sending")} onClick={() => void runTest("env", testMailTransportInUse)}>{t("admin.mail.providers.test")}</Button>}
             </div>
             {results.env && <Alert variant={results.env.Sent ? "success" : "destructive"}>{testText(results.env)}</Alert>}
           </div>
@@ -301,7 +301,7 @@ export function MailProvidersCard({ settings, canWrite, update, reload }: {
         description={t("admin.mail.providers.deleteBody")}
         cancelLabel={t("admin.mail.cancel")}
         confirmLabel={t("admin.mail.providers.deleteConfirm")}
-        busy={deleteBusy}
+        busy={deleteBusy} busyLabel={t("busy.deleting")}
         error={deleteError}
         onConfirm={() => void confirmDelete()}
       />
@@ -359,7 +359,7 @@ function ProviderRow({ provider, position, first, last, canWrite, testing, resul
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={first} aria-label={t("admin.mail.providers.moveUp", { name: provider.Name })} onClick={() => onMove(-1)}><ChevronUp className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={last} aria-label={t("admin.mail.providers.moveDown", { name: provider.Name })} onClick={() => onMove(1)}><ChevronDown className="h-4 w-4" /></Button>
               </div>
-              <Button type="button" variant="outline" size="sm" busy={testing} aria-label={t("admin.mail.providers.testVia", { name: provider.Name })} onClick={onTest}>{t("admin.mail.providers.test")}</Button>
+              <Button type="button" variant="outline" size="sm" busy={testing} busyLabel={t("busy.sending")} aria-label={t("admin.mail.providers.testVia", { name: provider.Name })} onClick={onTest}>{t("admin.mail.providers.test")}</Button>
               <div className="flex items-center justify-end gap-1">
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.edit", { name: provider.Name })} onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.mail.providers.delete", { name: provider.Name })} onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
@@ -537,7 +537,7 @@ function ProviderDialog({ provider, onClose, onSaved, onTested }: {
         <p className="text-xs text-muted-foreground">{t("admin.mail.testHint")}</p>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={onClose}>{t("admin.mail.cancel")}</Button>
-          <Button type="button" variant="outline" busy={testingForm} onClick={() => void test()}>{t("admin.mail.test")}</Button>
+          <Button type="button" variant="outline" busy={testingForm} busyLabel={t("busy.sending")} onClick={() => void test()}>{t("admin.mail.test")}</Button>
           <SaveButton type="button" dirty={dirty} busy={saving} onClick={() => void save()}>{t("admin.mail.save")}</SaveButton>
         </DialogFooter>
       </DialogContent>

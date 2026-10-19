@@ -12,7 +12,32 @@ export type Amount = { CPUMillicores: number; MemoryBytes: number }
 
 export type Share = { AgentID: string; AgentName: string; Units: number }
 
-export type AlarmKind = "not_placed" | "agent_lost" | "agent_shrunk" | "not_connected"
+export type AlarmKind = "not_placed" | "agent_lost" | "agent_shrunk" | "not_connected" | "cluster_sync_failed" | "cluster_shrink_held"
+
+/** The phase of a part as its agent reports it; "" before the first report. */
+export type PartPhase = "" | "Pending" | "Active" | "Ending" | "Ended"
+
+/** One part of a reservation: the cluster reservation one agent holds for it. */
+export type ReservationPart = {
+  PartID: string
+  AgentID: string
+  AgentName: string
+  From: string
+  To: string
+  Amount: Amount
+  /** What runs in the part as the agent last said. */
+  Used: Amount
+  Groups: number
+  Phase: PartPhase
+  /** When the part's labs are deleted, once the ending is announced. */
+  EndsAt: string | null
+  /** The agent holds the last change; SyncError says why not; ShrinkHeld: a smaller size or an earlier end waits for the labs. */
+  Synced: boolean
+  SyncError: string
+  ShrinkHeld: boolean
+  /** No longer wanted: being removed from its agent. */
+  Retiring: boolean
+}
 
 export type Alarm = {
   ID: string
@@ -58,6 +83,8 @@ export type Reservation = {
   Covered: boolean
   Used: Amount
   Alarms: Alarm[] | null
+  /** The reservation as the agents hold it; absent from an older server. */
+  Parts?: ReservationPart[] | null
 }
 
 export type Conflict = { From: string; To: string; ReservationIDs: string[] | null; PoolShort: boolean; Unplaced: number; Short: Amount }
@@ -120,6 +147,8 @@ export type ReservationInput = {
   WindowStart?: string
   WindowEnd?: string
   AllowConflicts?: boolean
+  /** Send a smaller size or an earlier end even while labs run in the reservation (the danger confirmation). */
+  ForceShrink?: boolean
   DryRun?: boolean
 }
 

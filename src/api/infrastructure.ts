@@ -59,7 +59,9 @@ export type LabResources = {
 }
 
 /** Where a lab waits in the launch queue; Reason is one of the scheduler's queue reasons. */
-export type LabQueue = { Position: number; Length: number; Reason: string; Message: string; Pods: number; Pending: number }
+/** Attempt and RetryAt describe a withdrawn launch (Reason Withdrawn), WaitingSince a lab whose sent pods wait for a new cluster node
+ * (Reason NodeStarting); older backends leave them out. */
+export type LabQueue = { Position: number; Length: number; Reason: string; Message: string; Pods: number; Pending: number; Attempt?: number; RetryAt?: string | null; WaitingSince?: string | null }
 
 export type DeviceFailure = { Reason: string; Message: string; RestartCount: number; At: string | null }
 export type DeviceScheduling = {
@@ -82,7 +84,8 @@ export type LabLive = {
 }
 
 /** The best placed queued lab of a stand. */
-export type StandQueue = { QueuedLabs: number; Position: number; Length: number; Reason: string }
+/** NodeStartingLabs are the labs whose sent pods wait for a new cluster node. */
+export type StandQueue = { QueuedLabs: number; Position: number; Length: number; Reason: string; NodeStartingLabs?: number; Attempt?: number; RetryAt?: string | null; WaitingSince?: string | null }
 
 export type Stand = {
   EventID: string

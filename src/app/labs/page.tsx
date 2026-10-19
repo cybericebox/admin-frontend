@@ -174,7 +174,7 @@ function LabsPage() {
         <Card><CardHeader><CardTitle className="flex items-center gap-1.5 text-base">{t("admin.labs.connection")}<FieldHelp text={t("admin.labs.connectionHelp")} /></CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3"><StateBadge good={status.Healthy}>{t(status.Healthy ? "admin.labs.state.available" : "admin.labs.state.attention")}</StateBadge></div>
           {warningLabel(status) && <p role="alert" className="text-sm text-muted-foreground">{warningLabel(status)}</p>}
-          {status.Agents.length > 0 && <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{agentDisplayName(agent)}</span><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></li>)}</ul>}
+          {status.Agents.length > 0 && <ul className="divide-y divide-border">{status.Agents.map((agent) => <li key={agent.ID} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="min-w-0 break-words font-medium">{agentDisplayName(agent)}</span><span className="shrink-0"><StateBadge good={agent.Healthy}>{t(agent.Healthy ? "admin.labs.agent.up" : "admin.labs.agent.down")}</StateBadge></span></li>)}</ul>}
         </CardContent></Card>
         <StandsTable filters={filters} searchInput={searchInput} onSearchInput={setSearchInput} onFilters={(patch) => setFilters((value) => ({ ...value, ...patch }))}
           events={standEvents} items={stands} total={standsTotal} loading={standsLoading} error={standsError} errorCause={causes.stands} canWrite={canWrite} onRetry={retry}
@@ -187,12 +187,12 @@ function LabsPage() {
       </>}
       <StandDetailDialog stand={detailStand ? shownStand : null} canWrite={canWrite} onClose={() => setDetailStand(null)} />
       <TestLabDetailDialog lab={detailLab ? shownLab : null} canWrite={canWrite} onClose={() => setDetailLab(null)} />
-      <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} error={recreateError}
+      <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} busyLabel={t("busy.recreating")} error={recreateError}
         title={t("admin.labs.stands.recreate.title")}
         description={target ? t("admin.labs.stands.recreate.body", { event: target.EventName || target.EventTag, team: teamLabel(target) }) : undefined}
         confirmLabel={t("admin.labs.stands.recreate.confirm")}
         onConfirm={() => void runRecreate()} />
-      <ConfirmDialog open={labTarget !== null} onCancel={() => { if (!labBusy) setLabTarget(null) }} tone="danger" busy={labBusy} error={labError}
+      <ConfirmDialog open={labTarget !== null} onCancel={() => { if (!labBusy) setLabTarget(null) }} tone="danger" busy={labBusy} busyLabel={t("busy.finishing")} error={labError}
         title={t("admin.labs.testLabs.terminate.title")}
         description={labTarget ? t("admin.labs.testLabs.terminate.body", { exercise: labTarget.ExerciseName, author: testLabAuthor(labTarget) }) : undefined}
         confirmLabel={t("admin.labs.testLabs.terminate.confirm")}

@@ -78,11 +78,11 @@ describe("infrastructure page", () => {
     expect(screen.queryByText("No infrastructure agent is configured")).not.toBeInTheDocument()
   })
 
-  it("shows requested versus allocatable CPU and memory from protojson capacity", async () => {
+  it("shows the reserved part of the agent capacity from protojson, and what the existing nodes give now", async () => {
     serve({ capacity: [capacityRow({
-      allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500",
-      allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472",
-      nodes: [{ name: "node-a", allocatableCpuMillicores: "4000", requestedCpuMillicores: "1500", allocatableMemoryBytes: "8589934592", requestedMemoryBytes: "3221225472" }],
+      tenant: "platform", hasCpuQuota: true, cpuQuotaMillicores: "4000", cpuReservedMillicores: "1500",
+      hasMemoryQuota: true, memoryQuotaBytes: "8589934592", memoryReservedBytes: "3221225472",
+      hasCurrent: true, currentCpuMillicores: "2000", currentMemoryBytes: "4294967296",
     })] })
     render(<Page />)
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
@@ -91,12 +91,12 @@ describe("infrastructure page", () => {
     const memory = screen.getByRole("progressbar", { name: "Памʼять агента Primary" })
     expect(memory).toHaveAttribute("aria-valuenow", "3221225472")
     expect(memory).toHaveAttribute("aria-valuemax", "8589934592")
-    expect(screen.getByText("node-a")).toBeInTheDocument()
+    expect(screen.getByText(/Зараз на наявних вузлах: 2 vCPU і 4 ГіБ/)).toBeInTheDocument()
     expect(document.getElementById("capacity")).not.toBeNull()
   })
 
   it("keeps an overcommitted resource bar accessible without hiding its real usage", async () => {
-    serve({ capacity: [capacityRow({ allocatableCpuMillicores: "4000", requestedCpuMillicores: "5000" })] })
+    serve({ capacity: [capacityRow({ tenant: "platform", hasCpuQuota: true, cpuQuotaMillicores: "4000", cpuReservedMillicores: "5000" })] })
     render(<Page />)
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
     expect(cpu).toHaveAttribute("aria-valuenow", "4000")
@@ -354,7 +354,7 @@ describe("infrastructure page", () => {
       vi.useFakeTimers()
       render(<Page />)
       await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-      expect(screen.getByText("Оновлено 0 с тому")).toBeInTheDocument()
+      expect(screen.getByText("Оновлено щойно")).toBeInTheDocument()
       await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
       expect(screen.getByText("Оновлено 5 с тому")).toBeInTheDocument()
     })

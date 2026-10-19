@@ -345,7 +345,7 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
         description={t("admin.limits.resetBody")}
         cancelLabel={t("admin.limits.cancel")}
         confirmLabel={t("admin.limits.resetConfirm")}
-        busy={resetBusy}
+        busy={resetBusy} busyLabel={t("busy.resetting")}
         error={resetError}
         onConfirm={() => void reset()}
       />

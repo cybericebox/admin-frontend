@@ -43,7 +43,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
           <p className="text-sm text-muted-foreground">{t("auth.noAccess.body", { email: me.Email })}</p>
           {failed && <p role="alert" className="text-sm text-destructive">{t("auth.noAccess.failed")}</p>}
           <div className="mt-2 flex flex-wrap justify-center gap-2">
-            <Button busy={working} onClick={() => void switchAccount()}>{t("auth.noAccess.switch")}</Button>
+            <Button busy={working} busyLabel={t("busy.signingOut")} onClick={() => void switchAccount()}>{t("auth.noAccess.switch")}</Button>
             <Button variant="outline" asChild><a href={mainOrigin}>{t("auth.noAccess.home")}</a></Button>
           </div>
         </div>

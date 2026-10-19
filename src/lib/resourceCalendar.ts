@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/client"
-import type { Amount, Conflict, Maintenance, Reservation, ReservationKind, Timeline } from "@/api/resourceCalendar"
+import type { Amount, Conflict, Maintenance, Reservation, ReservationKind, ReservationPart, Timeline } from "@/api/resourceCalendar"
 
 export const CODE_DOES_NOT_FIT = 72504
 export const CODE_ALREADY_DECIDED = 72506
@@ -169,3 +169,30 @@ export function gbToAmount(text: string): Amount | null {
 
 /** «3,4» for 3.4 GB, with the platform's decimal comma. */
 export const formatGBValue = (bytes: number) => new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 }).format(bytes / GIB)
+
+/** The notice the cluster gives before it deletes the labs a shrink leaves out, in minutes (the laboratory default). */
+export const SHRINK_NOTICE_MINUTES = 5
+
+/** One agent's part of a reservation's size, as the backend splits it: ceil(size x units / teams) per resource. */
+export function shareAmount(next: Pick<Reservation, "Size" | "Teams" | "Placement">, agentID: string): Amount {
+  const units = (next.Placement ?? []).find((share) => share.AgentID === agentID)?.Units ?? 0
+  const teams = Math.max(next.Teams, 1)
+  return { CPUMillicores: Math.ceil((next.Size.CPUMillicores * units) / teams), MemoryBytes: Math.ceil((next.Size.MemoryBytes * units) / teams) }
+}
+
+/**
+ * Whether a change takes the reservation below what already runs in it, the way the backend holds it back: a part
+ * whose new share (none when its agent leaves the placement) is under what it uses, or an end earlier than the
+ * cluster's notice from now (and than the current end) while labs run. Such a change waits for the admin's confirmation.
+ */
+export function shrinksBelowUse(parts: ReservationPart[] | null | undefined, next: Pick<Reservation, "Size" | "Teams" | "Placement" | "To">, currentTo: string, now: number): boolean {
+  const live = (parts ?? []).filter((part) => !part.Retiring && part.Groups > 0)
+  if (live.length === 0) return false
+  const below = live.some((part) => {
+    const share = shareAmount(next, part.AgentID)
+    return share.CPUMillicores < part.Used.CPUMillicores || share.MemoryBytes < part.Used.MemoryBytes
+  })
+  if (below) return true
+  const earliest = Math.min(now + SHRINK_NOTICE_MINUTES * 60_000, Date.parse(currentTo))
+  return Date.parse(next.To) < earliest
+}

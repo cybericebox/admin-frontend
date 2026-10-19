@@ -52,6 +52,8 @@ export function BroadcastCompose() {
   const [pendingTemplate, setPendingTemplate] = useState<BroadcastTemplate | null>(null)
   const [sending, setSending] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set())
+  const touch = (field: string) => setTouched((current) => current.has(field) ? current : new Set(current).add(field))
   const clearField = (field: string) => setFieldErrors((current) => ({ ...current, [field]: "" }))
   const [sendError, setSendError] = useState("")
 
@@ -146,6 +148,9 @@ export function BroadcastCompose() {
   }
 
   const label = "mb-1 block text-sm font-medium text-foreground"
+  // «Required» shows only after the reader left or changed a field (a new form never opens all red); variable
+  // and syntax errors show at once.
+  const req = (field: string) => touched.has(field)
   return (
     <div className="flex flex-col gap-4">
     <PageHeader title={t("admin.notif.broadcast.new")}
@@ -159,9 +164,9 @@ export function BroadcastCompose() {
 
           <section className="space-y-2" aria-labelledby="bc-channels">
             <h2 id="bc-channels" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.channels")}</h2>
-            <FieldValidation label={t("admin.notif.broadcast.channels")} error={fieldErrors.channels || (channels.length === 0 ? t("admin.notif.broadcast.channelsRequired") : "")}><div className="flex flex-wrap gap-x-6 gap-y-2">
-              <Checkbox checked={email} onChange={(event) => { clearField("channels"); setEmail(event.target.checked) }} label={t("admin.notif.broadcast.channel.email")} />
-              <Checkbox checked={inApp} onChange={(event) => { clearField("channels"); setInApp(event.target.checked) }} label={t("admin.notif.broadcast.channel.in_app")} />
+            <FieldValidation label={t("admin.notif.broadcast.channels")} error={fieldErrors.channels || (channels.length === 0 && req("channels") ? t("admin.notif.broadcast.channelsRequired") : "")}><div className="flex flex-wrap gap-x-6 gap-y-2">
+              <Checkbox checked={email} onChange={(event) => { clearField("channels"); touch("channels"); setEmail(event.target.checked) }} label={t("admin.notif.broadcast.channel.email")} />
+              <Checkbox checked={inApp} onChange={(event) => { clearField("channels"); touch("channels"); setInApp(event.target.checked) }} label={t("admin.notif.broadcast.channel.in_app")} />
             </div>
             </FieldValidation>
           </section>
@@ -169,20 +174,20 @@ export function BroadcastCompose() {
           {email && (
             <section className="space-y-4" aria-labelledby="bc-email">
               <h2 id="bc-email" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.emailPart")}</h2>
-              <div>
+              <div onBlur={() => touch("subject")}>
                 <label className={label}>{t("admin.notif.tpl.subject")}</label>
-                <VariableRichText value={subject} onChange={(value) => { clearField("subject"); setSubject(value) }} error={fieldErrors.subject || templateFieldError(subject, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
+                <VariableRichText value={subject} onChange={(value) => { clearField("subject"); touch("subject"); setSubject(value) }} error={fieldErrors.subject || templateFieldError(subject, variables, req("subject"))} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
               </div>
               <div>
                 <label className={label}>{t("admin.notif.tpl.preheader")}</label>
                 <VariableRichText value={preheader} onChange={setPreheader} error={templateFieldError(preheader, variables)} variables={variables} placeholder={t("admin.notif.tpl.preheader")} dotted />
               </div>
-              <div>
+              <div onBlur={() => touch("body")}>
                 <div className="mb-1 flex items-center gap-1.5">
                   <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.body")}</label>
                   <FieldHelp text={t("admin.notif.broadcast.noImages")} />
                 </div>
-                <BlockEditor error={fieldErrors.body || (hasBody(body) ? templateFieldError(body, variables) : t("admin.notif.validation.required"))} value={body} onChange={(value) => { clearField("body"); setBody(value) }} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
+                <BlockEditor error={fieldErrors.body || (hasBody(body) ? templateFieldError(body, variables) : req("body") ? t("admin.notif.validation.required") : "")} value={body} onChange={(value) => { clearField("body"); touch("body"); setBody(value) }} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
               </div>
             </section>
           )}
@@ -190,13 +195,13 @@ export function BroadcastCompose() {
           {inApp && (
             <section className="space-y-4" aria-labelledby="bc-inapp">
               <h2 id="bc-inapp" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.inAppPart")}</h2>
-              <div>
+              <div onBlur={() => touch("title")}>
                 <label className={label}>{t("admin.notif.tpl.title")}</label>
-                <VariableRichText value={title} onChange={(value) => { clearField("title"); setTitle(value) }} error={fieldErrors.title || templateFieldError(title, variables, true)} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
+                <VariableRichText value={title} onChange={(value) => { clearField("title"); touch("title"); setTitle(value) }} error={fieldErrors.title || templateFieldError(title, variables, req("title"))} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
               </div>
-              <div>
+              <div onBlur={() => touch("inAppBody")}>
                 <label className={label}>{t("admin.notif.tpl.body")}</label>
-                <InAppBodyEditor value={inAppBody} onChange={setInAppBody} error={templateFieldError(inAppBody, variables, true)} variables={variables} />
+                <InAppBodyEditor value={inAppBody} onChange={(value) => { touch("inAppBody"); setInAppBody(value) }} error={templateFieldError(inAppBody, variables, req("inAppBody"))} variables={variables} />
               </div>
               <div>
                 <div className="mb-1 flex items-center gap-1.5">
@@ -248,7 +253,7 @@ export function BroadcastCompose() {
         title={t(shownCount === 1 ? "admin.notif.broadcast.confirm.titleOne" : "admin.notif.broadcast.confirm.title", { count: shownCount ?? 0 })}
         description={t("admin.notif.broadcast.confirm.body")}
         confirmLabel={t("admin.notif.broadcast.confirm.action")}
-        busy={sending}
+        busy={sending} busyLabel={t("busy.sending")}
         error={sendError}
         onConfirm={() => void send()}
       />

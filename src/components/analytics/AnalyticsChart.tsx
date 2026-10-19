@@ -8,9 +8,13 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { useChartTheme, type ChartTheme } from "./chartTheme"
 import type { ChartOption } from "./chartOptions"
+import { CHART_LOCALE } from "./chartLocaleName"
 
-// echarts is heavy: load it on the first chart only.
-const ReactECharts = lazy(() => import("echarts-for-react"))
+// echarts is heavy: load it on the first chart only, with the Ukrainian locale registered first.
+const ReactECharts = lazy(async () => {
+  await import("./echartsLocale")
+  return import("echarts-for-react")
+})
 
 // A chart whose every value is zero says «no data» instead of drawing flat lines.
 function allZero(option: ChartOption | undefined): boolean {
@@ -57,7 +61,7 @@ export function AnalyticsChart({ option, loading = false, error, empty = false, 
     {state === "empty" && <EmptyState className="h-full" message={emptyMessage ?? t("admin.platformAnalytics.chart.empty")} />}
     {state === "ready" && resolved && (
       <Suspense fallback={<LoadingArea className="h-full w-full" label={t("admin.loading")} />}>
-        <ReactECharts style={{ height: "100%", width: "100%" }} option={resolved as EChartsOption} onEvents={onEvents} notMerge />
+        <ReactECharts style={{ height: "100%", width: "100%" }} option={resolved as EChartsOption} opts={{ locale: CHART_LOCALE }} onEvents={onEvents} notMerge />
       </Suspense>
     )}
   </div>

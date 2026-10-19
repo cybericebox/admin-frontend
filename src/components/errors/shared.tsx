@@ -1,9 +1,11 @@
 "use client"
 import { ERROR_STATUSES, type ErrorStatus } from "@/api/errorJournal"
 import { t } from "@/i18n/t"
+import { hasMessage } from "@/i18n/hasMessage"
 import { cn } from "@/utils/cn"
 
-export const kindLabel = (kind: string) => t(`admin.errors.kind.${kind}`)
+// A kind the catalog does not know yet (a newer daemon) reads «Інше (kind)», never a raw message key.
+export const kindLabel = (kind: string) => hasMessage(`admin.errors.kind.${kind}`) ? t(`admin.errors.kind.${kind}`) : t("admin.errors.kind.other", { kind })
 export const statusLabel = (status: string) => t(`admin.errors.status.${status}`)
 
 export const errorGroupHref = (id: string, ref?: string) => `/errors/?group=${encodeURIComponent(id)}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}`

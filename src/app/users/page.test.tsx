@@ -35,6 +35,13 @@ describe("admin users page", () => {
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?page=1&pageSize=50&sortBy=lastSeen&sortDir=desc"))
   })
 
+  it("says «never» for a user who never signed in (the API sends Go's zero time), not thousands of days ago", async () => {
+    mocks.get.mockResolvedValue({ Items: [{ ID: "user-2", FirstName: "Юлія", LastName: "Ткаченко", Email: "y@example.test", Role: "user", Status: "incomplete", LastSeen: "0001-01-01T00:00:00Z", CreatedAt: "2026-09-01T00:00:00Z" }], Total: 1, Page: 1, PageSize: 50 })
+    render(<Page />)
+    expect(await screen.findByText("admin.users.never")).toBeInTheDocument()
+    expect(screen.queryByText(/днів тому/)).not.toBeInTheDocument()
+  })
+
   it("keeps column headings above rows within the scrolling table", async () => {
     const { container } = render(<Page />)
     await screen.findByText("Олена Коваль")

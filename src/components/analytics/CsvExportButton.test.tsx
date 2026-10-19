@@ -18,7 +18,7 @@ describe("CsvExportButton", () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {})
     render(<CsvExportButton section="users" table="registrations" params={{ from: "2026-01-01T00:00:00Z" }} />)
     fireEvent.click(screen.getByRole("button", { name: /Експорт CSV/ }))
-    expect(screen.getByRole("status")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Експортуємо…" }).querySelector(".crest-loader")).toBeInTheDocument()
     expect(mocks.apiGetBlob).toHaveBeenCalledWith("/api/analytics/users/export.csv?from=2026-01-01T00%3A00%3A00Z&table=registrations")
     resolve({ blob: new Blob(["a"]), filename: "users.csv" })
     await waitFor(() => expect(click).toHaveBeenCalledOnce())

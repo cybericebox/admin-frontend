@@ -186,13 +186,13 @@ describe("admin sidebar", () => {
     expect(screen.getByRole("link", { name: "admin.nav.elevations" })).toHaveAttribute("href", "/elevations")
   })
 
-  it("keeps Users in analytics for the old users.read right and hides the rest without analytics.read", () => {
+  it("hides the whole analytics group without analytics.read, even with users.read (the pages need analytics.read)", () => {
     rights.denied = new Set(["analytics.read", "notifications.templates.read"])
-    nav.path = "/analytics/users"
+    nav.path = "/users"
     render(<Sidebar />)
-    expect(screen.getByRole("link", { name: "admin.nav.analyticsUsers" })).toHaveAttribute("aria-current", "page")
-    expect(screen.queryByRole("link", { name: "admin.nav.analyticsOverview" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("link", { name: "admin.nav.analyticsNotifications" })).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "admin.nav.users" })).toHaveAttribute("href", "/users")
+    expect(screen.queryByRole("button", { name: "admin.nav.analytics" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "admin.nav.analyticsUsers" })).not.toBeInTheDocument()
   })
 
   it("marks Overview current only on /analytics itself", () => {

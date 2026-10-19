@@ -23,7 +23,8 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
 }
 [tabindex="-1"]:focus { outline: none; }
 
-/* iOS zooms the page into a text field under 16px; on touch the fields are 16px (DS input.css). */
+/* iOS zooms the page into a text field under 16px; on touch the fields are 16px (DS input.css; contenteditable and the
+   44px tap targets are in admin-touch.css). */
 @media (pointer: coarse) {
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select { font-size: var(--ib-fs-16); }
 }
@@ -61,3 +62,27 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
 .ib-error__copy{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-left:var(--ib-1);vertical-align:middle;color:var(--ib-dim);background:none;border:0;border-radius:var(--ib-r-sm);cursor:pointer}
 .ib-error__copy:hover{color:var(--ib-ink)}
 .ib-error__copy:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
+
+/* Row actions stay reachable on a wide table: the actions column sticks to the right edge of the scroll area (DS
+   table.css). The cell is opaque (the card fill under the row hover), so scrolled cells never show through. */
+.ib-table :is(td, th).ib-table__actions { position: sticky; right: 0; }
+.ib-table th.ib-table__actions { z-index: 2; }
+.ib-table td.ib-table__actions { background: var(--card); }
+.ib-table tbody tr:hover td.ib-table__actions { background: linear-gradient(var(--ib-table-hover), var(--ib-table-hover)), var(--card); }
+
+/* .ib-table--cards: under 768px of table width every row becomes a card (name and actions on top, then the other
+   cells with their column name from data-label); the header turns into a wrapped row of sort buttons. Above it the
+   table is a normal table that scrolls sideways in its .ib-table-wrap. */
+@container (max-width: 767px) {
+  .ib-table--cards, .ib-table--cards > :is(thead, tbody) { display: block; }
+  .ib-table--cards > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ib-1) var(--ib-4); padding: var(--ib-2) var(--ib-3); background: var(--ib-table-head); border-bottom: 1px solid var(--ib-line); }
+  .ib-table--cards > thead th { position: static; height: auto; padding: 0; border: 0; background: none; }
+  .ib-table--cards > thead th.ib-table__actions { display: none; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--ib-1) var(--ib-3); height: auto; padding: var(--ib-3); border-bottom: 1px solid var(--ib-line); }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr:hover { background: var(--ib-table-hover); }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr > td { display: block; grid-column: 1 / -1; height: auto; padding: 0; border: 0; white-space: normal; background: none; min-width: 0; max-width: none; overflow-wrap: anywhere; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr > td.ib-table__primary { grid-column: 1; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr > td.ib-table__actions { position: static; grid-column: 2; grid-row: 1; width: auto; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr > td[data-label]::before { content: attr(data-label) " · "; color: var(--ib-dim); }
+  .ib-table--cards > tbody.ib-table__state, .ib-table--cards > tbody.ib-table__state > tr, .ib-table--cards > tbody.ib-table__state > tr > td { display: block; }
+}

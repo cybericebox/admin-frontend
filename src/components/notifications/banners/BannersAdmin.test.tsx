@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ApiError } from "@/api/client"
-import { BannersAdmin } from "./BannersAdmin"
+import { BannersAdmin, bannerState } from "./BannersAdmin"
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), events: vi.fn(), event: vi.fn() }))
 vi.mock("@/api/events/catalog", () => ({ listEventsPage: api.events, getEvent: api.event }))
@@ -239,4 +239,14 @@ describe("banners admin page", () => {
     await waitFor(() => expect(api.update).toHaveBeenCalledWith("b1", expect.objectContaining({ IsActive: false, TargetMode: "selected", TargetSites: ["event"], TargetEventIDs: ["event-1"] })))
   })
 
+})
+
+describe("banner state", () => {
+  const now = Date.parse("2026-10-19T12:00:00Z")
+  it("says ended for a switched-on banner past its window and scheduled before it", () => {
+    expect(bannerState({ IsActive: true, ActiveFrom: "2026-10-01T00:00:00Z", ActiveTo: "2026-10-10T00:00:00Z" }, now)).toBe("ended")
+    expect(bannerState({ IsActive: true, ActiveFrom: "2026-10-25T00:00:00Z", ActiveTo: null }, now)).toBe("scheduled")
+    expect(bannerState({ IsActive: true, ActiveFrom: null, ActiveTo: null }, now)).toBe("active")
+    expect(bannerState({ IsActive: false, ActiveFrom: null, ActiveTo: "2026-10-10T00:00:00Z" }, now)).toBe("inactive")
+  })
 })

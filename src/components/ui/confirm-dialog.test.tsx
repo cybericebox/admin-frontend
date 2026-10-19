@@ -5,11 +5,11 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 import { ConfirmDialog } from "./confirm-dialog"
 
-function renderDialog(props: Partial<React.ComponentProps<typeof ConfirmDialog>> = {}) {
+function renderDialog(props: { tone?: "default" | "danger"; error?: string; busy?: boolean; busyLabel?: string } = {}) {
   const onCancel = vi.fn()
   const onConfirm = vi.fn()
   render(<ConfirmDialog open title="Delete event?" description="This cannot be undone." confirmLabel="Delete"
-    tone="danger" onCancel={onCancel} onConfirm={onConfirm} {...props} />)
+    tone="danger" onCancel={onCancel} onConfirm={onConfirm} {...(props as { busy: boolean; busyLabel: string })} />)
   return { onCancel, onConfirm }
 }
 
@@ -33,9 +33,9 @@ describe("ConfirmDialog", () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it("keeps the dialog while busy, shows the crest loader and an inline error", () => {
-    const { onCancel } = renderDialog({ busy: true, error: "Failed" })
-    const action = screen.getByRole("button", { name: /Delete/ })
+  it("keeps the dialog while busy, names the running action with the crest loader and shows an inline error", () => {
+    const { onCancel } = renderDialog({ busy: true, busyLabel: "Deleting…", error: "Failed" })
+    const action = screen.getByRole("button", { name: "Deleting…" })
     expect(action).toHaveAttribute("aria-busy", "true")
     expect(action.querySelector(".crest-loader")).toBeInTheDocument()
     expect(screen.getByRole("alert")).toHaveTextContent("Failed")

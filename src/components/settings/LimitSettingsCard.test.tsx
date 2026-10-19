@@ -55,8 +55,8 @@ function renderRetention(view = retention) {
 
 const label = (key: string) => t(`admin.limits.field.${key}`)
 const unitOf = (key: string) => screen.getByLabelText(t("admin.limits.unitLabel", { field: label(key) })) as HTMLSelectElement
-// A busy button also carries the crest loader label in its name.
-const saveButton = () => screen.getByRole("button", { name: new RegExp(`${t("admin.limits.save")}$`) })
+// While saving, the button is named by the running operation («Зберігаємо…»).
+const saveButton = () => screen.getByRole("button", { name: new RegExp(`^(${t("admin.limits.save")}|${t("busy.saving")})$`) })
 
 describe("LimitSettingsCard", () => {
   beforeEach(() => {

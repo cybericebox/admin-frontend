@@ -243,7 +243,7 @@ export function AgentsPage() {
     {reconnecting && <ReconnectDialog agent={reconnecting} onClose={() => setReconnecting(null)} onDone={(agent) => { upsert(agent); setReconnecting(null); toast.success(t("admin.agents.reconnect.done", { name: agent.Name })) }} />}
     {blocked && <DeleteBlockedDialog agent={blocked.agent} preview={blocked.preview} onClose={() => setBlocked(null)} />}
 
-    <ConfirmDialog open={confirm !== null} onCancel={() => { if (!confirmBusy) setConfirm(null) }} busy={confirmBusy} error={confirmError}
+    <ConfirmDialog open={confirm !== null} onCancel={() => { if (!confirmBusy) setConfirm(null) }} busy={confirmBusy} busyLabel={t(confirm?.kind === "delete" ? "busy.deleting" : confirm?.kind === "clearCa" ? "busy.removing" : confirm?.kind === "rotate" ? "busy.replacing" : "busy.updating")} error={confirmError}
       tone={confirm?.kind === "delete" || confirm?.kind === "clearCa" ? "danger" : "default"}
       title={confirm ? t(`admin.agents.${confirm.kind}.title`, { name: confirm.agent.Name }) : ""}
       description={confirm ? t(`admin.agents.${confirm.kind}.body`) : undefined}

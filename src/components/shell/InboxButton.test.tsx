@@ -237,7 +237,7 @@ describe("top-bar inbox", () => {
   })
 
   describe("categories", () => {
-    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", Type: "event.lab.failed", Category: "requests", ActionRequired: true, ResolvedAt: null }
+    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", Type: "event.lab.failed", Resolvable: true, Category: "requests", ActionRequired: true, ResolvedAt: null }
     const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:30:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u", Name: "Іван П." } }
     const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal" }
     function mockCategories(requests: number) {
@@ -253,8 +253,8 @@ describe("top-bar inbox", () => {
     it("opens on «Запити» when requests are open: open first, resolved below with who resolved them", async () => {
       mockCategories(1)
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
-      expect(await screen.findByRole("tab", { name: "Запити: 1", selected: true })).toBeInTheDocument()
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 1" }))
+      expect(await screen.findByRole("tab", { name: "Запити, потребують дії: 1", selected: true })).toBeInTheDocument()
       await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?category=requests"))
       const rows = (await screen.findAllByRole("listitem")).map((row) => row.textContent)
       expect(rows[0]).toContain("Лабораторія впала")
@@ -284,7 +284,7 @@ describe("top-bar inbox", () => {
       const { ApiError } = await import("@/api/client")
       api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219))
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 1" }))
       fireEvent.click(await screen.findByRole("button", { name: "Вирішено" }))
       await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/lab/resolve", {}))
       expect(await screen.findByRole("alert")).toHaveTextContent("Запит уже вирішено")

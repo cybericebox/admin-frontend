@@ -289,7 +289,7 @@ export function BlockEditor({
               <Button
                 type="button"
                 size="sm"
-                busy={savingPreset}
+                busy={savingPreset} busyLabel={t("busy.saving")}
                 disabled={!presetName.trim()}
                 onClick={() => void handleSavePreset()}
                 aria-label={t("admin.notif.editor.save")}
@@ -454,7 +454,7 @@ export function BlockEditor({
                     size="sm"
                     aria-invalid={Boolean(uploadState[stableKey]?.error)}
                     aria-describedby={uploadState[stableKey]?.error ? `image-upload-error-${stableKey}` : undefined}
-                    busy={uploadState[stableKey]?.uploading}
+                    busy={uploadState[stableKey]?.uploading} busyLabel={t("busy.uploading")}
                     onClick={() => fileInputRefs.current[stableKey]?.click()}
                   >
                     {!uploadState[stableKey]?.uploading && <Upload className="h-3.5 w-3.5 mr-1.5" />}

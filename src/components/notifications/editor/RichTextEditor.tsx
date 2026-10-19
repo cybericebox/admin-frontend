@@ -313,24 +313,15 @@ export function $toggleSelectedVariableFormat(format: TextFormatType): boolean {
 // Tooltip
 // ---------------------------------------------------------------------------
 
+// Toolbar hints use the shared tooltip: a closed bubble takes no room, so it never widens the page on a phone.
 function Tooltip({
   children,
   label,
 }: {
-  children: React.ReactNode;
+  children: React.ReactElement;
   label: string;
 }): JSX.Element {
-  return (
-    <div className="group/format-tip relative inline-flex">
-      {children}
-      <div
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-xs leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
-      >
-        {label}
-      </div>
-    </div>
-  );
+  return <HoverTooltip text={label}>{children}</HoverTooltip>;
 }
 
 // ---------------------------------------------------------------------------
@@ -803,7 +794,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const rect = anchorElementRef.current.getBoundingClientRect();
     return createPortal(
       <div
-        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
+        className="fixed z-[60] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
         style={{ top: rect.bottom + 4, left: rect.left }}
       >
         {menuOptions.map((opt, idx) => (

@@ -62,7 +62,7 @@ export function EmailFooterEditor({ presetId, presets, variables, readOnly, onSe
       </label>
       <BlockEditor value={blocks} onChange={setBlocks} variables={variables} presets={[]} onSavePreset={async () => {}} showPresetSave={false} />
       <div className="flex gap-2">
-        <Button type="button" onClick={() => void save()} busy={saving} disabled={!name.trim() || blocks.length === 0}>{t("admin.notif.editor.footerSave")}</Button>
+        <Button type="button" onClick={() => void save()} busy={saving} busyLabel={t("busy.saving")} disabled={!name.trim() || blocks.length === 0}>{t("admin.notif.editor.footerSave")}</Button>
         <Button type="button" variant="outline" onClick={() => setCreating(false)}>{t("admin.notif.editor.cancel")}</Button>
       </div>
     </div>}

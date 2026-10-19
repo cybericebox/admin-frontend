@@ -49,7 +49,7 @@ export function ResourcesPage() {
   return <div className="space-y-5">
     <PageHeader title={t("admin.nav.resources")} sub={t("admin.resources.subtitle")} />
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className="h-auto flex-wrap justify-start" aria-label={t("admin.resources.tabsLabel")}>
+      <TabsList aria-label={t("admin.resources.tabsLabel")}>
         <TabsTrigger value="timeline">{t("admin.resources.tabs.timeline")}</TabsTrigger>
         <TabsTrigger value="stats">{t("admin.resources.tabs.stats")}</TabsTrigger>
         <TabsTrigger value="needs">{t("admin.resources.tabs.needs")}<Count value={needing?.length ?? 0} /></TabsTrigger>

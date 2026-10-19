@@ -62,11 +62,41 @@ test("open = ActionRequired and not resolved (§8.3)", () => {
   assert.equal(inbox.isUnread(item("x", { ReadAt: "2026-09-29T10:00:00Z" })), false)
 })
 
-test("«Вирішено» only on open «Лабораторія впала» requests", () => {
-  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed" })), true)
-  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed", ResolvedAt: "2026-09-29T10:00:00Z" })), false)
-  assert.equal(inbox.canResolve(request("app", { Type: "event.application.submitted" })), false)
-  assert.equal(inbox.canResolve(item("fyi", { Type: "event.lab.failed" })), false)
+test("«Вирішено» only where the server says Resolvable on an open request", () => {
+  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true })), true)
+  assert.equal(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" })), false)
+  assert.equal(inbox.canResolve(request("alarm", { Resolvable: false })), false)
+  // No flag, no button: the type alone decides nothing.
+  assert.equal(inbox.canResolve(request("lab", { Type: "event.lab.failed" })), false)
+  assert.equal(inbox.canResolve(item("fyi", { Resolvable: true })), false)
+})
+
+
+
+test("an open request needs action even when it was read; a resolved one does not", () => {
+  assert.equal(inbox.needsAction(request("o", { ReadAt: "2026-09-29T10:00:00Z" })), true)
+  assert.equal(inbox.needsAction(request("o")), true)
+  assert.equal(inbox.needsAction(request("r", { ReadAt: "2026-09-29T10:00:00Z", ResolvedAt: "2026-09-29T10:00:00Z" })), false)
+  assert.equal(inbox.needsAction(item("fyi")), false)
+})
+
+test("the bell label says what is counted: open requests, unread items or both", () => {
+  assert.deepEqual(inbox.bellLabel(0, null), { key: "inbox.title", vars: {} })
+  assert.deepEqual(inbox.bellLabel(3, null), { key: "inbox.titleUnread", vars: { count: 3 } })
+  assert.equal(inbox.bellLabel(0, { all: 0, requests: 0, personal: 0, activity: 0 }).key, "inbox.title")
+  // The owner's case: one open (already read) request and nothing unread.
+  assert.deepEqual(inbox.bellLabel(0, { all: 1, requests: 1, personal: 0, activity: 0 }), { key: "inbox.titleRequests", vars: { count: 1 } })
+  assert.deepEqual(inbox.bellLabel(2, { all: 2, requests: 0, personal: 1, activity: 1 }), { key: "inbox.titleUnread", vars: { count: 2 } })
+  assert.deepEqual(inbox.bellLabel(3, { all: 3, requests: 1, personal: 1, activity: 1 }), { key: "inbox.titleBoth", vars: { requests: 1, unread: 2 } })
+})
+
+test("the new inbox keys exist in both catalogs", () => {
+  for (const lang of ["uk", "en"]) {
+    const catalog = messages(lang)
+    for (const key of ["inbox.unreadItem", "inbox.needsAction", "inbox.titleRequests", "inbox.titleBoth", "inbox.tabCountRequests"]) {
+      assert.ok(catalog[key], `${lang}: ${key}`)
+    }
+  }
 })
 
 test("bell and resolver name", () => {

@@ -21,6 +21,8 @@ describe("operator lifecycle facts", () => {
     expect(screen.getByText("snapshot capture failed")).toBeInTheDocument()
     expect(screen.getByText("CaptureFailed")).toBeInTheDocument()
     expect(screen.queryByRole("button")).not.toBeInTheDocument()
+    // Labs live only until the reservation window ends: no retention deadline is shown.
+    expect(screen.queryByText("Збереження до")).not.toBeInTheDocument()
   })
 
   it("displays confirmed compute release independently from retained snapshot quota", () => {

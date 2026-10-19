@@ -4,6 +4,7 @@ import * as React from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { t } from "@/i18n/t"
+import { UI_LOCALE } from "@/lib/locale"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // Same picker as event-frontend's EventDateTimePicker (copied, not imported):
@@ -61,10 +62,18 @@ function timePart(raw: string, max: number): number | null {
   return value <= max ? value : null
 }
 
-function zoneLabel(at: Date = new Date()): { zone: string; offset: string } {
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const offset = new Intl.DateTimeFormat("en-US", { timeZoneName: "shortOffset" }).formatToParts(at).find((part) => part.type === "timeZoneName")?.value ?? ""
-  return { zone, offset }
+// The viewer's zone in our words: «Київ» for Europe/Kyiv (Chrome still reports the old «Europe/Kiev»), the offset as «UTC+3».
+export function zoneLabel(at: Date = new Date(), zoneID: string = Intl.DateTimeFormat().resolvedOptions().timeZone): { zone: string; offset: string } {
+  const raw = new Intl.DateTimeFormat("en-US", { timeZone: zoneID, timeZoneName: "shortOffset" }).formatToParts(at).find((part) => part.type === "timeZoneName")?.value ?? ""
+  const offset = raw.replace(/^GMT/, "UTC")
+  const name = zoneID === "Europe/Kiev" || zoneID === "Europe/Kyiv" ? t("ui.dateTime.zoneKyiv") : zoneID
+  return { zone: name, offset }
+}
+
+// «жовтень 2026 р.» → «Жовтень 2026 р.»: only the first letter of the line is a capital (CSS capitalize made «Р.»).
+export function monthTitle(month: Date): string {
+  const text = new Intl.DateTimeFormat(UI_LOCALE, { month: "long", year: "numeric" }).format(month)
+  return text.charAt(0).toLocaleUpperCase(UI_LOCALE) + text.slice(1)
 }
 
 export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {
@@ -153,7 +162,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
   return <Popover.Root open={open} onOpenChange={openChange}>
     <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="dialog" data-invalid={invalid} disabled={disabled} onBlur={onBlur} className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
       <span className={`min-w-0 flex-1 truncate tabular-nums ${chosen ? "" : "text-placeholder"}`}>{chosen ? t("ui.dateTime.value", { date: dateLabel(chosen), time: `${pad(time.hour)}:${pad(time.minute)}` }) : t("ui.dateTime.placeholder")}</span>
-      {chosen && <HoverTooltip text={zone} className="shrink-0"><span className="text-xs tabular-nums text-muted-foreground">{offset}</span></HoverTooltip>}
+      {chosen && <HoverTooltip text={t("ui.dateTime.zone", { zone, offset })} className="shrink-0"><span className="text-xs tabular-nums text-muted-foreground">{offset}</span></HoverTooltip>}
       <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Popover.Trigger>
     <Popover.Portal>
@@ -161,7 +170,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
         onOpenAutoFocus={(event) => { event.preventDefault(); gridRef.current?.querySelector<HTMLButtonElement>("[tabindex='0']")?.focus() }}>
         <div className="flex items-center justify-between gap-2">
           <button type="button" aria-label={t("ui.dateTime.prevMonth")} onClick={() => changeMonth(-1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button>
-          <strong id={`${calendarId}-month`} aria-live="polite" className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(month)}</strong>
+          <strong id={`${calendarId}-month`} aria-live="polite" className="text-sm font-semibold">{monthTitle(month)}</strong>
           <button type="button" aria-label={t("ui.dateTime.nextMonth")} onClick={() => changeMonth(1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight aria-hidden="true" className="h-4 w-4" /></button>
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">{WEEKDAY_KEYS.map((key) => <span key={key} className="py-1">{t(key)}</span>)}</div>

@@ -374,7 +374,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
           {canWrite && isReadOnly && (
-            <Button onClick={() => void handleEdit()} busy={busyAction === "edit"} disabled={busy}>
+            <Button onClick={() => void handleEdit()} busy={busyAction === "edit"} busyLabel={t("busy.opening")} disabled={busy}>
               {t("admin.notif.tpl.edit")}
             </Button>
           )}
@@ -597,7 +597,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       </div>
 
       <ConfirmDialog open={publishOpen} onCancel={() => setPublishOpen(false)}
-        busy={busyAction === "publish"}
+        busy={busyAction === "publish"} busyLabel={t("busy.publishing")}
         title={t("admin.notif.tpl.publishTitle")}
         description={t("admin.notif.tpl.publishDescription")}
         confirmLabel={t("admin.notif.tpl.publish")}

@@ -1,4 +1,5 @@
 "use client"
+import { ListFilter } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/api/client"
@@ -234,7 +235,7 @@ export function LogsTab() {
         <div className="min-w-[1080px]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="sticky top-0 z-10 border-b border-border bg-background text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr className="sticky top-0 z-10 border-b border-border bg-[var(--ib-table-head)] text-left text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.type")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.recipient")}</th>
                 <th className="px-3 py-2 font-medium">{t("admin.notif.logs.event")}</th>
@@ -273,9 +274,9 @@ export function LogsTab() {
                           })
                           resetPage()
                         }}
-                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                        className="admin-tap ml-0.5 inline-flex items-center rounded-sm text-muted-foreground hover:text-foreground"
                       >
-                        ⊞
+                        <ListFilter aria-hidden="true" className="h-3.5 w-3.5" />
                       </button></HoverTooltip>
                     </div>
                     {d.RecipientEmail && <div className="text-xs text-muted-foreground">{d.RecipientEmail}</div>}

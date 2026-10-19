@@ -108,7 +108,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
     </section>
 
     <ConfirmDialog open={restoreSource !== null} onCancel={() => { if (!restoring) setRestoreSource(null) }}
-      busy={restoring} disabled={busy} error={restoreError ? t("admin.notif.versions.restoreError") : null}
+      busy={restoring} busyLabel={t("busy.restoring")} disabled={busy} error={restoreError ? t("admin.notif.versions.restoreError") : null}
       title={t("admin.notif.versions.restoreTitle")}
       description={t(versions?.some((version) => version.Status === "draft")
         ? "admin.notif.versions.restoreDescription"
