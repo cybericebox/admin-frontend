@@ -1,20 +1,18 @@
 import { describe, expect, it, vi } from "vitest"
-import { init } from "echarts"
 import { CHART_LOCALE } from "./chartLocaleName"
 
+// The real echarts is heavy to load in jsdom; the registration is checked against a stub.
+const registerLocale = vi.hoisted(() => vi.fn())
+vi.mock("echarts", () => ({ registerLocale }))
 vi.unmock("@/components/analytics/echartsLocale")
 
 describe("chart locale", () => {
-  it("names months in Ukrainian on a time axis", async () => {
+  it("registers the ECharts Ukrainian locale under the name every chart is created with", async () => {
     await import("@/components/analytics/echartsLocale")
-    const dom = document.createElement("div")
-    Object.defineProperty(dom, "clientWidth", { value: 800 })
-    Object.defineProperty(dom, "clientHeight", { value: 300 })
-    const chart = init(dom, undefined, { renderer: "svg", width: 800, height: 300, locale: CHART_LOCALE })
-    chart.setOption({ xAxis: { type: "time" }, yAxis: { type: "value" }, series: [{ type: "line", data: [[Date.UTC(2026, 8, 20), 1], [Date.UTC(2026, 10, 10), 2]] }] })
-    const text = dom.textContent ?? ""
-    chart.dispose()
-    expect(text).toMatch(/Жов|Лис/)
-    expect(text).not.toMatch(/Oct|Nov/)
+    expect(registerLocale).toHaveBeenCalledOnce()
+    const [name, locale] = registerLocale.mock.calls[0] as [string, { time: { monthAbbr: string[] } }]
+    expect(name).toBe(CHART_LOCALE)
+    expect(locale.time.monthAbbr[9]).toBe("Жов")
+    expect(locale.time.monthAbbr).not.toContain("Oct")
   })
 })

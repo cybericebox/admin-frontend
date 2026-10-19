@@ -18,5 +18,5 @@
     top: min(0px, calc((100% - 44px) / 2)); bottom: min(0px, calc((100% - 44px) / 2));
   }
 
-  :is([role="tab"], .ib-seg > button, [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], .ib-pagination button) { min-height: 44px; }
+  :is([role="tab"], .ib-seg > button, button[aria-pressed], button[role="radio"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], .ib-pagination button) { min-height: 44px; }
 }
