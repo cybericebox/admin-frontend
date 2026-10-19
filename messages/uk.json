@@ -2416,7 +2416,6 @@
   "admin.labs.lifecycle.observationUnknown": "Спостереження застаріле або відсутнє",
   "admin.labs.lifecycle.closedAt": "Логічно закрито",
   "admin.labs.lifecycle.stoppedAt": "Фактично зупинено",
-  "admin.labs.lifecycle.retentionUntil": "Збереження до",
   "admin.labs.lifecycle.observedAt": "Спостереження стану",
   "admin.labs.lifecycle.failureCode": "Код помилки зупинки",
   "admin.labs.lifecycle.failureMessage": "Опис помилки зупинки",

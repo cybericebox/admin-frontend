@@ -44,7 +44,6 @@ export function LifecycleFacts({ lab, stale = false }: { lab: ManagedLabView; st
       <Fact label={t("admin.labs.lifecycle.snapshot")}>{t(`admin.labs.lifecycle.snapshot.${lab.SnapshotState}`)}</Fact>
       <Fact label={t("admin.labs.lifecycle.closedAt")}>{formatListDateTime(lab.ClosedAt)}</Fact>
       <Fact label={t("admin.labs.lifecycle.stoppedAt")}>{formatListDateTime(lab.ActualStoppedAt)}</Fact>
-      <Fact label={t("admin.labs.lifecycle.retentionUntil")}>{formatListDateTime(lab.RetentionUntil)}</Fact>
       <Fact label={t("admin.labs.lifecycle.observedAt")}>{formatListDateTime(lab.ObservedAt)}</Fact>
     </dl>
     <p className="text-xs text-muted-foreground">{t("admin.labs.lifecycle.snapshotHelp")}</p>
