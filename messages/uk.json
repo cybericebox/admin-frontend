@@ -2248,6 +2248,7 @@
   "admin.resources.stats.noEvents": "Резервів заходів немає",
   "admin.resources.stats.notUsed": "Не використовується",
   "admin.resources.stats.offline": "Не на звʼязку",
+  "admin.resources.stats.upcoming": "ще не почалось",
   "admin.resources.requests.status.all": "Усі",
   "admin.resources.requests.status.pending": "Очікують",
   "admin.resources.requests.status.approved": "Схвалені",

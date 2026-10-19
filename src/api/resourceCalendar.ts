@@ -100,7 +100,7 @@ export type Timeline = {
 }
 
 export type AgentStat = { ID: string; Name: string; Priority: number; Used: boolean; Connected: boolean; Capacity: Amount; Allocated: Amount; InUse: Amount; Free: Amount }
-export type EventStat = { ReservationID: string; EventID: string; EventName: string; EventTag: string; From: string; To: string; Allocated: Amount; InUse: Amount; Free: Amount; Covered: boolean }
+export type EventStat = { ReservationID: string; EventID: string; EventName: string; EventTag: string; From: string; To: string; Allocated: Amount; InUse: Amount; Free: Amount; Covered: boolean; /** The window has not started yet. */ Upcoming?: boolean }
 export type Stats = { At: string; Agents: AgentStat[] | null; Events: EventStat[] | null; TestPool: Amount; TestLabsHeld: Amount; PendingChangeRequests: number; OpenAlarms: number; Observation?: ResourceObservation | null }
 
 export type Settings = { TestPool: Amount; UpdatedAt: string }
