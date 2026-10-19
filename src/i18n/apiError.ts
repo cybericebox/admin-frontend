@@ -9,7 +9,7 @@
 import errorsUk from "../../messages/errors.uk.json"
 import errorsEn from "../../messages/errors.en.json"
 import { ApiError } from "@/api/client"
-import { isOverloadError } from "@/api/retry"
+import { isOverloadCode, isOverloadError } from "@/api/retry"
 import { t } from "./t"
 
 const uk = errorsUk as Record<string, string>
@@ -28,6 +28,8 @@ export function localizedError(err: unknown): string {
     if (err.retryAfter) return t("error.rateLimited", { wait: formatWait(err.retryAfter) })
     if (err.code == null) return t("error.rateLimitedNoWait")
   }
+  // The overload codes always read as the one overloaded line (with its retry), not as their catalog texts.
+  if (err instanceof ApiError && isOverloadCode(err.code)) return t("error.overloaded")
   if (err instanceof ApiError && err.code != null) {
     const key = String(err.code)
     const msg = uk[key] ?? en[key]
