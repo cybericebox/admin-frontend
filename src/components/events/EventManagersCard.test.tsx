@@ -4,7 +4,7 @@ import { EventManagersCard } from "./EventManagersCard"
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del: vi.fn() }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPost: mocks.post, apiPut: mocks.put, apiDelete: mocks.del }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true, role: "admin" }) }))
 
 const managers = [
   { UserID: "owner-1", Role: 0, CreatedAt: "2026-09-01T09:00:00Z" },
