@@ -169,7 +169,7 @@ function UsersList() {
 
       <div ref={tableScrollRef} className="min-h-0 overflow-auto" aria-busy={loading}>
         <TableWrap label={t("admin.users.title")} rows={8} className="min-h-0">
-          <table className={`ib-table${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.users.title")}>
+          <table className={`ib-table ib-table--cards${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.users.title")}>
             <thead>
               <tr>
                 <SortTh label={t("admin.users.col.user")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
@@ -187,18 +187,18 @@ function UsersList() {
               <tbody className={loading ? "pointer-events-none" : undefined}>
                 {users.map((u) => (
                   <tr key={u.ID}>
-                    <td>
+                    <td className="ib-table__primary min-w-48 max-w-96 whitespace-normal [overflow-wrap:anywhere]">
                       <Link href={`/users/detail?id=${u.ID}`} className="block py-1">
                         <span className="ib-table__name">{fullName(u)}</span>
                         <span className="ib-table__dim block text-[length:var(--ib-fs-13)]">{u.Email}</span>
                       </Link>
                     </td>
-                    <td><RoleBadge role={u.Role} size="sm" /></td>
-                    <td><StatusBadge status={u.Status} size="sm" /></td>
-                    <td className="ib-table__dim">
+                    <td data-label={t("admin.users.col.role")}><RoleBadge role={u.Role} size="sm" /></td>
+                    <td data-label={t("admin.users.col.status")}><StatusBadge status={u.Status} size="sm" /></td>
+                    <td className="ib-table__dim" data-label={t("admin.users.col.lastSeen")}>
                       {isUnsetDate(u.LastSeen) ? t("admin.users.never") : <HoverTooltip text={formatListDateTime(u.LastSeen)}><span><TimeText iso={u.LastSeen}>{relativeTime(u.LastSeen)}</TimeText></span></HoverTooltip>}
                     </td>
-                    <td className="ib-table__dim"><TimeText iso={u.CreatedAt}>{formatListDateTime(u.CreatedAt)}</TimeText></td>
+                    <td className="ib-table__dim" data-label={t("admin.users.col.created")}><TimeText iso={u.CreatedAt}>{formatListDateTime(u.CreatedAt)}</TimeText></td>
                   </tr>
                 ))}
               </tbody>

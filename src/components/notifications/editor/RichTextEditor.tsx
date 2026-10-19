@@ -803,7 +803,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const rect = anchorElementRef.current.getBoundingClientRect();
     return createPortal(
       <div
-        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
+        className="fixed z-[60] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
         style={{ top: rect.bottom + 4, left: rect.left }}
       >
         {menuOptions.map((opt, idx) => (

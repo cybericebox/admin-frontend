@@ -4,6 +4,7 @@ import * as React from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { t } from "@/i18n/t"
+import { UI_LOCALE } from "@/lib/locale"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 // Same picker as event-frontend's EventDateTimePicker (copied, not imported):
@@ -71,8 +72,8 @@ export function zoneLabel(at: Date = new Date(), zoneID: string = Intl.DateTimeF
 
 // «жовтень 2026 р.» → «Жовтень 2026 р.»: only the first letter of the line is a capital (CSS capitalize made «Р.»).
 export function monthTitle(month: Date): string {
-  const text = new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(month)
-  return text.charAt(0).toLocaleUpperCase("uk-UA") + text.slice(1)
+  const text = new Intl.DateTimeFormat(UI_LOCALE, { month: "long", year: "numeric" }).format(month)
+  return text.charAt(0).toLocaleUpperCase(UI_LOCALE) + text.slice(1)
 }
 
 export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {

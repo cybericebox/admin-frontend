@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { AdminShell } from "./AdminShell"
 import { usePageMeta } from "./PageTitle"
 
@@ -11,7 +11,7 @@ vi.mock("@/lib/origins", async (importOriginal) => ({ ...(await importOriginal<t
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span>, CREST_SRC: "/crest.png" }))
-vi.mock("./TopBar", () => ({ TopBar: ({ crumbs, onMenuClick }: { crumbs: { label: string }[]; onMenuClick: () => void }) => <><button onClick={onMenuClick}>menu</button><p data-testid="bar-title">{crumbs.map((crumb) => crumb.label).join(" > ")}</p></> }))
+vi.mock("./TopBar", () => ({ TopBar: ({ crumbs, onMenuClick, menuOpen }: { crumbs: { label: string }[]; onMenuClick: () => void; menuOpen?: boolean }) => <><button onClick={onMenuClick} aria-expanded={!!menuOpen}>menu</button><p data-testid="bar-title">{crumbs.map((crumb) => crumb.label).join(" > ")}</p></> }))
 vi.mock("./Sidebar", () => ({ Sidebar: ({ onClose }: { onClose?: () => void }) => <aside aria-label="sidebar">{onClose && <button onClick={onClose}>admin.shell.closeMenu</button>}</aside> }))
 vi.mock("./SiteBanner", () => ({ SiteBannerBar: () => <div data-testid="site-banners" /> }))
 
@@ -69,16 +69,31 @@ describe("admin shell", () => {
     expect(screen.getAllByRole("complementary", { name: "sidebar" })).toHaveLength(1)
   })
 
-  it("the drawer closes on Esc and on its close button", () => {
+  it("the drawer closes on Esc and on a tap outside it, and tells the top bar it is open", async () => {
     media.matches = false
     render(<AdminShell><span>content</span></AdminShell>)
     fireEvent.click(screen.getByRole("button", { name: "menu" }))
+    expect(screen.getByRole("button", { name: "menu", hidden: true })).toHaveAttribute("aria-expanded", "true")
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "menu" })).toHaveAttribute("aria-expanded", "false")
 
     fireEvent.click(screen.getByRole("button", { name: "menu" }))
-    fireEvent.click(screen.getByRole("button", { name: "admin.shell.closeMenu" }))
+    // Radix listens for the outside press from the next task on.
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    const backdrop = screen.getByTestId("menu-backdrop")
+    fireEvent.pointerDown(backdrop, { button: 0 })
+    fireEvent.click(backdrop)
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("opens the drawer under the header, not over it, with no close button of its own", () => {
+    media.matches = false
+    render(<AdminShell><span>content</span></AdminShell>)
+    fireEvent.click(screen.getByRole("button", { name: "menu" }))
+    expect(screen.getByRole("dialog")).toHaveStyle({ top: "0px" })
+    expect(screen.getByRole("dialog").className).not.toMatch(/inset-y-0|h-dvh/)
+    expect(screen.queryByRole("button", { name: "admin.shell.closeMenu" })).not.toBeInTheDocument()
   })
 
   it("titles the top bar and the document by route, never «Головна» for other sections", () => {

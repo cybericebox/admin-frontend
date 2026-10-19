@@ -150,15 +150,15 @@ function EventsList() {
 
       <div ref={tableScrollRef} className="min-h-0 overflow-auto" aria-busy={loading}>
         <TableWrap label={t("admin.nav.events")} rows={8} className="min-h-0">
-          <table className={`ib-table${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.nav.events")}>
+          <table className={`ib-table ib-table--cards${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.nav.events")}>
             <thead>
               <tr>
-                <SortTh label={t("admin.events.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.nameHelp")} /></SortTh>
-                <SortTh label={t("admin.events.col.tag")} field="tag" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.tagHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortTh label={t("admin.events.col.tag")} field="tag" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortTh label={t("admin.events.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.statusHelp")} /></SortTh>
                 <SortTh label={t("admin.events.col.availableFrom")} field="availableFrom" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.availableFromHelp")} /></SortTh>
-                <SortTh label={t("admin.events.col.archiveAt")} field="archiveAt" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.archiveAtHelp")} /></SortTh>
-                <SortTh label={t("admin.events.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort}><FieldHelp text={t("admin.events.col.updatedHelp")} /></SortTh>
+                <SortTh label={t("admin.events.col.archiveAt")} field="archiveAt" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortTh label={t("admin.events.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort} />
                 {writable && <Th className="ib-table__actions"><span className="sr-only">{t("admin.events.col.actions")}</span></Th>}
               </tr>
             </thead>
@@ -170,14 +170,14 @@ function EventsList() {
               <tbody className={loading ? "pointer-events-none" : undefined}>
                 {rows.map((ev) => (
                   <tr key={ev.ID} className="group">
-                    <td>
+                    <td className="ib-table__primary min-w-48 max-w-80 whitespace-normal">
                       <Link className="ib-table__name hover:underline" href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{ev.Name || ev.Tag}</Link>
                     </td>
-                    <td><EventSiteLink tag={ev.Tag} /></td>
-                    <td><EventStatusBadge event={ev} /></td>
-                    <td className="ib-table__dim"><TimeText iso={ev.AvailableFrom}>{formatListDateTime(ev.AvailableFrom)}</TimeText></td>
-                    <td className="ib-table__dim">{isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : <TimeText iso={ev.ArchiveAt}>{formatListDateTime(ev.ArchiveAt)}</TimeText>}</td>
-                    <td className="ib-table__dim"><TimeText iso={ev.UpdatedAt}>{formatListDateTime(ev.UpdatedAt)}</TimeText></td>
+                    <td className="max-w-56 whitespace-normal" data-label={t("admin.events.col.tag")}><EventSiteLink tag={ev.Tag} /></td>
+                    <td data-label={t("admin.events.col.status")}><EventStatusBadge event={ev} /></td>
+                    <td className="ib-table__dim" data-label={t("admin.events.col.availableFrom")}><TimeText iso={ev.AvailableFrom}>{formatListDateTime(ev.AvailableFrom)}</TimeText></td>
+                    <td className="ib-table__dim" data-label={t("admin.events.col.archiveAt")}>{isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : <TimeText iso={ev.ArchiveAt}>{formatListDateTime(ev.ArchiveAt)}</TimeText>}</td>
+                    <td className="ib-table__dim" data-label={t("admin.events.col.updated")}><TimeText iso={ev.UpdatedAt}>{formatListDateTime(ev.UpdatedAt)}</TimeText></td>
                     {writable && <td className="ib-table__actions">
                       <span className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 motion-reduce:transition-none">
                         {ev.Status !== "archived" && (
@@ -209,7 +209,7 @@ function EventsList() {
         onPage={goToPage} onPageSize={(size) => setQuery({ size: String(size), page: "1" })} />
 
       <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} busyLabel={t(confirming?.kind === "delete" ? "busy.deleting" : "busy.archiving")} error={confirmError}
-        title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
+        title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title", { name: confirming ? confirming.event.Name || confirming.event.Tag : "" })}
         description={t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
         cancelLabel={t("admin.events.dialog.cancel")}
         confirmLabel={t(confirming?.kind === "delete" ? "admin.events.delete.confirm" : "admin.events.archive.confirm")}

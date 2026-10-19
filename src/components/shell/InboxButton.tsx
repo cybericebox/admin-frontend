@@ -358,7 +358,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   return <><Popover.Root open={open} onOpenChange={openInbox}>
     <Popover.Trigger asChild>
-      <button type="button" aria-label={label} className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+      <button type="button" aria-label={label} className="admin-tap relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         <Bell aria-hidden="true" className="h-4 w-4" />
         {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-2xs font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
       </button>
@@ -425,7 +425,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>
-  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-[70] flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
+  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-40 flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
     {popIns.slice(0, 3).map((item) => <NotificationPopIn key={item.ID} message={item} onClose={() => setPopIns((current) => current.filter((entry) => entry.ID !== item.ID))} onAction={(href) => { const safe = safeHref(href); if (safe) void followLink(item, safe) }} />)}
   </div>, document.body)}
   </>

@@ -354,7 +354,7 @@ describe("infrastructure page", () => {
       vi.useFakeTimers()
       render(<Page />)
       await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-      expect(screen.getByText("Оновлено 0 с тому")).toBeInTheDocument()
+      expect(screen.getByText("Оновлено щойно")).toBeInTheDocument()
       await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
       expect(screen.getByText("Оновлено 5 с тому")).toBeInTheDocument()
     })
