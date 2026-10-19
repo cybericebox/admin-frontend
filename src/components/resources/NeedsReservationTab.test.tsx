@@ -42,3 +42,9 @@ describe("NeedsReservationTab", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument()
   })
 })
+
+describe("eventsNeedingReservation with an upcoming reservation", () => {
+  it("does not list an event whose reservation has not started (the statistics list it)", () => {
+    expect(eventsNeedingReservation([event({ ID: "later" })], new Set(["later"]))).toEqual([])
+  })
+})

@@ -2248,6 +2248,7 @@
   "admin.resources.stats.noEvents": "No event reservations",
   "admin.resources.stats.notUsed": "Not used",
   "admin.resources.stats.offline": "Offline",
+  "admin.resources.stats.upcoming": "not started yet",
   "admin.resources.requests.status.all": "All",
   "admin.resources.requests.status.pending": "Pending",
   "admin.resources.requests.status.approved": "Approved",

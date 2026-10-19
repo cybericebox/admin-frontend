@@ -120,3 +120,15 @@ describe("aggregate resource observations", () => {
     expect(screen.getByTestId("observation-storage")).toHaveTextContent("Невідомо")
   })
 })
+
+describe("events of the statistics", () => {
+  it("labels a reservation whose window has not started", () => {
+    renderStats({ ...stats, Events: [{ ...stats.Events![0], Upcoming: true }] })
+    expect(screen.getByTestId("event-stat-r1")).toHaveTextContent("ще не почалось")
+  })
+
+  it("has no label for a running reservation", () => {
+    renderStats()
+    expect(screen.getByTestId("event-stat-r1")).not.toHaveTextContent("ще не почалось")
+  })
+})
