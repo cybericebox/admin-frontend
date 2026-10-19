@@ -2303,6 +2303,8 @@
   "admin.resources.alarms.kind.agent_lost": "Агент втрачено",
   "admin.resources.alarms.kind.agent_shrunk": "Агент зменшився",
   "admin.resources.alarms.kind.not_connected": "Місткість не підключена",
+  "admin.resources.alarms.kind.cluster_sync_failed": "Не передано в кластер",
+  "admin.resources.alarms.kind.cluster_shrink_held": "Зменшення відкладено",
   "admin.resources.alarms.stage": "етап {stage}",
   "admin.resources.alarms.shortage": "Бракує",
   "admin.resources.alarms.raised": "Піднято",
@@ -2756,5 +2758,17 @@
   "busy.disconnecting": "Відʼєднуємо…",
   "busy.signingOut": "Виходимо…",
   "admin.events.notFound": "Захід не знайдено",
-  "ui.dateTime.zoneKyiv": "Київ"
+  "ui.dateTime.zoneKyiv": "Київ",
+  "admin.resources.parts.title": "Розподіл по кластерах",
+  "admin.resources.parts.phase.Pending": "Ще не почався",
+  "admin.resources.parts.phase.Active": "Діє",
+  "admin.resources.parts.phase.Ending": "Закінчується",
+  "admin.resources.parts.phase.Ended": "Закінчився",
+  "admin.resources.parts.phase.none": "Стан ще невідомий",
+  "admin.resources.parts.used": "Зайнято {cpu}, {memory} з {cpuTotal}, {memoryTotal}",
+  "admin.resources.parts.syncError": "Не передано в кластер: {error}",
+  "admin.resources.parts.synced": "Передано",
+  "admin.resources.shrink.title": "Зменшити резерв?",
+  "admin.resources.shrink.body": "У резерві вже працює більше, ніж новий розмір. Лабораторії, що не вмістяться, кластер видалить через {minutes} хв.",
+  "admin.resources.shrink.confirm": "Зменшити"
 }

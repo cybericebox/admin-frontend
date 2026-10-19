@@ -1,5 +1,5 @@
 import { ApiError } from "@/api/client"
-import type { Amount, Conflict, Maintenance, Reservation, ReservationKind, Timeline } from "@/api/resourceCalendar"
+import type { Amount, Conflict, Maintenance, Reservation, ReservationKind, ReservationPart, Timeline } from "@/api/resourceCalendar"
 
 export const CODE_DOES_NOT_FIT = 72504
 export const CODE_ALREADY_DECIDED = 72506
@@ -169,3 +169,18 @@ export function gbToAmount(text: string): Amount | null {
 
 /** «3,4» for 3.4 GB, with the platform's decimal comma. */
 export const formatGBValue = (bytes: number) => new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 }).format(bytes / GIB)
+
+/** The notice the cluster gives before it deletes the labs a shrink leaves out, in minutes (the laboratory default). */
+export const SHRINK_NOTICE_MINUTES = 5
+
+/**
+ * Whether a change takes the reservation below what already runs in it: a size under what its parts use, or an end
+ * earlier than now while labs run. Such a change is held back by the cluster unless the admin confirms it.
+ */
+export function shrinksBelowUse(parts: ReservationPart[] | null | undefined, size: Amount, to: string, currentTo: string): boolean {
+  const live = (parts ?? []).filter((part) => !part.Retiring && part.Groups > 0)
+  if (live.length === 0) return false
+  const used = live.reduce((sum, part) => ({ CPUMillicores: sum.CPUMillicores + part.Used.CPUMillicores, MemoryBytes: sum.MemoryBytes + part.Used.MemoryBytes }), { CPUMillicores: 0, MemoryBytes: 0 })
+  if (size.CPUMillicores < used.CPUMillicores || size.MemoryBytes < used.MemoryBytes) return true
+  return Date.parse(to) < Date.parse(currentTo)
+}

@@ -2303,6 +2303,8 @@
   "admin.resources.alarms.kind.agent_lost": "Agent lost",
   "admin.resources.alarms.kind.agent_shrunk": "Agent shrunk",
   "admin.resources.alarms.kind.not_connected": "Capacity not connected",
+  "admin.resources.alarms.kind.cluster_sync_failed": "Not sent to the cluster",
+  "admin.resources.alarms.kind.cluster_shrink_held": "Shrink held back",
   "admin.resources.alarms.stage": "stage {stage}",
   "admin.resources.alarms.shortage": "Shortage",
   "admin.resources.alarms.raised": "Raised",
@@ -2756,5 +2758,17 @@
   "busy.disconnecting": "Disconnecting…",
   "busy.signingOut": "Signing out…",
   "admin.events.notFound": "Event not found",
-  "ui.dateTime.zoneKyiv": "Kyiv"
+  "ui.dateTime.zoneKyiv": "Kyiv",
+  "admin.resources.parts.title": "Split over clusters",
+  "admin.resources.parts.phase.Pending": "Not started yet",
+  "admin.resources.parts.phase.Active": "Active",
+  "admin.resources.parts.phase.Ending": "Ending",
+  "admin.resources.parts.phase.Ended": "Ended",
+  "admin.resources.parts.phase.none": "State not known yet",
+  "admin.resources.parts.used": "In use {cpu}, {memory} of {cpuTotal}, {memoryTotal}",
+  "admin.resources.parts.syncError": "Not sent to the cluster: {error}",
+  "admin.resources.parts.synced": "Sent",
+  "admin.resources.shrink.title": "Shrink the reservation?",
+  "admin.resources.shrink.body": "More already runs in the reservation than the new size. The cluster deletes the labs that do not fit in {minutes} min.",
+  "admin.resources.shrink.confirm": "Shrink"
 }
