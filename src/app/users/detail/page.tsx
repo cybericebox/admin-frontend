@@ -5,7 +5,7 @@ import { apiGet, apiPatch, apiDelete } from "@/api/client"
 import { t } from "@/i18n/t"
 import { overloadOr } from "@/i18n/apiError"
 import { useRole, type Role } from "@/lib/useRole"
-import { assignableRoles } from "@/lib/assignableRoles"
+import { assignableRoles, canManageAccount } from "@/lib/assignableRoles"
 import { roleLabel } from "@/lib/roles"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
@@ -53,7 +53,7 @@ function Detail() {
   const params = useSearchParams()
   const id = params.get("id") ?? ""
   const router = useRouter()
-  const { can, permissions, me, role: callerRole } = useRole()
+  const { can, me, role: callerRole } = useRole()
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -150,7 +150,9 @@ function Detail() {
 
   // UI-only self-guard; the backend independently enforces this boundary.
   const isSelf = !!me && me.ID === user.ID
-  const protectedSuperAdmin = user.Role === "super_admin" && !permissions.includes("*")
+  // Only a higher role manages a role (backend rbac.CanManageAccount): an admin sees no actions on an admin,
+  // admin_viewer or super_admin account.
+  const protectedAccount = !canManageAccount(callerRole, user.Role)
   const name = fullName(user)
   const canRole = can("users.role.write")
   const canStatus = can("users.status.write") && (user.Status === "active" || user.Status === "blocked")
@@ -176,9 +178,9 @@ function Detail() {
 
       {isSelf && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.selfNote")}</p>}
 
-      {protectedSuperAdmin && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedSuperAdmin")}</p>}
+      {!isSelf && protectedAccount && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedAccount")}</p>}
 
-      {!isSelf && !protectedSuperAdmin && (canRole || canStatus || canDelete) && (
+      {!isSelf && !protectedAccount && (canRole || canStatus || canDelete) && (
         // Access controls on the left; the destructive delete stands apart on the right (below them on a phone).
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-border pt-6">
           {(canRole || canStatus) && <div className="flex flex-wrap items-end gap-3">

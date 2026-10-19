@@ -195,7 +195,7 @@
   "admin.userDetail.back": "Back to users",
   "admin.userDetail.notFound": "User not found",
   "admin.userDetail.loadError": "Failed to load user",
-  "admin.userDetail.protectedSuperAdmin": "Only a super administrator can change a super administrator account.",
+  "admin.userDetail.protectedAccount": "Only a super administrator manages this account: administrators manage regular users only.",
   "admin.userDetail.signInMethods": "Sign-in methods",
   "admin.userDetail.emailConfirmed": "Email confirmed",
   "admin.userDetail.lastSeen": "Last online",
