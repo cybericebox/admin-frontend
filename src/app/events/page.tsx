@@ -208,7 +208,7 @@ function EventsList() {
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => setQuery({ size: String(size), page: "1" })} />
 
-      <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} error={confirmError}
+      <ConfirmDialog open={confirming !== null} onCancel={closeConfirm} tone="danger" busy={confirmBusy} busyLabel={t(confirming?.kind === "delete" ? "busy.deleting" : "busy.archiving")} error={confirmError}
         title={t(confirming?.kind === "delete" ? "admin.events.delete.title" : "admin.events.archive.title")}
         description={t(confirming?.kind === "delete" ? "admin.events.delete.body" : "admin.events.archive.body")}
         cancelLabel={t("admin.events.dialog.cancel")}

@@ -248,7 +248,7 @@ export function BroadcastCompose() {
         title={t(shownCount === 1 ? "admin.notif.broadcast.confirm.titleOne" : "admin.notif.broadcast.confirm.title", { count: shownCount ?? 0 })}
         description={t("admin.notif.broadcast.confirm.body")}
         confirmLabel={t("admin.notif.broadcast.confirm.action")}
-        busy={sending}
+        busy={sending} busyLabel={t("busy.sending")}
         error={sendError}
         onConfirm={() => void send()}
       />

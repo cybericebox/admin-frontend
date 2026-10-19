@@ -75,7 +75,7 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
       <h2 className="ib-service-down__title" id={titleId}>{t("serviceGate.title")}</h2>
       <p className="ib-service-down__text" id={descId}>{t("serviceGate.body")}</p>
       <p className="ib-service-down__status" role="status" aria-live="polite">{checking ? t("serviceGate.checking") : t("serviceGate.nextTry", { seconds })}</p>
-      <Button ref={buttonRef} type="button" variant="outline" className="w-full" busy={checking} onClick={() => { void check() }}>{t("serviceGate.retryNow")}</Button>
+      <Button ref={buttonRef} type="button" variant="outline" className="w-full" busy={checking} busyLabel={t("busy.checking")} onClick={() => { void check() }}>{t("serviceGate.retryNow")}</Button>
     </div>
   </div>
 }

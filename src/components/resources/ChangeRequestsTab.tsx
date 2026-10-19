@@ -99,7 +99,7 @@ export function ChangeRequestsTab({ canWrite, version, onDecided }: { canWrite: 
           </tr>)}</tbody>}
       </table>
     </TableWrap>
-    <ConfirmDialog open={decision !== null && !needsConflicts} onCancel={close} onConfirm={() => void decide(false)} busy={busy} error={dialogError}
+    <ConfirmDialog open={decision !== null && !needsConflicts} onCancel={close} onConfirm={() => void decide(false)} busy={busy} busyLabel={t(decision?.approve ? "busy.approving" : "busy.rejecting")} error={dialogError}
       tone={decision?.approve ? "default" : "danger"}
       title={t(decision?.approve ? "admin.resources.requests.approveTitle" : "admin.resources.requests.rejectTitle", { name })}
       description={t(decision?.approve ? "admin.resources.requests.approveDescription" : "admin.resources.requests.rejectDescription")}

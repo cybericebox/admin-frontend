@@ -16,6 +16,7 @@ import { NotFoundBlock } from "@/components/ErrorPage"
 import { LoadError } from "@/components/ui/load-error"
 import { PageHeader } from "@/components/ui/page-header"
 import { formatListDate, formatListDateTime } from "@/lib/locale"
+import { isUnsetDate } from "@/lib/dates"
 import { toast } from "@/components/ui/toast"
 
 type UserDetail = {
@@ -138,7 +139,7 @@ function Detail() {
         <div>
           <dt className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.userDetail.lastSeen")}</dt>
           <dd className="text-sm text-foreground">
-            {user.LastSeen && !user.LastSeen.startsWith("0001") ? <time dateTime={user.LastSeen}>{formatListDateTime(user.LastSeen)}</time> : t("admin.userDetail.never")}
+            {!isUnsetDate(user.LastSeen) ? <time dateTime={user.LastSeen}>{formatListDateTime(user.LastSeen)}</time> : t("admin.userDetail.never")}
           </dd>
         </div>
         <div>
@@ -180,7 +181,7 @@ function Detail() {
           {can("users.delete") && (
             <>
               <Button variant="destructive" onClick={() => { setDeleteError(false); setDeleting(true) }}>{t("admin.userDetail.delete")}</Button>
-              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={deleteBusy}
+              <ConfirmDialog open={deleting} onCancel={() => setDeleting(false)} tone="danger" busy={deleteBusy} busyLabel={t("busy.deleting")}
                 title={t("admin.userDetail.deleteConfirmTitle")} description={t("admin.userDetail.deleteConfirmBody")}
                 cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.delete")}
                 error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />

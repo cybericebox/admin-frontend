@@ -228,7 +228,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       title={t(infraTarget ? "admin.events.infra.confirmOnTitle" : "admin.events.infra.confirmOffTitle")}
       description={t(infraTarget ? "admin.events.infra.confirmOnDescription" : "admin.events.infra.confirmOffDescription")}
       confirmLabel={t(infraTarget ? "admin.events.infra.confirmOn" : "admin.events.infra.confirmOff")}
-      busy={infraBusy}
+      busy={infraBusy} busyLabel={t(infraTarget ? "busy.enabling" : "busy.disabling")}
       error={infraError}
       onConfirm={() => void confirmInfrastructure()}
     />

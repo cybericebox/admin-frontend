@@ -26,6 +26,7 @@ import { TablePagination } from "@/components/ui/table-pagination"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { formatListDateTime } from "@/lib/locale"
 import { relativeTime } from "@/utils/relativeTime"
+import { isUnsetDate } from "@/lib/dates"
 
 export type UserRow = {
   ID: string
@@ -195,7 +196,7 @@ function UsersList() {
                     <td><RoleBadge role={u.Role} size="sm" /></td>
                     <td><StatusBadge status={u.Status} size="sm" /></td>
                     <td className="ib-table__dim">
-                      {u.LastSeen ? <HoverTooltip text={formatListDateTime(u.LastSeen)}><span><TimeText iso={u.LastSeen}>{relativeTime(u.LastSeen)}</TimeText></span></HoverTooltip> : "—"}
+                      {isUnsetDate(u.LastSeen) ? t("admin.users.never") : <HoverTooltip text={formatListDateTime(u.LastSeen)}><span><TimeText iso={u.LastSeen}>{relativeTime(u.LastSeen)}</TimeText></span></HoverTooltip>}
                     </td>
                     <td className="ib-table__dim"><TimeText iso={u.CreatedAt}>{formatListDateTime(u.CreatedAt)}</TimeText></td>
                   </tr>

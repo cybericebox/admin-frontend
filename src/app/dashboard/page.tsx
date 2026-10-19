@@ -15,6 +15,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PageHeader } from "@/components/ui/page-header"
+import { EventStatusBadge } from "@/components/events/EventStatusBadge"
 
 type UserStats = { Total: number }
 type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[]; ByChannel?: { Channel: string; Status: string; Count: number }[] }
@@ -32,6 +33,8 @@ export default function Page() {
   const eventsAllowed = can("events.read")
   const notificationsAllowed = can("notifications.templates.read")
   const infrastructureAllowed = can("infrastructure.read")
+  // The analytics pages need analytics.read; without it a tile opens the plain list instead of «Немає доступу».
+  const analyticsAllowed = can("analytics.read")
   const [users, setUsers] = useState<UserStats | null>(null)
   const [events, setEvents] = useState<Event[] | null>(null)
   const [eventTotal, setEventTotal] = useState<number | null>(null)
@@ -93,9 +96,9 @@ export default function Page() {
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : failedFeeds > 0 && !users && !events && !notifications && failedFeeds === [usersAllowed, eventsAllowed, notificationsAllowed].filter(Boolean).length ? <LoadError error={failCause} onRetry={() => { reload() }} className="flex-1" /> : <>
       {failedFeeds > 0 && <LoadError message={t("admin.dashboard.partialError")} error={failCause} compact onRetry={() => { reload() }} />}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href="/analytics/users" />}
+        {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href={analyticsAllowed ? "/analytics/users" : "/users"} />}
         {eventsAllowed && <Metric label={t("admin.dashboard.events")} value={eventTotal ?? unavailable} href="/events" />}
-        {notificationsAllowed && <Metric label={t("admin.dashboard.deliveryErrors7d")} value={notifications ? notificationErrors : unavailable} href="/analytics/notifications" />}
+        {notificationsAllowed && <Metric label={t("admin.dashboard.deliveryErrors7d")} value={notifications ? notificationErrors : unavailable} href={analyticsAllowed ? "/analytics/notifications" : "/notifications/logs"} />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.infrastructure")} value={infrastructureLabel} href="/labs" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.standsFailed")} value={stands?.Failed ?? unavailable} href="/labs?status=failed" />}
         {infrastructureAllowed && <Metric label={t("admin.dashboard.standsActive")} value={labsActive} hint={stands && testLabsActive > 0 ? t("admin.dashboard.testLabsActive", { count: testLabsActive }) : undefined} href="/labs?status=active" />}
@@ -104,7 +107,7 @@ export default function Page() {
       </div>
       {eventsAllowed && <section className="rounded-lg border border-border bg-card" aria-labelledby="recent-events-heading">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">{t("admin.dashboard.recentEvents")}</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">{t("admin.dashboard.allEvents")}</Link></div>
-        {events === null ? <LoadError message={t("admin.dashboard.eventsError")} error={failCause} compact onRetry={() => { reload() }} /> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><span className="min-w-0 break-words font-medium text-foreground">{event.Name || event.Tag}</span><span className="text-muted-foreground">{t(`admin.events.status.${event.Status}`)}</span></li>)}</ul>}
+        {events === null ? <LoadError message={t("admin.dashboard.eventsError")} error={failCause} compact onRetry={() => { reload() }} /> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><Link href={`/events/detail?id=${encodeURIComponent(event.ID)}`} className="min-w-0 break-words font-medium text-foreground hover:underline">{event.Name || event.Tag}</Link><EventStatusBadge event={event} /></li>)}</ul>}
       </section>}
     </>}
   </div>

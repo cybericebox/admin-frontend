@@ -63,7 +63,7 @@ function ResetDialog({ target, onClose, onDone }: { target: ResetTarget | null; 
       setBusy(false)
     }
   }
-  return <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) { setError(null); onClose() } }} tone="danger" busy={busy} error={error}
+  return <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) { setError(null); onClose() } }} tone="danger" busy={busy} busyLabel={t("busy.resetting")} error={error}
     title={t("admin.labs.detail.reset.title")}
     description={target ? t("admin.labs.detail.reset.body", { device: target.device }) : undefined}
     confirmLabel={t("admin.labs.detail.reset.confirm")}

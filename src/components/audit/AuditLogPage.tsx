@@ -200,7 +200,7 @@ export function AuditLogPage() {
       <div className="flex shrink-0 items-center justify-center gap-3 text-sm text-muted-foreground">
         {moreState?.error ? <LoadError compact message={t("admin.audit.loadMoreError")} error={moreState.error} onRetry={loadMore} className="min-h-0 w-auto py-0" /> : null}
         {data?.next && !moreState?.error ? (
-          <Button type="button" variant="outline" onClick={loadMore} busy={!!moreState?.loading}>{t("admin.audit.showMore")}</Button>
+          <Button type="button" variant="outline" onClick={loadMore} busy={!!moreState?.loading} busyLabel={t("busy.loading")}>{t("admin.audit.showMore")}</Button>
         ) : null}
         <span className="inline-flex w-5 justify-center">{refreshing && !!data && <Spinner size="sm" label={t("admin.table.updating")} />}</span>
       </div>

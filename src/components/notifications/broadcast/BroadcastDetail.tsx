@@ -76,7 +76,7 @@ function Deliveries({ id, sending }: { id: string; sending: boolean }) {
               </tbody>
             </table>
             {error && <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} compact onRetry={() => load(rows.length)} />}
-            {more && !error && <div className="flex justify-center p-3"><Button variant="outline" size="sm" busy={loading} onClick={() => load(rows.length)}>{t("admin.notif.broadcast.loadMore")}</Button></div>}
+            {more && !error && <div className="flex justify-center p-3"><Button variant="outline" size="sm" busy={loading} busyLabel={t("busy.loading")} onClick={() => load(rows.length)}>{t("admin.notif.broadcast.loadMore")}</Button></div>}
           </div>
         )}
       </div>

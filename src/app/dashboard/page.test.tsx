@@ -5,11 +5,13 @@ import Page from "./page"
 const api = vi.hoisted(() => ({ get: vi.fn(), events: vi.fn() }))
 vi.mock("@/api/client", () => ({ apiGet: api.get }))
 vi.mock("@/api/events/catalog", () => ({ listEvents: api.events }))
-vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
+const rights = vi.hoisted(() => ({ denied: new Set<string>() }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => !rights.denied.has(permission) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 describe("operational overview", () => {
   beforeEach(() => {
+    rights.denied = new Set()
     api.get.mockReset()
     api.events.mockReset()
     api.get.mockImplementation((path: string) => {
@@ -28,7 +30,6 @@ describe("operational overview", () => {
     expect(screen.getByText("12")).toBeInTheDocument()
     expect(screen.getByText("admin.dashboard.infra.disconnected")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "admin.dashboard.allEvents" })).toHaveAttribute("href", "/events")
-    expect(screen.queryByRole("link", { name: "Осінній CTF" })).not.toBeInTheDocument()
     expect(api.get).toHaveBeenCalledWith("/api/infrastructure/status")
     expect(api.get).toHaveBeenCalledWith("/api/users/stats")
   })
@@ -95,5 +96,21 @@ describe("operational overview", () => {
     fireEvent.click(await screen.findByRole("button", { name: "error.load.retry" }))
     await waitFor(() => expect(screen.getByText("12")).toBeInTheDocument())
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("sends the users tile to the analytics page with analytics.read and to the users list without it", async () => {
+    const { unmount } = render(<Page />)
+    expect((await screen.findByText("admin.dashboard.users")).closest("a")).toHaveAttribute("href", "/analytics/users")
+    unmount()
+    rights.denied = new Set(["analytics.read"])
+    render(<Page />)
+    expect((await screen.findByText("admin.dashboard.users")).closest("a")).toHaveAttribute("href", "/users")
+  })
+
+  it("links each recent event to its page and shows the same lifecycle status as the events list", async () => {
+    api.events.mockResolvedValue({ Items: [{ ID: "e1", Name: "Осінній CTF", Tag: "autumn", Status: "active", LifecycleStatus: "started" }], Total: 1 })
+    render(<Page />)
+    expect(await screen.findByRole("link", { name: "Осінній CTF" })).toHaveAttribute("href", "/events/detail?id=e1")
+    expect(screen.getByText("admin.events.lifecycle.started")).toBeInTheDocument()
   })
 })

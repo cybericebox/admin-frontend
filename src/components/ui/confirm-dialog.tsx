@@ -10,7 +10,10 @@ import { t } from "@/i18n/t"
 // consequence, «Скасувати» + the action. tone="danger" makes the action the
 // solid danger button. Focus starts on «Скасувати»; Esc and the backdrop
 // cancel unless the action is running. Errors stay inside the dialog.
-export function ConfirmDialog({ open, onCancel, title, description, confirmLabel, cancelLabel, tone = "default", busy = false, disabled = false, error, onConfirm, children }: {
+// A dialog whose action runs async (busy) must name the running action: busyLabel is required with busy.
+type ConfirmBusy = { busy?: false; busyLabel?: string } | { busy: boolean; busyLabel: string }
+
+export function ConfirmDialog({ open, onCancel, title, description, confirmLabel, busyLabel, cancelLabel, tone = "default", busy = false, disabled = false, error, onConfirm, children }: ConfirmBusy & {
   open: boolean
   onCancel: () => void
   title: string
@@ -18,7 +21,6 @@ export function ConfirmDialog({ open, onCancel, title, description, confirmLabel
   confirmLabel: string
   cancelLabel?: string
   tone?: "default" | "danger"
-  busy?: boolean
   disabled?: boolean
   error?: React.ReactNode
   onConfirm: () => void
@@ -36,7 +38,7 @@ export function ConfirmDialog({ open, onCancel, title, description, confirmLabel
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <DialogFooter>
         <Button ref={cancelRef} type="button" variant="outline" disabled={busy} onClick={onCancel}>{cancelLabel ?? t("confirm.cancel")}</Button>
-        <Button type="button" variant={tone === "danger" ? "destructive" : "default"} busy={busy} disabled={disabled} onClick={onConfirm}>{confirmLabel}</Button>
+        <Button type="button" variant={tone === "danger" ? "destructive" : "default"} busy={busy} busyLabel={busyLabel ?? confirmLabel} disabled={disabled} onClick={onConfirm}>{confirmLabel}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
