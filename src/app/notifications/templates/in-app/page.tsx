@@ -114,8 +114,8 @@ function InAppTemplateList() {
   return (
     <div className="frost-in space-y-4">
       <PageHeader
-        title={t("admin.notif.list.title")}
-        actions={canWrite && <Button asChild><Link href="/notifications/templates/in-app/detail"><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.list.new")}</Link></Button>}
+        title={t("admin.notif.inapp.list.title")}
+        actions={canWrite && <Button asChild><Link href="/notifications/templates/in-app/detail"><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.inapp.list.new")}</Link></Button>}
         filters={<Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
           aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")} className="max-w-sm" />}
       />
@@ -125,7 +125,7 @@ function InAppTemplateList() {
         <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.inapp.list.empty")} /></div>
       ) : (
         /* Grouped version table */
-        <div role="region" tabIndex={0} aria-label={t("admin.notif.list.title")} className="max-w-full overflow-auto rounded-lg border border-border bg-background">
+        <div role="region" tabIndex={0} aria-label={t("admin.notif.inapp.list.title")} className="max-w-full overflow-auto rounded-lg border border-border bg-background">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">

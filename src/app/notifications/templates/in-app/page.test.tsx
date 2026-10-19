@@ -118,6 +118,14 @@ describe('In-app templates grouped list page', () => {
     expect(() => render(<Page />)).not.toThrow()
   })
 
+  it('names the page and its create button after in-app templates, not email ones', async () => {
+    vi.mocked(latestInAppTemplates).mockResolvedValue([makeEntryWithDraftAndPublished()])
+    render(<Page />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'admin.notif.inapp.list.title' })).toBeInTheDocument()
+    expect(screen.queryByText('admin.notif.list.title')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.notif.list.new')).not.toBeInTheDocument()
+  })
+
   it('renders the formatted type name from the entry', async () => {
     vi.mocked(latestInAppTemplates).mockResolvedValue([makeEntryWithDraftAndPublished()])
     render(<Page />)

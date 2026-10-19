@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
-import { DateTimePicker } from "./date-time-picker"
+import { DateTimePicker, monthTitle, zoneLabel } from "./date-time-picker"
 
 describe("DateTimePicker", () => {
   it("uses the shared placeholder color until a date is selected", () => {
@@ -30,5 +30,17 @@ describe("DateTimePicker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Початок" }))
     fireEvent.change(screen.getByRole("textbox", { name: "Година" }), { target: { value: "18" } })
     expect(onChange.mock.lastCall?.[0]).toMatch(/^\d{4}-\d{2}-\d{2}T18:00$/)
+  })
+})
+
+describe("date picker labels", () => {
+  it("capitalises only the first letter of the month title", () => {
+    expect(monthTitle(new Date(2026, 9, 1))).toMatch(/^Жовтень 2026 р\.$/)
+  })
+
+  it("names Kyiv for the old Europe/Kiev id and writes the offset as UTC", () => {
+    const label = zoneLabel(new Date("2026-10-19T12:00:00Z"), "Europe/Kiev")
+    expect(label.offset).toBe("UTC+3")
+    expect(label.zone).toBe("Київ, UTC+3")
   })
 })
