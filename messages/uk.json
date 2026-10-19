@@ -1538,6 +1538,8 @@
   "admin.notif.banners.state": "Стан",
   "admin.notif.banners.stateActive": "Увімкнений",
   "admin.notif.banners.stateInactive": "Вимкнений",
+  "admin.notif.banners.stateEnded": "Завершився",
+  "admin.notif.banners.stateScheduled": "Заплановано",
   "admin.notif.banners.actions": "Дії",
   "admin.notif.banners.activate": "Увімкнути",
   "admin.notif.banners.deactivate": "Вимкнути",

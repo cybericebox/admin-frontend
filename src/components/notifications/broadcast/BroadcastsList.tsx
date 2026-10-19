@@ -65,7 +65,7 @@ export function BroadcastsList() {
           <div className="min-w-[960px]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-border bg-background text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <tr className="sticky top-0 z-10 border-b border-border bg-[var(--ib-table-head)] text-left text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">
                   <th className="px-3 py-2 font-medium">{t("admin.notif.broadcast.col.message")}</th>
                   <th className="px-3 py-2 font-medium">{t("admin.notif.broadcast.channels")}</th>
                   <th className="px-3 py-2 font-medium">{t("admin.notif.broadcast.audience.title")}</th>

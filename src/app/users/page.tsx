@@ -187,8 +187,8 @@ function UsersList() {
               <tbody className={loading ? "pointer-events-none" : undefined}>
                 {users.map((u) => (
                   <tr key={u.ID}>
-                    <td className="ib-table__primary min-w-48 max-w-96 whitespace-normal [overflow-wrap:anywhere]">
-                      <Link href={`/users/detail?id=${u.ID}`} className="block py-1">
+                    <td className="ib-table__primary">
+                      <Link href={`/users/detail?id=${u.ID}`} className="block min-w-40 max-w-80 whitespace-normal py-1 [overflow-wrap:anywhere]">
                         <span className="ib-table__name">{fullName(u)}</span>
                         <span className="ib-table__dim block text-[length:var(--ib-fs-13)]">{u.Email}</span>
                       </Link>

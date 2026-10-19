@@ -41,6 +41,6 @@ describe("date picker labels", () => {
   it("names Kyiv for the old Europe/Kiev id and writes the offset as UTC", () => {
     const label = zoneLabel(new Date("2026-10-19T12:00:00Z"), "Europe/Kiev")
     expect(label.offset).toBe("UTC+3")
-    expect(label.zone).toBe("Київ, UTC+3")
+    expect(label.zone).toBe("Київ")
   })
 })

@@ -1538,6 +1538,8 @@
   "admin.notif.banners.state": "State",
   "admin.notif.banners.stateActive": "Enabled",
   "admin.notif.banners.stateInactive": "Disabled",
+  "admin.notif.banners.stateEnded": "Ended",
+  "admin.notif.banners.stateScheduled": "Scheduled",
   "admin.notif.banners.actions": "Actions",
   "admin.notif.banners.activate": "Enable",
   "admin.notif.banners.deactivate": "Disable",
