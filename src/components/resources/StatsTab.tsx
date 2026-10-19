@@ -46,7 +46,7 @@ export function StatsTab({ stats, error, onRetry }: { stats: Stats | null; error
         <TableWrap label={t("admin.resources.stats.events")} rows={3} className="border-0"><table aria-label={t("admin.resources.stats.events")} className="ib-table">
           <thead><tr><Th>{t("admin.resources.col.event")}</Th><Th>{t("admin.resources.col.window")}</Th><Th>{t("admin.resources.col.allocated")}</Th><Th>{t("admin.resources.col.inUse")}</Th><Th>{t("admin.resources.col.free")}</Th></tr></thead>
           {events.length === 0 ? <TableState colSpan={5} kind="empty" message={t("admin.resources.stats.noEvents")} /> : <tbody>{events.map((event) => <tr key={event.ReservationID} data-testid={`event-stat-${event.ReservationID}`}>
-            <td><span className="block font-medium leading-tight">{event.EventName || event.EventTag}</span>{!event.Covered && <Badge tone="warn">{t("admin.resources.uncovered")}</Badge>}</td>
+            <td><span className="block font-medium leading-tight">{event.EventName || event.EventTag}</span>{event.Upcoming && <Badge>{t("admin.resources.stats.upcoming")}</Badge>}{!event.Covered && <Badge tone="warn">{t("admin.resources.uncovered")}</Badge>}</td>
             <td className="ib-table__dim">{formatWindow(event.From, event.To)}</td>
             <td >{formatAmount(event.Allocated)}</td>
             <td >{formatAmount(event.InUse)}</td>
