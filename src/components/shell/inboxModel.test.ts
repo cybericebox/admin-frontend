@@ -69,6 +69,39 @@ test("«Вирішено» only on open «Лабораторія впала» re
   assert.equal(inbox.canResolve(item("fyi", { Type: "event.lab.failed" })), false)
 })
 
+test("«Вирішено» follows the server's Resolvable flag; older backends fall back to the lab type", () => {
+  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true })), true)
+  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: false })), false)
+  assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised" })), false)
+  assert.equal(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" })), false)
+})
+
+test("an open request needs action even when it was read; a resolved one does not", () => {
+  assert.equal(inbox.needsAction(request("o", { ReadAt: "2026-09-29T10:00:00Z" })), true)
+  assert.equal(inbox.needsAction(request("o")), true)
+  assert.equal(inbox.needsAction(request("r", { ReadAt: "2026-09-29T10:00:00Z", ResolvedAt: "2026-09-29T10:00:00Z" })), false)
+  assert.equal(inbox.needsAction(item("fyi")), false)
+})
+
+test("the bell label says what is counted: open requests, unread items or both", () => {
+  assert.deepEqual(inbox.bellLabel(0, null), { key: "inbox.title", vars: {} })
+  assert.deepEqual(inbox.bellLabel(3, null), { key: "inbox.titleUnread", vars: { count: 3 } })
+  assert.equal(inbox.bellLabel(0, { all: 0, requests: 0, personal: 0, activity: 0 }).key, "inbox.title")
+  // The owner's case: one open (already read) request and nothing unread.
+  assert.deepEqual(inbox.bellLabel(0, { all: 1, requests: 1, personal: 0, activity: 0 }), { key: "inbox.titleRequests", vars: { count: 1 } })
+  assert.deepEqual(inbox.bellLabel(2, { all: 2, requests: 0, personal: 1, activity: 1 }), { key: "inbox.titleUnread", vars: { count: 2 } })
+  assert.deepEqual(inbox.bellLabel(3, { all: 3, requests: 1, personal: 1, activity: 1 }), { key: "inbox.titleBoth", vars: { requests: 1, unread: 2 } })
+})
+
+test("the new inbox keys exist in both catalogs", () => {
+  for (const lang of ["uk", "en"]) {
+    const catalog = messages(lang)
+    for (const key of ["inbox.unreadItem", "inbox.needsAction", "inbox.titleRequests", "inbox.titleBoth", "inbox.tabCountRequests"]) {
+      assert.ok(catalog[key], `${lang}: ${key}`)
+    }
+  }
+})
+
 test("bell and resolver name", () => {
   assert.equal(inbox.bellCount(3, null), 3)
   assert.equal(inbox.bellCount(3, { all: 5, requests: 2, personal: 3, activity: 0 }), 5)
