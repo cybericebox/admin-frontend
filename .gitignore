@@ -46,3 +46,7 @@ qodana.yaml
 /graphify-out/
 /.graphify/
 /.superpowers/
+
+# Agent development files (kept locally, not in git)
+/docs/superpowers/
+/.worktrees/
