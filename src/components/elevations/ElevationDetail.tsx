@@ -166,7 +166,7 @@ export function ElevationDetail({ id }: { id: string }) {
       </p>}
     </Card>
 
-    <ConfirmDialog open={decision !== null} busy={busy} error={error} tone={decision === "reject" ? "danger" : "default"}
+    <ConfirmDialog open={decision !== null} busy={busy} busyLabel={t(decision === "reject" ? "busy.rejecting" : "busy.approving")} error={error} tone={decision === "reject" ? "danger" : "default"}
       onCancel={() => setDecision(null)}
       title={decision ? t(`admin.elevations.${decision}.title`, { name: item.ExerciseName }) : ""}
       description={decision ? t(`admin.elevations.${decision}.body`) : undefined}

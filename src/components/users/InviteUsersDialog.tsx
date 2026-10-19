@@ -197,7 +197,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={busy}>
             {submitted ? t("admin.users.invite.close") : t("admin.users.invite.cancel")}
           </Button>
-          <Button onClick={onSubmit} disabled={!canSubmit} busy={busy}>
+          <Button onClick={onSubmit} disabled={!canSubmit} busy={busy} busyLabel={t("busy.inviting")}>
             {hasFailed ? t("admin.users.invite.retry") : t("admin.users.invite.submit")}
           </Button>
         </DialogFooter>

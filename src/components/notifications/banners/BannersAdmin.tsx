@@ -318,7 +318,7 @@ export function BannersAdmin() {
         title={t("admin.notif.banners.deleteTitle")}
         description={t("admin.notif.banners.deleteBody")}
         confirmLabel={t("admin.notif.banners.delete")}
-        busy={removeBusy}
+        busy={removeBusy} busyLabel={t("busy.deleting")}
         error={removeError}
         onConfirm={() => void remove()}
       >

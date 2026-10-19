@@ -209,7 +209,7 @@ describe("ImageRegistryCard", () => {
       check.mockReturnValue(new Promise<ImageRegistrySettings>((r) => { resolve = r }))
       fireEvent.click(screen.getByRole("button", { name: "Перевірити зараз" }))
       // the busy button also carries the crest loader's label
-      expect(screen.getByRole("button", { name: /Перевірити зараз/ })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Перевіряємо…" })).toBeDisabled()
       expect(screen.getByLabelText("Обліковий запис")).toBeEnabled()
       expect(screen.getByLabelText("Токен для завантаження образів")).toBeEnabled()
       const next = { ...saved, PushCheck: broken }

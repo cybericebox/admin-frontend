@@ -47,7 +47,7 @@ export function CsvExportButton({ section, table, params, disabled = false, labe
       setBusy(false)
     }
   }
-  return <Button type="button" variant="outline" size={size} disabled={disabled} busy={busy} onClick={() => void download()}>
+  return <Button type="button" variant="outline" size={size} disabled={disabled} busy={busy} busyLabel={t("busy.exporting")} onClick={() => void download()}>
     {!busy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}{label ?? t("admin.platformAnalytics.csv.export")}
   </Button>
 }

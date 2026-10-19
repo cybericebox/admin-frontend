@@ -106,7 +106,7 @@ export function EnrollDialog({ onClose, onDone }: { onClose: () => void; onDone:
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("confirm.cancel")}</Button>
-          <Button type="submit" busy={busy}>{t("admin.agents.add.submit")}</Button>
+          <Button type="submit" busy={busy} busyLabel={t("busy.adding")}>{t("admin.agents.add.submit")}</Button>
         </DialogFooter>
       </form>
     </DialogContent>
@@ -152,7 +152,7 @@ export function ReconnectDialog({ agent, onClose, onDone }: { agent: Agent; onCl
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("confirm.cancel")}</Button>
-          <Button type="submit" busy={busy}>{t("admin.agents.reconnect.submit")}</Button>
+          <Button type="submit" busy={busy} busyLabel={t("busy.reconnecting")}>{t("admin.agents.reconnect.submit")}</Button>
         </DialogFooter>
       </form>
     </DialogContent>

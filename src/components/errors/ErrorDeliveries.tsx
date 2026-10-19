@@ -30,7 +30,7 @@ export function ErrorDeliveries({ groupID, initial, onNotified }: { groupID: str
   return <section className="shrink-0 space-y-3 rounded-lg border border-border bg-card p-4" aria-label={t("admin.errors.delivery.title")}>
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-semibold text-foreground">{t("admin.errors.delivery.title")}</h2>
-      <Button type="button" variant="outline" size="sm" busy={refreshing} onClick={() => { setRefreshing(true); setReload((value) => value + 1) }}>{t("admin.errors.delivery.refresh")}</Button>
+      <Button type="button" variant="outline" size="sm" busy={refreshing} busyLabel={t("busy.updating")} onClick={() => { setRefreshing(true); setReload((value) => value + 1) }}>{t("admin.errors.delivery.refresh")}</Button>
     </div>
     <p className="text-xs text-muted-foreground">{t("admin.errors.delivery.help")}</p>
     <div className="max-h-64 min-h-24 overflow-auto">

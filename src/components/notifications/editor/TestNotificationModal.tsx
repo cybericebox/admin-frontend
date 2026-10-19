@@ -170,7 +170,7 @@ function TestNotificationSession({
               {t("admin.notif.test.close")}
             </Button>
           </DialogClose>
-          <Button onClick={handleSend} busy={sending} disabled={selectedChannels.length === 0}>
+          <Button onClick={handleSend} busy={sending} busyLabel={t("busy.sending")} disabled={selectedChannels.length === 0}>
             {t("admin.notif.test.send")}
           </Button>
         </DialogFooter>

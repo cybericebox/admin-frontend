@@ -216,7 +216,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
             />
           </Field>
           {canWrite && (
-            <Button type="button" variant="outline" busy={listBusy} disabled={!account_} onClick={() => void list()}>{t("admin.imageRegistry.listRepositories")}</Button>
+            <Button type="button" variant="outline" busy={listBusy} busyLabel={t("busy.loading")} disabled={!account_} onClick={() => void list()}>{t("admin.imageRegistry.listRepositories")}</Button>
           )}
         </div>
 
@@ -226,7 +226,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
             {settings.PullTokenSet && <RegistryCheckLine label={t("admin.imageRegistry.check.pull")} check={settings.PullCheck} />}
             {checkError && <Alert variant="destructive">{checkError}</Alert>}
             {canWrite && (
-              <Button type="button" variant="outline" size="sm" busy={checkBusy} onClick={() => void checkNow()}>{t("admin.imageRegistry.check.now")}</Button>
+              <Button type="button" variant="outline" size="sm" busy={checkBusy} busyLabel={t("busy.checking")} onClick={() => void checkNow()}>{t("admin.imageRegistry.check.now")}</Button>
             )}
           </div>
         )}
@@ -252,7 +252,7 @@ export function ImageRegistryCard({ settings, canWrite, onChange }: {
         description={t("admin.imageRegistry.disconnectBody")}
         cancelLabel={t("admin.imageRegistry.cancel")}
         confirmLabel={t("admin.imageRegistry.disconnectConfirm")}
-        busy={disconnectBusy}
+        busy={disconnectBusy} busyLabel={t("busy.disconnecting")}
         error={disconnectError}
         onConfirm={() => void disconnect()}
       />

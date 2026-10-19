@@ -187,12 +187,12 @@ function LabsPage() {
       </>}
       <StandDetailDialog stand={detailStand ? shownStand : null} canWrite={canWrite} onClose={() => setDetailStand(null)} />
       <TestLabDetailDialog lab={detailLab ? shownLab : null} canWrite={canWrite} onClose={() => setDetailLab(null)} />
-      <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} error={recreateError}
+      <ConfirmDialog open={target !== null} onCancel={() => { if (!busy) setTarget(null) }} tone="danger" busy={busy} busyLabel={t("busy.recreating")} error={recreateError}
         title={t("admin.labs.stands.recreate.title")}
         description={target ? t("admin.labs.stands.recreate.body", { event: target.EventName || target.EventTag, team: teamLabel(target) }) : undefined}
         confirmLabel={t("admin.labs.stands.recreate.confirm")}
         onConfirm={() => void runRecreate()} />
-      <ConfirmDialog open={labTarget !== null} onCancel={() => { if (!labBusy) setLabTarget(null) }} tone="danger" busy={labBusy} error={labError}
+      <ConfirmDialog open={labTarget !== null} onCancel={() => { if (!labBusy) setLabTarget(null) }} tone="danger" busy={labBusy} busyLabel={t("busy.finishing")} error={labError}
         title={t("admin.labs.testLabs.terminate.title")}
         description={labTarget ? t("admin.labs.testLabs.terminate.body", { exercise: labTarget.ExerciseName, author: testLabAuthor(labTarget) }) : undefined}
         confirmLabel={t("admin.labs.testLabs.terminate.confirm")}

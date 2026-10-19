@@ -54,6 +54,6 @@ export function useCalendarResource<T>(load: () => Promise<T>, enabled: boolean,
 
 /** «Save anyway»: asked after the backend answered 72504 (the change does not fit). */
 export function AllowConflictsDialog({ open, busy, error, onCancel, onConfirm }: { open: boolean; busy: boolean; error?: string; onCancel: () => void; onConfirm: () => void }) {
-  return <ConfirmDialog open={open} onCancel={onCancel} onConfirm={onConfirm} busy={busy} error={error}
+  return <ConfirmDialog open={open} onCancel={onCancel} onConfirm={onConfirm} busy={busy} busyLabel={t("busy.saving")} error={error}
     title={t("admin.resources.conflict.title")} description={t("admin.resources.conflict.description")} confirmLabel={t("admin.resources.conflict.confirm")} />
 }

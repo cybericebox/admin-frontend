@@ -44,7 +44,7 @@ const GROUPS: Group[] = [
     id: "analytics", label: "admin.nav.analytics", icon: ChartNoAxesCombined,
     children: [
       { href: "/analytics", label: "admin.nav.analyticsOverview", icon: Gauge, perm: "analytics.read", exact: true },
-      { href: "/analytics/users", label: "admin.nav.analyticsUsers", icon: UserSearch, perm: ["analytics.read", "users.read"] },
+      { href: "/analytics/users", label: "admin.nav.analyticsUsers", icon: UserSearch, perm: "analytics.read" },
       { href: "/analytics/events", label: "admin.nav.analyticsEvents", icon: CalendarCheck, perm: "analytics.read" },
       { href: "/analytics/tasks", label: "admin.nav.analyticsTasks", icon: ClipboardList, perm: "analytics.read" },
       { href: "/analytics/infrastructure", label: "admin.nav.analyticsInfrastructure", icon: Activity, perm: "analytics.read" },
