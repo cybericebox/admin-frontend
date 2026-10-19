@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), del: vi.fn(), push: vi.fn(), canWrite: true, permissions: ["*"] }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), del: vi.fn(), push: vi.fn(), canWrite: true, permissions: ["*"], role: "super_admin" }))
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("id=user-1"), useRouter: () => ({ push: mocks.push }) }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPatch: mocks.patch, apiDelete: mocks.del }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({
   can: (permission: string) => mocks.canWrite || permission === "users.read",
-  permissions: mocks.permissions, me: { ID: "admin-1" },
+  permissions: mocks.permissions, me: { ID: "admin-1" }, role: mocks.role,
 }) }))
 
 import Page from "./page"
@@ -26,6 +26,7 @@ describe("admin user detail", () => {
     mocks.del.mockReset()
     mocks.canWrite = true
     mocks.permissions = ["*"]
+    mocks.role = "super_admin"
     mocks.get.mockResolvedValue(user)
     mocks.patch.mockResolvedValue(undefined)
     mocks.del.mockResolvedValue(undefined)
@@ -131,15 +132,28 @@ describe("admin user detail", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer"))
   })
 
-  it("hides all account mutations for a super administrator from an ordinary administrator", async () => {
+  // Only a higher role manages a role: an admin manages regular users only, never an admin, viewer or super admin.
+  for (const target of ["super_admin", "admin", "admin_viewer"]) {
+    it(`hides every account action on a ${target} from an ordinary administrator`, async () => {
+      mocks.permissions = ["users"]
+      mocks.role = "admin"
+      mocks.get.mockResolvedValue({ ...user, Role: target })
+      render(<Page />)
+      expect(await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "admin.userDetail.changeRole" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "admin.userDetail.block" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "admin.userDetail.delete" })).not.toBeInTheDocument()
+      expect(screen.getByText("admin.userDetail.protectedAccount")).toBeInTheDocument()
+    })
+  }
+
+  it("lets an ordinary administrator manage a regular user", async () => {
     mocks.permissions = ["users"]
-    mocks.get.mockResolvedValue({ ...user, Role: "super_admin" })
+    mocks.role = "admin"
     render(<Page />)
-    expect(await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "admin.userDetail.changeRole" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "admin.userDetail.block" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "admin.userDetail.delete" })).not.toBeInTheDocument()
-    expect(screen.getByText("admin.userDetail.protectedSuperAdmin")).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "admin.userDetail.block" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.userDetail.delete" })).toBeInTheDocument()
+    expect(screen.queryByText("admin.userDetail.protectedAccount")).not.toBeInTheDocument()
   })
 
   it("unblocks optimistically without a confirmation and keeps other controls enabled while the save is pending", async () => {

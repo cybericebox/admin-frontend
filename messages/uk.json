@@ -195,7 +195,7 @@
   "admin.userDetail.back": "До користувачів",
   "admin.userDetail.notFound": "Користувача не знайдено",
   "admin.userDetail.loadError": "Не вдалося завантажити користувача",
-  "admin.userDetail.protectedSuperAdmin": "Обліковий запис суперадміністратора може змінювати лише суперадміністратор.",
+  "admin.userDetail.protectedAccount": "Цим обліковим записом керує лише суперадміністратор: адміністратори керують тільки користувачами.",
   "admin.userDetail.signInMethods": "Способи входу",
   "admin.userDetail.emailConfirmed": "Електронну пошту підтверджено",
   "admin.userDetail.lastSeen": "Востаннє онлайн",

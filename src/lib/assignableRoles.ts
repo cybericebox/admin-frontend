@@ -12,13 +12,21 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
 // Display order for role pickers (highest privilege first).
 const ROLE_ORDER: Role[] = ["super_admin", "admin", "admin_viewer", "user"]
 
-const ROLE_RANK: Record<Role, number> = { user: 0, admin_viewer: 1, admin: 2, super_admin: 3 }
+// Account-management levels (backend rbac.roleLevel): admin and admin_viewer are one level, super_admin above both.
+const ROLE_LEVEL: Record<Role, number> = { user: 0, admin_viewer: 1, admin: 1, super_admin: 2 }
 
-// assignableRoles returns the roles the caller may give an account whose current role is
-// `current` ("" for a new account or an invitation), mirroring backend CanSetRole: the caller
-// must hold every permission the role grants, and only a super_admin may RAISE anyone to
-// admin or above (an admin may lower an admin or keep one, never make one).
-// `can` is the dotted-prefix predicate from useRole.
+/** Mirrors backend rbac.CanManageAccount: only a higher role changes the role of, blocks or deletes an account. A
+ * super_admin manages everyone; an admin manages only regular users, never another admin, admin_viewer or super_admin. */
+export function canManageAccount(callerRole: Role | null, targetRole: string): boolean {
+  if (callerRole === "super_admin") return true
+  if (!callerRole || !(targetRole in ROLE_LEVEL)) return false
+  return ROLE_LEVEL[callerRole] > ROLE_LEVEL[targetRole as Role]
+}
+
+// assignableRoles returns the roles the caller may give an account whose current role is `current` ("" for a new
+// account or an invitation), mirroring backend CanSetRole: the caller must hold every permission the role grants, and
+// below super_admin the account must be one the caller manages and the role must stay below the caller's own level
+// (an admin gives only «user»). `can` is the dotted-prefix predicate from useRole.
 export function assignableRoles(
   can: (required: string) => boolean,
   callerRole: Role | null,
@@ -27,7 +35,7 @@ export function assignableRoles(
   return ROLE_ORDER.filter((role) => {
     if (!ROLE_PERMISSIONS[role].every((perm) => can(perm))) return false
     if (callerRole === "super_admin") return true
-    const currentRank = current === "" ? -1 : ROLE_RANK[current]
-    return !(ROLE_RANK[role] >= ROLE_RANK.admin && ROLE_RANK[role] > currentRank)
+    if (current !== "" && !canManageAccount(callerRole, current)) return false
+    return canManageAccount(callerRole, role)
   })
 }

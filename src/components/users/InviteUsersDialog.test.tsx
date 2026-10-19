@@ -141,12 +141,13 @@ describe("InviteUsersDialog", () => {
     await waitFor(() => expect(post).toHaveBeenCalledWith("/api/users/invite", { Entries: [{ Email: "first@example.test", FirstName: "", LastName: "", Role: "admin" }, { Email: "second@example.test", FirstName: "", LastName: "", Role: "admin" }] }))
   })
 
-  it("offers an admin no role of admin or above", async () => {
+  it("offers an admin only the user role (viewers and admins come from a super administrator)", async () => {
     callerRole.value = "admin"
     try {
       render(<InviteUsersDialog open onOpenChange={vi.fn()} />)
       fireEvent.keyDown(screen.getByRole("button", { name: "admin.users.invite.roleLabel" }), { key: "ArrowDown" })
-      expect(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" })).toBeInTheDocument()
+      expect(await screen.findByRole("menuitemradio", { name: "role.user" })).toBeInTheDocument()
+      expect(screen.queryByRole("menuitemradio", { name: "role.admin_viewer" })).not.toBeInTheDocument()
       expect(screen.queryByRole("menuitemradio", { name: "role.admin" })).not.toBeInTheDocument()
       expect(screen.queryByRole("menuitemradio", { name: "role.super_admin" })).not.toBeInTheDocument()
     } finally {
