@@ -170,10 +170,11 @@ function EventsList() {
               <tbody className={loading ? "pointer-events-none" : undefined}>
                 {rows.map((ev) => (
                   <tr key={ev.ID} className="group">
-                    <td className="ib-table__primary min-w-48 max-w-80 whitespace-normal">
-                      <Link className="ib-table__name hover:underline" href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{ev.Name || ev.Tag}</Link>
+                    {/* Long names and addresses wrap (the DS cell is nowrap), so the table fits a desktop screen. */}
+                    <td className="ib-table__primary">
+                      <span className="block min-w-40 max-w-80 whitespace-normal [overflow-wrap:anywhere]"><Link className="ib-table__name hover:underline" href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{ev.Name || ev.Tag}</Link></span>
                     </td>
-                    <td className="max-w-56 whitespace-normal" data-label={t("admin.events.col.tag")}><EventSiteLink tag={ev.Tag} /></td>
+                    <td data-label={t("admin.events.col.tag")}><span className="inline-block max-w-64 whitespace-normal align-middle"><EventSiteLink tag={ev.Tag} /></span></td>
                     <td data-label={t("admin.events.col.status")}><EventStatusBadge event={ev} /></td>
                     <td className="ib-table__dim" data-label={t("admin.events.col.availableFrom")}><TimeText iso={ev.AvailableFrom}>{formatListDateTime(ev.AvailableFrom)}</TimeText></td>
                     <td className="ib-table__dim" data-label={t("admin.events.col.archiveAt")}>{isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : <TimeText iso={ev.ArchiveAt}>{formatListDateTime(ev.ArchiveAt)}</TimeText>}</td>
