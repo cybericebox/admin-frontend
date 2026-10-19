@@ -112,6 +112,14 @@ describe("EventAdminDetail", () => {
     expect(mock.managers).toHaveBeenCalledTimes(2)
   })
 
+  it("shows the not-found screen without a retry for a missing event", async () => {
+    mock.get.mockRejectedValue(Object.assign(new Error("not found"), { status: 404 }))
+    render(<EventAdminDetail id="missing" />)
+    expect(await screen.findByText("admin.events.notFound")).toBeInTheDocument()
+    expect(screen.queryByText("admin.events.loadError")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "error.load.retry" })).not.toBeInTheDocument()
+  })
+
   it("shows an error instead of loading forever when the route has no event id", () => {
     render(<EventAdminDetail id="" />)
     expect(screen.getByRole("alert")).toHaveTextContent("admin.events.loadError")

@@ -21,7 +21,7 @@ vi.mock("@/components/ui/select-menu", async (importOriginal) => {
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: api.push }) }))
 // The editors and previews are covered by their own tests; here they are plain stand-ins.
 vi.mock("@/components/notifications/editor/VariableRichText", () => ({
-  VariableRichText: ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) => <input aria-label={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />,
+  VariableRichText: ({ value, onChange, placeholder, error }: { value: string; onChange: (v: string) => void; placeholder?: string; error?: string }) => <><input aria-label={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />{error && <p>{error}</p>}</>,
 }))
 vi.mock("@/components/notifications/editor/BlockEditor", () => ({
   BlockEditor: ({ onChange, hiddenBlockTypes }: { onChange: (b: unknown[]) => void; hiddenBlockTypes?: string[] }) => <button type="button" data-hidden={(hiddenBlockTypes ?? []).join(",")} onClick={() => onChange([{ type: "rich_text", content: {} }])}>add-block</button>,
@@ -67,6 +67,17 @@ describe("broadcast compose", () => {
     render(<BroadcastCompose />)
     expect(await screen.findByText("Отримувачів: 3")).toBeInTheDocument()
     expect(api.count).toHaveBeenCalledWith({ Kind: "all" }, expect.anything())
+  })
+
+  it("opens without «required» errors and shows one only after a field was edited empty", async () => {
+    render(<BroadcastCompose />)
+    await screen.findByText("Отримувачів: 3")
+    expect(screen.queryByText("Заповніть це поле.")).not.toBeInTheDocument()
+    expect(screen.queryByText("Оберіть хоча б один канал.")).not.toBeInTheDocument()
+    const subject = screen.getByLabelText("Тема")
+    fireEvent.change(subject, { target: { value: "x" } })
+    fireEvent.change(subject, { target: { value: "" } })
+    expect(await screen.findByText("Заповніть це поле.")).toBeInTheDocument()
   })
 
   it("keeps Send disabled until the message is valid", async () => {

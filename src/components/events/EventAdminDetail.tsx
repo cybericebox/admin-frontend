@@ -18,6 +18,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
+import { NotFoundBlock } from "@/components/ErrorPage"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
@@ -172,6 +173,12 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   }
 
   if (loading && id) return <LoadingArea className="h-full" label={t("admin.loading")} />
+  // A missing event (404) is final: the not-found screen, as for a missing user, not a retry that cannot help.
+  const missing = !!loadError && typeof loadError.cause === "object" && loadError.cause !== null && "status" in loadError.cause && loadError.cause.status === 404
+  if (missing) return <div className="flex h-full flex-col">
+    <PageHeader title={t("admin.nav.events")} crumbs={[{ label: t("admin.nav.events"), href: "/events" }]} />
+    <NotFoundBlock title={t("admin.events.notFound")} />
+  </div>
   if (!id || loadError || !event || !draft) return <div className="flex h-full flex-col">
     <PageHeader title={t("admin.nav.events")} crumbs={[{ label: t("admin.nav.events"), href: "/events" }]} />
     <LoadError message={t("admin.events.loadError")} error={loadError?.cause} onRetry={id ? retryEvent : undefined} className="flex-1" />

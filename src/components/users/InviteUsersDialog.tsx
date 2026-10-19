@@ -42,7 +42,8 @@ function downloadTemplate() {
   link.href = url
   link.download = t("admin.users.invite.template.file")
   link.click()
-  URL.revokeObjectURL(url)
+  // Revoking in the same task can cut the download short in Safari and Firefox.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 // Platform invitations: addresses as chips and/or a CSV with email,
@@ -186,6 +187,7 @@ export default function InviteUsersDialog({ open, onOpenChange, onClosed }: Invi
               value={effectiveRole}
               onChange={(v) => setRole(v as Role)}
               options={roles.map((r) => ({ value: r, label: roleLabel(r) }))}
+              ariaLabel={t("admin.users.invite.roleLabel")}
               disabled={busy}
               className="w-full"
             />
