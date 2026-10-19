@@ -9,7 +9,7 @@ import {
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { ChevronDown, Menu } from "lucide-react"
+import { ChevronDown, Menu, X } from "lucide-react"
 import type { Crumb } from "@/components/ui/breadcrumbs"
 import { THEME_OPTIONS, useThemeChoice } from "./ThemeSwitch"
 import type { ThemeChoice } from "@/lib/theme"
@@ -40,7 +40,9 @@ async function signOutAndRedirect(): Promise<void> {
 }
 
 // Only the section belongs in the top bar; the object's full title lives in PageHeader.
-export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMenuClick?: () => void }) {
+// On a phone the menu button opens the menu under the bar and, while it is open, shows «×» (the menu closes on any tap
+// outside it, this button included).
+export function TopBar({ crumbs, onMenuClick, menuOpen = false, ref }: { crumbs: readonly Crumb[]; onMenuClick?: () => void; menuOpen?: boolean; ref?: React.Ref<HTMLElement> }) {
   const section = crumbs[0]
   const { me, role } = useRole()
   const [themeChoice, selectTheme] = useThemeChoice()
@@ -60,9 +62,9 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
+    <header ref={ref} className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button type="button" aria-label={t("admin.shell.openMenu")} onClick={onMenuClick} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <button type="button" aria-label={t(menuOpen ? "admin.shell.closeMenu" : "admin.shell.openMenu")} aria-expanded={menuOpen} onClick={onMenuClick} className="admin-tap shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden">{menuOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}</button>
         {section && <nav aria-label={t("ui.breadcrumbs")} className="min-w-0">
           {section.href && crumbs.length > 1
             ? <Link href={section.href} className="block truncate rounded-sm text-sm text-muted-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ib-action)]">{section.label}</Link>
@@ -79,7 +81,7 @@ export function TopBar({ crumbs, onMenuClick }: { crumbs: readonly Crumb[]; onMe
         <DropdownMenu onOpenChange={(open) => { if (!open) setThemeExpanded(false) }}>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
-            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-xs font-medium text-[var(--ib-on-brand)]"
+            className="admin-tap flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-xs font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images

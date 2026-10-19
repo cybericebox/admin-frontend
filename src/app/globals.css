@@ -12,6 +12,7 @@
 @import '../styles/ds/error-page.css';
 @import '../styles/ds/service-down.css';
 @import '../styles/app.css';
+@import '../styles/admin-touch.css';
 @import '../styles/motion.css';
 
 .exercise-editor-toolbar button:not(.bg-primary):hover,

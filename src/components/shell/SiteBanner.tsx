@@ -50,12 +50,12 @@ export function SiteBanner({ banner, onDismiss, extraAction, className }: { bann
     <div role="status" aria-live="polite" data-level={banner.Level} className={cn("flex items-start gap-3 border-b px-4 py-2.5 md:px-6", TONE[banner.Level] ?? TONE.info, className)}>
       <p className="min-w-0 flex-1 text-sm leading-6">
         <span>{keepBrand(banner.Text)}</span>
-        {href && <>{" "}<a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="font-medium underline underline-offset-2">{keepBrand(banner.LinkLabel || t("admin.shell.banner.more"))}</a></>}
+        {href && <>{" "}<a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="admin-tap font-medium underline underline-offset-2">{keepBrand(banner.LinkLabel || t("admin.shell.banner.more"))}</a></>}
         {extraAction && <span className="ml-3 inline-block align-middle">{extraAction}</span>}
       </p>
       {banner.Dismissible && (
         <HoverTooltip text={t("admin.shell.banner.close")}>
-          <button type="button" aria-label={t("admin.shell.banner.close")} onClick={onDismiss} className="rounded-md p-1.5 hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-primary">
+          <button type="button" aria-label={t("admin.shell.banner.close")} onClick={onDismiss} className="admin-tap rounded-md p-1.5 hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-primary">
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </HoverTooltip>
@@ -110,7 +110,7 @@ export function SiteBannerBar() {
   return <div className="shrink-0">
     <Popover.Root modal={false}>
       <SiteBanner banner={primary} onDismiss={primary.Dismissible ? () => dismiss(primary) : undefined} extraAction={remaining.length > 0 ? <Popover.Trigger asChild>
-        <button type="button" className="rounded-sm text-sm font-medium underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current">{t(`siteBanner.moreAnnouncements.${category}`, { count: remaining.length })}</button>
+        <button type="button" className="admin-tap rounded-sm text-sm font-medium underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current">{t(`siteBanner.moreAnnouncements.${category}`, { count: remaining.length })}</button>
       </Popover.Trigger> : undefined} />
       {remaining.length > 0 && <Popover.Portal>
         <Popover.Content align="end" sideOffset={8} collisionPadding={16} aria-labelledby={panelTitle} onOpenAutoFocus={(event) => { event.preventDefault(); panelTitleRef.current?.focus() }} className="z-50 w-[min(640px,calc(100vw-32px))] max-h-[min(60dvh,480px)] overflow-auto rounded-lg border border-border bg-background focus:outline-none">
