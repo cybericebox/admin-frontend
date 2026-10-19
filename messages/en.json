@@ -2416,7 +2416,6 @@
   "admin.labs.lifecycle.observationUnknown": "Observation is stale or missing",
   "admin.labs.lifecycle.closedAt": "Logically closed at",
   "admin.labs.lifecycle.stoppedAt": "Actually stopped at",
-  "admin.labs.lifecycle.retentionUntil": "Retained until",
   "admin.labs.lifecycle.observedAt": "Lifecycle observed at",
   "admin.labs.lifecycle.failureCode": "Stop failure code",
   "admin.labs.lifecycle.failureMessage": "Stop failure details",
