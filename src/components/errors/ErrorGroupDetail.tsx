@@ -9,6 +9,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { ApiError } from "@/api/client"
 import { t } from "@/i18n/t"
+import { roleLabel } from "@/lib/roles"
 import { errorOr } from "@/i18n/apiError"
 import { formatDateTime, formatNumber } from "@/lib/locale"
 import { createStatusQueue } from "@/lib/statusQueue"
@@ -46,7 +47,7 @@ function SampleCard({ sample, userName, matched }: { sample: ErrorSample; userNa
         {sample.Route && <Field label={t("admin.errors.sample.route")}><span className="font-mono">{sample.Route}</span></Field>}
         {sample.HTTPStatus != null && <Field label={t("admin.errors.sample.status")}>{sample.HTTPStatus}</Field>}
         {sample.UserID && <Field label={t("admin.errors.sample.user")}><a href={`/users/detail/?id=${encodeURIComponent(sample.UserID)}`} className="underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{userName?.name ?? sample.UserID.slice(0, 8)}</a></Field>}
-        {sample.Role && <Field label={t("admin.errors.sample.role")}>{sample.Role}</Field>}
+        {sample.Role && <Field label={t("admin.errors.sample.role")}>{roleLabel(sample.Role)}</Field>}
         {sample.Permission && <Field label={t("admin.errors.sample.permission")}><span className="font-mono">{sample.Permission}</span></Field>}
         {sample.Limiter && <Field label={t("admin.errors.sample.limiter")}><span className="font-mono">{sample.Limiter}</span></Field>}
         {details.map(([name, value]) => <Field key={name} label={name}>{value}</Field>)}

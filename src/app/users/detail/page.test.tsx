@@ -31,12 +31,28 @@ describe("admin user detail", () => {
     mocks.del.mockResolvedValue(undefined)
   })
 
-  it("loads user details and blocks the account through the admin API", async () => {
+  it("blocks the account only after a danger confirmation", async () => {
     render(<Page />)
     expect(await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })).toBeInTheDocument()
     expect(screen.getByText("olena@example.test")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.block" }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByText("admin.userDetail.blockConfirm.title")).toBeInTheDocument()
+    expect(mocks.patch).not.toHaveBeenCalled()
+    expect(within(dialog).getByRole("button", { name: "admin.userDetail.block" })).toHaveClass("bg-destructive")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.block" }))
     await waitFor(() => expect(mocks.patch).toHaveBeenCalledWith("/api/users/user-1/status", { Status: "blocked" }))
+    expect(await screen.findByRole("button", { name: "admin.userDetail.unblock" })).toBeInTheDocument()
+  })
+
+  it("does not block when the confirmation is cancelled", async () => {
+    render(<Page />)
+    await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.block" }))
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.userDetail.cancel" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(mocks.patch).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", { name: "admin.userDetail.block" })).toBeInTheDocument()
   })
 
   it("shows a read-only profile without mutation permissions", async () => {
@@ -70,18 +86,24 @@ describe("admin user detail", () => {
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.delete" }))
     const dialog = screen.getByRole("dialog")
-    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.delete" }))
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.deleteConfirm" }))
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("admin.userDetail.actionError")
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
-  it("refreshes the account status after blocking", async () => {
-    mocks.get.mockResolvedValueOnce(user).mockResolvedValueOnce({ ...user, Status: "blocked" })
+  it("names the running block in the dialog and keeps an error inside it", async () => {
+    let fail: (error: Error) => void = () => {}
+    mocks.patch.mockReturnValueOnce(new Promise<void>((_, reject) => { fail = reject }))
     render(<Page />)
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.block" }))
-    expect(await screen.findByRole("button", { name: "admin.userDetail.unblock" })).toBeInTheDocument()
+    const dialog = screen.getByRole("dialog")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.block" }))
+    expect(await within(dialog).findByRole("button", { name: "busy.blocking" })).toBeDisabled()
+    fail(new Error("nope"))
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("admin.userDetail.actionError")
+    expect(screen.queryByRole("button", { name: "admin.userDetail.unblock", hidden: true })).not.toBeInTheDocument()
   })
 
   it("deletes the account only after confirmation and returns to users", async () => {
@@ -89,17 +111,22 @@ describe("admin user detail", () => {
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
     fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.delete" }))
     expect(mocks.del).not.toHaveBeenCalled()
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.userDetail.delete" }))
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.userDetail.deleteConfirm" }))
     await waitFor(() => expect(mocks.del).toHaveBeenCalledWith("/api/users/user-1"))
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/users"))
   })
 
-  it("changes a role through the admin API and refreshes the displayed role", async () => {
-    mocks.get.mockResolvedValueOnce(user).mockResolvedValueOnce({ ...user, Role: "admin_viewer" })
+  it("raises a role only after a primary confirmation, then shows the new role", async () => {
     render(<Page />)
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.userDetail.roleConfirm.raiseTitle")).toBeInTheDocument()
+    expect(mocks.patch).not.toHaveBeenCalled()
+    const confirm = within(dialog).getByRole("button", { name: "admin.userDetail.roleConfirm.confirm" })
+    expect(confirm).toHaveClass("bg-primary")
+    fireEvent.click(confirm)
     await waitFor(() => expect(mocks.patch).toHaveBeenCalledWith("/api/users/user-1/role", { Role: "admin_viewer" }))
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer"))
   })
@@ -115,13 +142,15 @@ describe("admin user detail", () => {
     expect(screen.getByText("admin.userDetail.protectedSuperAdmin")).toBeInTheDocument()
   })
 
-  it("shows the block optimistically and keeps other controls enabled while the save is pending", async () => {
+  it("unblocks optimistically without a confirmation and keeps other controls enabled while the save is pending", async () => {
     let finish: () => void = () => {}
+    mocks.get.mockResolvedValue({ ...user, Status: "blocked" })
     mocks.patch.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve }))
     render(<Page />)
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
-    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.block" }))
-    expect(await screen.findByRole("button", { name: "admin.userDetail.unblock" })).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.unblock" }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "admin.userDetail.block" })).toBeEnabled()
     expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toBeEnabled()
     expect(screen.getByRole("button", { name: "admin.userDetail.delete" })).toBeEnabled()
     expect(screen.queryByText("admin.loading")).not.toBeInTheDocument()
@@ -129,14 +158,27 @@ describe("admin user detail", () => {
     await waitFor(() => expect(mocks.patch).toHaveBeenCalledTimes(1))
   })
 
-  it("rolls the role back and reports an error when the save fails, without a loader", async () => {
+  it("keeps the old role and shows the error in the dialog when the role change fails, without a loader", async () => {
     mocks.patch.mockRejectedValueOnce(new Error("nope"))
     render(<Page />)
     await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.admin_viewer" }))
-    expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.admin_viewer")
-    await waitFor(() => expect(screen.getByRole("button", { name: "admin.userDetail.changeRole" })).toHaveTextContent("role.user"))
+    const dialog = await screen.findByRole("dialog")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.roleConfirm.confirm" }))
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("admin.userDetail.actionError")
+    expect(screen.getByRole("button", { name: "admin.userDetail.changeRole", hidden: true })).toHaveTextContent("role.user")
     expect(screen.queryByText("admin.loading")).not.toBeInTheDocument()
+  })
+
+  it("lowers a role through a danger confirmation", async () => {
+    mocks.get.mockResolvedValue({ ...user, Role: "admin_viewer" })
+    render(<Page />)
+    await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.userDetail.changeRole" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "role.user" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.userDetail.roleConfirm.lowerTitle")).toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: "admin.userDetail.roleConfirm.confirm" })).toHaveClass("bg-destructive")
   })
 })

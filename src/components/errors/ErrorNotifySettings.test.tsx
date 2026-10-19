@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, within, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), patch: vi.fn(), denied: new Set<string>(), users: [] as object[] }))
 vi.mock("@/api/client", async (original) => ({ ...(await original<object>()), apiGet: mocks.get, apiPut: mocks.put, apiPost: mocks.post, apiPatch: mocks.patch }))
@@ -62,6 +62,19 @@ describe("error notification settings", () => {
     fireEvent.keyDown(input, { key: "Enter" })
     await waitFor(() => expect(screen.queryByRole("combobox")).not.toBeInTheDocument())
   })
+  it("asks to confirm the typed address before inviting a super administrator", async () => {
+    mocks.users = []
+    render(<ErrorNotifySettings />)
+    fireEvent.change(await openPicker(), { target: { value: "typo@exmaple.test" } })
+    fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByText("admin.errors.settings.inviteConfirmTitle")).toBeInTheDocument()
+    expect(within(dialog).getByText("typo@exmaple.test")).toBeInTheDocument()
+    expect(mocks.post).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "confirm.cancel" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(mocks.post).not.toHaveBeenCalled()
+  })
   it("invites unknown addresses through the standard super-administrator invitation before adding a pending recipient", async () => {
     mocks.users = []
     let resolve!: (value: unknown) => void
@@ -69,10 +82,14 @@ describe("error notification settings", () => {
     render(<ErrorNotifySettings />)
     fireEvent.change(await openPicker(), { target: { value: " invite@example.test " } })
     fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.errors.settings.inviteConfirm" }))
     expect(mocks.post).toHaveBeenCalledWith("/api/users/invite", { Entries: [{ Email: "invite@example.test", FirstName: "", LastName: "", Role: "super_admin" }] })
-    expect(screen.queryByText("invite@example.test")).not.toBeInTheDocument()
+    // Only the confirmation shows the address; it is not a recipient yet.
+    expect(screen.getAllByText("invite@example.test")).toHaveLength(1)
+    expect(within(screen.getByRole("dialog")).getByText("invite@example.test")).toBeInTheDocument()
     mocks.users = [user({ ID: "invited", Email: "invite@example.test", Status: "incomplete", EmailConfirmed: false })]
     resolve([{ Email: "invite@example.test" }])
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(await screen.findByText("invite@example.test")).toBeInTheDocument()
     expect(screen.getByText(/recipientState.pending/)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeEnabled()
@@ -104,17 +121,22 @@ describe("error notification settings", () => {
     render(<ErrorNotifySettings />)
     fireEvent.change(await openPicker(), { target: { value: "invite@example.test" } })
     fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("admin.errors.settings.invitedNotFound")
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.errors.settings.inviteConfirm" }))
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent("admin.errors.settings.invitedNotFound")
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save", hidden: true })).toBeDisabled()
   })
   it("keeps an invite failure out of the recipient list and shows a retryable error", async () => {
     mocks.users = []; mocks.post.mockResolvedValue([{ Email: "invite@example.test", Code: "send_failed" }])
     render(<ErrorNotifySettings />)
     fireEvent.change(await openPicker(), { target: { value: "invite@example.test" } })
     fireEvent.click(await screen.findByRole("button", { name: /admin.errors.settings.inviteAndAdd/ }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("admin.users.invite.code.send_failed")
-    expect(screen.getByRole("button", { name: "admin.errors.settings.save" })).toBeDisabled()
-    expect(screen.getByRole("combobox")).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.errors.settings.inviteConfirm" }))
+    // The failure stays in the confirmation, which can be retried or cancelled back to the picker.
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent("admin.users.invite.code.send_failed")
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.errors.settings.inviteConfirm" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "admin.errors.settings.save", hidden: true })).toBeDisabled()
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "confirm.cancel" }))
+    expect(await screen.findByRole("combobox")).toBeInTheDocument()
   })
   it("keeps controls and newer recipient edits during an earlier save", async () => {
     let resolve!: (value: unknown) => void
