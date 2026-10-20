@@ -4,6 +4,8 @@ import { GeistMono } from "geist/font/mono"
 import { RoleProvider } from "@/lib/useRole"
 import { AdminShell } from "@/components/shell/AdminShell"
 import { ServiceStatusGate } from "@/components/ServiceStatusGate"
+import { ChunkRecovery } from "@/components/ChunkRecovery"
+import { CHUNK_RECOVERY_BOOT_SCRIPT } from "@/lib/chunkRecovery"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
 import { APP_ROOT_ID } from "@/lib/appRoot"
@@ -16,9 +18,10 @@ export const metadata = { title: t("meta.title"), robots: { index: false, follow
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uk" className={`${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
+      <head><script dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_BOOT_SCRIPT }} /><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
       {/* Browser extensions can add attributes to body before React hydrates. */}
       <body className="grid-bg" suppressHydrationWarning>
+        <ChunkRecovery />
         {/* the outage overlay dims and inerts this root; it stays rendered */}
         <div id={APP_ROOT_ID}>
           <RoleProvider>
