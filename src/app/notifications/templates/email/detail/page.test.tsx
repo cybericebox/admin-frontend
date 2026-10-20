@@ -39,6 +39,7 @@ vi.mock('@/api/notifications/emailTemplates', () => ({
   createEmailTemplate:   vi.fn(),
   updateEmailTemplate:   vi.fn(),
   publishEmailTemplate:  vi.fn(),
+  deleteEmailTemplate:   vi.fn(),
   rollbackEmailTemplate: vi.fn(),
   listBlockPresets:      vi.fn(),
   listEmailTemplates:    vi.fn(),
@@ -124,6 +125,7 @@ import {
   updateEmailTemplate,
   rollbackEmailTemplate,
   publishEmailTemplate,
+  deleteEmailTemplate,
   listBlockPresets,
   listEmailTemplates,
 } from '@/api/notifications/emailTemplates'
@@ -292,6 +294,16 @@ describe('Email template editor page', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'confirm.cancel' }))
     expect(publishEmailTemplate).not.toHaveBeenCalled()
+  })
+
+  it('asks for confirmation before deleting a draft and only then deletes it', async () => {
+    vi.mocked(deleteEmailTemplate).mockResolvedValue(undefined)
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.notif.tpl.deleteDraft' }))
+    expect(deleteEmailTemplate).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.notif.tpl.deleteDraftConfirm' }))
+    await waitFor(() => expect(deleteEmailTemplate).toHaveBeenCalledWith('tpl-001'))
   })
 
   // ── Published state ───────────────────────────────────────────────────────

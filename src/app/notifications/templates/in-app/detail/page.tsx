@@ -21,7 +21,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { FieldValidation } from "@/components/ui/field-validation"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Send } from "lucide-react"
+import { Send, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { LoadingArea } from "@/components/ui/spinner"
 import { LoadError } from "@/components/ui/load-error"
@@ -40,6 +40,7 @@ import {
   createInAppTemplate,
   updateInAppTemplate,
   publishInAppTemplate,
+  deleteInAppTemplate,
   rollbackInAppTemplate,
 } from "@/api/notifications/inAppTemplates"
 import type { InAppTemplate, InAppAction } from "@/api/notifications/inAppTemplates"
@@ -73,12 +74,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
   const [loading, setLoading] = useState(Boolean(id))
   const [notFound, setNotFound] = useState(false)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
-  const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit">("")
+  const [busyAction, setBusyAction] = useState<"" | "save" | "publish" | "rollback" | "edit" | "delete">("")
   const busy = busyAction !== ""
   const [rejectedLinks, setRejectedLinks] = useState(false)
   const [formError, setFormError] = useState(false)
   const [versionRevision, setVersionRevision] = useState(0)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   // ── Load nonce — incremented whenever we (re)populate form from server data ──
   // Changing this causes mount-initialized editors (VariableRichText) to remount
@@ -198,6 +200,21 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
       if (!showLinkErrors(cause)) toast.error(errorOr(cause, t("admin.notif.tpl.saveError")))
     } finally {
       setBusyAction("")
+    }
+  }
+
+  async function handleDelete() {
+    if (!template || template.Status !== "draft" || busy) return
+    setBusyAction("delete")
+    try {
+      await deleteInAppTemplate(template.ID)
+      toast.success(t("admin.notif.tpl.draftDeleted"))
+      router.replace("/notifications/templates/in-app")
+    } catch {
+      toast.error(t("admin.notif.tpl.deleteError"))
+    } finally {
+      setBusyAction("")
+      setDeleteOpen(false)
     }
   }
 
@@ -343,7 +360,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           {/* Send test: shown when a template is loaded */}
           {template !== null && canWrite && (
             <Button variant="outline" onClick={() => setTestOpen(true)}>
-              <Send aria-hidden className="h-4 w-4" />
+              <Send aria-hidden className="mr-2 h-4 w-4" />
               {t("admin.notif.test.button")}
             </Button>
           )}
@@ -357,6 +374,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
           {isDraft && !isDirty && canWrite && (
             <Button onClick={() => setPublishOpen(true)} disabled={busy}>
               {t("admin.notif.tpl.publish")}
+            </Button>
+          )}
+          {/* A saved draft can be discarded; the published version stays live. */}
+          {isDraft && !isNew && canWrite && (
+            <Button variant="outline" onClick={() => setDeleteOpen(true)} disabled={busy}>
+              <Trash2 aria-hidden className="mr-2 h-4 w-4" />
+              {t("admin.notif.tpl.deleteDraft")}
             </Button>
           )}
           {/* Edit: published/unpublished → open (or create) the type's draft */}
@@ -561,6 +585,13 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
         description={t("admin.notif.tpl.publishDescription")}
         confirmLabel={t("admin.notif.tpl.publish")}
         onConfirm={() => void handlePublish().finally(() => setPublishOpen(false))} />
+
+      <ConfirmDialog open={deleteOpen} onCancel={() => setDeleteOpen(false)} tone="danger"
+        busy={busyAction === "delete"} busyLabel={t("busy.deleting")}
+        title={t("admin.notif.tpl.deleteDraftTitle")}
+        description={t("admin.notif.tpl.deleteDraftDescription")}
+        confirmLabel={t("admin.notif.tpl.deleteDraftConfirm")}
+        onConfirm={() => void handleDelete()} />
 
       {/* ── Test notification modal ── */}
       {template !== null && (
