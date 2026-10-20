@@ -403,7 +403,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
                 </span>}
                 actions={href || unreadItem || canResolve(item) ? <>
                   {href ? <a href={href} onClick={(clickEvent) => { clickEvent.preventDefault(); void followLink(item, href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline after:absolute after:inset-0 after:content-['']">{t("inbox.open")}</a> : unreadItem ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">{t("inbox.markRead")}</button> : null}
-                  {canResolve(item) && <button type="button" disabled={resolving !== null} aria-busy={resolving === item.ID} onClick={() => void resolve(item)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
+                  {canResolve(item) && <button type="button" disabled={resolving !== null} aria-busy={resolving === item.ID} onClick={() => void resolve(item)} className="relative z-10 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
                     {resolving === item.ID ? <Spinner size="sm" label={t("admin.loading")} /> : <Check aria-hidden="true" className="h-3.5 w-3.5" />}{t("inbox.resolve")}
                   </button>}
                 </> : undefined}
