@@ -98,6 +98,16 @@ test("the new inbox keys exist in both catalogs", () => {
     }
   }
 })
+test("a card link is opened only when it is a site path, an anchor, http(s) or mailto", () => {
+  assert.equal(inbox.safeHref("/manage/"), "/manage/")
+  assert.equal(inbox.safeHref("https://spring.example.org/manage/"), "https://spring.example.org/manage/")
+  assert.equal(inbox.safeHref(" #top "), "#top")
+  assert.equal(inbox.safeHref("mailto:a@b.c"), "mailto:a@b.c")
+  assert.equal(inbox.safeHref("//evil.example"), null)
+  assert.equal(inbox.safeHref("javascript:alert(1)"), null)
+  assert.equal(inbox.safeHref(""), null)
+})
+
 
 test("bell and resolver name", () => {
   assert.equal(inbox.bellCount(3, null), 3)
