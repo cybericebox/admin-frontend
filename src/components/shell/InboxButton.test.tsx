@@ -9,15 +9,37 @@ vi.mock("@/api/client", async (importOriginal) => ({ ...await importOriginal<typ
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => access.allowed }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }))
 
-const BASE_CURSOR = { ID: "old", CreatedAt: "2026-09-24T12:00:00Z" }
-const NEW_CURSOR = { ID: "new", CreatedAt: "2026-09-24T12:01:00Z" }
+const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>(), last: null as unknown }))
+vi.mock("@/lib/pulse", () => ({
+  getPulseLoop: () => ({
+    subscribe: (listener: (value: unknown) => void) => {
+      pulse.listeners.add(listener)
+      if (pulse.last) queueMicrotask(() => listener(pulse.last))
+      return () => pulse.listeners.delete(listener)
+    },
+    pulseNow: vi.fn(),
+  }),
+}))
+const emitPulse = (value: unknown) => { pulse.last = value; act(() => pulse.listeners.forEach((listener) => listener(value))) }
+
+const BASE_CURSOR = "c0"
+const NEW_CURSOR = "c1"
+const sinceOf = (path: string) => new URL(path, "http://x").searchParams.get("since")
+// Baseline (since=""), news (since=<cursor>) and the list (no since) answered by one mock.
+function mockApi(opts: { unread: number; news?: Record<string, unknown>[]; newsUnread?: number; list: Record<string, unknown>[]; counts?: unknown; nextCursor?: (path: string) => unknown }) {
+  pulse.last = { Banners: "1", Inbox: { Cursor: BASE_CURSOR, Unread: opts.unread } }
+  api.get.mockImplementation((path: string) => {
+    const since = sinceOf(path)
+    if (since === "") return Promise.resolve({ Cursor: BASE_CURSOR, Items: [], Unread: opts.unread, Counts: opts.counts, OtherEventsCount: 0 })
+    if (since !== null) return Promise.resolve({ Cursor: NEW_CURSOR, Items: opts.news ?? [], Unread: opts.newsUnread ?? opts.unread, Counts: opts.counts })
+    return Promise.resolve({ Items: opts.list, NextCursor: "" })
+  })
+}
 let autoIntersect = false
 let observers: Array<{ trigger: () => void }> = []
 
 function mockInbox(items: Record<string, unknown>[]) {
-  api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
-    ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: items.filter((item) => !item.ReadAt).length }
-    : { Items: items, NextCursor: null }))
+  mockApi({ unread: items.filter((item) => !item.ReadAt).length, list: items })
 }
 
 describe("top-bar inbox", () => {
@@ -35,6 +57,8 @@ describe("top-bar inbox", () => {
       }
     })
     api.get.mockReset()
+    pulse.last = null
+    pulse.listeners.clear()
     api.patch.mockReset()
     api.post.mockReset()
     navigation.push.mockReset()
@@ -94,8 +118,30 @@ describe("top-bar inbox", () => {
     await screen.findByRole("listitem")
     // The header action comes first; each row has its own.
     fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?site=admin", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
+  })
+
+  it("syncs by since-cursor: baseline first, then again while the answer's cursor differs from the pulse's", async () => {
+    const one = { ID: "n1", Title: "Перше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+    const two = { ID: "n2", Title: "Друге", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:02:00Z" }
+    pulse.last = { Banners: "1", Inbox: { Cursor: BASE_CURSOR, Unread: 0 } }
+    api.get.mockImplementation((path: string) => {
+      const since = sinceOf(path)
+      if (since === "") return Promise.resolve({ Cursor: BASE_CURSOR, Items: [], Unread: 0 })
+      if (since === BASE_CURSOR) return Promise.resolve({ Cursor: "c1", Items: [one], Unread: 1 })
+      if (since === "c1") return Promise.resolve({ Cursor: "c2", Items: [two], Unread: 2 })
+      return Promise.resolve({ Items: [], NextCursor: "" })
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    emitPulse({ Banners: "1", Inbox: { Cursor: "c2", Unread: 2 } })
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=c1"))
+    expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=c0")
+    // An unchanged pulse asks for nothing.
+    const calls = api.get.mock.calls.length
+    emitPulse({ Banners: "1", Inbox: { Cursor: "c2", Unread: 2 } })
+    expect(api.get.mock.calls.length).toBe(calls)
   })
 
   it("lists every notification and labels Event-bound ones with the Event name", async () => {
@@ -121,28 +167,28 @@ describe("top-bar inbox", () => {
     autoIntersect = true
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
-      ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 25 }
-      : path.includes("before_id=")
-        ? { Items: [older], NextCursor: null }
-        : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
+    mockApi({ unread: 25, list: [first] })
+    const list = api.get.getMockImplementation()!
+    api.get.mockImplementation((path: string) => new URL(path, "http://x").searchParams.has("before")
+      ? Promise.resolve({ Items: [older], NextCursor: "" })
+      : sinceOf(path) === null ? Promise.resolve({ Items: [first], NextCursor: first.ID }) : list(path))
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 25" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(await screen.findByText("Раніше")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 25" })).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before_id=recent"))
+    expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before=recent"))
     expect(screen.queryByRole("button", { name: "Завантажити ще" })).not.toBeInTheDocument()
   })
 
   it("loads the next page when the last row becomes visible", async () => {
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
-      ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2 }
-      : path.includes("before_id=")
-        ? { Items: [older], NextCursor: null }
-        : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
+    mockApi({ unread: 2, list: [first] })
+    const list = api.get.getMockImplementation()!
+    api.get.mockImplementation((path: string) => new URL(path, "http://x").searchParams.has("before")
+      ? Promise.resolve({ Items: [older], NextCursor: "" })
+      : sinceOf(path) === null ? Promise.resolve({ Items: [first], NextCursor: first.ID }) : list(path))
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
@@ -170,11 +216,7 @@ describe("top-bar inbox", () => {
   it("pops only fresh unread messages with a configured duration", async () => {
     const old = { ID: "old", Title: "Старе", Body: "Вже було", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
     const fresh = { ID: "new", Title: "Нове", Body: "Щойно прийшло", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 2 }
-      : path.endsWith("/poll")
-        ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 1 }
-        : { Items: [old], NextCursor: null }))
+    mockApi({ unread: 1, news: [fresh], newsUnread: 2, list: [old] })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" })).toBeInTheDocument()
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
@@ -187,11 +229,7 @@ describe("top-bar inbox", () => {
 
   it("pops a fresh message for five seconds when the template duration is empty", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: null, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [], NextCursor: null }))
+    mockApi({ unread: 0, news: [fresh], newsUnread: 1, list: [] })
     render(<InboxButton />)
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
@@ -201,15 +239,15 @@ describe("top-bar inbox", () => {
   it("removes a pop-in when another tab reads its message", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     let delta = 0
+    pulse.last = { Banners: "1", Inbox: { Cursor: BASE_CURSOR, Unread: 0 } }
     api.get.mockImplementation((path: string) => {
-      if (path.includes("/poll?")) {
+      const since = sinceOf(path)
+      if (since === "") return Promise.resolve({ Cursor: BASE_CURSOR, Items: [], Unread: 0 })
+      if (since !== null) {
         delta += 1
-        return Promise.resolve(delta === 1
-          ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-          : { Cursor: NEW_CURSOR, NewInbox: [], UnreadCount: 0 })
+        return Promise.resolve(delta === 1 ? { Cursor: NEW_CURSOR, Items: [fresh], Unread: 1 } : { Cursor: NEW_CURSOR, Items: [], Unread: 0 })
       }
-      if (path.endsWith("/poll")) return Promise.resolve({ Cursor: null, NewInbox: [], UnreadCount: 0 })
-      return Promise.resolve({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: null })
+      return Promise.resolve({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: "" })
     })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні" })).toBeInTheDocument()
@@ -226,11 +264,7 @@ describe("top-bar inbox", () => {
 
   it("does not flash a fresh message already read in another tab", async () => {
     const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 0 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }], NextCursor: null }))
+    mockApi({ unread: 0, news: [fresh], newsUnread: 0, list: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }] })
     render(<InboxButton />)
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
@@ -240,11 +274,7 @@ describe("top-bar inbox", () => {
 
   it("marks a pop-in action read before navigating", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [], NextCursor: null }))
+    mockApi({ unread: 0, news: [fresh], newsUnread: 1, list: [] })
     render(<InboxButton />)
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
@@ -273,12 +303,14 @@ describe("top-bar inbox", () => {
     const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:30:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u", Name: "Іван П." } }
     const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal" }
     function mockCategories(requests: number) {
+      const all = [done, lab, personal]
+      mockApi({ unread: 2, list: all, counts: { All: requests + 1, Requests: requests, Personal: 1, Activity: 0 } })
+      const base = api.get.getMockImplementation()!
       api.get.mockImplementation((path: string) => {
         const url = new URL(path, "http://x")
-        if (url.pathname.endsWith("/poll")) return Promise.resolve({ Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: { All: requests + 1, Requests: requests, Personal: 1, Activity: 0 }, OtherEventsCount: 0 })
+        if (url.searchParams.has("since")) return base(path)
         const category = url.searchParams.get("category")
-        const all = [done, lab, personal]
-        return Promise.resolve({ Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: null })
+        return Promise.resolve({ Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: "" })
       })
     }
 
@@ -287,7 +319,7 @@ describe("top-bar inbox", () => {
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 1" }))
       expect(await screen.findByRole("tab", { name: "Запити, потребують дії: 1", selected: true })).toBeInTheDocument()
-      await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?category=requests"))
+      await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&category=requests"))
       const rows = (await screen.findAllByRole("listitem")).map((row) => row.textContent)
       expect(rows[0]).toContain("Лабораторія впала")
       expect(rows[1]).toMatch(/Схвалив Іван П\., /)
@@ -308,7 +340,7 @@ describe("top-bar inbox", () => {
       fireEvent.click(await screen.findByRole("tab", { name: "Особисте: 1" }))
       expect(await screen.findByText("Особисте повідомлення")).toBeInTheDocument()
       fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
-      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?category=personal", {}))
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?site=admin&category=personal", {}))
     })
 
     it("resolves a failed lab by hand and shows a localized error", async () => {

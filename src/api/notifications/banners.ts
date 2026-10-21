@@ -1,9 +1,10 @@
 /**
  * banners.ts — site banners. Contract: docs/BROADCASTS.md, section «Банери».
  * Management (platform): /api/notifications/site-banners[/:id]
- * Public read (session optional): GET /api/banners → active, audience-filtered, critical first.
+ * Public read (session optional): GET /api/notifications/banners?site=admin → active, audience-filtered, critical first.
+ * The list is refetched only when the pulse reports a new Banners version (lib/pulse).
  */
-import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/api/client'
 
 const BASE = '/api/notifications/site-banners'
 
@@ -13,14 +14,18 @@ export type BannerTargetSite = 'main' | 'id' | 'admin' | 'exercises' | 'event'
 
 export type BannerAudience = 'everyone' | 'signed_in' | 'participants'
 
+export type BannerKind = 'site' | 'system' | 'personal'
+
 export type SiteBannerDTO = {
   ID: string
+  Kind: BannerKind
+  Title?: string
   Text: string
   LinkURL: string
   LinkLabel: string
   Level: BannerLevel
   Dismissible: boolean
-  Version: string
+  Version: string | number
 }
 
 export type Banner = {
@@ -78,5 +83,10 @@ export function deleteBanner(id: string): Promise<void> {
 
 /** Public banners for the render place (works without a session). */
 export function fetchSiteBanners(): Promise<SiteBannerDTO[]> {
-  return apiGet<SiteBannerDTO[] | null>('/api/banners?site=admin').then((rows) => rows ?? [])
+  return apiGet<SiteBannerDTO[] | null>('/api/notifications/banners?site=admin').then((rows) => rows ?? [])
+}
+
+/** Dismiss a personal banner on the server (site and system banners are dismissed locally). */
+export function dismissPersonalBanner(id: string): Promise<void> {
+  return apiPatch<void>(`/api/notifications/banners/${encodeURIComponent(id)}/dismiss`, {})
 }
