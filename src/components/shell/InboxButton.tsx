@@ -16,10 +16,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 
 import { apiGet, apiPatch, apiPost } from "@/api/client"
+import { PULSE_SITE, fetchInboxSince, type InboxSince } from "@/api/notifications/pulse"
 import { localizedError, overloadOr } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
-import { onServiceRestored } from "@/lib/serviceStatus"
+import { getPulseLoop } from "@/lib/pulse"
 import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
 import { NotificationPopIn } from "@/components/notifications/NotificationPopIn"
 import { popInDuration } from "@/components/notifications/popInDuration"
@@ -35,9 +36,8 @@ import { STORAGE_INBOX_READ } from "@/lib/storageKeys"
 // Dropdown height cap, the same in every app: tune it here.
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
 
-type InboxCursor = { ID: string; CreatedAt: string }
-type InboxPoll = { Cursor: InboxCursor | null; NewInbox: Message[]; UnreadCount: number; Counts?: unknown; OtherEventsCount?: unknown }
-type InboxPage = { Items: Message[]; NextCursor: InboxCursor | null }
+type InboxPage = { Items: Message[]; NextCursor: string | null }
+const query = (tab: InboxTab, eventId?: string, extra?: Record<string, string>) => inboxQuery(PULSE_SITE, tab, eventId, extra)
 // A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
 const OPEN_PARAM = "inbox"
 
@@ -68,7 +68,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   const [popIns, setPopIns] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingOlder, setLoadingOlder] = useState(false)
-  const [olderCursor, setOlderCursor] = useState<InboxCursor | null>(null)
+  const [olderCursor, setOlderCursor] = useState<string | null>(null)
   const [unread, setUnread] = useState(0)
   // null = the backend has no categories yet: the dropdown shows only «Усі».
   const [counts, setCounts] = useState<InboxCounts | null>(null)
@@ -77,17 +77,20 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   const [loadError, setLoadError] = useState<{ cause: unknown; older: boolean } | null>(null)
   const [actionError, setActionError] = useState("")
   const [resolving, setResolving] = useState<string | null>(null)
-  const cursorRef = useRef<InboxCursor | null>(null)
+  const cursorRef = useRef<string | null>(null)
   const unreadCountRef = useRef(0)
   const countsRef = useRef<InboxCounts | null>(null)
   const tabRef = useRef<InboxTab>("all")
-  const olderCursorRef = useRef<InboxCursor | null>(null)
+  const olderCursorRef = useRef<string | null>(null)
   const loadingOlderRef = useRef(false)
   const listRevisionRef = useRef(0)
   const openRef = useRef(false)
   const pollNowRef = useRef<() => void>(() => {})
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
   const lastItemRef = useRef<HTMLLIElement | null>(null)
+  // The panel mounts after the open state flips: a state copy of the last row re-runs the observer effect once it exists.
+  const [lastNode, setLastNode] = useState<HTMLLIElement | null>(null)
+  const setLastItem = useCallback((node: HTMLLIElement | null) => { lastItemRef.current = node; setLastNode(node) }, [])
   const lastItemID = items[items.length - 1]?.ID
 
   const applyCounts = useCallback((next: InboxCounts | null) => {
@@ -103,11 +106,10 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     loadingOlderRef.current = true
     setLoadingOlder(true)
     try {
-      const query = inboxQuery(current, eventId, { before_id: before.ID, before_at: before.CreatedAt })
-      const page = await apiGet<InboxPage>(`/api/notifications/inbox${query}`)
+      const page = await apiGet<InboxPage>(`/api/notifications/inbox${query(current, eventId, { before })}`)
       if (revision !== listRevisionRef.current) return
-      olderCursorRef.current = page.NextCursor
-      setOlderCursor(page.NextCursor)
+      olderCursorRef.current = page.NextCursor || null
+      setOlderCursor(page.NextCursor || null)
       setItems((previous) => {
         const known = new Set(previous.map((item) => item.ID))
         return orderForTab([...previous, ...(page.Items ?? []).filter((item) => !known.has(item.ID))], current)
@@ -126,17 +128,17 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     }, { root: area })
     observer.observe(last)
     return () => observer.disconnect()
-  }, [open, olderCursor, lastItemID, loading, loadOlder])
+  }, [open, olderCursor, lastItemID, lastNode, loading, loadOlder])
 
   const refresh = useCallback((): Promise<Message[] | null> => {
     const revision = ++listRevisionRef.current
     const current = tabRef.current
-    return apiGet<InboxPage>(`/api/notifications/inbox${inboxQuery(current, eventId)}`)
+    return apiGet<InboxPage>(`/api/notifications/inbox${query(current, eventId)}`)
       .then((page) => {
         if (revision !== listRevisionRef.current) return null
         const list = page?.Items ?? []
-        olderCursorRef.current = page?.NextCursor ?? null
-        setOlderCursor(page?.NextCursor ?? null)
+        olderCursorRef.current = page?.NextCursor || null
+        setOlderCursor(page?.NextCursor || null)
         // An older refresh must not undo a successful read action.
         setItems((previous) => orderForTab(list.map((item) => ({
           ...item,
@@ -155,80 +157,82 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     if (!allowed) return
     let active = true
     let initialized = false
-    let polling = false
-    let pending = false
-    const scope = eventId ? { event: eventId } : undefined
-    const poll = async () => {
+    let syncing = false
+    let again: { target: string | undefined } | null = null
+    let seen: { cursor: string; unread: number } | null = null
+    // Asks for the news after the last cursor and repeats while the answer's cursor differs from the target (the pulse's).
+    const sync = async (target: string | undefined) => {
       if (!active) return
-      if (polling) { pending = true; return }
-      polling = true
+      if (syncing) { again = { target }; return }
+      syncing = true
       try {
-        if (!initialized) {
-          const baseline = await apiGet<InboxPoll>(`/api/notifications/inbox/poll${inboxQuery("all", undefined, scope)}`)
-          if (!active) return
-          cursorRef.current = baseline.Cursor ?? { ID: "00000000-0000-0000-0000-000000000000", CreatedAt: "1970-01-01T00:00:00Z" }
-          unreadCountRef.current = baseline.UnreadCount
-          setUnread(baseline.UnreadCount)
-          applyCounts(parseCounts(baseline.Counts))
-          setOtherEvents(parseOtherEvents(baseline.OtherEventsCount))
-          initialized = true
-          await refresh()
-          return
+        for (let round = 0; round < 10; round++) {
+          if (!initialized) {
+            const baseline = await fetchInboxSince<Message>("", eventId)
+            if (!active) return
+            cursorRef.current = baseline.Cursor
+            unreadCountRef.current = baseline.Unread
+            setUnread(baseline.Unread)
+            applyCounts(parseCounts(baseline.Counts))
+            setOtherEvents(parseOtherEvents(baseline.OtherEventsCount))
+            initialized = true
+            await refresh()
+          } else {
+            const result: InboxSince<Message> = await fetchInboxSince<Message>(cursorRef.current ?? "", eventId)
+            if (!active) return
+            cursorRef.current = result.Cursor
+            const news = result.Items ?? []
+            const fresh = news.filter(isUnread)
+            if (openRef.current && news.length) {
+              const current = tabRef.current
+              setItems((previous) => {
+                const known = new Set(previous.map((item) => item.ID))
+                const added = news.filter((item) => !known.has(item.ID) && inTab(item, current)).reverse()
+                return added.length ? orderForTab([...added, ...previous], current) : previous
+              })
+            }
+            let poppable = fresh.filter((item) => popInDuration(item.AutoDismissMs) > 0)
+            if (result.Unread !== unreadCountRef.current + fresh.length) {
+              const latest = await refresh()
+              poppable = latest ? poppable.filter((item) => latest.some((entry) => entry.ID === item.ID && isUnread(entry))) : []
+            } else {
+              setLoadError(null)
+              setActionError("")
+            }
+            unreadCountRef.current = result.Unread
+            setUnread(result.Unread)
+            const nextCounts = parseCounts(result.Counts)
+            if (nextCounts) applyCounts(nextCounts)
+            if (result.OtherEventsCount !== undefined) setOtherEvents(parseOtherEvents(result.OtherEventsCount))
+            if (active && poppable.length) setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
+          }
+          if (target === undefined || cursorRef.current === target) break
         }
-        const since = cursorRef.current!
-        const query = inboxQuery("all", undefined, { ...scope, since_id: since.ID, since_at: since.CreatedAt })
-        const result = await apiGet<InboxPoll>(`/api/notifications/inbox/poll${query}`)
-        if (!active) return
-        cursorRef.current = result.Cursor ?? since
-        const fresh = (result.NewInbox ?? []).filter(isUnread)
-        if (openRef.current && result.NewInbox?.length) {
-          const current = tabRef.current
-          setItems((previous) => {
-            const known = new Set(previous.map((item) => item.ID))
-            const added = result.NewInbox.filter((item) => !known.has(item.ID) && inTab(item, current)).reverse()
-            return added.length ? orderForTab([...added, ...previous], current) : previous
-          })
-        }
-        let poppable = fresh.filter((item) => popInDuration(item.AutoDismissMs) > 0)
-        if (result.UnreadCount !== unreadCountRef.current + fresh.length) {
-          const latest = await refresh()
-          poppable = latest ? poppable.filter((item) => latest.some((entry) => entry.ID === item.ID && isUnread(entry))) : []
-        } else {
-          setLoadError(null)
-          setActionError("")
-        }
-        unreadCountRef.current = result.UnreadCount
-        setUnread(result.UnreadCount)
-        // Older backends send Counts only on some polls: keep the last known ones.
-        const nextCounts = parseCounts(result.Counts)
-        if (nextCounts) applyCounts(nextCounts)
-        if (result.OtherEventsCount !== undefined) setOtherEvents(parseOtherEvents(result.OtherEventsCount))
-        if (active && poppable.length) setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
       } catch (err) {
         if (active) { setLoadError({ cause: err, older: false }); setLoading(false) }
       } finally {
-        polling = false
-        if (pending && active) { pending = false; queueMicrotask(() => { void poll() }) }
+        syncing = false
+        if (again && active) { const next = again; again = null; queueMicrotask(() => { void sync(next.target) }) }
       }
     }
-    const pollWhenVisible = () => { if (document.visibilityState !== "hidden") void poll() }
-    pollNowRef.current = () => { void poll() }
-    void poll()
-    const unsubscribe = onServiceRestored(pollWhenVisible)
-    const timer = window.setInterval(pollWhenVisible, 8_000)
-    document.addEventListener("visibilitychange", pollWhenVisible)
-    window.addEventListener("focus", pollWhenVisible)
-    window.addEventListener("cybericebox:inbox-updated", pollWhenVisible)
-    const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { void pollWhenVisible(); if (openRef.current) void refresh() } }
+    const loop = getPulseLoop(eventId)
+    const unsubscribe = loop.subscribe((pulse) => {
+      if (!pulse.Inbox) return
+      const { Cursor, Unread } = pulse.Inbox
+      if (initialized && seen && seen.cursor === Cursor && seen.unread === Unread) return
+      seen = { cursor: Cursor, unread: Unread }
+      void sync(Cursor)
+    })
+    const syncNow = () => { void sync(undefined) }
+    pollNowRef.current = syncNow
+    window.addEventListener("cybericebox:inbox-updated", syncNow)
+    const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { syncNow(); if (openRef.current) void refresh() } }
     window.addEventListener("storage", onStorage)
     return () => {
       active = false
       pollNowRef.current = () => {}
       unsubscribe()
-      window.clearInterval(timer)
-      document.removeEventListener("visibilitychange", pollWhenVisible)
-      window.removeEventListener("focus", pollWhenVisible)
-      window.removeEventListener("cybericebox:inbox-updated", pollWhenVisible)
+      window.removeEventListener("cybericebox:inbox-updated", syncNow)
       window.removeEventListener("storage", onStorage)
     }
   }, [allowed, refresh, applyCounts, eventId])
@@ -276,7 +280,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     try {
       const previous = window.localStorage.getItem(STORAGE_INBOX_READ)
       window.localStorage.setItem(STORAGE_INBOX_READ, previous === "1" ? "0" : "1")
-    } catch { /* Polling still synchronizes read state. */ }
+    } catch { /* The next pulse still synchronizes read state. */ }
   }
 
   async function markRead(item: Message): Promise<boolean> {
@@ -331,7 +335,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     setActionError("")
     const current = tab
     try {
-      await apiPatch(`/api/notifications/inbox/read-all${inboxQuery(current, eventId)}`, {})
+      await apiPatch(`/api/notifications/inbox/read-all${query(current, eventId)}`, {})
       const now = new Date().toISOString()
       if (current === "all") {
         unreadCountRef.current = 0
@@ -341,7 +345,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       if (countsRef.current) applyCounts(countsAfterReadAll(countsRef.current, current))
       setItems((list) => list.map((item) => inTab(item, current) ? { ...item, ReadAt: item.ReadAt ?? now } : item))
       announceRead()
-      // Category totals come from the server; the poll corrects the bell right away.
+      // Category totals come from the server; the since call corrects the bell right away.
       if (current !== "all") pollNowRef.current()
     } catch (err) {
       setActionError(overloadOr(err, t("inbox.readAllError")))
@@ -390,7 +394,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             const href = safeHref(item.Link ?? "")
             const resolved = !!item.ResolvedAt
             const unreadItem = isUnread(item)
-            return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className={`relative px-4 py-3 hover:bg-accent/50 ${resolved ? "opacity-60" : ""} ${href ? "cursor-pointer" : ""}`}>
+            return <li key={item.ID} ref={index === items.length - 1 ? setLastItem : undefined} className={`relative px-4 py-3 hover:bg-accent/50 ${resolved ? "opacity-60" : ""} ${href ? "cursor-pointer" : ""}`}>
               <NotificationMessageCard
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
                 body={item.Body ? <span dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })) }} /> : undefined}

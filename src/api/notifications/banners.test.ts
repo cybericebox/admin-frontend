@@ -10,6 +10,6 @@ describe("admin public banners", () => {
   it("identifies the admin render site and handles a null list", async () => {
     vi.mocked(apiGet).mockResolvedValue(null)
     expect(await fetchSiteBanners()).toEqual([])
-    expect(apiGet).toHaveBeenCalledWith("/api/banners?site=admin")
+    expect(apiGet).toHaveBeenCalledWith("/api/notifications/banners?site=admin")
   })
 })

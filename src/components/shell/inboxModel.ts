@@ -44,7 +44,7 @@ export type InboxMessage = {
   ResolvedBy?: { ID: string; Name: string } | null
 }
 
-/** Categories are on when the poll carries a Counts object (older backends omit it). */
+/** Categories are on when the since answer carries a Counts object (older backends omit it). */
 export function parseCounts(value: unknown): InboxCounts | null {
   if (!value || typeof value !== "object") return null
   const raw = value as Record<string, unknown>
@@ -130,7 +130,7 @@ export function safeHref(value: string): string | null {
   return null
 }
 
-/** Optimistic counts after one item is read locally (the next poll corrects them).
+/** Optimistic counts after one item is read locally (the next pulse corrects them).
  *  Counts.All = open requests + unread personal + unread activity. */
 export function countsAfterRead(counts: InboxCounts, item: InboxMessage): InboxCounts {
   if (!isUnread(item) || isOpenRequest(item)) return counts
@@ -158,13 +158,13 @@ export function resolutionKey(resolution: string | null | undefined, hasName: bo
   return `inbox.resolved.${known}${hasName && !SYSTEM_RESOLUTIONS.includes(known) ? "" : ".system"}`
 }
 
-/** API query for a tab (and the event scope on event sites). */
-export function inboxQuery(tab: InboxTab, eventId?: string, extra: Record<string, string> = {}): string {
-  const query = new URLSearchParams(extra)
+/** API query: the site, the tab category, the event scope on event sites, then extras (before=<cursor>). */
+export function inboxQuery(site: string, tab: InboxTab, eventId?: string, extra: Record<string, string> = {}): string {
+  const query = new URLSearchParams({ site })
   if (tab !== "all") query.set("category", tab)
   if (eventId) query.set("event", eventId)
-  const text = query.toString()
-  return text ? `?${text}` : ""
+  for (const [key, value] of Object.entries(extra)) query.set(key, value)
+  return `?${query.toString()}`
 }
 
 /** Row time: HH:MM today, otherwise a short date with time. */

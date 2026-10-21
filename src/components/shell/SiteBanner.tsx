@@ -3,8 +3,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { X } from "lucide-react"
-import { fetchSiteBanners, type BannerLevel, type SiteBannerDTO } from "@/api/notifications/banners"
-import { onServiceRestored } from "@/lib/serviceStatus"
+import { dismissPersonalBanner, fetchSiteBanners, type BannerLevel, type SiteBannerDTO } from "@/api/notifications/banners"
+import { getPulseLoop } from "@/lib/pulse"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -21,8 +21,8 @@ import { siteBannerDismissedKey } from "@/lib/storageKeys"
  *   info     bg var(--ib-soft)      text var(--ib-ink)   border var(--ib-line)
  *   warning  bg var(--ib-warn-bg)   text var(--ib-warn)  border var(--ib-warn) at 25%
  *   critical bg var(--ib-danger-bg) text var(--ib-danger) border var(--ib-danger) at 25%
- * Data: GET /api/banners every ~60 s and on tab focus; critical first; one non-dismissed banner is shown; the rest are available in an anchored panel.
- * Dismissal: localStorage key `cib_site_banner_dismissed_${ID}_${Version}` = "1" (Version changes when the text is edited).
+ * Data: GET /api/notifications/banners, refetched only when the shared pulse (lib/pulse) reports a new Banners version (and once on load); critical first; one non-dismissed banner is shown; the rest are available in an anchored panel.
+ * Dismissal: personal banners PATCH /api/notifications/banners/:id/dismiss; site/system banners use the localStorage key `cib_site_banner_dismissed_${ID}_${Version}` = "1" (Version changes when the text is edited).
  */
 
 const TONE: Record<BannerLevel, string> = {
@@ -30,8 +30,6 @@ const TONE: Record<BannerLevel, string> = {
   warning: "border-[color-mix(in_srgb,var(--ib-warn)_25%,transparent)] bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
   critical: "border-[color-mix(in_srgb,var(--ib-danger)_25%,transparent)] bg-[var(--ib-danger-bg)] text-[var(--ib-danger)]",
 }
-
-const POLL_MS = 60_000
 
 export type SiteBannerView = Pick<SiteBannerDTO, "Text" | "LinkURL" | "LinkLabel" | "Level" | "Dismissible">
 
@@ -76,7 +74,7 @@ function rememberDismissed(banner: SiteBannerDTO): void {
   try { window.localStorage.setItem(storageKey(banner), "1") } catch { /* storage unavailable: dismissal lasts until reload */ }
 }
 
-/** Polls the public banner endpoint and renders the primary banner and a disclosure for the rest. */
+/** Loads the banner list when the shared pulse reports a new version, and renders the primary banner and a disclosure for the rest. */
 export function SiteBannerBar() {
   const panelTitle = useId()
   const panelTitleRef = useRef<HTMLHeadingElement>(null)
@@ -85,22 +83,29 @@ export function SiteBannerBar() {
 
   useEffect(() => {
     let active = true
-    const refresh = () => {
-      if (document.visibilityState === "hidden") return
+    let loaded: string | null = null
+    let loading = false
+    let wanted: string | null = null
+    const load = () => {
+      if (loading || wanted === null) return
+      const version = wanted
+      loading = true
       fetchSiteBanners()
-        .then((items) => { if (active) setBanners(items) })
-        .catch(() => { /* A banner outage must not block administration. */ })
+        .then((items) => { if (active) { loaded = version; setBanners(items) } })
+        .catch(() => { /* A banner outage must not block administration; the next pulse retries. */ })
+        .finally(() => { loading = false; if (active && wanted !== version && wanted !== loaded) load() })
     }
-    refresh()
-    const unsubscribe = onServiceRestored(refresh)
-    const timer = window.setInterval(refresh, POLL_MS)
-    document.addEventListener("visibilitychange", refresh)
-    return () => { active = false; unsubscribe(); window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh) }
+    const unsubscribe = getPulseLoop().subscribe((pulse) => {
+      wanted = String(pulse.Banners)
+      if (wanted !== loaded) load()
+    })
+    return () => { active = false; unsubscribe() }
   }, [])
 
   const visible = banners.filter((banner) => !banner.Dismissible || (!dismissed.includes(storageKey(banner)) && !isDismissed(banner)))
   function dismiss(banner: SiteBannerDTO) {
-    rememberDismissed(banner)
+    if (banner.Kind === "personal") void dismissPersonalBanner(banner.ID).catch(() => { /* hidden here; the server shows it again if it did not save */ })
+    else rememberDismissed(banner)
     setDismissed((keys) => [...keys, storageKey(banner)])
   }
 
