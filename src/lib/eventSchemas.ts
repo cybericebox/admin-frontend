@@ -7,7 +7,8 @@ import { z } from 'zod'
 import { t } from '@/i18n/t'
 import { isUnsetEventDate } from '@/lib/eventDates'
 
-export const TAG_RE = /^[a-z0-9]+$/
+// A DNS label (the event site's subdomain): [a-z0-9] words joined by single hyphens.
+export const TAG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export const eventFormSchema = z
   .object({
@@ -15,7 +16,7 @@ export const eventFormSchema = z
       .string()
       .regex(TAG_RE, t('admin.events.val.tag'))
       .min(3, t('admin.events.val.tag'))
-      .max(64, t('admin.events.val.tag')),
+      .max(63, t('admin.events.val.tag')),
     Name: z.string().trim().min(1, t('admin.events.val.name')).max(255, t('admin.events.val.name')),
     AvailableFrom: z.string().min(1, t('admin.events.val.availableFrom')),
     ArchiveAt: z.string(),

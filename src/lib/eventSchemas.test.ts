@@ -24,9 +24,21 @@ describe('eventFormSchema', () => {
     expect(eventFormSchema.safeParse({ ...valid, Tag: 'Spring-CTF' }).success).toBe(false)
   })
 
-  it('rejects a tag shorter than 3 or longer than 64', () => {
+  it('accepts a tag with single inner hyphens', () => {
+    expect(eventFormSchema.safeParse({ ...valid, Tag: 'prep-khctf' }).success).toBe(true)
+    expect(eventFormSchema.safeParse({ ...valid, Tag: 'a-b-c' }).success).toBe(true)
+  })
+
+  it('rejects a hyphen at the edges or doubled', () => {
+    for (const Tag of ['-ctf', 'ctf-', 'ctf--x']) {
+      expect(eventFormSchema.safeParse({ ...valid, Tag }).success).toBe(false)
+    }
+  })
+
+  it('rejects a tag shorter than 3 or longer than 63', () => {
     expect(eventFormSchema.safeParse({ ...valid, Tag: 'ab' }).success).toBe(false)
-    expect(eventFormSchema.safeParse({ ...valid, Tag: 'a'.repeat(65) }).success).toBe(false)
+    expect(eventFormSchema.safeParse({ ...valid, Tag: 'a'.repeat(63) }).success).toBe(true)
+    expect(eventFormSchema.safeParse({ ...valid, Tag: 'a'.repeat(64) }).success).toBe(false)
   })
 
   it('requires a name and rejects one over 255 chars', () => {
