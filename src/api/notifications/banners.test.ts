@@ -12,4 +12,9 @@ describe("admin public banners", () => {
     expect(await fetchSiteBanners()).toEqual([])
     expect(apiGet).toHaveBeenCalledWith("/api/notifications/banners?site=admin")
   })
+
+  it("falls back to the title for a personal banner without text", async () => {
+    vi.mocked(apiGet).mockResolvedValue([{ ID: "p", Kind: "personal", Title: "Заголовок", Text: "" }])
+    expect((await fetchSiteBanners())[0].Text).toBe("Заголовок")
+  })
 })

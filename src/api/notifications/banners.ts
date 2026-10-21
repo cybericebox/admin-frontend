@@ -83,7 +83,8 @@ export function deleteBanner(id: string): Promise<void> {
 
 /** Public banners for the render place (works without a session). */
 export function fetchSiteBanners(): Promise<SiteBannerDTO[]> {
-  return apiGet<SiteBannerDTO[] | null>('/api/notifications/banners?site=admin').then((rows) => rows ?? [])
+  return apiGet<SiteBannerDTO[] | null>('/api/notifications/banners?site=admin')
+    .then((rows) => (rows ?? []).map((row) => (row.Kind === 'personal' && !row.Text ? { ...row, Text: row.Title ?? '' } : row)))
 }
 
 /** Dismiss a personal banner on the server (site and system banners are dismissed locally). */

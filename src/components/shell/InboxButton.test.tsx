@@ -144,6 +144,22 @@ describe("top-bar inbox", () => {
     expect(api.get.mock.calls.length).toBe(calls)
   })
 
+  it("holds the epoch cursor after an empty baseline so the first news come back as items", async () => {
+    const fresh = { ID: "n1", Title: "Нове", Body: "", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+    pulse.last = { Banners: "1", Inbox: { Cursor: "", Unread: 0 } }
+    api.get.mockImplementation((path: string) => {
+      const since = sinceOf(path)
+      if (since === "") return Promise.resolve({ Cursor: "", Items: [], Unread: 0 })
+      if (since !== null) return Promise.resolve({ Cursor: "c1", Items: [fresh], Unread: 1 })
+      return Promise.resolve({ Items: [], NextCursor: "" })
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    emitPulse({ Banners: "1", Inbox: { Cursor: "c1", Unread: 1 } })
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=1970-01-01T00%3A00%3A00Z_00000000-0000-0000-0000-000000000000"))
+    expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
+  })
+
   it("lists every notification and labels Event-bound ones with the Event name", async () => {
     mockInbox([
       { ID: "1", Title: "Старт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventID: "e1", EventName: "Зимовий CTF", EventTag: "winter" },
