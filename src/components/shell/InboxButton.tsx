@@ -37,6 +37,8 @@ import { STORAGE_INBOX_READ } from "@/lib/storageKeys"
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
 
 type InboxPage = { Items: Message[]; NextCursor: string | null }
+// After a baseline on an empty inbox the cursor is empty; only the very first call may send an empty since.
+const EPOCH_CURSOR = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
 const query = (tab: InboxTab, eventId?: string, extra?: Record<string, string>) => inboxQuery(PULSE_SITE, tab, eventId, extra)
 // A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
 const OPEN_PARAM = "inbox"
@@ -170,7 +172,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           if (!initialized) {
             const baseline = await fetchInboxSince<Message>("", eventId)
             if (!active) return
-            cursorRef.current = baseline.Cursor
+            cursorRef.current = baseline.Cursor || EPOCH_CURSOR
             unreadCountRef.current = baseline.Unread
             setUnread(baseline.Unread)
             applyCounts(parseCounts(baseline.Counts))
@@ -178,9 +180,9 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             initialized = true
             await refresh()
           } else {
-            const result: InboxSince<Message> = await fetchInboxSince<Message>(cursorRef.current ?? "", eventId)
+            const result: InboxSince<Message> = await fetchInboxSince<Message>(cursorRef.current || EPOCH_CURSOR, eventId)
             if (!active) return
-            cursorRef.current = result.Cursor
+            cursorRef.current = result.Cursor || cursorRef.current || EPOCH_CURSOR
             const news = result.Items ?? []
             const fresh = news.filter(isUnread)
             if (openRef.current && news.length) {
@@ -206,7 +208,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             if (result.OtherEventsCount !== undefined) setOtherEvents(parseOtherEvents(result.OtherEventsCount))
             if (active && poppable.length) setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
           }
-          if (target === undefined || cursorRef.current === target) break
+          if (target === undefined || cursorRef.current === (target || EPOCH_CURSOR)) break
         }
       } catch (err) {
         if (active) { setLoadError({ cause: err, older: false }); setLoading(false) }
