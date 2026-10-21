@@ -2,15 +2,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { SiteBanner, SiteBannerBar } from "./SiteBanner"
 
-const api = vi.hoisted(() => ({ fetch: vi.fn() }))
-vi.mock("@/api/notifications/banners", () => ({ fetchSiteBanners: api.fetch }))
+const api = vi.hoisted(() => ({ fetch: vi.fn(), dismiss: vi.fn() }))
+const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>() }))
+vi.mock("@/api/notifications/banners", () => ({ fetchSiteBanners: api.fetch, dismissPersonalBanner: api.dismiss }))
+vi.mock("@/lib/pulse", () => ({
+  getPulseLoop: () => ({
+    subscribe: (listener: (value: unknown) => void) => { pulse.listeners.add(listener); queueMicrotask(() => listener({ Banners: "1", Inbox: null })); return () => pulse.listeners.delete(listener) },
+    pulseNow: vi.fn(),
+  }),
+}))
 
-const critical = { ID: "b1", Text: "Планові роботи", LinkURL: "/status", LinkLabel: "Деталі", Level: "critical", Dismissible: true, Version: "v1" }
-const info = { ID: "b2", Text: "Нова функція", LinkURL: "", LinkLabel: "", Level: "info", Dismissible: false, Version: "v1" }
+const critical = { ID: "b1", Kind: "site", Text: "Планові роботи", LinkURL: "/status", LinkLabel: "Деталі", Level: "critical", Dismissible: true, Version: "v1" }
+const info = { ID: "b2", Kind: "site", Text: "Нова функція", LinkURL: "", LinkLabel: "", Level: "info", Dismissible: false, Version: "v1" }
 
 describe("site banner bar", () => {
   beforeEach(() => {
     api.fetch.mockReset()
+    api.dismiss.mockReset()
+    api.dismiss.mockResolvedValue(undefined)
+    pulse.listeners.clear()
     window.localStorage.clear()
     api.fetch.mockResolvedValue([critical, info])
   })
@@ -64,17 +74,36 @@ describe("site banner bar", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("polls every minute", async () => {
-    vi.useFakeTimers()
-    try {
-      render(<SiteBannerBar />)
-      await act(async () => { await Promise.resolve() })
-      expect(api.fetch).toHaveBeenCalledTimes(1)
-      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
-      expect(api.fetch).toHaveBeenCalledTimes(2)
-    } finally {
-      vi.useRealTimers()
-    }
+  it("loads the list once and again only when the pulse reports a new banners version", async () => {
+    render(<SiteBannerBar />)
+    await screen.findByText("Планові роботи")
+    expect(api.fetch).toHaveBeenCalledTimes(1)
+    act(() => pulse.listeners.forEach((listener) => listener({ Banners: "1", Inbox: null })))
+    await act(async () => { await Promise.resolve() })
+    expect(api.fetch).toHaveBeenCalledTimes(1)
+    api.fetch.mockResolvedValue([info])
+    act(() => pulse.listeners.forEach((listener) => listener({ Banners: "2", Inbox: null })))
+    expect(await screen.findByText("Нова функція")).toBeInTheDocument()
+    expect(api.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it("retries a failed load on the next pulse even with the same version", async () => {
+    api.fetch.mockRejectedValueOnce(new Error("down"))
+    render(<SiteBannerBar />)
+    await waitFor(() => expect(api.fetch).toHaveBeenCalledTimes(1))
+    act(() => pulse.listeners.forEach((listener) => listener({ Banners: "1", Inbox: null })))
+    expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
+    expect(api.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it("dismisses a personal banner on the server, not in local storage", async () => {
+    api.fetch.mockResolvedValue([{ ...critical, ID: "p1", Kind: "personal" }])
+    render(<SiteBannerBar />)
+    await screen.findByText("Планові роботи")
+    fireEvent.click(screen.getByRole("button", { name: "Закрити банер" }))
+    expect(api.dismiss).toHaveBeenCalledWith("p1")
+    expect(window.localStorage.getItem("cib_site_banner_dismissed_p1_v1")).toBeNull()
+    await waitFor(() => expect(screen.queryByText("Планові роботи")).not.toBeInTheDocument())
   })
 
   it("never renders an unsafe link", () => {

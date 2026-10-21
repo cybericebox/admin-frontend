@@ -136,10 +136,10 @@ test("optimistic counts", () => {
 })
 
 test("queries carry the category and the event scope", () => {
-  assert.equal(inbox.inboxQuery("all"), "")
-  assert.equal(inbox.inboxQuery("requests"), "?category=requests")
-  assert.equal(inbox.inboxQuery("personal", "ev1"), "?category=personal&event=ev1")
-  assert.equal(inbox.inboxQuery("all", undefined, { since_id: "a" }), "?since_id=a")
+  assert.equal(inbox.inboxQuery("admin", "all"), "?site=admin")
+  assert.equal(inbox.inboxQuery("admin", "requests"), "?site=admin&category=requests")
+  assert.equal(inbox.inboxQuery("event", "personal", "ev1"), "?site=event&category=personal&event=ev1")
+  assert.equal(inbox.inboxQuery("admin", "all", undefined, { before: "c9" }), "?site=admin&before=c9")
 })
 
 test("resolved line keys exist in both catalogs", () => {
