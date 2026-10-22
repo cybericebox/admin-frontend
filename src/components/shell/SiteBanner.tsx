@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { X } from "lucide-react"
 import { dismissPersonalBanner, fetchSiteBanners, type BannerLevel, type SiteBannerDTO } from "@/api/notifications/banners"
+import { hasBanners } from "@/api/notifications/pulse"
 import { getPulseLoop } from "@/lib/pulse"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
@@ -74,30 +75,37 @@ function rememberDismissed(banner: SiteBannerDTO): void {
   try { window.localStorage.setItem(storageKey(banner), "1") } catch { /* storage unavailable: dismissal lasts until reload */ }
 }
 
+// The list last fetched in this tab and the pulse version it stands for: a remount (another layout) reuses it.
+let held: { version: string; banners: SiteBannerDTO[] } | null = null
+
+/** Test helper: forget the held list, as on a fresh page load. */
+export function forgetHeldBanners(): void { held = null }
+
 /** Loads the banner list when the shared pulse reports a new version, and renders the primary banner and a disclosure for the rest. */
 export function SiteBannerBar() {
   const panelTitle = useId()
   const panelTitleRef = useRef<HTMLHeadingElement>(null)
-  const [banners, setBanners] = useState<SiteBannerDTO[]>([])
+  const [banners, setBanners] = useState<SiteBannerDTO[]>(() => held?.banners ?? [])
   const [dismissed, setDismissed] = useState<string[]>([])
 
   useEffect(() => {
     let active = true
-    let loaded: string | null = null
     let loading = false
     let wanted: string | null = null
     const load = () => {
-      if (loading || wanted === null) return
+      if (loading || wanted === null || wanted === held?.version) return
       const version = wanted
+      // No banners at all: nothing to ask, the list is simply empty.
+      if (!hasBanners(version)) { held = { version, banners: [] }; setBanners([]); return }
       loading = true
       fetchSiteBanners()
-        .then((items) => { if (active) { loaded = version; setBanners(items) } })
+        .then((items) => { held = { version, banners: items }; if (active) setBanners(items) })
         .catch(() => { /* A banner outage must not block administration; the next pulse retries. */ })
-        .finally(() => { loading = false; if (active && wanted !== version && wanted !== loaded) load() })
+        .finally(() => { loading = false; if (active && wanted !== version) load() })
     }
     const unsubscribe = getPulseLoop().subscribe((pulse) => {
       wanted = String(pulse.Banners)
-      if (wanted !== loaded) load()
+      load()
     })
     return () => { active = false; unsubscribe() }
   }, [])

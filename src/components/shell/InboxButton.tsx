@@ -178,7 +178,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             applyCounts(parseCounts(baseline.Counts))
             setOtherEvents(parseOtherEvents(baseline.OtherEventsCount))
             initialized = true
-            await refresh()
+            // The list itself is read only when the dropdown opens (openInbox → refresh).
           } else {
             const result: InboxSince<Message> = await fetchInboxSince<Message>(cursorRef.current || EPOCH_CURSOR, eventId)
             if (!active) return
@@ -194,7 +194,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
               })
             }
             let poppable = fresh.filter((item) => popInDuration(item.AutoDismissMs) > 0)
-            if (result.Unread !== unreadCountRef.current + fresh.length) {
+            if (result.Unread !== unreadCountRef.current + fresh.length && openRef.current) {
               const latest = await refresh()
               poppable = latest ? poppable.filter((item) => latest.some((entry) => entry.ID === item.ID && isUnread(entry))) : []
             } else {
@@ -225,7 +225,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       seen = { cursor: Cursor, unread: Unread }
       void sync(Cursor)
     })
-    const syncNow = () => { void sync(undefined) }
+    // A local change asks the shared pulse; only a moved cursor or unread count then fetches news.
+    const syncNow = () => { loop.pulseNow(true) }
     pollNowRef.current = syncNow
     window.addEventListener("cybericebox:inbox-updated", syncNow)
     const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { syncNow(); if (openRef.current) void refresh() } }
