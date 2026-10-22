@@ -10,6 +10,14 @@ export const PULSE_SITE = 'admin'
 export type PulseInbox = { Cursor: string; Unread: number }
 export type Pulse = { Banners: string; Inbox: PulseInbox | null }
 
+/** The Banners version of an empty list (the first 16 hex of sha256 of nothing); a newer backend may send "". */
+export const EMPTY_BANNERS_VERSION = 'e3b0c44298fc1c14'
+
+/** Whether a pulse Banners version stands for a non-empty list: only then is the list worth a request. */
+export function hasBanners(version: string): boolean {
+  return version !== '' && version !== EMPTY_BANNERS_VERSION
+}
+
 export type InboxSince<T> = {
   Cursor: string
   Items: T[] | null

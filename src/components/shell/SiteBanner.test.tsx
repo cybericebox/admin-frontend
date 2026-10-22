@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { SiteBanner, SiteBannerBar } from "./SiteBanner"
+import { forgetHeldBanners, SiteBanner, SiteBannerBar } from "./SiteBanner"
 
 const api = vi.hoisted(() => ({ fetch: vi.fn(), dismiss: vi.fn() }))
-const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>() }))
+const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>(), initial: "1" }))
 vi.mock("@/api/notifications/banners", () => ({ fetchSiteBanners: api.fetch, dismissPersonalBanner: api.dismiss }))
 vi.mock("@/lib/pulse", () => ({
   getPulseLoop: () => ({
-    subscribe: (listener: (value: unknown) => void) => { pulse.listeners.add(listener); queueMicrotask(() => listener({ Banners: "1", Inbox: null })); return () => pulse.listeners.delete(listener) },
+    subscribe: (listener: (value: unknown) => void) => { pulse.listeners.add(listener); queueMicrotask(() => listener({ Banners: pulse.initial, Inbox: null })); return () => pulse.listeners.delete(listener) },
     pulseNow: vi.fn(),
   }),
 }))
@@ -21,6 +21,8 @@ describe("site banner bar", () => {
     api.dismiss.mockReset()
     api.dismiss.mockResolvedValue(undefined)
     pulse.listeners.clear()
+    pulse.initial = "1"
+    forgetHeldBanners()
     window.localStorage.clear()
     api.fetch.mockResolvedValue([critical, info])
   })
@@ -85,6 +87,33 @@ describe("site banner bar", () => {
     act(() => pulse.listeners.forEach((listener) => listener({ Banners: "2", Inbox: null })))
     expect(await screen.findByText("Нова функція")).toBeInTheDocument()
     expect(api.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it("never asks for the list on a page load without banners", async () => {
+    pulse.initial = "e3b0c44298fc1c14"
+    const { container } = render(<SiteBannerBar />)
+    await act(async () => { await Promise.resolve() })
+    act(() => pulse.listeners.forEach((listener) => listener({ Banners: "", Inbox: null })))
+    expect(api.fetch).not.toHaveBeenCalled()
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it("clears the list without a request when the pulse reports that no banners are left", async () => {
+    const { container } = render(<SiteBannerBar />)
+    await screen.findByText("Планові роботи")
+    act(() => pulse.listeners.forEach((listener) => listener({ Banners: "e3b0c44298fc1c14", Inbox: null })))
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(api.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("a remount with the version already held shows the list without a request", async () => {
+    const first = render(<SiteBannerBar />)
+    await screen.findByText("Планові роботи")
+    first.unmount()
+    render(<SiteBannerBar />)
+    expect(screen.getByText("Планові роботи")).toBeInTheDocument()
+    await act(async () => { await Promise.resolve() })
+    expect(api.fetch).toHaveBeenCalledTimes(1)
   })
 
   it("retries a failed load on the next pulse even with the same version", async () => {
