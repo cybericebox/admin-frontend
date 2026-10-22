@@ -9,7 +9,7 @@ vi.mock("@/api/client", async (importOriginal) => ({ ...await importOriginal<typ
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => access.allowed }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }))
 
-const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>(), last: null as unknown }))
+const pulse = vi.hoisted(() => ({ listeners: new Set<(value: unknown) => void>(), last: null as unknown, now: vi.fn() }))
 vi.mock("@/lib/pulse", () => ({
   getPulseLoop: () => ({
     subscribe: (listener: (value: unknown) => void) => {
@@ -17,7 +17,7 @@ vi.mock("@/lib/pulse", () => ({
       if (pulse.last) queueMicrotask(() => listener(pulse.last))
       return () => pulse.listeners.delete(listener)
     },
-    pulseNow: vi.fn(),
+    pulseNow: pulse.now,
   }),
 }))
 const emitPulse = (value: unknown) => { pulse.last = value; act(() => pulse.listeners.forEach((listener) => listener(value))) }
@@ -134,7 +134,7 @@ describe("top-bar inbox", () => {
       return Promise.resolve({ Items: [], NextCursor: "" })
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
     emitPulse({ Banners: "1", Inbox: { Cursor: "c2", Unread: 2 } })
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=c1"))
     expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=c0")
@@ -154,7 +154,7 @@ describe("top-bar inbox", () => {
       return Promise.resolve({ Items: [], NextCursor: "" })
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
     emitPulse({ Banners: "1", Inbox: { Cursor: "c1", Unread: 1 } })
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=admin&since=1970-01-01T00%3A00%3A00Z_00000000-0000-0000-0000-000000000000"))
     expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
@@ -217,7 +217,7 @@ describe("top-bar inbox", () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "/events", Actions: [{ label: "Інша дія", href: "/other" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
-    expect(screen.getByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
+    expect(await screen.findByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
     expect(screen.queryByRole("link", { name: "Інша дія" })).not.toBeInTheDocument()
   })
 
@@ -225,8 +225,9 @@ describe("top-bar inbox", () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+    const row = await screen.findByRole("listitem")
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
-    expect(within(screen.getByRole("listitem")).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
+    expect(within(row).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
   })
 
   it("pops only fresh unread messages with a configured duration", async () => {
@@ -237,7 +238,7 @@ describe("top-bar inbox", () => {
     expect(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" })).toBeInTheDocument()
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
 
-    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 2 } })
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     expect(popIn).toHaveTextContent("Нове")
     expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 2" })).toBeInTheDocument()
@@ -247,12 +248,12 @@ describe("top-bar inbox", () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: null, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockApi({ unread: 0, news: [fresh], newsUnread: 1, list: [] })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
-    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 1 } })
     expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
   })
 
-  it("removes a pop-in when another tab reads its message", async () => {
+  it("removes a pop-in when another tab reads its message while the dropdown is open", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     let delta = 0
     pulse.last = { Banners: "1", Inbox: { Cursor: BASE_CURSOR, Unread: 0 } }
@@ -267,33 +268,60 @@ describe("top-bar inbox", () => {
     })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні" })).toBeInTheDocument()
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
 
-    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 1 } })
     await screen.findByRole("status", { name: "Нове повідомлення" })
+    fireEvent.click(screen.getByRole("button", { name: "Вхідні, непрочитані: 1" }))
 
-    // A second tab reads the same message; a refresh must keep it out of pop-ins.
-    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
-    await waitFor(() => expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument())
+    // A second tab reads the same message; the refreshed list keeps it out of pop-ins.
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 0 } })
+    await waitFor(() => expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument())
+  })
+
+  it("never pops a fresh message that arrives already read", async () => {
+    const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: "2026-09-24T12:01:01Z", CreatedAt: "2026-09-24T12:01:00Z" }
+    mockApi({ unread: 0, news: [fresh], newsUnread: 0, list: [fresh] })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 0 } })
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
   })
 
-  it("does not flash a fresh message already read in another tab", async () => {
-    const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    mockApi({ unread: 0, news: [fresh], newsUnread: 0, list: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }] })
+  it("never reads the list while the dropdown is closed, and reads it behind the crest when it opens", async () => {
+    mockApi({ unread: 1, news: [], newsUnread: 0, list: [{ ID: "1", Title: "Запрошення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }] })
     render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
+    // Unread moved without news (read elsewhere): only the since call.
+    emitPulse({ Banners: "1", Inbox: { Cursor: BASE_CURSOR, Unread: 0 } })
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    const lists = () => api.get.mock.calls.filter(([path]) => sinceOf(path as string) === null)
+    expect(lists()).toHaveLength(0)
+    const list = api.get.getMockImplementation()!
+    let answer: () => void = () => {}
+    api.get.mockImplementation((path: string) => sinceOf(path) === null ? new Promise((resolve) => { answer = () => resolve(list(path)) }) : list(path))
+    fireEvent.click(screen.getByRole("button", { name: /Вхідні/ }))
+    expect(lists()).toHaveLength(1)
+    await waitFor(() => expect(document.querySelector(".crest-loader")).not.toBeNull())
+    await act(async () => { answer() })
+    expect(await screen.findByText("Запрошення")).toBeInTheDocument()
+  })
+
+  it("a local change asks the pulse, not the inbox", async () => {
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4))
-    expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
+    expect(pulse.now).toHaveBeenCalledWith(true)
+    expect(api.get).toHaveBeenCalledTimes(1)
   })
 
   it("marks a pop-in action read before navigating", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockApi({ unread: 0, news: [fresh], newsUnread: 1, list: [] })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
-    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
+    emitPulse({ Banners: "1", Inbox: { Cursor: NEW_CURSOR, Unread: 1 } })
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     fireEvent.click(within(popIn).getByRole("button", { name: "Перейти" }))
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/new/read", {}))
