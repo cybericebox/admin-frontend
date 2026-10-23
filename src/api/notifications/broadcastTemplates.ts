@@ -1,24 +1,26 @@
 /**
- * broadcastTemplates.ts — platform broadcast templates («Шаблони розсилок»): saved broadcast messages an admin loads
- * into the composer before sending by hand. Not bound to any platform action. Needs notifications.broadcast.
- * Keys are PascalCase, as emitted by the Go backend.
- *   GET    /api/notifications/broadcast-templates
- *   POST   /api/notifications/broadcast-templates
- *   GET    /api/notifications/broadcast-templates/:id
- *   PUT    /api/notifications/broadcast-templates/:id
- *   DELETE /api/notifications/broadcast-templates/:id
+ * broadcastTemplates.ts — platform custom templates: saved broadcast messages an admin loads into the composer
+ * before sending by hand. Not bound to any platform action; listed beside the triggered templates on the templates
+ * pages. Needs notifications.broadcast. Keys are PascalCase, as emitted by the Go backend.
+ *   GET    /api/notifications/templates/custom
+ *   POST   /api/notifications/templates/custom
+ *   GET    /api/notifications/templates/custom/:id
+ *   PUT    /api/notifications/templates/custom/:id
+ *   DELETE /api/notifications/templates/custom/:id
  */
 import type { EmailBodyBlock } from '@/components/notifications/editor/emailBlocks'
 import { apiDelete, apiGet, apiPost, apiPut } from '@/api/client'
 import type { BroadcastChannel } from '@/api/notifications/broadcasts'
 
-const BASE = '/api/notifications/broadcast-templates'
+const BASE = '/api/notifications/templates/custom'
 
 /** 70228: the platform already has a template with this name. */
 export const TEMPLATE_NAME_TAKEN = 70228
 export const TEMPLATE_NAME_MAX = 200
 
 export type BroadcastTemplate = {
+  /** Always "custom": tells it apart from the triggered (action-bound) templates. */
+  Kind?: 'custom'
   ID: string
   ScopeEventID: string | null
   Name: string

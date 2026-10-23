@@ -107,7 +107,7 @@ export function BroadcastCompose() {
     <PageHeader title={t("admin.notif.broadcast.new")}
       crumbs={[{ label: t("admin.notif.broadcast.title"), href: "/notifications/broadcasts" }, { label: t("admin.notif.broadcast.new") }]}
       actions={<>
-        <Button variant="outline" onClick={requestSaveTemplate}><BookmarkPlus className="h-4 w-4" aria-hidden="true" />{t("admin.notif.broadcastTpl.saveAs.action")}</Button>
+        <Button variant="outline" onClick={requestSaveTemplate}><BookmarkPlus className="h-4 w-4" aria-hidden="true" />{t("admin.notif.customTpl.saveAs.action")}</Button>
         <Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>
       </>} />
     <div className="frost-panel frost-in rounded-lg p-6">

@@ -12,7 +12,7 @@ import { templateInput, templateNameError, type BroadcastMessage } from "./broad
 
 // The error of a template write: a taken name belongs to the name field, everything else to the form.
 export function templateSaveError(cause: unknown): { name?: string; form?: string } {
-  if (cause instanceof ApiError && cause.code === TEMPLATE_NAME_TAKEN) return { name: t("admin.notif.broadcastTpl.validation.nameTaken") }
+  if (cause instanceof ApiError && cause.code === TEMPLATE_NAME_TAKEN) return { name: t("admin.notif.customTpl.validation.nameTaken") }
   return { form: localizedError(cause) }
 }
 
@@ -20,7 +20,7 @@ export function templateSaveError(cause: unknown): { name?: string; form?: strin
 export function TemplateNameField({ id, value, onChange, onBlur, error }: { id: string; value: string; onChange: (value: string) => void; onBlur?: () => void; error: string }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-foreground">{t("admin.notif.broadcastTpl.field.name")}</label>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-foreground">{t("admin.notif.customTpl.field.name")}</label>
       <Input id={id} value={value} maxLength={TEMPLATE_NAME_MAX} autoComplete="off" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}
         onChange={(event) => onChange(event.target.value)} onBlur={onBlur} />
       {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
@@ -47,7 +47,7 @@ export function SaveTemplateDialog({ open, message, onClose }: { open: boolean; 
     setFormError("")
     try {
       await createBroadcastTemplate(templateInput(name, message))
-      toast.success(t("admin.notif.broadcastTpl.saved"))
+      toast.success(t("admin.notif.customTpl.saved"))
       setSaving(false)
       reset()
       onClose()
@@ -63,8 +63,8 @@ export function SaveTemplateDialog({ open, message, onClose }: { open: boolean; 
     <Dialog open={open} onOpenChange={(next) => { if (!next) close() }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("admin.notif.broadcastTpl.saveAs.title")}</DialogTitle>
-          <DialogDescription>{t("admin.notif.broadcastTpl.saveAs.body")}</DialogDescription>
+          <DialogTitle>{t("admin.notif.customTpl.saveAs.title")}</DialogTitle>
+          <DialogDescription>{t("admin.notif.customTpl.saveAs.body")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={(event) => { event.preventDefault(); void save() }}>
           <TemplateNameField id="bc-save-template-name" value={name} onChange={setName} onBlur={() => setLeft(true)} error={nameError} />
@@ -72,7 +72,7 @@ export function SaveTemplateDialog({ open, message, onClose }: { open: boolean; 
         {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={close}>{t("confirm.cancel")}</Button>
-          <Button type="button" busy={saving} busyLabel={t("busy.saving")} onClick={() => void save()}>{t("admin.notif.broadcastTpl.save")}</Button>
+          <Button type="button" busy={saving} busyLabel={t("busy.saving")} onClick={() => void save()}>{t("admin.notif.customTpl.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

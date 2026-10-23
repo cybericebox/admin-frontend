@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatDateTime } from "@/lib/locale"
 import { Plus } from "lucide-react"
+import { CreateCustomTemplateButton, CustomTemplateRow, TemplateKindSelect, TriggeredKindCell, useCustomTemplates, type TemplateKindFilter } from "@/components/notifications/templates/customTemplates"
 
 // ── Helper: pick the most relevant version for row link ──────────────────────
 
@@ -76,7 +77,12 @@ function pickUpdatedBy(entry: LatestEntry): string | null {
 // ── Inner component (needs Suspense wrapper for static export) ────────────────
 
 function EmailTemplateList() {
-  const canWrite = useRole().can("notifications.templates.write")
+  const role = useRole()
+  const canWrite = role.can("notifications.templates.write")
+  // Custom templates (saved broadcast messages) are managed by whoever may send broadcasts.
+  const canCustom = role.can("notifications.broadcast")
+  const custom = useCustomTemplates("email", canCustom)
+  const [kind, setKind] = useState<TemplateKindFilter>("all")
   const [entries, setEntries] = useState<LatestEntry[] | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -96,32 +102,34 @@ function EmailTemplateList() {
   const userNames = useUserNames(userIds)
 
   // ── Loading state ─────────────────────────────────────────────────────────
-  if (!entries && !loadError) {
+  if ((!entries && !loadError) || custom.loading) {
     return (
       <LoadingArea className="frost-panel frost-in h-full rounded-lg" label={t("admin.loading")} />
     )
   }
 
   // ── Error state ───────────────────────────────────────────────────────────
-  if (loadError) {
+  if (loadError || custom.error) {
     return (
-      <LoadError message={t("admin.notif.list.loadError")} error={loadError.cause} onRetry={() => { setLoadError(null); setAttempt((key) => key + 1) }} className="frost-panel frost-in h-full rounded-lg" />
+      <LoadError message={t("admin.notif.list.loadError")} error={(loadError ?? custom.error)?.cause} onRetry={() => { if (loadError) { setLoadError(null); setAttempt((key) => key + 1) } if (custom.error) custom.retry() }} className="frost-panel frost-in h-full rounded-lg" />
     )
   }
 
-  const list = [...(entries ?? [])].filter((entry) => notifTypeLabel(entry.NotificationType).toLocaleLowerCase().includes(search.toLocaleLowerCase()) || entry.NotificationType.toLowerCase().includes(search.toLowerCase())).sort((a, b) => notifTypeLabel(a.NotificationType).localeCompare(notifTypeLabel(b.NotificationType), "uk"))
+  const needle = search.trim().toLocaleLowerCase()
+  const customShown = kind === "triggered" ? [] : custom.rows.filter((row) => row.Name.toLocaleLowerCase().includes(needle))
+  const list = kind === "custom" ? [] : [...(entries ?? [])].filter((entry) => notifTypeLabel(entry.NotificationType).toLocaleLowerCase().includes(search.toLocaleLowerCase()) || entry.NotificationType.toLowerCase().includes(search.toLowerCase())).sort((a, b) => notifTypeLabel(a.NotificationType).localeCompare(notifTypeLabel(b.NotificationType), "uk"))
 
   return (
     <div className="frost-in space-y-4">
       <PageHeader
         title={t("admin.notif.list.title")}
-        actions={canWrite && <Button asChild><Link href="/notifications/templates/email/detail"><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.list.new")}</Link></Button>}
-        filters={<Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-          aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")} className="max-w-sm" />}
+        actions={canCustom ? <CreateCustomTemplateButton channel="email" /> : canWrite && <Button asChild><Link href="/notifications/templates/email/detail"><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.list.new")}</Link></Button>}
+        filters={<div className="flex flex-wrap items-center gap-2"><Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+          aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")} className="max-w-sm" />{canCustom && <TemplateKindSelect value={kind} onChange={setKind} />}</div>}
       />
 
       {/* Empty state */}
-      {list.length === 0 ? (
+      {list.length === 0 && customShown.length === 0 ? (
         <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.list.empty")} /></div>
       ) : (
         /* Grouped version table */
@@ -129,7 +137,8 @@ function EmailTemplateList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colType")}</th>
+                <th className="px-4 py-2.5 text-left">{canCustom ? t("admin.notif.customTpl.col.template") : t("admin.notif.list.colType")}</th>
+                {canCustom && <th className="px-4 py-2.5 text-left">{t("admin.notif.customTpl.col.kind")}</th>}
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colStatus")}</th>
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colUpdated")}</th>
                 <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colUpdatedBy")}</th>
@@ -174,6 +183,7 @@ function EmailTemplateList() {
                         {notifTypeLabel(entry.NotificationType)}
                       </Link> : <span className="font-medium text-foreground">{notifTypeLabel(entry.NotificationType)}</span>}
                     </td>
+                    {canCustom && <TriggeredKindCell />}
 
                     {/* Status */}
                     <td className="px-4 py-3">
@@ -217,6 +227,7 @@ function EmailTemplateList() {
                   </tr>
                 )
               })}
+              {customShown.map((template) => <CustomTemplateRow key={`custom:${template.ID}`} template={template} channel="email" />)}
             </tbody>
           </table>
         </div>

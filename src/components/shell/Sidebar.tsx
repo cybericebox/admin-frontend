@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  ArrowLeft, Bell, BellRing, CalendarCheck, FileStack, CalendarDays, ChartNoAxesCombined, ChevronDown, ClipboardList, ExternalLink, Gauge, Layers,
+  ArrowLeft, Bell, BellRing, CalendarCheck, CalendarDays, ChartNoAxesCombined, ChevronDown, ClipboardList, ExternalLink, Gauge, Layers,
   LayoutDashboard, Mail, Megaphone, MessageSquare, Puzzle, ScrollText, Send, Server, Settings, ShieldCheck, Bug, Settings2, Cpu, Users, UserSearch, X, Activity, Cable, CalendarClock,
   type LucideIcon,
 } from "lucide-react"
@@ -56,7 +56,6 @@ const GROUPS: Group[] = [
     id: "notifications", label: "admin.nav.notifications", icon: Bell,
     children: [
       { href: "/notifications/broadcasts", label: "admin.nav.notif.broadcasts", icon: Send, perm: "notifications.broadcast" },
-      { href: "/notifications/broadcast-templates", label: "admin.nav.notif.broadcastTemplates", icon: FileStack, perm: "notifications.broadcast" },
       { href: "/notifications/banners", label: "admin.nav.notif.banners", icon: Megaphone, perm: "notifications.banners.read" },
       { href: "/notifications/templates/in-app", label: "admin.nav.notif.tplInApp", icon: BellRing, perm: "notifications.templates.read", divider: true },
       { href: "/notifications/templates/email", label: "admin.nav.notif.tplEmail", icon: Mail, perm: "notifications.templates.read" },

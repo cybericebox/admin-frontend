@@ -64,7 +64,7 @@ export function templateMessage(template: BroadcastTemplate): BroadcastMessage {
 }
 
 export function templateNameError(name: string): string {
-  if (!name.trim()) return t("admin.notif.broadcastTpl.validation.name")
-  if ([...name.trim()].length > TEMPLATE_NAME_MAX) return t("admin.notif.broadcastTpl.validation.nameLength", { max: TEMPLATE_NAME_MAX })
+  if (!name.trim()) return t("admin.notif.customTpl.validation.name")
+  if ([...name.trim()].length > TEMPLATE_NAME_MAX) return t("admin.notif.customTpl.validation.nameLength", { max: TEMPLATE_NAME_MAX })
   return ""
 }

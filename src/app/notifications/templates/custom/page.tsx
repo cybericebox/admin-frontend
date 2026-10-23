@@ -5,12 +5,15 @@ import { RequirePermission } from "@/components/rbac/RequirePermission"
 import { NoAccess } from "@/components/rbac/NoAccess"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
-import { BroadcastTemplateEditor } from "@/components/notifications/broadcast/BroadcastTemplateEditor"
+import { CustomTemplateEditor } from "@/components/notifications/templates/CustomTemplateEditor"
 
-// No dynamic [id] segment: the admin portal is a static export, so the id is a query parameter (none = a new template).
+// No dynamic [id] segment: the admin portal is a static export, so the id (none = a new template) and the templates
+// page it was opened from (channel) are query parameters.
 function RouteEditor() {
-  const id = useSearchParams().get("id") ?? ""
-  return <BroadcastTemplateEditor key={id} id={id} />
+  const params = useSearchParams()
+  const id = params.get("id") ?? ""
+  const channel = params.get("channel") === "in_app" ? "in_app" : "email"
+  return <CustomTemplateEditor key={`${channel}:${id}`} id={id} channel={channel} />
 }
 
 export default function Page() {
