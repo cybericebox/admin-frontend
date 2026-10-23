@@ -37,6 +37,13 @@ vi.mock('@/api/notifications/inAppTemplates', () => ({
   latestInAppTemplates: vi.fn(),
 }))
 
+// Custom templates beside the triggered ones (none unless a test sets them)
+const custom = vi.hoisted(() => ({ list: vi.fn() }))
+vi.mock('@/api/notifications/broadcastTemplates', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/notifications/broadcastTemplates')>()),
+  listBroadcastTemplates: custom.list,
+}))
+
 // useUserNames — deterministic resolution for test user IDs
 vi.mock('@/lib/userNames', () => ({
   useUserNames: (ids: (string | null | undefined)[]) => {
@@ -107,6 +114,8 @@ function makeEntryWithDraftAndPublished(): InAppLatestEntry {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+beforeEach(() => { custom.list.mockReset(); custom.list.mockResolvedValue([]) })
 
 describe('In-app templates grouped list page', () => {
   beforeEach(() => {

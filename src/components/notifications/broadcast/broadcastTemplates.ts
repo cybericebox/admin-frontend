@@ -4,13 +4,38 @@ import { latestInAppTemplates } from "@/api/notifications/inAppTemplates"
 import { BROADCAST_VARIABLES } from "@/api/notifications/broadcasts"
 import { inspectTemplate } from "@/components/notifications/editor/variableUtils"
 import { notifTypeLabel } from "@/utils/notifType"
+import type { BroadcastTemplate as SavedTemplate } from "@/api/notifications/broadcastTemplates"
+import { templateMessage, type BroadcastMessage } from "./broadcastMessage"
 
-// A published template of one notification type, per channel: what a broadcast can start from.
+// What a broadcast can start from: a saved broadcast template («saved», exactly its channels) or the published
+// template of one notification type, per channel («signal», only turns its channels on).
 export type BroadcastTemplate = {
   type: string
   label: string
+  kind?: "saved" | "signal"
   email?: { subject: string; preheader: string; body: EmailBodyBlock[] }
   inApp?: { title: string; body: string; link: string }
+}
+
+// The saved platform broadcast templates, by name.
+export function savedBroadcastTemplates(records: SavedTemplate[]): BroadcastTemplate[] {
+  return records.map((record) => {
+    const message = templateMessage(record)
+    return {
+      type: `saved:${record.ID}`, label: record.Name, kind: "saved" as const,
+      ...(message.email ? { email: { subject: message.subject, preheader: message.preheader, body: message.body } } : {}),
+      ...(message.inApp ? { inApp: { title: message.title, body: message.inAppBody, link: message.link } } : {}),
+    }
+  }).sort((a, b) => a.label.localeCompare(b.label, "uk"))
+}
+
+// The message with the template applied: a saved template sets exactly its channels, a signal template turns on its own.
+export function withTemplate(current: BroadcastMessage, template: BroadcastTemplate): BroadcastMessage {
+  const next = { ...current }
+  if (template.kind === "saved") { next.email = !!template.email; next.inApp = !!template.inApp }
+  if (template.email) Object.assign(next, { email: true, subject: template.email.subject, preheader: template.email.preheader, body: template.email.body })
+  if (template.inApp) Object.assign(next, { inApp: true, title: template.inApp.title, inAppBody: template.inApp.body, link: template.inApp.link })
+  return next
 }
 
 // Published email and in-app templates of the platform, one entry per notification type.

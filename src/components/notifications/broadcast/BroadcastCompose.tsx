@@ -1,53 +1,35 @@
 "use client"
 import { ApiError } from "@/api/client"
 import { FieldValidation } from "@/components/ui/field-validation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { BookmarkPlus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { localizedError } from "@/i18n/apiError"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Alert } from "@/components/ui/alert"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { FieldHelp } from "@/components/ui/field-help"
 import { Spinner } from "@/components/ui/spinner"
-import { BlockEditor } from "@/components/notifications/editor/BlockEditor"
-import { VariableRichText } from "@/components/notifications/editor/VariableRichText"
-import { InAppBodyEditor } from "@/components/notifications/editor/InAppBodyEditor"
-import { NotificationPreview } from "@/components/notifications/editor/NotificationPreview"
-import { templateFieldError } from "@/components/notifications/editor/templateValidation"
-import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
-import type { VariableDef } from "@/components/notifications/editor/variableUtils"
-import { BROADCAST_VARIABLES, broadcastAudienceCount, sendBroadcast, type BroadcastChannel } from "@/api/notifications/broadcasts"
-import { broadcastSample } from "./broadcastLabels"
+import { broadcastAudienceCount, sendBroadcast } from "@/api/notifications/broadcasts"
 import { TemplateStart } from "./TemplateStart"
-import { unsupportedVariables, withoutUnsupported, withoutUnsupportedBlocks, type BroadcastTemplate } from "./broadcastTemplates"
+import { withTemplate, type BroadcastTemplate } from "./broadcastTemplates"
 import { AudiencePicker, EMPTY_AUDIENCE, audienceComplete, audienceToApi, type AudienceState } from "./AudiencePicker"
+import { BroadcastMessageFields, BroadcastMessagePreview } from "./BroadcastMessageFields"
+import { SaveTemplateDialog } from "./SaveTemplateDialog"
+import { emptyMessage, messageComplete, messageContent, type BroadcastMessage } from "./broadcastMessage"
 
 const COUNT_DEBOUNCE_MS = 400
-const HIDDEN_BLOCKS: EmailBodyBlock["type"][] = ["image"]
-
-// A rich-text block or in-app body counts as filled when it has any visible text.
-function hasBody(blocks: EmailBodyBlock[]): boolean {
-  return blocks.some((block) => block.type !== "divider" && block.type !== "preset")
-}
 
 export function BroadcastCompose() {
   const router = useRouter()
-  const [email, setEmail] = useState(true)
-  const [inApp, setInApp] = useState(true)
-  const [subject, setSubject] = useState("")
-  const [preheader, setPreheader] = useState("")
-  const [body, setBody] = useState<EmailBodyBlock[]>([])
-  const [title, setTitle] = useState("")
-  const [inAppBody, setInAppBody] = useState("")
-  const [link, setLink] = useState("")
+  const [message, setMessage] = useState<BroadcastMessage>(emptyMessage)
+  const set = (patch: Partial<BroadcastMessage>) => setMessage((current) => ({ ...current, ...patch }))
   const [audience, setAudience] = useState<AudienceState>(EMPTY_AUDIENCE)
   // The count belongs to the audience it was fetched for; a changed audience shows the loader again.
   const [counted, setCounted] = useState<{ key: string; count: number | null } | null>(null)
   const [countReload, setCountReload] = useState(0)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
   // A template chosen over existing content waits here for the replacement to be confirmed.
   const [pendingTemplate, setPendingTemplate] = useState<BroadcastTemplate | null>(null)
   const [sending, setSending] = useState(false)
@@ -57,35 +39,14 @@ export function BroadcastCompose() {
   const clearField = (field: string) => setFieldErrors((current) => ({ ...current, [field]: "" }))
   const [sendError, setSendError] = useState("")
 
-  const variables = useMemo<VariableDef[]>(() => BROADCAST_VARIABLES.map((name) => ({ name, description: t(`admin.notif.broadcast.var.${name}`), example: broadcastSample(name) })), [])
-  const previewValues = useMemo(() => Object.fromEntries(variables.map((variable) => [variable.name, variable.example ?? ""])), [variables])
-
-  // Template variables the broadcast cannot fill: flagged here and empty in the previews.
-  const unsupported = useMemo(() => unsupportedVariables([
-    ...(email ? [subject, preheader, body] : []),
-    ...(inApp ? [title, inAppBody, link] : []),
-  ]), [email, inApp, subject, preheader, body, title, inAppBody, link])
-  const shown = useMemo(() => ({
-    subject: withoutUnsupported(subject), preheader: withoutUnsupported(preheader), body: withoutUnsupportedBlocks(body),
-    title: withoutUnsupported(title), inAppBody: withoutUnsupported(inAppBody), link: withoutUnsupported(link),
-  }), [subject, preheader, body, title, inAppBody, link])
-
   function applyTemplate(template: BroadcastTemplate) {
-    if (template.email) {
-      setEmail(true)
-      setSubject(template.email.subject)
-      setPreheader(template.email.preheader)
-      setBody(template.email.body)
-    }
-    if (template.inApp) {
-      setInApp(true)
-      setTitle(template.inApp.title)
-      setInAppBody(template.inApp.body)
-      setLink(template.inApp.link)
-    }
+    setMessage((current) => withTemplate(current, template))
   }
   function pickTemplate(template: BroadcastTemplate) {
-    const replaces = (template.email && (subject.trim() !== "" || preheader.trim() !== "" || body.length > 0)) || (template.inApp && (title.trim() !== "" || inAppBody.trim() !== "" || link.trim() !== ""))
+    const { subject, preheader, body, title, inAppBody, link } = message
+    const emailFilled = subject.trim() !== "" || preheader.trim() !== "" || body.length > 0
+    const inAppFilled = title.trim() !== "" || inAppBody.trim() !== "" || link.trim() !== ""
+    const replaces = (template.kind === "saved" && (emailFilled || inAppFilled)) || (template.email && emailFilled) || (template.inApp && inAppFilled)
     if (replaces) setPendingTemplate(template)
     else applyTemplate(template)
   }
@@ -110,108 +71,52 @@ export function BroadcastCompose() {
   const count = current?.count ?? null
   const countError = current !== null && current.count === null
   const shownCount = count
-  const channels: BroadcastChannel[] = [...(email ? ["email" as const] : []), ...(inApp ? ["in_app" as const] : [])]
-  const emailValid = !email || (subject.trim() !== "" && hasBody(body))
-  const inAppValid = !inApp || (title.trim() !== "" && inAppBody.trim() !== "")
-  const canSend = channels.length > 0 && emailValid && inAppValid && complete && (shownCount ?? 0) > 0
+  const ready = messageComplete(message)
+  const canSend = ready && complete && (shownCount ?? 0) > 0
+
+  // «Зберегти як шаблон»: an incomplete message marks its empty fields instead of opening the dialog.
+  function requestSaveTemplate() {
+    if (ready) { setSaveTemplateOpen(true); return }
+    for (const field of ["channels", "subject", "body", "title", "inAppBody"]) touch(field)
+  }
 
   async function send() {
     setSending(true)
     setSendError("")
     try {
-      const created = await sendBroadcast({
-        Channels: channels,
-        Subject: email ? subject : "",
-        Preheader: email ? preheader : "",
-        EmailBody: email ? body : [],
-        EmailStyling: {},
-        InAppTitle: inApp ? title : "",
-        InAppBody: inApp ? inAppBody : "",
-        InAppLink: inApp ? link : "",
-        Audience: audienceToApi(audience),
-      })
+      const created = await sendBroadcast({ ...messageContent(message), Audience: audienceToApi(audience) })
       router.push(`/notifications/broadcasts/detail?id=${encodeURIComponent(created.ID)}`)
     } catch (cause) {
-      const message = cause instanceof ApiError ? (cause.body as { Status?: { Message?: string } } | null)?.Status?.Message ?? cause.message : ""
+      const text = cause instanceof ApiError ? (cause.body as { Status?: { Message?: string } } | null)?.Status?.Message ?? cause.message : ""
       const field = cause instanceof ApiError && cause.code === 20222 ? "audience" : cause instanceof ApiError && cause.code === 20221 ? ({
         "Email subject is required": "subject", "Email body is required": "body", "In-app title is required": "title",
         "Select at least one channel": "channels", "Unsupported channel": "channels",
         "Select at least one role": "audience", "Unknown role": "audience", "Select at least one user": "audience",
-      } as Record<string, string>)[message] : undefined
+      } as Record<string, string>)[text] : undefined
       if (field) {
-        const text = field === "audience" ? t(cause instanceof ApiError && cause.code === 20222 ? "admin.notif.broadcast.count.zero" : "admin.notif.broadcast.audience.incomplete") : field === "channels" ? t("admin.notif.broadcast.channelsRequired") : field === "body" ? t("admin.notif.validation.required") : t("admin.notif.broadcast.textInvalid", { max: 200 })
-        setFieldErrors((current) => ({ ...current, [field]: text }))
+        const fieldText = field === "audience" ? t(cause instanceof ApiError && cause.code === 20222 ? "admin.notif.broadcast.count.zero" : "admin.notif.broadcast.audience.incomplete") : field === "channels" ? t("admin.notif.broadcast.channelsRequired") : field === "body" ? t("admin.notif.validation.required") : t("admin.notif.broadcast.textInvalid", { max: 200 })
+        setFieldErrors((errors) => ({ ...errors, [field]: fieldText }))
         setConfirmOpen(false)
       } else setSendError(localizedError(cause))
       setSending(false)
     }
   }
 
-  const label = "mb-1 block text-sm font-medium text-foreground"
-  // «Required» shows only after the reader left or changed a field (a new form never opens all red); variable
-  // and syntax errors show at once.
-  const req = (field: string) => touched.has(field)
   return (
     <div className="flex flex-col gap-4">
     <PageHeader title={t("admin.notif.broadcast.new")}
       crumbs={[{ label: t("admin.notif.broadcast.title"), href: "/notifications/broadcasts" }, { label: t("admin.notif.broadcast.new") }]}
-      actions={<Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>} />
+      actions={<>
+        <Button variant="outline" onClick={requestSaveTemplate}><BookmarkPlus className="h-4 w-4" aria-hidden="true" />{t("admin.notif.customTpl.saveAs.action")}</Button>
+        <Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>
+      </>} />
     <div className="frost-panel frost-in rounded-lg p-6">
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,45%)]">
         <div className="min-w-0 space-y-6">
           <TemplateStart onPick={pickTemplate} />
 
-          <section className="space-y-2" aria-labelledby="bc-channels">
-            <h2 id="bc-channels" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.channels")}</h2>
-            <FieldValidation label={t("admin.notif.broadcast.channels")} error={fieldErrors.channels || (channels.length === 0 && req("channels") ? t("admin.notif.broadcast.channelsRequired") : "")}><div className="flex flex-wrap gap-x-6 gap-y-2">
-              <Checkbox checked={email} onChange={(event) => { clearField("channels"); touch("channels"); setEmail(event.target.checked) }} label={t("admin.notif.broadcast.channel.email")} />
-              <Checkbox checked={inApp} onChange={(event) => { clearField("channels"); touch("channels"); setInApp(event.target.checked) }} label={t("admin.notif.broadcast.channel.in_app")} />
-            </div>
-            </FieldValidation>
-          </section>
-
-          {email && (
-            <section className="space-y-4" aria-labelledby="bc-email">
-              <h2 id="bc-email" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.emailPart")}</h2>
-              <div onBlur={() => touch("subject")}>
-                <label className={label}>{t("admin.notif.tpl.subject")}</label>
-                <VariableRichText value={subject} onChange={(value) => { clearField("subject"); touch("subject"); setSubject(value) }} error={fieldErrors.subject || templateFieldError(subject, variables, req("subject"))} variables={variables} placeholder={t("admin.notif.tpl.subject")} dotted />
-              </div>
-              <div>
-                <label className={label}>{t("admin.notif.tpl.preheader")}</label>
-                <VariableRichText value={preheader} onChange={setPreheader} error={templateFieldError(preheader, variables)} variables={variables} placeholder={t("admin.notif.tpl.preheader")} dotted />
-              </div>
-              <div onBlur={() => touch("body")}>
-                <div className="mb-1 flex items-center gap-1.5">
-                  <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.body")}</label>
-                  <FieldHelp text={t("admin.notif.broadcast.noImages")} />
-                </div>
-                <BlockEditor error={fieldErrors.body || (hasBody(body) ? templateFieldError(body, variables) : req("body") ? t("admin.notif.validation.required") : "")} value={body} onChange={(value) => { clearField("body"); touch("body"); setBody(value) }} variables={variables} presets={[]} showPresetSave={false} onSavePreset={async () => {}} hiddenBlockTypes={HIDDEN_BLOCKS} />
-              </div>
-            </section>
-          )}
-
-          {inApp && (
-            <section className="space-y-4" aria-labelledby="bc-inapp">
-              <h2 id="bc-inapp" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.inAppPart")}</h2>
-              <div onBlur={() => touch("title")}>
-                <label className={label}>{t("admin.notif.tpl.title")}</label>
-                <VariableRichText value={title} onChange={(value) => { clearField("title"); touch("title"); setTitle(value) }} error={fieldErrors.title || templateFieldError(title, variables, req("title"))} variables={variables} placeholder={t("admin.notif.tpl.title")} dotted />
-              </div>
-              <div onBlur={() => touch("inAppBody")}>
-                <label className={label}>{t("admin.notif.tpl.body")}</label>
-                <InAppBodyEditor value={inAppBody} onChange={(value) => { touch("inAppBody"); setInAppBody(value) }} error={templateFieldError(inAppBody, variables, req("inAppBody"))} variables={variables} />
-              </div>
-              <div>
-                <div className="mb-1 flex items-center gap-1.5">
-                  <label className="block text-sm font-medium text-foreground">{t("admin.notif.tpl.link")}</label>
-                  <FieldHelp text={t("admin.notif.inapp.linkHelp")} />
-                </div>
-                <VariableRichText value={link} onChange={setLink} error={templateFieldError(link, variables)} variables={variables} placeholder={t("admin.notif.tpl.link")} dotted />
-              </div>
-            </section>
-          )}
+          <BroadcastMessageFields value={message} onChange={set} state={{ fieldErrors, clearField, touch, touched: (field) => touched.has(field) }} />
 
           <section className="space-y-3" aria-labelledby="bc-audience">
             <h2 id="bc-audience" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.audience.title")}</h2>
@@ -227,15 +132,7 @@ export function BroadcastCompose() {
         </div>
 
         <div className="min-w-0 space-y-6">
-          {unsupported.length > 0 && (
-            <Alert variant="warning">
-              {t("admin.notif.broadcast.template.unsupportedNames", { names: unsupported.join(", ") })}
-            </Alert>
-          )}
-          <NotificationPreview
-            email={email ? { notificationType: "broadcast", subject: shown.subject, preheader: shown.preheader, body: shown.body, styling: {} } : undefined}
-            inApp={inApp ? { title: shown.title, body: shown.inAppBody, link: shown.link, icon: "bell", tone: "neutral", accentColor: "", surface: "inbox", autoDismissMs: null, actions: [], previewValues } : undefined}
-          />
+          <BroadcastMessagePreview value={message} />
         </div>
       </div>
 
@@ -257,7 +154,9 @@ export function BroadcastCompose() {
         error={sendError}
         onConfirm={() => void send()}
       />
+      <SaveTemplateDialog open={saveTemplateOpen} message={message} onClose={() => setSaveTemplateOpen(false)} />
     </div>
     </div>
   )
 }
+

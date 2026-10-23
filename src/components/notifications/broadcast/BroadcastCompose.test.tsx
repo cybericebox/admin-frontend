@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { BroadcastCompose } from "./BroadcastCompose"
 
-const api = vi.hoisted(() => ({ count: vi.fn(), send: vi.fn(), push: vi.fn(), emails: vi.fn(), inApps: vi.fn() }))
+const api = vi.hoisted(() => ({ count: vi.fn(), send: vi.fn(), push: vi.fn(), emails: vi.fn(), inApps: vi.fn(), saved: vi.fn(), createTemplate: vi.fn() }))
+vi.mock("@/api/notifications/broadcastTemplates", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/notifications/broadcastTemplates")>()),
+  listBroadcastTemplates: api.saved, createBroadcastTemplate: api.createTemplate,
+}))
 vi.mock("@/api/notifications/broadcasts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/notifications/broadcasts")>()),
   broadcastAudienceCount: api.count, sendBroadcast: api.send,
@@ -38,6 +42,7 @@ describe("broadcast compose", () => {
     Object.values(api).forEach((fn) => fn.mockReset())
     api.count.mockResolvedValue({ Count: 3 })
     api.send.mockResolvedValue({ ID: "bc1" })
+    api.saved.mockResolvedValue([])
     api.emails.mockResolvedValue([
       { NotificationType: "participant.event.finished", Draft: null, Unpublished: null, Published: { Subject: "Привіт, {{.user_name}} {{.team_name}}", Preheader: "", Body: [{ type: "rich_text", content: "Про {{event_name}} і {{team_name}}" }] } },
       { NotificationType: "draft.only", Published: null, Draft: { Subject: "x", Preheader: "", Body: [] }, Unpublished: null },
@@ -189,6 +194,55 @@ describe("broadcast compose", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Замінити" }))
       expect(screen.getByLabelText("Тема")).toHaveValue("Привіт, {{.user_name}} {{.team_name}}")
       await wait()
+    })
+  })
+
+  describe("saved broadcast templates", () => {
+    const savedTemplate = {
+      ID: "tpl1", ScopeEventID: null, Name: "Технічні роботи", Channels: ["in_app"], Subject: "", Preheader: "", EmailBody: [], EmailStyling: {},
+      InAppTitle: "Роботи о 22:00", InAppBody: "Платформа буде недоступна", InAppLink: "", UpdatedBy: null, UpdatedByName: "", CreatedAt: "2026-10-01T00:00:00Z", UpdatedAt: "2026-10-01T00:00:00Z",
+    }
+
+    it("lists the saved templates and applies one with exactly its channels", async () => {
+      api.saved.mockResolvedValue([savedTemplate])
+      render(<BroadcastCompose />)
+      fireEvent.click(await screen.findByRole("button", { name: "tpl:Технічні роботи" }))
+      expect(screen.getByRole("checkbox", { name: "Електронна пошта" })).not.toBeChecked()
+      expect(screen.getByRole("checkbox", { name: "У застосунку" })).toBeChecked()
+      expect(screen.getByLabelText("Заголовок")).toHaveValue("Роботи о 22:00")
+      expect(screen.queryByLabelText("Тема")).not.toBeInTheDocument()
+      await wait()
+    })
+
+    it("saves the message as a template without the audience; a taken name stays beside the name field", async () => {
+      const { ApiError } = await import("@/api/client")
+      api.createTemplate.mockRejectedValueOnce(new ApiError(409, null, "taken", undefined, 70228)).mockResolvedValueOnce({ ...savedTemplate, ID: "tpl2" })
+      render(<BroadcastCompose />)
+      await fillEmail()
+      fireEvent.click(screen.getByRole("button", { name: /Зберегти як шаблон/ }))
+      const name = await screen.findByRole("textbox", { name: "Назва шаблону" })
+      fireEvent.change(name, { target: { value: "Привітання" } })
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+      await waitFor(() => expect(name).toHaveAttribute("aria-invalid", "true"))
+      expect(document.getElementById(name.getAttribute("aria-describedby")!)).toHaveTextContent("Шаблон з такою назвою вже є. Оберіть іншу назву.")
+      fireEvent.change(name, { target: { value: "Привітання 2" } })
+      expect(name).not.toHaveAttribute("aria-invalid")
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }))
+      await waitFor(() => expect(api.createTemplate).toHaveBeenCalledTimes(2))
+      expect(api.createTemplate).toHaveBeenLastCalledWith({
+        Name: "Привітання 2", Channels: ["email"], Subject: "Привіт", Preheader: "", EmailBody: [{ type: "rich_text", content: {} }], EmailStyling: {},
+        InAppTitle: "", InAppBody: "", InAppLink: "",
+      })
+      expect(api.send).not.toHaveBeenCalled()
+      await waitFor(() => expect(screen.queryByRole("textbox", { name: "Назва шаблону" })).not.toBeInTheDocument())
+    })
+
+    it("marks the empty fields instead of saving an incomplete message", async () => {
+      render(<BroadcastCompose />)
+      await screen.findByText("Отримувачів: 3")
+      fireEvent.click(screen.getByRole("button", { name: /Зберегти як шаблон/ }))
+      expect((await screen.findAllByText("Заповніть це поле.")).length).toBeGreaterThan(0)
+      expect(screen.queryByRole("textbox", { name: "Назва шаблону" })).not.toBeInTheDocument()
     })
   })
 })
