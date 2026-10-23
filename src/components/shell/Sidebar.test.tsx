@@ -207,6 +207,6 @@ describe("admin sidebar", () => {
     const { container } = render(<Sidebar />)
     const group = container.querySelector("#admin-group-notifications")!
     const order = Array.from(group.children).map((n) => (n.tagName === "HR" ? "|" : n.textContent))
-    expect(order).toEqual(["admin.nav.notif.broadcasts", "admin.nav.notif.banners", "|", "admin.nav.notif.tplInApp", "admin.nav.notif.tplEmail", "admin.nav.notif.settings", "|", "admin.nav.notif.logs"])
+    expect(order).toEqual(["admin.nav.notif.broadcasts", "admin.nav.notif.broadcastTemplates", "admin.nav.notif.banners", "|", "admin.nav.notif.tplInApp", "admin.nav.notif.tplEmail", "admin.nav.notif.settings", "|", "admin.nav.notif.logs"])
   })
 })

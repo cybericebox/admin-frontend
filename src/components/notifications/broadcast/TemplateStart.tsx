@@ -4,18 +4,27 @@ import { t } from "@/i18n/t"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadError } from "@/components/ui/load-error"
 import { Spinner } from "@/components/ui/spinner"
-import { loadBroadcastTemplates, type BroadcastTemplate } from "./broadcastTemplates"
+import { listBroadcastTemplates } from "@/api/notifications/broadcastTemplates"
+import { loadBroadcastTemplates, savedBroadcastTemplates, type BroadcastTemplate } from "./broadcastTemplates"
 
-// «Почати з шаблону»: picking a published template hands it to the composer, which prefills itself from it.
+// «Почати з шаблону»: the saved broadcast templates first, then the published notification templates. Picking one
+// hands it to the composer, which prefills itself from it; the template itself does not change.
 export function TemplateStart({ onPick }: { onPick: (template: BroadcastTemplate) => void }) {
-  const [templates, setTemplates] = useState<BroadcastTemplate[] | null>(null)
+  const [templates, setTemplates] = useState<(BroadcastTemplate & { group: string })[] | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    loadBroadcastTemplates().then(
-      (list) => { if (!cancelled) { setTemplates(list); setError(null) } },
+    Promise.all([listBroadcastTemplates(), loadBroadcastTemplates()]).then(
+      ([saved, signals]) => {
+        if (cancelled) return
+        setTemplates([
+          ...savedBroadcastTemplates(saved).map((template) => ({ ...template, group: t("admin.notif.broadcast.template.groupSaved") })),
+          ...signals.map((template) => ({ ...template, group: t("admin.notif.broadcast.template.groupSignals") })),
+        ])
+        setError(null)
+      },
       (cause) => { if (!cancelled) setError({ cause }) },
     )
     return () => { cancelled = true }
@@ -26,6 +35,7 @@ export function TemplateStart({ onPick }: { onPick: (template: BroadcastTemplate
   const options = templates.map((template) => ({
     value: template.type,
     label: template.label,
+    group: template.group,
     description: [template.email && t("admin.notif.broadcast.channel.email"), template.inApp && t("admin.notif.broadcast.channel.in_app")].filter(Boolean).join(" · "),
   }))
   return (
