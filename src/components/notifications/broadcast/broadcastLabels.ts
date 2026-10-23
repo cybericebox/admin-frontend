@@ -19,7 +19,7 @@ export function broadcastPillStatus(status: string): string {
 }
 
 /** Subject for an email broadcast, otherwise the in-app title. */
-export function broadcastHeading(broadcast: Broadcast): string {
+export function broadcastHeading(broadcast: Pick<Broadcast, "Subject" | "InAppTitle">): string {
   return broadcast.Subject.trim() || broadcast.InAppTitle.trim() || "—"
 }
 

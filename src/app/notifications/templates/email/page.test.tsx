@@ -36,6 +36,13 @@ vi.mock('@/api/notifications/emailTemplates', () => ({
   latestEmailTemplates: vi.fn(),
 }))
 
+// Custom templates beside the triggered ones (none unless a test sets them)
+const custom = vi.hoisted(() => ({ list: vi.fn() }))
+vi.mock('@/api/notifications/broadcastTemplates', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/notifications/broadcastTemplates')>()),
+  listBroadcastTemplates: custom.list,
+}))
+
 // useUserNames — deterministic resolution for test user IDs
 vi.mock('@/lib/userNames', () => ({
   useUserNames: (ids: (string | null | undefined)[]) => {
@@ -56,6 +63,7 @@ import { latestEmailTemplates } from '@/api/notifications/emailTemplates'
 
 // ── Import component AFTER all mocks ──────────────────────────────────────────
 import Page from './page'
+import { fireEvent } from '@testing-library/react'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +102,8 @@ function makeEntryWithDraftAndPublished(): LatestEntry {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+beforeEach(() => { custom.list.mockReset(); custom.list.mockResolvedValue([]) })
 
 describe('Email templates grouped list page', () => {
   beforeEach(() => {
@@ -203,3 +213,49 @@ describe('Email templates grouped list page', () => {
     })
   })
 })
+
+describe('custom templates beside the triggered ones', () => {
+  const customTemplate = (id: string, name: string, channels: ('email' | 'in_app')[]) => ({
+    Kind: 'custom' as const, ID: id, ScopeEventID: null, Name: name, Channels: channels, Subject: 'Тема', Preheader: '', EmailBody: [], EmailStyling: {},
+    InAppTitle: '', InAppBody: '', InAppLink: '', UpdatedBy: null, UpdatedByName: 'Ann Lee', CreatedAt: '2026-10-01T00:00:00Z', UpdatedAt: '2026-10-02T00:00:00Z',
+  })
+
+  it('lists the email custom templates with a type column and keeps the triggered rows as they were', async () => {
+    vi.mocked(latestEmailTemplates).mockResolvedValue([makeEntryWithDraftAndPublished()])
+    custom.list.mockResolvedValue([customTemplate('c1', 'Технічні роботи', ['email', 'in_app']), customTemplate('c2', 'Лише на сайті', ['in_app'])])
+    render(<Page />)
+    const link = await screen.findByRole('link', { name: 'Технічні роботи' })
+    expect(link).toHaveAttribute('href', '/notifications/templates/custom?channel=email&id=c1')
+    expect(screen.queryByText('Лише на сайті')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['admin.notif.customTpl.col.template', 'admin.notif.customTpl.col.kind', 'admin.notif.list.colStatus', 'admin.notif.list.colUpdated', 'admin.notif.list.colUpdatedBy'])
+    expect(screen.getByText('admin.notif.customTpl.kind.custom')).toBeInTheDocument()
+    expect(screen.getByText('admin.notif.customTpl.kind.triggered')).toBeInTheDocument()
+    // The triggered row still opens its version, as before.
+    expect(document.querySelector('a[href="/notifications/templates/email/detail?id=d1"]')).not.toBeNull()
+    expect(screen.getByRole('link', { name: /admin.notif.customTpl.create/ })).toHaveAttribute('href', '/notifications/templates/custom?channel=email')
+  })
+
+  it('filters by type', async () => {
+    vi.mocked(latestEmailTemplates).mockResolvedValue([makeEntryWithDraftAndPublished()])
+    custom.list.mockResolvedValue([customTemplate('c1', 'Технічні роботи', ['email'])])
+    render(<Page />)
+    await screen.findByRole('link', { name: 'Технічні роботи' })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'admin.notif.customTpl.filter.label' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.notif.customTpl.filter.custom' }))
+    await waitFor(() => expect(screen.queryByText('User Account Created')).not.toBeInTheDocument())
+    expect(screen.getByRole('link', { name: 'Технічні роботи' })).toBeInTheDocument()
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'admin.notif.customTpl.filter.label' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.notif.customTpl.filter.triggered' }))
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Технічні роботи' })).not.toBeInTheDocument())
+    expect(screen.getByText('User Account Created')).toBeInTheDocument()
+  })
+
+  it('shows a load error when the custom templates fail and retries', async () => {
+    vi.mocked(latestEmailTemplates).mockResolvedValue([makeEntryWithDraftAndPublished()])
+    custom.list.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([customTemplate('c3', 'Після повтору', ['email'])])
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'error.load.retry' }))
+    expect(await screen.findByRole('link', { name: 'Після повтору' })).toBeInTheDocument()
+  })
+})
+

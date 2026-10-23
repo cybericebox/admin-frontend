@@ -12,6 +12,7 @@ const ROUTE_TITLES: [prefix: string, key: string][] = [
   ["/analytics/notifications", "admin.nav.analyticsNotifications"],
   ["/notifications", "admin.nav.notifications"],
   ["/notifications/broadcasts", "admin.nav.notif.broadcasts"],
+  ["/notifications/templates/custom", "admin.notif.customTpl.editTitle"],
   ["/notifications/banners", "admin.nav.notif.banners"],
   ["/notifications/templates/in-app", "admin.nav.notif.tplInApp"],
   ["/notifications/templates/email", "admin.nav.notif.tplEmail"],

@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 
 export interface SelectMenuOption {
@@ -17,6 +18,8 @@ export interface SelectMenuOption {
   description?: string
   unavailable?: boolean
   disabled?: boolean
+  // Names the block the option belongs to; consecutive options of one group share one heading.
+  group?: string
 }
 
 interface SelectMenuProps {
@@ -56,14 +59,15 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" portalled={portalled} sideOffset={sideOffset} className={cn("min-w-[var(--radix-dropdown-menu-trigger-width)]", menuClassName)}>
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {options.map((o) => (
+          {options.flatMap((o, index) => [
+            o.group && o.group !== options[index - 1]?.group ? <DropdownMenuLabel key={`group:${o.group}`} className="text-xs font-semibold text-muted-foreground">{o.group}</DropdownMenuLabel> : null,
             <DropdownMenuRadioItem key={o.value} value={o.value} disabled={o.disabled} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>
               {o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
                 <span className="font-medium">{o.label}</span>
                 <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>
               </span> : o.label}
-            </DropdownMenuRadioItem>
-          ))}
+            </DropdownMenuRadioItem>,
+          ])}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
