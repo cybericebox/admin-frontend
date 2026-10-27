@@ -2728,6 +2728,7 @@
   "admin.limits.field.FormAnswersAfterEventEnd": "Відповіді форм після заходу",
   "admin.limits.field.EventAnalyticsAfterEnd": "Аналітика після заходу",
   "admin.limits.field.LabTelemetry": "Телеметрія лабораторій",
+  "admin.limits.field.LabTelemetryParticipants": "Телеметрія VPN учасників і архіви",
   "admin.limits.field.UnusedAnswerFile": "Невикористаний файл відповіді",
   "admin.limits.field.Lease": "Тривалість тестового запуску",
   "admin.limits.field.LeaseMax": "Найдовший тестовий запуск",
