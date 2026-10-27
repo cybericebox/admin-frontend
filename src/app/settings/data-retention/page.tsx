@@ -14,7 +14,7 @@ const GROUPS = [
   { titleKey: "admin.limits.group.accounts", keys: ["PendingAccount", "InactiveAccount", "InactivityGrace", "ExpiredInvitation"] },
   { titleKey: "admin.limits.group.sessions", keys: ["SessionAfterExpiry"] },
   { titleKey: "admin.limits.group.mail", keys: ["DeliveryLog", "SignalHistory"] },
-  { titleKey: "admin.limits.group.events", keys: ["FormAnswersAfterEventEnd", "EventAnalyticsAfterEnd", "LabTelemetry"] },
+  { titleKey: "admin.limits.group.events", keys: ["FormAnswersAfterEventEnd", "EventAnalyticsAfterEnd", "LabTelemetry", "LabTelemetryParticipants"] },
   { titleKey: "admin.limits.group.files", keys: ["UnusedAnswerFile"] },
 ]
 const UNITS: Record<string, Unit[]> = Object.fromEntries(GROUPS.flatMap((group) => group.keys).map((key) => [key, key === "UnusedAnswerFile" ? SHORT : LONG]))

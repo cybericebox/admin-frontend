@@ -2728,6 +2728,7 @@
   "admin.limits.field.FormAnswersAfterEventEnd": "Form answers after the event",
   "admin.limits.field.EventAnalyticsAfterEnd": "Analytics after the event",
   "admin.limits.field.LabTelemetry": "Lab telemetry",
+  "admin.limits.field.LabTelemetryParticipants": "Participant VPN telemetry and archives",
   "admin.limits.field.UnusedAnswerFile": "Unused answer file",
   "admin.limits.field.Lease": "Test run duration",
   "admin.limits.field.LeaseMax": "Longest test run",

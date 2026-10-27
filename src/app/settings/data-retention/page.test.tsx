@@ -21,7 +21,7 @@ describe("data retention page", () => {
       ["PendingAccount", "InactiveAccount", "InactivityGrace", "ExpiredInvitation"],
       ["SessionAfterExpiry"],
       ["DeliveryLog", "SignalHistory"],
-      ["FormAnswersAfterEventEnd", "EventAnalyticsAfterEnd", "LabTelemetry"],
+      ["FormAnswersAfterEventEnd", "EventAnalyticsAfterEnd", "LabTelemetry", "LabTelemetryParticipants"],
       ["UnusedAnswerFile"],
     ])
   })
@@ -31,7 +31,8 @@ describe("data retention page", () => {
     const units = seen.props!.units
     expect(units.PendingAccount).toEqual(["days", "years"])
     expect(units.LabTelemetry).toEqual(["days", "years"])
+    expect(units.LabTelemetryParticipants).toEqual(["days", "years"])
     expect(units.UnusedAnswerFile).toEqual(["hours", "days"])
-    expect(Object.keys(units)).toHaveLength(11)
+    expect(Object.keys(units)).toHaveLength(12)
   })
 })
