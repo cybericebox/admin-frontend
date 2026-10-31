@@ -20,6 +20,13 @@ export function eventRoleLabel(code: number): string {
   return name ? t(`role.event.${name}`) : String(code)
 }
 
+/** Label of an event role given as its name («moderator») or its stored code («1»); anything else shows as is. */
+export function eventRoleText(role: string): string {
+  if (/^\d+$/.test(role)) return eventRoleLabel(Number(role))
+  const name = Object.values(EVENT_ROLES).find((candidate) => candidate === role)
+  return name ? t(`role.event.${name}`) : role
+}
+
 /** Platform roles that hold events.read (AP Backend rbac): they read every event without an assignment. */
 export function hasPlatformEventRead(role: string | undefined): boolean {
   return role === "super_admin" || role === "admin" || role === "admin_viewer"

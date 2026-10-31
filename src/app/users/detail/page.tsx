@@ -1,12 +1,16 @@
 "use client"
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { apiGet, apiPatch, apiDelete } from "@/api/client"
+import { endUserSessions, listParticipations, resendInvitation, type Participation } from "@/api/users"
 import { t } from "@/i18n/t"
 import { overloadOr } from "@/i18n/apiError"
 import { useRole, type Role } from "@/lib/useRole"
 import { assignableRoles, canManageAccount } from "@/lib/assignableRoles"
-import { roleLabel } from "@/lib/roles"
+import { eventRoleText, roleLabel } from "@/lib/roles"
+import { Avatar } from "@/components/ui/avatar"
+import { EmptyState } from "@/components/ui/empty-state"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -73,6 +77,48 @@ function Detail() {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [id, reloadKey])
+
+  const [participations, setParticipations] = useState<Participation[] | null>(null)
+  const [participationsError, setParticipationsError] = useState<{ cause: unknown } | null>(null)
+  const [participationsKey, setParticipationsKey] = useState(0)
+  useEffect(() => {
+    if (!id) return
+    let active = true
+    queueMicrotask(() => { if (active) setParticipationsError(null) })
+    listParticipations(id)
+      .then((items) => { if (active) setParticipations(Array.isArray(items) ? items : []) })
+      .catch((cause) => { if (active) setParticipationsError({ cause }) })
+    return () => { active = false }
+  }, [id, participationsKey])
+
+  const [endingSessions, setEndingSessions] = useState(false)
+  const [sessionsBusy, setSessionsBusy] = useState(false)
+  const [sessionsError, setSessionsError] = useState<string | null>(null)
+  const [resendBusy, setResendBusy] = useState(false)
+  async function endSessions() {
+    setSessionsBusy(true)
+    setSessionsError(null)
+    try {
+      await endUserSessions(id)
+      toast.success(t("admin.userDetail.sessionsEnded"))
+      setEndingSessions(false)
+    } catch (err) {
+      setSessionsError(overloadOr(err, t("admin.userDetail.actionError")))
+    } finally {
+      setSessionsBusy(false)
+    }
+  }
+  async function resend() {
+    setResendBusy(true)
+    try {
+      await resendInvitation(id)
+      toast.success(t("admin.users.resend.done", { email: user?.Email ?? "" }))
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.users.resend.error")))
+    } finally {
+      setResendBusy(false)
+    }
+  }
 
   // Unblocking is instant and optimistic; saves run one after another and never disable a control.
   const saveQueue = useRef<Promise<void>>(Promise.resolve())
@@ -157,6 +203,8 @@ function Detail() {
   const canRole = can("users.role.write")
   const canStatus = can("users.status.write") && (user.Status === "active" || user.Status === "blocked")
   const canDelete = can("users.delete")
+  const canSessions = can("users.status.write")
+  const canResend = can("users.invite") && user.Status === "incomplete"
   const raising = pending?.kind === "role" && (ROLE_RANK[pending.role] ?? 0) > (ROLE_RANK[user.Role] ?? 0)
   const pendingRole = pending?.kind === "role" ? roleLabel(pending.role) : ""
 
@@ -164,6 +212,11 @@ function Detail() {
     <div className="space-y-6">
       <PageHeader title={name} crumbs={[usersCrumb(), { label: name }]} sub={user.Email}
         actions={<><RoleBadge role={user.Role} /><StatusBadge status={user.Status} /></>} />
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Avatar picture={user.Picture} firstName={user.FirstName} lastName={user.LastName} email={user.Email} size="lg" />
+        <Link href={`/audit?actor=${encodeURIComponent(user.ID)}&actorName=${encodeURIComponent(name)}`} className="text-sm font-medium text-primary hover:underline">{t("admin.userDetail.auditLink")}</Link>
+      </div>
 
       <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
         <Field label={t("admin.userDetail.signInMethods")}>
@@ -176,14 +229,29 @@ function Detail() {
         <Field label={t("admin.userDetail.created")}>{user.CreatedAt ? <time dateTime={user.CreatedAt}>{formatListDate(user.CreatedAt)}</time> : "—"}</Field>
       </dl>
 
+      <section aria-labelledby="user-participations" className="space-y-3 border-t border-border pt-6">
+        <h2 id="user-participations" className="text-base font-semibold text-foreground">{t("admin.userDetail.participations")}</h2>
+        <div className="min-h-32">
+          {participationsError ? <LoadError message={t("admin.userDetail.participationsError")} error={participationsError.cause} compact onRetry={() => setParticipationsKey((k) => k + 1)} />
+            : participations === null ? <LoadingArea compact label={t("admin.loading")} />
+            : participations.length === 0 ? <EmptyState compact message={t("admin.userDetail.participationsEmpty")} />
+            : <ul className="divide-y divide-border rounded-lg border border-border bg-card">{participations.map((item) => (
+              <li key={`${item.EventID}:${item.TeamID ?? ""}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                <Link href={`/events/detail?id=${encodeURIComponent(item.EventID)}`} className="min-w-0 break-words font-medium text-foreground hover:underline">{item.EventName || item.EventTag}</Link>
+                <span className="text-muted-foreground">{[item.TeamName, item.Role && eventRoleText(item.Role)].filter(Boolean).join(" · ") || "—"}</span>
+              </li>
+            ))}</ul>}
+        </div>
+      </section>
+
       {isSelf && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.selfNote")}</p>}
 
       {!isSelf && protectedAccount && <p className="border-t border-border pt-6 text-sm text-muted-foreground">{t("admin.userDetail.protectedAccount")}</p>}
 
-      {!isSelf && !protectedAccount && (canRole || canStatus || canDelete) && (
+      {!isSelf && !protectedAccount && (canRole || canStatus || canDelete || canSessions || canResend) && (
         // Access controls on the left; the destructive delete stands apart on the right (below them on a phone).
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-border pt-6">
-          {(canRole || canStatus) && <div className="flex flex-wrap items-end gap-3">
+          {(canRole || canStatus || canSessions || canResend) && <div className="flex flex-wrap items-end gap-3">
             {canRole && (
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-foreground">{t("admin.userDetail.changeRole")}</span>
@@ -203,6 +271,8 @@ function Detail() {
                 <Button variant="outline" onClick={() => ask({ kind: "block" })}>{t("admin.userDetail.block")}</Button>
               )
             )}
+            {canSessions && <Button variant="outline" onClick={() => { setSessionsError(null); setEndingSessions(true) }}>{t("admin.userDetail.endSessions")}</Button>}
+            {canResend && <Button variant="outline" busy={resendBusy} busyLabel={t("busy.sending")} onClick={() => void resend()}>{t("admin.userDetail.resendInvitation")}</Button>}
           </div>}
 
           {canDelete && (
@@ -215,6 +285,10 @@ function Detail() {
         title={t("admin.userDetail.deleteConfirmTitle", { name })} description={t("admin.userDetail.deleteConfirmBody")}
         cancelLabel={t("admin.userDetail.cancel")} confirmLabel={t("admin.userDetail.deleteConfirm")}
         error={deleteError ? t("admin.userDetail.actionError") : null} onConfirm={() => void remove()} />
+
+      <ConfirmDialog open={endingSessions} onCancel={() => { if (!sessionsBusy) setEndingSessions(false) }} tone="danger" busy={sessionsBusy} busyLabel={t("busy.endingSessions")}
+        title={t("admin.userDetail.endSessionsConfirm.title", { name })} description={t("admin.userDetail.endSessionsConfirm.body")}
+        confirmLabel={t("admin.userDetail.endSessionsConfirm.confirm")} error={sessionsError} onConfirm={() => void endSessions()} />
 
       <ConfirmDialog open={pending !== null} onCancel={closePending} busy={pendingBusy}
         tone={pending?.kind === "role" && raising ? "default" : "danger"}

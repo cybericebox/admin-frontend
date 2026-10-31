@@ -86,3 +86,41 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
   .ib-table--cards > tbody:not(.ib-table__state) > tr > td[data-label]::before { content: attr(data-label) " · "; color: var(--ib-dim); }
   .ib-table--cards > tbody.ib-table__state, .ib-table--cards > tbody.ib-table__state > tr, .ib-table--cards > tbody.ib-table__state > tr > td { display: block; }
 }
+
+/* Index table (docs/specs/UI-TABLES.md): the page is a column (header, filters, selection bar, table, pagination); from md
+   up the table fills the rest of the height and is the only scroll container, its sticky header stays on top and its
+   scrollbars are always drawn (the classic ones, so a mouse can drag them), not the hiding overlay ones. */
+.ib-index { display: flex; min-width: 0; min-height: 100%; flex-direction: column; gap: var(--ib-3); }
+.ib-index > .ib-page-header { margin-bottom: 0; }
+.ib-index .ib-page-header__filters { flex-wrap: wrap; }
+.ib-table-wrap--fill { overflow: auto; }
+@supports not selector(::-webkit-scrollbar) { .ib-table-wrap--fill { scrollbar-width: auto; scrollbar-color: var(--ib-dim) var(--ib-table-head); } }
+.ib-table-wrap--fill::-webkit-scrollbar { width: 12px; height: 12px; }
+.ib-table-wrap--fill::-webkit-scrollbar-track { background: var(--ib-table-head); }
+.ib-table-wrap--fill::-webkit-scrollbar-thumb { background: var(--ib-dim); border-radius: 6px; border: 2px solid var(--ib-table-head); }
+@media (min-width: 768px) {
+  .ib-index { height: 100%; min-height: 0; }
+  .ib-table-wrap--fill { flex: 1 1 0; min-height: 0; }
+}
+.ib-table td.ib-table__actions { white-space: nowrap; }
+/* Pinned left area: the select column and the identity column stay while the rest scrolls under them; a thin border
+   (no shadow) closes the area. The cells are opaque so scrolled cells never show through. */
+.ib-table :is(th, td).ib-table__select { position: sticky; left: 0; width: 44px; min-width: 44px; max-width: 44px; padding: 0 0 0 var(--ib-3); }
+.ib-table th.ib-table__select { z-index: 3; background: var(--ib-table-head); }
+.ib-table td.ib-table__select { z-index: 1; background: var(--card); }
+.ib-table :is(th, td).ib-table__pin { position: sticky; border-right: 1px solid var(--ib-line); }
+.ib-table--selectable :is(th, td).ib-table__pin { left: 44px; }
+.ib-table:not(.ib-table--selectable) :is(th, td).ib-table__pin { left: 0; }
+.ib-table th.ib-table__pin { z-index: 3; background: var(--ib-table-head); }
+.ib-table td.ib-table__pin { z-index: 1; background: var(--card); }
+.ib-table tbody tr:hover :is(td.ib-table__select, td.ib-table__pin) { background: linear-gradient(var(--ib-table-hover), var(--ib-table-hover)), var(--card); }
+.ib-person { display: flex; min-width: 0; align-items: center; gap: var(--ib-3); }
+
+/* Phone cards: nothing is pinned; the select box takes the card's first column, the identity the second. */
+@container (max-width: 767px) {
+  .ib-table--cards :is(th, td).ib-table__select, .ib-table--cards :is(th, td).ib-table__pin { position: static; width: auto; min-width: 0; max-width: none; border-right: 0; padding: 0; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr:has(> td.ib-table__select) { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr > td.ib-table__select { grid-column: 1; grid-row: 1; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr:has(> td.ib-table__select) > td.ib-table__primary { grid-column: 2; }
+  .ib-table--cards > tbody:not(.ib-table__state) > tr:has(> td.ib-table__select) > td.ib-table__actions { grid-column: 3; }
+}
