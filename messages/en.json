@@ -2872,5 +2872,8 @@
   "admin.userDetail.endSessionsConfirm.title": "End all sessions of “{name}”?",
   "admin.userDetail.endSessionsConfirm.body": "The user will have to sign in again on every device. The account stays active.",
   "admin.userDetail.endSessionsConfirm.confirm": "End sessions",
-  "admin.userDetail.resendInvitation": "Resend invitation"
+  "admin.userDetail.resendInvitation": "Resend invitation",
+  "admin.userDetail.participationRole.participant": "Participant",
+  "admin.userDetail.participationRole.captain": "Captain",
+  "admin.userDetail.participationRole.member": "Team member"
 }

@@ -2872,5 +2872,8 @@
   "admin.userDetail.endSessionsConfirm.title": "Завершити всі сеанси «{name}»?",
   "admin.userDetail.endSessionsConfirm.body": "Користувачу доведеться увійти знову на всіх пристроях. Обліковий запис залишиться активним.",
   "admin.userDetail.endSessionsConfirm.confirm": "Завершити сеанси",
-  "admin.userDetail.resendInvitation": "Надіслати запрошення ще раз"
+  "admin.userDetail.resendInvitation": "Надіслати запрошення ще раз",
+  "admin.userDetail.participationRole.participant": "Учасник",
+  "admin.userDetail.participationRole.captain": "Капітан",
+  "admin.userDetail.participationRole.member": "Член команди"
 }

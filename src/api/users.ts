@@ -3,7 +3,7 @@
 //   GET  /api/users/{id}/participations              events and teams of the person (users.read)
 //   POST /api/users/{id}/sessions/end                end all sessions (users.status.write)
 //   POST /api/users/{id}/invitation/resend           resend the sign-up invitation, incomplete accounts only (users.invite)
-//   POST /api/users/bulk/{action}                    {IDs} -> {Results: [{ID, Ok, Code?}]}, one result per account
+//   POST /api/users/bulk/{action}                    {UserIDs} (max 200) -> {Results: [{UserID, Ok, Code?, Error?}]}, in request order
 import { apiGet, apiPost } from "@/api/client"
 import type { OffsetPage } from "@/api/pagination"
 
@@ -27,13 +27,13 @@ export type Participation = {
   EventTag: string
   TeamID?: string
   TeamName?: string
-  Role?: string
+  Role?: string // participant | captain | member
 }
 
 export type BulkAction = "resend-invitation" | "block" | "unblock" | "end-sessions"
-export type BulkResult = { ID: string; Ok: boolean; Code?: string }
+export type BulkResult = { UserID: string; Ok: boolean; Code?: string; Error?: string }
 
-export const SIGN_IN_FILTERS = ["email", "google", "passkey"] as const
+export const SIGN_IN_FILTERS = ["password", "google", "passkey"] as const
 export const INACTIVE_DAYS = [7, 30, 90, 180, 365] as const
 
 export type UserFilters = {
@@ -70,6 +70,6 @@ export const listParticipations = (id: string) => apiGet<Participation[]>(`/api/
 export const endUserSessions = (id: string) => apiPost<void>(`/api/users/${encodeURIComponent(id)}/sessions/end`, {})
 export const resendInvitation = (id: string) => apiPost<void>(`/api/users/${encodeURIComponent(id)}/invitation/resend`, {})
 export async function bulkUsers(action: BulkAction, ids: string[]): Promise<BulkResult[]> {
-  const res = await apiPost<{ Results?: BulkResult[] }>(`/api/users/bulk/${action}`, { IDs: ids })
+  const res = await apiPost<{ Results?: BulkResult[] }>(`/api/users/bulk/${action}`, { UserIDs: ids })
   return res.Results ?? []
 }
