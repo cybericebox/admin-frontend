@@ -23,6 +23,8 @@ import { overloadOr } from "@/i18n/apiError"
 import { tRich } from "@/i18n/tRich"
 
 type Setting = {
+  /** The key's meaning in plain words (uk, en); null for a key the backend has not described. */
+  Description?: { Uk: string; En: string } | null
   ID: string
   Key: string
   Value: unknown
@@ -137,7 +139,7 @@ export default function Page() {
   }
 
   const needle = search.trim().toLowerCase()
-  const shownItems = needle ? items.filter((item) => item.Key.toLowerCase().includes(needle) || (labelOf(item.Key) ?? "").toLowerCase().includes(needle)) : items
+  const shownItems = needle ? items.filter((item) => item.Key.toLowerCase().includes(needle) || (item.Description?.Uk ?? "").toLowerCase().includes(needle) || (labelOf(item.Key) ?? "").toLowerCase().includes(needle)) : items
 
   return (
     <RequirePermission perm="platform.settings.read" fallback={<NoAccess message={t("admin.settings.noAccess")} />}>
@@ -159,6 +161,7 @@ export default function Page() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <h2 className={label ? "font-medium text-foreground" : "font-mono text-sm font-medium text-foreground"}>{name}</h2>
+                    {item.Description?.Uk && <p className="mt-0.5 text-sm text-muted-foreground">{item.Description.Uk}</p>}
                     {label && <p className="mt-0.5 font-mono text-xs text-muted-foreground">{item.Key}</p>}
                     {!open && kind !== "boolean" && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{showValue(item.Value)}</pre>}
                     {item.UpdatedAt && <p className="mt-1 text-xs text-muted-foreground">{tRich("admin.settings.updatedAt", { date: <time dateTime={item.UpdatedAt}>{formatListDateTime(item.UpdatedAt)}</time> })}</p>}
