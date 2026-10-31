@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), canInvite: true }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get }))
@@ -11,9 +11,16 @@ import Page from "./page"
 const setTestUrl = (q: string) => window.history.replaceState(null, "", q ? `/test/?${q}` : "/test/")
 const testUrl = () => window.location.search.replace(/^\?/, "")
 
+async function addStatusFilter(optionKey: string) {
+  fireEvent.click(screen.getByRole("button", { name: /admin.table.addFilter/ }))
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /admin.users.col.status/ }))
+  fireEvent.click(await screen.findByRole("checkbox", { name: optionKey }))
+}
+
 describe("admin users page", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     setTestUrl("")
     mocks.get.mockReset()
     mocks.canInvite = true
@@ -49,22 +56,18 @@ describe("admin users page", () => {
     expect(container.querySelector("table.ib-table")).toBeInTheDocument()
   })
 
-  it("places search before filters and invitation, without an end-of-list label", async () => {
+  it("places search before the filters and the columns menu, without an end-of-list label", async () => {
     render(<Page />)
     await screen.findByText("Олена Коваль")
     const search = screen.getByPlaceholderText("admin.users.search")
-    const roles = screen.getByRole("button", { name: /admin.users.filterRolesAll/ })
-    const status = screen.getByRole("button", { name: "admin.users.filterStatus" })
+    const add = screen.getByRole("button", { name: /admin.table.addFilter/ })
+    const columns = screen.getByRole("button", { name: /admin.table.columns/ })
     const invite = screen.getByRole("button", { name: "admin.users.invite.button" })
     const before = (left: Node, right: Node) => !!(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(before(search, roles)).toBe(true)
-    expect(before(roles, status)).toBe(true)
-    expect(screen.queryByText("admin.users.filterRoles")).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.users.filterStatus")).not.toBeInTheDocument()
-    for (const control of [search, roles, status, invite]) {
-      expect(control).toHaveClass("h-10")
-      expect(control).toHaveClass("text-sm")
-    }
+    expect(before(search, add)).toBe(true)
+    expect(before(add, columns)).toBe(true)
+    expect(search).toHaveClass("h-10")
+    expect(invite).toHaveClass("h-10")
     expect(screen.queryByText("admin.users.endOfList")).not.toBeInTheDocument()
   })
 
@@ -92,13 +95,12 @@ describe("admin users page", () => {
     expect(screen.getByText("admin.users.empty").closest("[data-empty-state]")?.querySelector("svg")).toBeInTheDocument()
   })
 
-  it("filters users by account status through the API", async () => {
+  it("filters users by account status through the API and keeps the filter in the address", async () => {
     render(<Page />)
     await screen.findByText("Олена Коваль")
-    const statusFilter = screen.getByRole("button", { name: "admin.users.filterStatus" })
-    fireEvent.keyDown(statusFilter, { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.status.blocked" }))
+    await addStatusFilter("admin.status.blocked")
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?status=blocked&page=1&pageSize=50&sortBy=created&sortDir=desc"))
+    expect(testUrl()).toBe("f.status=in%3Ablocked")
   })
 
   it("offers a retry when the first page fails to load", async () => {
@@ -123,9 +125,7 @@ describe("admin users page", () => {
     expect(await screen.findByText("Олена Коваль")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.table.next" }))
     await waitFor(() => expect(resolveOldPage).toBeDefined())
-    const statusFilter = screen.getByRole("button", { name: "admin.users.filterStatus" })
-    fireEvent.keyDown(statusFilter, { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.status.blocked" }))
+    await addStatusFilter("admin.status.blocked")
     expect(await screen.findByText("Іван Коваль")).toBeInTheDocument()
     await act(async () => resolveOldPage?.({ Items: [stale], Total: 51 }))
     expect(screen.queryByText("Старий Коваль")).not.toBeInTheDocument()
@@ -186,12 +186,13 @@ describe("admin users page", () => {
 
 describe("admin users page query string", () => {
   beforeEach(() => {
+    window.localStorage.clear()
     setTestUrl("")
     mocks.get.mockReset()
     mocks.get.mockResolvedValue({ Items: [], Total: 0 })
   })
   it("restores filters, sort and page from the URL and keeps the header while empty", async () => {
-    setTestUrl("status=blocked&sort=name&dir=asc&page=2")
+    setTestUrl("f.status=in%3Ablocked&sort=name&dir=asc&page=2")
     render(<Page />)
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/users?status=blocked&page=2&pageSize=50&sortBy=name&sortDir=asc"))
     expect(await screen.findByText("admin.users.empty")).toBeInTheDocument()

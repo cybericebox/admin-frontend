@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode, Ref } from "react"
+import type { CSSProperties, ReactNode, Ref } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -42,7 +42,7 @@ export function TableState({ colSpan, kind, message, error, onRetry, loadingLabe
 }
 
 /** Sort header: `th[aria-sort]` with one button; `num` right-aligns numbers like their cells. */
-export function SortTh({ label, field, activeField, direction, onSort, num, lead, className, children }: {
+export function SortTh({ label, field, activeField, direction, onSort, num, lead, className, style, children }: {
   label: string
   field: string
   activeField: string
@@ -52,11 +52,12 @@ export function SortTh({ label, field, activeField, direction, onSort, num, lead
   /** Shown before the sort button (the select-all box of an index table). */
   lead?: ReactNode
   className?: string
+  style?: CSSProperties
   children?: ReactNode
 }) {
   const active = field === activeField
   const Icon = !active ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown
-  return <th scope="col" className={cn(num && "ib-table__num", className)} aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
+  return <th scope="col" className={cn(num && "ib-table__num", className)} style={style} aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
     <span className="inline-flex items-center gap-1.5">
       {lead}
       <button type="button" className="ib-table__sort" onClick={() => onSort(field)}>{label}<Icon aria-hidden="true" /></button>
