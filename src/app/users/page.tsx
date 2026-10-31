@@ -1,16 +1,23 @@
 "use client"
 import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { apiGet } from "@/api/client"
-import type { OffsetPage } from "@/api/pagination"
+import { ChevronDown, Send } from "lucide-react"
+import { ApiError } from "@/api/client"
+import { bulkUsers, INACTIVE_DAYS, listUsers, resendInvitation, SIGN_IN_FILTERS, type BulkAction, type UserFilters, type UserRow } from "@/api/users"
 import { t } from "@/i18n/t"
-import { ChevronDown } from "lucide-react"
+import { tPlural } from "@/i18n/plural"
+import { overloadOr } from "@/i18n/apiError"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
+import { Avatar } from "@/components/ui/avatar"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
-import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
+import { SortTh, TableState, TableWrap, Th, TimeText } from "@/components/common/DsTable"
+import { ResetFilters } from "@/components/table/ResetFilters"
+import { SelectionBar } from "@/components/table/SelectionBar"
 import { useUrlState } from "@/lib/useUrlState"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SelectMenu } from "@/components/ui/select-menu"
 import {
   DropdownMenu,
@@ -20,25 +27,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRole } from "@/lib/useRole"
 import { PLATFORM_ROLES, roleLabel } from "@/lib/roles"
+import { canManageAccount } from "@/lib/assignableRoles"
 import InviteUsersDialog from "@/components/users/InviteUsersDialog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { TablePagination } from "@/components/ui/table-pagination"
+import { toast } from "@/components/ui/toast"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { formatListDateTime } from "@/lib/locale"
 import { relativeTime } from "@/utils/relativeTime"
 import { isUnsetDate } from "@/lib/dates"
 
-export type UserRow = {
-  ID: string
-  FirstName: string
-  LastName: string
-  Email: string
-  Role: string
-  Status: string
-  LastSeen?: string
-  CreatedAt: string
-}
-type ListResp = OffsetPage<UserRow>
+export type { UserRow }
 
 const STATUSES = ["active", "blocked", "incomplete"]
 
@@ -47,12 +46,21 @@ function fullName(u: UserRow): string {
   return n || u.Email
 }
 
-const DEFAULTS = { q: "", role: "", status: "all", page: "1", size: "50", sort: "created", dir: "desc" }
+const DEFAULTS = { q: "", role: "", status: "all", confirmed: "all", signIn: "all", inactive: "0", page: "1", size: "50", sort: "created", dir: "desc" }
+const FILTER_KEYS = ["q", "role", "status", "confirmed", "signIn", "inactive"] as const
+
+// What a bulk action does: the permission it needs, the confirmation texts and the busy label (AGENTS.md: ConfirmDialog, busy buttons).
+const BULK: Record<BulkAction, { permission: string; danger: boolean; busy: string }> = {
+  "resend-invitation": { permission: "users.invite", danger: false, busy: "busy.sending" },
+  block: { permission: "users.status.write", danger: true, busy: "busy.blocking" },
+  unblock: { permission: "users.status.write", danger: false, busy: "busy.unblocking" },
+  "end-sessions": { permission: "users.status.write", danger: true, busy: "busy.endingSessions" },
+}
+const BULK_ORDER: BulkAction[] = ["resend-invitation", "block", "unblock", "end-sessions"]
 
 function UsersList() {
   const [query, setQuery] = useUrlState(DEFAULTS)
   const roles = query.role ? query.role.split(",").filter(Boolean) : []
-  const status = query.status
   const page = Math.max(1, Number(query.page) || 1)
   const pageSize = Number(query.size) || 50
   const sortBy = query.sort
@@ -65,64 +73,133 @@ function UsersList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
 
-  const { can } = useRole()
+  const { can, me, role: callerRole } = useRole()
   const [inviteOpen, setInviteOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const tableScrollRef = useRef<HTMLDivElement>(null)
+
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulk, setBulk] = useState<BulkAction | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [resending, setResending] = useState<string | null>(null)
+  const selectAllRef = useRef<HTMLInputElement>(null)
+
+  // Any change of the view starts a new selection: the chosen rows would no longer be the rows on screen.
+  function change(patch: Partial<typeof DEFAULTS>) {
+    setSelected(new Set())
+    setQuery(patch)
+  }
 
   // Debounce the search box into the URL; an unchanged query must not reset the page the user moved to.
   useEffect(() => {
     const next = search.trim()
     if (next === debounced) return
-    const id = setTimeout(() => setQuery({ q: next, page: "1" }), 300)
+    const id = setTimeout(() => { setSelected(new Set()); setQuery({ q: next, page: "1" }) }, 300)
     return () => clearTimeout(id)
   }, [search, debounced, setQuery])
 
-  const requestQuery = (() => {
-    const p = new URLSearchParams()
-    if (debounced) p.set("search", debounced)
-    roles.forEach((r) => p.append("role", r))
-    if (status !== "all") p.set("status", status)
-    p.set("page", String(page))
-    p.set("pageSize", String(pageSize))
-    p.set("sortBy", sortBy)
-    p.set("sortDir", sortDir)
-    return p.toString()
-  })()
+  const filters: UserFilters = {
+    search: debounced, roles, status: query.status, confirmed: query.confirmed, signIn: query.signIn, inactiveDays: query.inactive,
+    page, pageSize, sortBy, sortDir,
+  }
+  const requestKey = JSON.stringify(filters)
 
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
-    apiGet<ListResp>(`/api/users?${requestQuery}`)
+    listUsers(JSON.parse(requestKey) as UserFilters)
       .then((d) => { if (active) { setUsers(d.Items ?? []); setTotal(d.Total ?? 0) } })
       .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [requestQuery, reloadKey])
+  }, [requestKey, reloadKey])
 
   function goToPage(next: number) {
     if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
-    setQuery({ page: String(next) })
+    change({ page: String(next) })
   }
 
   function sort(field: string) {
     const nextDir = field === sortBy ? sortDir === "asc" ? "desc" : "asc"
       : field === "created" || field === "lastSeen" ? "desc" : "asc"
-    setQuery({ sort: field, dir: nextDir, page: "1" })
+    change({ sort: field, dir: nextDir, page: "1" })
   }
 
   function toggleRole(r: string) {
     const next = roles.includes(r) ? roles.filter((x) => x !== r) : [...roles, r]
-    setQuery({ role: PLATFORM_ROLES.filter((x) => next.includes(x)).join(","), page: "1" })
+    change({ role: PLATFORM_ROLES.filter((x) => next.includes(x)).join(","), page: "1" })
   }
 
-  const filtered = !!(debounced || roles.length > 0 || status !== "all")
+  function resetFilters() {
+    setSearch("")
+    change({ q: "", role: "", status: "all", confirmed: "all", signIn: "all", inactive: "0", page: "1" })
+  }
+
+  const filtered = FILTER_KEYS.some((key) => query[key] !== DEFAULTS[key])
   const firstLoad = loading && users.length === 0
   const stateKind = error ? "error" : firstLoad ? "loading" : users.length === 0 ? "empty" : null
 
+  // The viewer and accounts of an equal or higher role cannot be selected (the server refuses them too).
+  const selectable = (u: UserRow) => u.ID !== me?.ID && canManageAccount(callerRole, u.Role)
+  const selectableIds = users.filter(selectable).map((u) => u.ID)
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id))
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = selected.size > 0 && !allSelected
+  }, [selected, allSelected])
+
+  function toggleOne(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const bulkActions = BULK_ORDER.filter((action) => can(BULK[action].permission))
+  const retry = () => { setError(null); setLoading(true); setReloadKey((k) => k + 1) }
+
+  async function runBulk() {
+    if (!bulk) return
+    setBulkBusy(true)
+    setBulkError(null)
+    try {
+      const results = await bulkUsers(bulk, [...selected])
+      const done = results.filter((r) => r.Ok).length
+      const skipped = selected.size - done
+      if (skipped > 0) toast.error(t("admin.users.bulk.partial", { done, skipped }))
+      else toast.success(tPlural("admin.users.bulk.done", done))
+      setBulk(null)
+      setSelected(new Set())
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      setBulkError(overloadOr(err, t("admin.users.bulk.error")))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  async function resend(user: UserRow) {
+    setResending(user.ID)
+    try {
+      await resendInvitation(user.ID)
+      toast.success(t("admin.users.resend.done", { email: user.Email }))
+    } catch (err) {
+      toast.error(err instanceof ApiError ? overloadOr(err, t("admin.users.resend.error")) : t("admin.users.resend.error"))
+    } finally {
+      setResending(null)
+    }
+  }
+
+  const selectCount = selected.size
+  const canResend = can("users.invite")
+  const hasSelect = bulkActions.length > 0
+  const colCount = hasSelect ? 9 : 8
+
   return (
-    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
-      <PageHeader title={t("admin.users.title")}
+    <div className="ib-index">
+      <PageHeader title={t("admin.users.title")} count={loading && users.length === 0 ? undefined : total}
         actions={can("users.invite") ? <Button className="h-10 shrink-0 text-sm" onClick={() => setInviteOpen(true)}>{t("admin.users.invite.button")}</Button> : undefined}
         filters={<>
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
@@ -153,12 +230,34 @@ function UsersList() {
             </DropdownMenuContent>
           </DropdownMenu>
           <SelectMenu
-            value={status}
-            onChange={(value) => setQuery({ status: value, page: "1" })}
+            value={query.status}
+            onChange={(value) => change({ status: value, page: "1" })}
             options={[{ value: "all", label: t("admin.users.filterStatusAll") }, ...STATUSES.map((value) => ({ value, label: t(`admin.status.${value}`) }))]}
             ariaLabel={t("admin.users.filterStatus")}
             className="h-10 min-w-40 text-sm"
           />
+          <SelectMenu
+            value={query.confirmed}
+            onChange={(value) => change({ confirmed: value, page: "1" })}
+            options={[{ value: "all", label: t("admin.users.filterConfirmedAll") }, { value: "yes", label: t("admin.users.filterConfirmedYes") }, { value: "no", label: t("admin.users.filterConfirmedNo") }]}
+            ariaLabel={t("admin.users.filterConfirmed")}
+            className="h-10 min-w-44 text-sm"
+          />
+          <SelectMenu
+            value={query.signIn}
+            onChange={(value) => change({ signIn: value, page: "1" })}
+            options={[{ value: "all", label: t("admin.users.filterSignInAll") }, ...SIGN_IN_FILTERS.map((value) => ({ value, label: t(`admin.method.${value}`) }))]}
+            ariaLabel={t("admin.users.filterSignIn")}
+            className="h-10 min-w-44 text-sm"
+          />
+          <SelectMenu
+            value={query.inactive}
+            onChange={(value) => change({ inactive: value, page: "1" })}
+            options={[{ value: "0", label: t("admin.users.filterInactiveAll") }, ...INACTIVE_DAYS.map((days) => ({ value: String(days), label: tPlural("admin.users.filterInactiveDays", days) }))]}
+            ariaLabel={t("admin.users.filterInactive")}
+            className="h-10 min-w-48 text-sm"
+          />
+          <ResetFilters active={filtered} onReset={resetFilters} />
         </>} />
 
       <InviteUsersDialog
@@ -167,47 +266,79 @@ function UsersList() {
         onClosed={() => { goToPage(1); setError(null); setReloadKey((k) => k + 1) }}
       />
 
-      <div ref={tableScrollRef} className="min-h-0 overflow-auto" aria-busy={loading}>
-        <TableWrap label={t("admin.users.title")} rows={8} className="min-h-0">
-          <table className={`ib-table ib-table--cards${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.users.title")}>
+      {selectCount > 0 && bulkActions.length > 0 && (
+        <SelectionBar count={selectCount} onClear={() => setSelected(new Set())}>
+          {bulkActions.map((action) => (
+            <Button key={action} type="button" variant="outline" size="sm" onClick={() => { setBulkError(null); setBulk(action) }}>{t(`admin.users.bulk.${action}`)}</Button>
+          ))}
+        </SelectionBar>
+      )}
+
+      <TableWrap fill scrollRef={tableScrollRef} label={t("admin.users.title")} rows={8} className="min-h-0">
+          <table aria-busy={loading} className={`ib-table ib-table--cards${hasSelect ? " ib-table--selectable" : ""}${loading && !firstLoad ? " is-refreshing" : ""}`} aria-label={t("admin.users.title")}>
             <thead>
               <tr>
-                <SortTh label={t("admin.users.col.user")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
+                {hasSelect && <th scope="col" className="ib-table__select">
+                  <Checkbox ref={selectAllRef} aria-label={t("admin.table.selectAll")} checked={allSelected} disabled={selectableIds.length === 0}
+                    onChange={() => setSelected(allSelected ? new Set() : new Set(selectableIds))} />
+                </th>}
+                <SortTh className="ib-table__pin" label={t("admin.users.col.user")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortTh label={t("admin.users.col.email")} field="email" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortTh label={t("admin.users.col.role")} field="role" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortTh label={t("admin.users.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortTh label={t("admin.users.col.signIn")} field="signIn" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortTh label={t("admin.users.col.lastSeen")} field="lastSeen" activeField={sortBy} direction={sortDir} onSort={sort} />
                 <SortTh label={t("admin.users.col.created")} field="created" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <Th className="ib-table__actions"><span className="sr-only">{t("admin.users.col.actions")}</span></Th>
               </tr>
             </thead>
             {stateKind ? (
-              <TableState colSpan={5} kind={stateKind}
+              <TableState colSpan={colCount} kind={stateKind}
                 message={error ? t("admin.users.loadError") : t(filtered ? "admin.users.empty" : "admin.users.emptyInitial")}
-                error={error?.cause} onRetry={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1) }} />
+                error={error?.cause} onRetry={retry} />
             ) : (
               <tbody className={loading ? "pointer-events-none" : undefined}>
                 {users.map((u) => (
-                  <tr key={u.ID}>
-                    <td className="ib-table__primary">
-                      <Link href={`/users/detail?id=${u.ID}`} className="block min-w-40 max-w-80 whitespace-normal py-1 [overflow-wrap:anywhere]">
-                        <span className="ib-table__name">{fullName(u)}</span>
-                        <span className="ib-table__dim block text-[length:var(--ib-fs-13)]">{u.Email}</span>
-                      </Link>
+                  <tr key={u.ID} aria-selected={selected.has(u.ID) || undefined}>
+                    {hasSelect && <td className="ib-table__select">
+                      <Checkbox aria-label={t("admin.table.selectRow", { name: fullName(u) })} checked={selected.has(u.ID)} disabled={!selectable(u)} onChange={() => toggleOne(u.ID)} />
+                    </td>}
+                    <td className="ib-table__primary ib-table__pin">
+                      <div className="ib-person">
+                        <Avatar picture={u.Picture} firstName={u.FirstName} lastName={u.LastName} email={u.Email} />
+                        <Link href={`/users/detail?id=${u.ID}`} title={fullName(u)} className="ib-table__name block min-w-32 max-w-64 truncate py-1 hover:underline">{fullName(u)}</Link>
+                      </div>
                     </td>
+                    <td className="ib-table__dim" data-label={t("admin.users.col.email")}>{u.Email}</td>
                     <td data-label={t("admin.users.col.role")}><RoleBadge role={u.Role} size="sm" /></td>
                     <td data-label={t("admin.users.col.status")}><StatusBadge status={u.Status} size="sm" /></td>
+                    <td className="ib-table__dim" data-label={t("admin.users.col.signIn")}>{u.SignInMethods?.length ? u.SignInMethods.map((m) => t(`admin.method.${m}`)).join(", ") : "—"}</td>
                     <td className="ib-table__dim" data-label={t("admin.users.col.lastSeen")}>
                       {isUnsetDate(u.LastSeen) ? t("admin.users.never") : <HoverTooltip text={formatListDateTime(u.LastSeen)}><span><TimeText iso={u.LastSeen}>{relativeTime(u.LastSeen)}</TimeText></span></HoverTooltip>}
                     </td>
                     <td className="ib-table__dim" data-label={t("admin.users.col.created")}><TimeText iso={u.CreatedAt}>{formatListDateTime(u.CreatedAt)}</TimeText></td>
+                    <td className="ib-table__actions">
+                      {canResend && u.Status === "incomplete" && selectable(u) && (
+                        <Button type="button" variant="outline" size="sm" className="min-w-max" busy={resending === u.ID} busyLabel={t("busy.sending")} onClick={() => void resend(u)}>
+                          <Send aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" />{t("admin.users.resend.button")}
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             )}
           </table>
-        </TableWrap>
-      </div>
+      </TableWrap>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
-        onPage={goToPage} onPageSize={(size) => setQuery({ size: String(size), page: "1" })} />
+        onPage={goToPage} onPageSize={(size) => change({ size: String(size), page: "1" })} />
+
+      <ConfirmDialog open={bulk !== null} onCancel={() => { if (!bulkBusy) setBulk(null) }} tone={bulk && BULK[bulk].danger ? "danger" : "default"}
+        busy={bulkBusy} busyLabel={t(bulk ? BULK[bulk].busy : "busy.applying")} error={bulkError}
+        title={bulk ? tPlural(`admin.users.bulk.${bulk}.title`, selectCount) : ""}
+        description={bulk ? t(`admin.users.bulk.${bulk}.body`) : undefined}
+        confirmLabel={bulk ? t(`admin.users.bulk.${bulk}.confirm`) : ""}
+        onConfirm={() => void runBulk()} />
     </div>
   )
 }

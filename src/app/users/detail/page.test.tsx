@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), del: vi.fn(), push: vi.fn(), canWrite: true, permissions: ["*"], role: "super_admin" }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), participations: [] as unknown[], patch: vi.fn(), del: vi.fn(), push: vi.fn(), canWrite: true, permissions: ["*"], role: "super_admin" }))
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("id=user-1"), useRouter: () => ({ push: mocks.push }) }))
-vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPatch: mocks.patch, apiDelete: mocks.del }))
+vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPost: mocks.post, apiPatch: mocks.patch, apiDelete: mocks.del, mediaUrl: (src: string) => src }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({
   can: (permission: string) => mocks.canWrite || permission === "users.read",
@@ -27,7 +27,10 @@ describe("admin user detail", () => {
     mocks.canWrite = true
     mocks.permissions = ["*"]
     mocks.role = "super_admin"
-    mocks.get.mockResolvedValue(user)
+    mocks.participations = []
+    mocks.post.mockReset()
+    mocks.post.mockResolvedValue(undefined)
+    mocks.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/participations") ? mocks.participations : user))
     mocks.patch.mockResolvedValue(undefined)
     mocks.del.mockResolvedValue(undefined)
   })
@@ -194,5 +197,37 @@ describe("admin user detail", () => {
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByText("admin.userDetail.roleConfirm.lowerTitle")).toBeInTheDocument()
     expect(within(dialog).getByRole("button", { name: "admin.userDetail.roleConfirm.confirm" })).toHaveClass("bg-destructive")
+  })
+
+  it("lists the person's events with team and event role, and links to the audit log filtered by them", async () => {
+    mocks.participations = [{ EventID: "ev-1", EventName: "KhCTF", EventTag: "khctf", TeamID: "t-1", TeamName: "Лисиці", Role: "moderator" }]
+    render(<Page />)
+    expect(await screen.findByRole("link", { name: "KhCTF" })).toHaveAttribute("href", "/events/detail?id=ev-1")
+    expect(screen.getByText("Лисиці · role.event.moderator")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "admin.userDetail.auditLink" })).toHaveAttribute("href", expect.stringContaining("/audit?actor=user-1"))
+  })
+
+  it("says so when the person takes part in no event", async () => {
+    render(<Page />)
+    expect(await screen.findByText("admin.userDetail.participationsEmpty")).toBeInTheDocument()
+  })
+
+  it("ends all sessions only after a danger confirmation", async () => {
+    render(<Page />)
+    await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.endSessions" }))
+    expect(mocks.post).not.toHaveBeenCalled()
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByRole("button", { name: "admin.userDetail.endSessionsConfirm.confirm" })).toHaveClass("bg-destructive")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.userDetail.endSessionsConfirm.confirm" }))
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/users/user-1/sessions/end", {}))
+  })
+
+  it("resends the invitation of an incomplete sign-up", async () => {
+    mocks.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/participations") ? [] : { ...user, Status: "incomplete" }))
+    render(<Page />)
+    await screen.findByRole("heading", { level: 1, name: "Олена Коваль" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.userDetail.resendInvitation" }))
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/users/user-1/invitation/resend", {}))
   })
 })
