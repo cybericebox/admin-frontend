@@ -6,6 +6,7 @@
 //   POST /api/users/bulk/{action}                    {UserIDs} (max 200) -> {Results: [{UserID, Ok, Code?, Error?}]}, in request order
 import { apiGet, apiPost } from "@/api/client"
 import type { OffsetPage } from "@/api/pagination"
+import { isComplete, type FilterBag } from "@/components/table/filters"
 
 export type UserRow = {
   ID: string
@@ -34,38 +35,51 @@ export type BulkAction = "resend-invitation" | "block" | "unblock" | "end-sessio
 export type BulkResult = { UserID: string; Ok: boolean; Code?: string; Error?: string }
 
 export const SIGN_IN_FILTERS = ["password", "google", "passkey"] as const
-export const INACTIVE_DAYS = [7, 30, 90, 180, 365] as const
 
-export type UserFilters = {
+export type UserQuery = {
   search: string
-  roles: string[]
-  status: string
-  confirmed: string
-  signIn: string
-  inactiveDays: string
+  bag: FilterBag
   page: number
   pageSize: number
   sortBy: string
   sortDir: "asc" | "desc"
 }
 
+/** The filters a user's bag sends: only operators the backend knows (see the page's FilterDefs). */
+export function userFilterParams(bag: FilterBag, p: URLSearchParams = new URLSearchParams()): URLSearchParams {
+  const value = (key: string) => (isComplete(bag[key]) ? bag[key].v : [])
+  value("role").forEach((role) => p.append("role", role))
+  if (value("status")[0]) p.set("status", value("status")[0])
+  if (value("confirmed")[0]) p.set("emailConfirmed", value("confirmed")[0])
+  if (value("signIn")[0]) p.set("signIn", value("signIn")[0])
+  if (value("inactive")[0]) p.set("inactiveDays", value("inactive")[0])
+  return p
+}
+
 /** The query string of the list request; an unset filter is left out. */
-export function usersQuery(filters: UserFilters): string {
+export function usersQuery(query: UserQuery): string {
   const p = new URLSearchParams()
-  if (filters.search) p.set("search", filters.search)
-  filters.roles.forEach((role) => p.append("role", role))
-  if (filters.status !== "all") p.set("status", filters.status)
-  if (filters.confirmed !== "all") p.set("emailConfirmed", filters.confirmed === "yes" ? "true" : "false")
-  if (filters.signIn !== "all") p.set("signIn", filters.signIn)
-  if (filters.inactiveDays !== "0") p.set("inactiveDays", filters.inactiveDays)
-  p.set("page", String(filters.page))
-  p.set("pageSize", String(filters.pageSize))
-  p.set("sortBy", filters.sortBy)
-  p.set("sortDir", filters.sortDir)
+  if (query.search) p.set("search", query.search)
+  userFilterParams(query.bag, p)
+  p.set("page", String(query.page))
+  p.set("pageSize", String(query.pageSize))
+  p.set("sortBy", query.sortBy)
+  p.set("sortDir", query.sortDir)
   return p.toString()
 }
 
-export const listUsers = (filters: UserFilters) => apiGet<OffsetPage<UserRow>>(`/api/users?${usersQuery(filters)}`)
+/** Counts of one filter field's values under the other filters (GET /api/users/facets, users.read); null when unknown. */
+export async function getUserFacets(field: string, search: string, others: FilterBag): Promise<Record<string, number> | null> {
+  const p = new URLSearchParams({ field })
+  if (search) p.set("search", search)
+  userFilterParams(others, p)
+  try {
+    const res = await apiGet<{ Counts?: Record<string, number> } | null>(`/api/users/facets?${p}`)
+    return res?.Counts ?? null
+  } catch { return null }
+}
+
+export const listUsers = (query: UserQuery) => apiGet<OffsetPage<UserRow>>(`/api/users?${usersQuery(query)}`)
 export const listParticipations = (id: string) => apiGet<Participation[]>(`/api/users/${encodeURIComponent(id)}/participations`)
 export const endUserSessions = (id: string) => apiPost<void>(`/api/users/${encodeURIComponent(id)}/sessions/end`, {})
 export const resendInvitation = (id: string) => apiPost<void>(`/api/users/${encodeURIComponent(id)}/invitation/resend`, {})

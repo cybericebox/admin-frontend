@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPost: mocks.post, mediaUrl: (src: string) => src, ApiError: class extends Error {} }))
@@ -15,6 +15,7 @@ const row = (id: string, over: Record<string, unknown> = {}) => ({ ID: id, First
 describe("admin users table standard", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     window.history.replaceState(null, "", "/test/")
     mocks.get.mockResolvedValue({ Items: [row("anna"), row("boris", { Status: "incomplete" }), row("me", { ID: "me" }), row("root", { Role: "super_admin" })], Total: 4 })
     mocks.post.mockResolvedValue({ Results: [{ ID: "anna", Ok: true }] })
@@ -27,20 +28,30 @@ describe("admin users table standard", () => {
     for (const column of ["user", "email", "role", "status", "signIn", "lastSeen", "created"]) expect(screen.getByRole("button", { name: new RegExp(`admin.users.col.${column}`) })).toBeInTheDocument()
   })
 
-  it("sends the new filters to the API, keeps them in the URL and resets them in one click", async () => {
+  it("sends a chosen filter to the API, keeps it in the URL and resets it in one click", async () => {
     render(<Page />)
     await screen.findByText("anna Тест")
     expect(screen.queryByRole("button", { name: "admin.table.resetFilters" })).not.toBeInTheDocument()
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.users.filterConfirmed" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.users.filterConfirmedNo" }))
+    fireEvent.click(screen.getByRole("button", { name: /admin.table.addFilter/ }))
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /admin.users.filterConfirmed/ }))
+    fireEvent.click(await screen.findByRole("radio", { name: "admin.table.no" }))
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("emailConfirmed=false")))
-    expect(window.location.search).toContain("confirmed=no")
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.users.filterInactive" }), { key: "ArrowDown" })
-    fireEvent.click((await screen.findAllByRole("menuitemradio", { name: /filterInactiveDays/ }))[0])
-    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining("inactiveDays=7")))
+    expect(window.location.search).toContain("f.confirmed=is%3Afalse")
     fireEvent.click(screen.getByRole("button", { name: "admin.table.resetFilters" }))
     await waitFor(() => expect(mocks.get).toHaveBeenLastCalledWith("/api/users?page=1&pageSize=50&sortBy=created&sortDir=desc"))
     expect(window.location.search).toBe("")
+  })
+
+  it("keeps the view: hiding a column removes it and the choice is remembered", async () => {
+    const { unmount } = render(<Page />)
+    await screen.findByText("anna Тест")
+    fireEvent.click(screen.getByRole("button", { name: /admin.table.columns/ }))
+    fireEvent.click(await screen.findByRole("checkbox", { name: "admin.users.col.email" }))
+    await waitFor(() => expect(screen.queryByRole("columnheader", { name: /admin.users.col.email/ })).not.toBeInTheDocument())
+    unmount()
+    render(<Page />)
+    await screen.findByText("anna Тест")
+    expect(screen.queryByRole("columnheader", { name: /admin.users.col.email/ })).not.toBeInTheDocument()
   })
 
   it("does not let the viewer or a higher role be selected", async () => {
