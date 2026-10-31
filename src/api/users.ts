@@ -70,7 +70,8 @@ export function usersQuery(query: UserQuery): string {
 
 /** Counts of one filter field's values under the other filters (GET /api/users/facets, users.read); null when unknown. */
 export async function getUserFacets(field: string, search: string, others: FilterBag): Promise<Record<string, number> | null> {
-  const p = new URLSearchParams({ field })
+  // The filter key «confirmed» is the API's emailConfirmed.
+  const p = new URLSearchParams({ field: field === "confirmed" ? "emailConfirmed" : field })
   if (search) p.set("search", search)
   userFilterParams(others, p)
   try {
