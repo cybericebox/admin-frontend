@@ -9,7 +9,7 @@ export function PeriodFilter({ preset, onChange }: { preset: PeriodPreset; onCha
     {PERIOD_PRESETS.map((value) => {
       const active = value === preset
       return <button key={value} type="button" aria-pressed={active} onClick={() => onChange(value)}
-        className={`min-h-9 px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
+        className={`min-h-10 px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
         {t(`admin.platformAnalytics.period.${value}`)}
       </button>
     })}

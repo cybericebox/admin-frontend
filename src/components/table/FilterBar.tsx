@@ -6,6 +6,7 @@ import { Pin, PinOff, Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { CONTROL_SHAPE } from "@/components/ui/control"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 import { bagSignature, chipParts, defaultOp, isComplete, isValueless, opsOf, orderFacetOptions, withoutKey, type Cond, type FilterBag, type FilterDef, type Op } from "./filters"
@@ -42,7 +43,7 @@ function Editor({ def, cond, bag, facets, onChange }: { def: FilterDef; cond: Co
   const apply = (next: Cond | undefined) => onChange(next && isComplete(next) ? next : undefined)
   return <div className="flex w-72 max-w-full flex-col gap-3">
     {ops.length > 1 && <SelectMenu value={op} onChange={(next) => { const o = next as Op; apply({ op: o, v: isValueless(o) ? [] : values }) }} ariaLabel={t("admin.table.filterOperator")}
-      options={ops.map((o) => ({ value: o, label: opText(o) }))} className="h-9 text-sm" />}
+      options={ops.map((o) => ({ value: o, label: opText(o) }))} className="text-sm" />}
     {!isValueless(op) && def.type === "choice" && <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
       {orderFacetOptions(def.options ?? [], counts).map((option) => <li key={option.value} className="flex items-center justify-between gap-3">
         <Checkbox checked={values.includes(option.value)} label={option.label} onChange={() => {
@@ -105,7 +106,7 @@ export function FilterBar({ defs, bag, onChange, pinned, onPinned, facets }: {
       const parts = chipParts(def, cond, opText, t("admin.table.yes"), t("admin.table.no"), t("admin.table.any"))
       const isPinned = pinned.includes(key)
       return <Popover.Root key={key} open={open === key} onOpenChange={(next) => setOpen(next ? key : null)}>
-        <span className="inline-flex h-9 items-center overflow-hidden rounded-full border border-border bg-card text-sm" data-filter={key}>
+        <span className={`inline-flex items-center overflow-hidden ${CONTROL_SHAPE}`} data-filter={key}>
           <Popover.Trigger asChild>
             <button type="button" className="inline-flex h-full max-w-64 items-center gap-1.5 truncate pl-3 pr-2 hover:bg-accent" aria-label={t("admin.table.filterEdit", { name: def.label })}>
               <span className="font-medium">{parts.key}</span>{parts.op && <span className="text-muted-foreground">{parts.op}</span>}<span className={cond ? "truncate" : "truncate text-muted-foreground"}>{parts.value}</span>
@@ -127,7 +128,7 @@ export function FilterBar({ defs, bag, onChange, pinned, onPinned, facets }: {
     })}
     <Popover.Root open={adding} onOpenChange={(next) => { setAdding(next); if (!next) setSearch("") }}>
       <Popover.Trigger asChild>
-        <Button type="button" variant="outline" className="h-9 text-sm" disabled={defs.every((d) => chipKeys.includes(d.key)) && !adding}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.table.addFilter")}</Button>
+        <Button type="button" variant="outline" className="text-sm" disabled={defs.every((d) => chipKeys.includes(d.key)) && !adding}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.table.addFilter")}</Button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align="start" sideOffset={6} collisionPadding={12} className="z-50 flex max-h-[min(70dvh,26rem)] w-72 max-w-full flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground outline-none">
