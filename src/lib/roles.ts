@@ -27,6 +27,11 @@ export function eventRoleText(role: string): string {
   return name ? t(`role.event.${name}`) : role
 }
 
+/** Label of the role a person has in an event team (participant, captain, member); anything else shows as is. */
+export function participationRoleText(role: string): string {
+  return ["participant", "captain", "member"].includes(role) ? t(`admin.userDetail.participationRole.${role}`) : eventRoleText(role)
+}
+
 /** Platform roles that hold events.read (AP Backend rbac): they read every event without an assignment. */
 export function hasPlatformEventRead(role: string | undefined): boolean {
   return role === "super_admin" || role === "admin" || role === "admin_viewer"

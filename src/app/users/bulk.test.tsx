@@ -60,7 +60,7 @@ describe("admin users table standard", () => {
     expect(mocks.post).not.toHaveBeenCalled()
     expect(await screen.findByText(/admin.users.bulk.block.title.\w+:{"count":2}/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.users.bulk.block.confirm" }))
-    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/users/bulk/block", { IDs: ["anna", "boris"] }))
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith("/api/users/bulk/block", { UserIDs: ["anna", "boris"] }))
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining("admin.users.bulk.partial")))
     expect(screen.queryByRole("region", { name: "admin.table.selection.label" })).not.toBeInTheDocument()
   })

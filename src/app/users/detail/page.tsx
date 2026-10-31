@@ -8,7 +8,7 @@ import { t } from "@/i18n/t"
 import { overloadOr } from "@/i18n/apiError"
 import { useRole, type Role } from "@/lib/useRole"
 import { assignableRoles, canManageAccount } from "@/lib/assignableRoles"
-import { eventRoleText, roleLabel } from "@/lib/roles"
+import { participationRoleText, roleLabel } from "@/lib/roles"
 import { Avatar } from "@/components/ui/avatar"
 import { EmptyState } from "@/components/ui/empty-state"
 import { RoleBadge, StatusBadge } from "@/components/users/RoleStatusBadge"
@@ -238,7 +238,7 @@ function Detail() {
             : <ul className="divide-y divide-border rounded-lg border border-border bg-card">{participations.map((item) => (
               <li key={`${item.EventID}:${item.TeamID ?? ""}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
                 <Link href={`/events/detail?id=${encodeURIComponent(item.EventID)}`} className="min-w-0 break-words font-medium text-foreground hover:underline">{item.EventName || item.EventTag}</Link>
-                <span className="text-muted-foreground">{[item.TeamName, item.Role && eventRoleText(item.Role)].filter(Boolean).join(" · ") || "—"}</span>
+                <span className="text-muted-foreground">{[item.TeamName, item.Role && participationRoleText(item.Role)].filter(Boolean).join(" · ") || "—"}</span>
               </li>
             ))}</ul>}
         </div>

@@ -200,10 +200,10 @@ describe("admin user detail", () => {
   })
 
   it("lists the person's events with team and event role, and links to the audit log filtered by them", async () => {
-    mocks.participations = [{ EventID: "ev-1", EventName: "KhCTF", EventTag: "khctf", TeamID: "t-1", TeamName: "Лисиці", Role: "moderator" }]
+    mocks.participations = [{ EventID: "ev-1", EventName: "KhCTF", EventTag: "khctf", TeamID: "t-1", TeamName: "Лисиці", Role: "captain" }]
     render(<Page />)
     expect(await screen.findByRole("link", { name: "KhCTF" })).toHaveAttribute("href", "/events/detail?id=ev-1")
-    expect(screen.getByText("Лисиці · role.event.moderator")).toBeInTheDocument()
+    expect(screen.getByText("Лисиці · admin.userDetail.participationRole.captain")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "admin.userDetail.auditLink" })).toHaveAttribute("href", expect.stringContaining("/audit?actor=user-1"))
   })
 

@@ -246,7 +246,7 @@ function UsersList() {
           <SelectMenu
             value={query.signIn}
             onChange={(value) => change({ signIn: value, page: "1" })}
-            options={[{ value: "all", label: t("admin.users.filterSignInAll") }, ...SIGN_IN_FILTERS.map((value) => ({ value, label: t(`admin.method.${value}`) }))]}
+            options={[{ value: "all", label: t("admin.users.filterSignInAll") }, ...SIGN_IN_FILTERS.map((value) => ({ value, label: t(`admin.method.${value === "password" ? "email" : value}`) }))]}
             ariaLabel={t("admin.users.filterSignIn")}
             className="h-10 min-w-44 text-sm"
           />
