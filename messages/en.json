@@ -2923,5 +2923,19 @@
   "admin.events.bulk.done.few": "Archived {count} events",
   "admin.events.bulk.done.many": "Archived {count} events",
   "admin.events.bulk.partial": "Archived: {done}, skipped: {skipped}",
-  "admin.events.bulk.error": "Could not archive the events. Try again."
+  "admin.events.bulk.error": "Could not archive the events. Try again.",
+  "admin.events.create.copyFrom": "Copy from an event",
+  "admin.events.create.copyNone": "Do not copy",
+  "admin.events.create.copyHelp": "The schedule, settings and organizers are taken from the chosen event. The name, address and dates stay yours: you can change them.",
+  "admin.events.create.copyName": "{name} (copy)",
+  "admin.events.summary.start": "Start",
+  "admin.events.summary.finish": "Finish",
+  "admin.events.summary.participants": "Participants",
+  "admin.events.summary.teams": "Teams",
+  "admin.events.summary.stands": "Stands (ready / total)",
+  "admin.events.summary.panel": "Event panel",
+  "admin.events.summary.site": "Event site",
+  "admin.events.tagChange.title": "Change the address to “{tag}”?",
+  "admin.events.tagChange.body": "The address of the event site changes: old links stop working and participants and organizers must use the new address.",
+  "admin.events.tagChange.confirm": "Change address"
 }

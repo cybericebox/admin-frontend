@@ -5,8 +5,9 @@ const mock = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), managers: vi.fn(
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: mock.me, can: (permission: string) => permission === "events.write" ? mock.canWrite : true }) }))
-vi.mock("@/api/events/catalog", () => ({ getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers, setEventInfrastructure: mock.setInfra }))
+vi.mock("@/api/events/catalog", () => ({ getEventSchedule: vi.fn().mockResolvedValue({ Configured: false, StartAt: null, FinishAt: null }), getEvent: mock.get, updateEvent: mock.update, listEventManagers: mock.managers, setEventInfrastructure: mock.setInfra }))
 vi.mock("@/components/events/EventAnalyticsTab", () => ({ EventAnalyticsTab: ({ eventID, tag, canOpenJournal }: { eventID: string; tag: string; canOpenJournal: boolean }) => <div>analytics:{eventID}:{tag}:{String(canOpenJournal)}</div> }))
+vi.mock("@/components/events/EventParticipantsCard", () => ({ EventParticipantsCard: () => <div>participants</div> }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ editable }: { editable: boolean }) => <div>access:{String(editable)}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
 
@@ -135,9 +136,30 @@ describe("EventAdminDetail", () => {
     fireEvent.change(await screen.findByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Autumn CTF" } })
     fireEvent.change(screen.getByRole("textbox", { name: /admin.events.field.tag/ }), { target: { value: "autumn" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
+    // a changed tag changes the site address: nothing is saved before the confirmation
+    expect(mock.update).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole("button", { name: "admin.events.tagChange.confirm" }))
     await waitFor(() => expect(mock.update).toHaveBeenCalledWith("event-1", expect.objectContaining({ Name: "Autumn CTF", Tag: "autumn" })))
     await waitFor(() => expect(success).toHaveBeenCalledWith("admin.events.details.saved"))
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.events.dialog.submit" })).toBeDisabled())
+  })
+
+  it("saves a name change without asking about the address", async () => {
+    mock.update.mockResolvedValue({ ...event, Name: "Autumn CTF" })
+    render(<EventAdminDetail id="event-1" />)
+    fireEvent.change(await screen.findByRole("textbox", { name: /admin.events.field.name/ }), { target: { value: "Autumn CTF" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
+    await waitFor(() => expect(mock.update).toHaveBeenCalled())
+    expect(screen.queryByRole("button", { name: "admin.events.tagChange.confirm" })).not.toBeInTheDocument()
+  })
+
+  it("shows the summary with the counts and the participants block", async () => {
+    mock.get.mockResolvedValue({ ...event, ParticipantsCount: 40, TeamsCount: 10, StandsReady: 8, StandsTotal: 10 })
+    render(<EventAdminDetail id="event-1" />)
+    expect(await screen.findByText("8 / 10")).toBeInTheDocument()
+    expect(screen.getByText("40")).toBeInTheDocument()
+    expect(screen.getByText("participants")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /admin.events.summary.panel/ })).toHaveAttribute("href", expect.stringContaining("https://spring.cybericebox-dev.pp.ua/manage"))
   })
 
   it("does not submit equivalent names and retains a new name edit after an older save", async () => {

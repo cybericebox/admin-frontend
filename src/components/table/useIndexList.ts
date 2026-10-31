@@ -1,7 +1,7 @@
 "use client"
 // The state of an index page (docs/specs/UI-TABLES.md): search, filters (the address, f.<key>), sort, page and size
 // (the address, saved with the view), the saved view (columns, widths), the rows of the current request and the selection.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useUrlState } from "@/lib/useUrlState"
 import { columnWidth } from "./columns"
 import { activeCount, bagFromUrl, serializeCond, urlKey, type FilterBag, type FilterDef } from "./filters"
@@ -91,11 +91,11 @@ export function useIndexList<Row>({ table, columns, identity, defs, defaultSort,
   }, [search, debounced, setQuery])
 
   // Any change of the view starts a new selection: the chosen rows would no longer be the rows on screen.
-  const change = useCallback((patch: Record<string, string>) => {
+  const change = (patch: Record<string, string>) => {
     setSelected(new Set())
     setQuery(patch)
     if ("size" in patch) update({ size: patch.size })
-  }, [setQuery, update])
+  }
   const setBag = (next: FilterBag) => change({ page: "1", ...Object.fromEntries(defs.map((def) => [urlKey(def.key), serializeCond(next[def.key])])) })
   const resetFilters = () => { setSearch(""); setBag({}); setQuery({ q: "" }) }
   const goToPage = (next: number) => { if (scrollRef.current) scrollRef.current.scrollTop = 0; change({ page: String(next) }) }

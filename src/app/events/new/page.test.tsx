@@ -6,15 +6,16 @@ import NewEventPage from "./page"
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "" }))
-vi.mock("@/api/events/catalog", () => ({ createEvent: vi.fn(), listEventManagers: vi.fn(), getInfrastructureAvailable: vi.fn() }))
+vi.mock("@/api/events/catalog", () => ({ createEvent: vi.fn(), listEventManagers: vi.fn(), getInfrastructureAvailable: vi.fn(), listEventsIndex: vi.fn() }))
 vi.mock("@/components/events/EventManagersCard", () => ({ EventManagersCard: ({ eventID }: { eventID: string }) => <div>Managers for {eventID}</div> }))
 vi.mock("@/components/ui/date-time-picker", () => ({ DateTimePicker: ({ value, onChange, "aria-label": label }: { value: string; onChange: (value: string) => void; "aria-label": string }) => <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} /> }))
 
-import { createEvent, getInfrastructureAvailable, listEventManagers } from "@/api/events/catalog"
+import { createEvent, getInfrastructureAvailable, listEventManagers, listEventsIndex } from "@/api/events/catalog"
 
 describe("new event page", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(listEventsIndex).mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 100 })
     vi.mocked(getInfrastructureAvailable).mockResolvedValue(true)
   })
 
@@ -104,5 +105,17 @@ describe("new event page", () => {
     fireEvent.change(screen.getByLabelText("admin.events.field.availableFrom"), { target: { value: "2026-10-01T09:00" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
     await waitFor(() => expect(createEvent).toHaveBeenCalledWith(expect.objectContaining({ InfrastructureAllowed: false })))
+  })
+
+  it("copies the schedule and the infrastructure choice of a chosen event and sends its id", async () => {
+    vi.mocked(listEventsIndex).mockResolvedValue({ Items: [{ ID: "src", Tag: "old", Name: "Old CTF", AvailableFrom: "2026-03-01T10:00:00Z", ArchiveAt: null, Status: "active", CreatedAt: "x", UpdatedAt: "x", InfrastructureAllowed: false }], Total: 1, Page: 1, PageSize: 100 })
+    vi.mocked(createEvent).mockResolvedValue({ ID: "new", Tag: "fresh", Name: "x", AvailableFrom: "x", ArchiveAt: null, Status: "pending", CreatedAt: "x", UpdatedAt: "x" })
+    vi.mocked(listEventManagers).mockResolvedValue([])
+    render(<NewEventPage />)
+    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.events.create.copyFrom" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Old CTF" }))
+    fireEvent.change(screen.getByLabelText(/admin.events.field.tag/), { target: { value: "fresh" } })
+    fireEvent.click(screen.getByRole("button", { name: "admin.events.dialog.submit" }))
+    await waitFor(() => expect(createEvent).toHaveBeenCalledWith(expect.objectContaining({ Tag: "fresh", CopyFromEventID: "src", InfrastructureAllowed: false })))
   })
 })

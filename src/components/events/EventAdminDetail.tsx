@@ -1,7 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
-import { getEvent, listEventManagers, setEventInfrastructure, updateEvent, type Event, type EventManager } from "@/api/events/catalog"
+import { getEvent, getEventSchedule, listEventManagers, setEventInfrastructure, updateEvent, type Event, type EventManager, type EventRow, type EventSchedule } from "@/api/events/catalog"
+import { EventParticipantsCard } from "@/components/events/EventParticipantsCard"
+import { useEventSiteAddress } from "@/lib/eventSite"
+import { formatListDateTime } from "@/lib/locale"
+import { isUnsetEventDate } from "@/lib/eventDates"
+import { ExternalLink } from "lucide-react"
 import { EventAnalyticsTab } from "@/components/events/EventAnalyticsTab"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
@@ -40,6 +45,31 @@ function payloadOf(draft: ReturnType<typeof formOf> | null) {
   return draft ? { Name: draft.Name.trim(), Tag: draft.Tag, AvailableFrom: localToIso(draft.AvailableFrom), ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null } : null
 }
 
+const dash = (value: number | undefined | null) => value === undefined || value === null ? "—" : String(value)
+
+/** The summary on top of the card: dates, participants, teams, stands and the ways to the event panel and site. */
+function EventSummary({ event, schedule }: { event: EventRow; schedule: EventSchedule | null }) {
+  const panel = useEventSiteAddress(event.Tag, "/manage").address
+  const site = useEventSiteAddress(event.Tag, "").address
+  const when = (iso: string | null | undefined) => !iso || isUnsetEventDate(iso) ? "—" : formatListDateTime(iso)
+  const facts: [string, string][] = [
+    [t("admin.events.summary.start"), when(schedule?.Configured ? schedule.StartAt : event.AvailableFrom)],
+    [t("admin.events.summary.finish"), when(schedule?.FinishAt)],
+    [t("admin.events.summary.participants"), dash(event.ParticipantsCount)],
+    [t("admin.events.summary.teams"), dash(event.TeamsCount)],
+    [t("admin.events.summary.stands"), event.StandsTotal === undefined || event.StandsTotal === null ? "—" : `${event.StandsReady ?? 0} / ${event.StandsTotal}`],
+  ]
+  return <Card><CardContent className="space-y-4 pt-5">
+    <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+      {facts.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words text-sm text-foreground">{value}</dd></div>)}
+    </dl>
+    <div className="flex flex-wrap gap-3 text-sm font-medium">
+      {panel && <a href={panel} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary hover:underline">{t("admin.events.summary.panel")}<ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /></a>}
+      {site && <a href={site} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary hover:underline">{t("admin.events.summary.site")}<ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /></a>}
+    </div>
+  </CardContent></Card>
+}
+
 export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: string | null }) {
   const { can, me } = useRole()
   const [tab, setTab] = useState(initialTab === "analytics" ? "analytics" : "overview")
@@ -57,6 +87,8 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   const { draft, setDraft, dirty: isDirty, accept } = useSavedDraft(event ? formOf(event) : null, payloadOf)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
+  const [schedule, setSchedule] = useState<EventSchedule | null>(null)
+  const [tagConfirm, setTagConfirm] = useState(false)
   const [managersLoading, setManagersLoading] = useState(true)
   const [managersError, setManagersError] = useState<{ cause: unknown } | null>(null)
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -100,6 +132,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       })
       .catch((cause) => { if (active) setLoadError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
+    getEventSchedule(id).then((value) => { if (active) setSchedule(value) }).catch(() => { /* the summary shows the access date */ })
     listEventManagers(id)
       .then((memberships) => {
         if (!active) return
@@ -126,8 +159,14 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
   const canOpenJournal = Boolean(me?.ID && managers.some((manager) => manager.UserID === me.ID && (manager.Role === 0 || manager.Role === 1)))
   const writable = can("events.write") && event?.Status !== "archived"
 
-  async function save(e: FormEvent<HTMLFormElement>) {
+  // Changing the tag changes the address of the event site: ask first.
+  function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (event && draft && draft.Tag !== event.Tag && isDirty && writable && !saving) { setTagConfirm(true); return }
+    void doSave()
+  }
+
+  async function doSave() {
     if (!event || !draft || !writable || !isDirty || saving) return
     setSaveError("")
     const result = eventFormSchema.safeParse(draft)
@@ -188,6 +227,8 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
     <PageHeader title={event.Name || event.Tag} crumbs={[{ label: t("admin.nav.events"), href: "/events" }, { label: event.Name || event.Tag }]}
       sub={<EventSiteLink tag={event.Tag} />} actions={<EventStatusBadge event={event} size={undefined} />} />
 
+    <EventSummary event={event as EventRow} schedule={schedule} />
+
     <Tabs value={tab} onValueChange={changeTab}>
     <TabsList aria-label={t("admin.events.tabs.label")}>
       <TabsTrigger value="overview">{t("admin.events.tabs.overview")}</TabsTrigger>
@@ -196,7 +237,7 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
     <TabsContent value="overview" className="mt-5 space-y-5">
     <Card><CardContent className="pt-5">
       <div className="mb-4"><h2 className="text-base font-semibold text-foreground">{t("admin.events.details.title")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("admin.events.details.description")}</p></div>
-      <form className="space-y-4" onSubmit={(e) => void save(e)}>
+      <form className="space-y-4" onSubmit={save}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><FieldValidation label={t("admin.events.field.name")} error={fields.Name}><Input id="event-name" value={draft.Name} onChange={(e) => { setFields((current) => ({ ...current, Name: "" })); setDraft({ ...draft, Name: e.target.value }) }} required disabled={!writable} /></FieldValidation></div>
           <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><FieldValidation label={t("admin.events.field.tag")} error={fields.Tag}><Input id="event-tag" value={draft.Tag} onChange={(e) => { setFields((current) => ({ ...current, Tag: "" })); setDraft({ ...draft, Tag: e.target.value }) }} required disabled={!writable} /></FieldValidation></div>
@@ -223,11 +264,16 @@ export function EventAdminDetail({ id, initialTab }: { id: string; initialTab?: 
       onChanged={(manager) => setManagers((current) => current.some((item) => item.UserID === manager.UserID) ? current.map((item) => item.UserID === manager.UserID ? manager : item) : [...current, manager])}
       onRemoved={(userID) => setManagers((current) => current.filter((item) => item.UserID !== userID))}
     />}
+    <EventParticipantsCard eventID={event.ID} editable={can("events.write")} />
     </TabsContent>
     <TabsContent value="analytics" className="mt-5">
       <EventAnalyticsTab eventID={event.ID} tag={event.Tag} canOpenJournal={canOpenJournal} />
     </TabsContent>
     </Tabs>
+
+    <ConfirmDialog open={tagConfirm} onCancel={() => setTagConfirm(false)} busy={saving} busyLabel={t("busy.saving")}
+      title={t("admin.events.tagChange.title", { tag: draft?.Tag ?? "" })} description={t("admin.events.tagChange.body")}
+      confirmLabel={t("admin.events.tagChange.confirm")} onConfirm={() => { setTagConfirm(false); void doSave() }} />
 
     <ConfirmDialog
       open={infraTarget !== null}
