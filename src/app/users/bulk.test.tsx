@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiPost: mocks.post, mediaUrl: (src: string) => src, ApiError: class extends Error {} }))
+vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}:${JSON.stringify(vars)}` : key }))
 vi.mock("@/components/ui/toast", () => ({ toast: mocks.toast }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true, me: { ID: "me" }, role: "admin" }) }))

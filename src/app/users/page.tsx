@@ -74,9 +74,18 @@ const BULK: Record<BulkAction, { permission: string; danger: boolean; busy: stri
 const BULK_ORDER: BulkAction[] = ["resend-invitation", "block", "unblock", "end-sessions"]
 
 function UsersList() {
-  const { view, cols, update, reset, changed } = useTableView({ table: "admin.users", allKeys: ALL_KEYS, identity: IDENTITY, defaultCols: ALL_KEYS })
+  const { view, cols, update, reset, changed, serverView } = useTableView({ table: "admin.users", allKeys: ALL_KEYS, identity: IDENTITY, defaultCols: ALL_KEYS })
   const filterDefaults = Object.fromEntries(FILTER_KEYS.map((key) => [urlKey(key), ""]))
   const [query, setQuery] = useUrlState({ q: "", page: "1", size: view.size ?? "50", sort: view.sort ?? "created", dir: view.dir ?? "desc", ...filterDefaults })
+  // The saved view arrives after the address was read: its sort and page size apply unless the address names its own.
+  useEffect(() => {
+    if (!serverView) return
+    const own = new URLSearchParams(window.location.search)
+    const patch: Record<string, string> = {}
+    if (serverView.sort && !own.has("sort") && !own.has("dir")) { patch.sort = serverView.sort; patch.dir = serverView.dir ?? "asc" }
+    if (serverView.size && !own.has("size")) patch.size = serverView.size
+    if (Object.keys(patch).length > 0) setQuery(patch)
+  }, [serverView, setQuery])
   const page = Math.max(1, Number(query.page) || 1)
   const pageSize = Number(query.size) || 50
   const sortBy = query.sort
