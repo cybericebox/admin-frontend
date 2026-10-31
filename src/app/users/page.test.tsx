@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), canInvite: true }))
 vi.mock("@/api/client", () => ({ apiGet: mocks.get }))
+vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => permission === "users.invite" ? mocks.canInvite : true }) }))
 vi.mock("@/components/users/InviteUsersDialog", () => ({ default: () => null }))
