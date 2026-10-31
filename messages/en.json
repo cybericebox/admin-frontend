@@ -2882,7 +2882,7 @@
   "admin.table.filterUnpin": "Unpin filter “{name}”",
   "admin.table.filterRemove": "Remove filter “{name}”",
   "admin.table.filterOperator": "Condition",
-    "admin.table.any": "any",
+  "admin.table.any": "any",
   "admin.table.yes": "Yes",
   "admin.table.no": "No",
   "admin.table.apply": "Apply",
@@ -2896,5 +2896,6 @@
   "admin.table.op.eq": "equals",
   "admin.table.op.empty": "is empty",
   "admin.table.op.not_empty": "is not empty",
-  "admin.table.selection.all": "Select all {total} matching the filter"
+  "admin.table.selection.all": "Select all {total} matching the filter",
+  "admin.limits.field.LabTelemetryParticipants": "Participant telemetry"
 }

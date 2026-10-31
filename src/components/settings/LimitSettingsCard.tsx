@@ -29,6 +29,7 @@ type Draft = Record<string, Entry>
 // Cross-field rules, checked when both keys are on the card (the server checks them too).
 const RULES: { key: string; other: string; holds: (value: number, other: number) => boolean; message: string }[] = [
   { key: "InactivityGrace", other: "InactiveAccount", holds: (value, other) => value < other, message: "admin.limits.error.lessThan" },
+  { key: "LabTelemetryParticipants", other: "LabTelemetry", holds: (value, other) => value <= other, message: "admin.limits.error.atMost" },
   { key: "LeaseMax", other: "Lease", holds: (value, other) => value >= other, message: "admin.limits.error.atLeast" },
   { key: "EntryBytes", other: "UnpackedBytes", holds: (value, other) => value <= other, message: "admin.limits.error.atMost" },
 ]
