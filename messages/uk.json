@@ -2897,5 +2897,7 @@
   "admin.table.op.empty": "порожнє",
   "admin.table.op.not_empty": "не порожнє",
   "admin.table.selection.all": "Вибрати всі {total} за фільтром",
-  "admin.limits.field.LabTelemetryParticipants": "Телеметрія учасників"
+  "admin.limits.field.LabTelemetryParticipants": "Телеметрія учасників",
+  "admin.settings.search": "Пошук за назвою або ключем",
+  "admin.settings.noMatch": "Налаштувань за таким запитом немає"
 }
