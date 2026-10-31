@@ -1,4 +1,5 @@
 "use client"
+import { CONTROL_SHAPE } from "@/components/ui/control"
 import { ListFilter } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
@@ -212,7 +213,7 @@ export function LogsTab() {
       </div>
 
       {userFilter && (
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-accent/10 px-3 py-1 text-sm text-foreground">
+        <div className={`inline-flex items-center gap-2 ${CONTROL_SHAPE} px-3 text-foreground`}>
           <span>{t("admin.notif.logs.filteredByName", { name: userFilter.name })}</span>
           <button
             onClick={() => { resetPage(); setUserFilter(null) }}

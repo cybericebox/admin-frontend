@@ -18,6 +18,7 @@
  *   (new)       → editable; Save button; type selector visible
  */
 
+import { CONTROL_SHAPE } from "@/components/ui/control"
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
@@ -575,7 +576,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                   <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     {t("admin.notif.editor.fontFamily")}
                     <select value={String(styling.font_family ?? "sans-serif")} onChange={(e) => setStylingKey("font_family", e.target.value)}
-                      className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground">
+                      className={`${CONTROL_SHAPE} px-2 text-foreground`}>
                       <option value="sans-serif">{t("admin.notif.editor.fontSansSerif")}</option>
                       <option value="Arial, sans-serif">Arial</option>
                       <option value="Georgia, serif">Georgia</option>
@@ -597,7 +598,7 @@ function Detail({ id, initialType = "" }: { id: string; initialType?: string }) 
                       <input type="number" min={min} max={max} step={unit ? 1 : 0.1}
                         value={parseFloat(String(styling[key] ?? fallback))}
                         onChange={(e) => setStylingKey(key, `${e.target.value}${unit}`)}
-                        className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground" />
+                        className={`${CONTROL_SHAPE} px-2 text-foreground`} />
                     </label>,
                   )}
                 </div>
