@@ -2907,7 +2907,7 @@
   "admin.table.date": "Date",
   "admin.table.dateFrom": "From",
   "admin.table.dateTo": "To",
-  "admin.events.filterPeriod": "Available from (period)",
+  "admin.events.filterPeriod": "Event start (period)",
   "admin.events.filterOrganizer": "Organizer",
   "admin.events.filterInfrastructure": "Task infrastructure",
   "admin.events.col.participants": "Participants",
@@ -2937,5 +2937,6 @@
   "admin.events.summary.site": "Event site",
   "admin.events.tagChange.title": "Change the address to “{tag}”?",
   "admin.events.tagChange.body": "The address of the event site changes: old links stop working and participants and organizers must use the new address.",
-  "admin.events.tagChange.confirm": "Change address"
+  "admin.events.tagChange.confirm": "Change address",
+  "admin.events.col.start": "Start"
 }
