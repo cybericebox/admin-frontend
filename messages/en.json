@@ -2897,5 +2897,7 @@
   "admin.table.op.empty": "is empty",
   "admin.table.op.not_empty": "is not empty",
   "admin.table.selection.all": "Select all {total} matching the filter",
-  "admin.limits.field.LabTelemetryParticipants": "Participant telemetry"
+  "admin.limits.field.LabTelemetryParticipants": "Participant telemetry",
+  "admin.settings.search": "Search by name or key",
+  "admin.settings.noMatch": "No settings match"
 }

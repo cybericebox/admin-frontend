@@ -153,6 +153,8 @@ export default function Page() {
                     <Field error={fields.ReplyToAddress} id="mail-reply-to-address" label={t("admin.mail.replyToAddress")} help={withSource(t("admin.mail.replyToAddressHelp"), settings.Sources.ReplyToAddress, "SMTP_REPLY_TO_EMAIL")}><Input id="mail-reply-to-address" type="email" value={identity.ReplyToAddress} onChange={(event) => changeIdentity("ReplyToAddress", event.target.value)} disabled={disabled} placeholder={effective.ReplyTo.Address} autoComplete="off" /></Field>
                   </div>
                 </section>
+                {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
+                {notice && <p role="status" className="rounded-md bg-[var(--ib-ok-bg)] p-3 text-sm text-foreground">{notice}</p>}
                 <RequirePermission perm="platform.settings.write">
                   <SaveButton dirty={identityDirty} onClick={saveIdentity} busy={identityBusy}>{t("admin.mail.save")}</SaveButton>
                 </RequirePermission>
@@ -163,8 +165,6 @@ export default function Page() {
 
             <MailProvidersCard settings={settings} canWrite={canWrite} update={setSettings} reload={reloadProviders} />
 
-            {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
-            {notice && <p role="status" className="rounded-md bg-[var(--ib-ok-bg)] p-3 text-sm text-foreground">{notice}</p>}
           </>
         )}
       </div>
