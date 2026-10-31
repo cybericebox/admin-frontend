@@ -9,6 +9,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 import type { CursorPage, OffsetPage } from "@/api/pagination"
 import { isUnsetEventDate } from "@/lib/eventDates"
+import { isComplete, withoutKey, type FilterBag } from "@/components/table/filters"
 
 const BASE = "/api/events"
 
@@ -34,6 +35,9 @@ export type Event = {
   UpdatedAt: string
 }
 
+/** A row of the admin list: the event with its counts (null/absent while the backend does not send them). */
+export type EventRow = Event & { ParticipantsCount?: number; TeamsCount?: number; StandsReady?: number; StandsTotal?: number }
+
 export type EventInput = {
   Tag: string
   Name: string
@@ -43,6 +47,8 @@ export type EventInput = {
 
 /** Creation-only fields: the infrastructure flag cannot change after creation. */
 export type EventCreateInput = EventInput & {
+  /** Copy the schedule, settings and organizers of this event (name, tag and start come from the body). */
+  CopyFromEventID?: string
   /** Omitted: the backend enables it when infrastructure is available. */
   InfrastructureAllowed?: boolean
 }
@@ -138,4 +144,59 @@ export type EventSchedule = { Configured: boolean; StartAt: string | null; Finis
 
 export function getEventSchedule(id: string): Promise<EventSchedule> {
   return apiGet<EventSchedule>(`${BASE}/${encodeURIComponent(id)}/manage/lifecycle`)
+}
+
+// ---- The admin list (docs/specs/ADMIN.md §2) ----
+export type EventListQuery = { search: string; bag: FilterBag; page: number; pageSize: number; sortBy: string; sortDir: "asc" | "desc" }
+
+const value = (bag: FilterBag, key: string) => (isComplete(bag[key]) ? bag[key] : undefined)
+
+/** The filters of a bag as query parameters: status (repeated), start period, organizer (repeated), infrastructure. */
+export function eventFilterParams(bag: FilterBag, p: URLSearchParams = new URLSearchParams()): URLSearchParams {
+  value(bag, "status")?.v.forEach((status) => p.append("status", status))
+  const period = value(bag, "period")
+  if (period) {
+    const [a = "", b = ""] = period.v
+    const from = period.op === "before" ? "" : a
+    const to = period.op === "before" ? a : period.op === "between" ? b : ""
+    p.set("period", `${from ? new Date(`${from}T00:00:00`).toISOString() : ""},${to ? new Date(`${to}T23:59:59`).toISOString() : ""}`)
+  }
+  value(bag, "organizer")?.v.forEach((id) => p.append("organizerID", id))
+  const infra = value(bag, "infrastructure")?.v[0]
+  if (infra) p.set("infrastructure", infra)
+  return p
+}
+
+export async function listEventsIndex(query: EventListQuery): Promise<OffsetPage<EventRow>> {
+  const params = new URLSearchParams()
+  if (query.search) params.set("search", query.search)
+  eventFilterParams(query.bag, params)
+  params.set("page", String(query.page))
+  params.set("pageSize", String(query.pageSize))
+  params.set("sortBy", query.sortBy)
+  params.set("sortDir", query.sortDir)
+  const raw = await apiGet<OffsetPage<EventRow>>(`${BASE}?${params}`)
+  return { ...raw, Items: (raw.Items ?? []).map(normalizeEvent) }
+}
+
+/** Counts of one filter field's values under the other filters (GET /api/events/facets); null when unknown. */
+export async function getEventFacets(field: string, search: string, others: FilterBag): Promise<Record<string, number> | null> {
+  const p = new URLSearchParams({ field })
+  if (search) p.set("search", search)
+  eventFilterParams(withoutKey(others, field), p)
+  try {
+    const res = await apiGet<{ Counts?: Record<string, number> } | null>(`${BASE}/facets?${p}`)
+    return res?.Counts ?? null
+  } catch { return null }
+}
+
+export type EventOrganizer = { UserID: string; Name: string; Email: string }
+/** GET /api/events/organizers: everyone who manages at least one event. */
+export const listEventOrganizers = () => apiGet<EventOrganizer[] | null>(`${BASE}/organizers`).then((items) => items ?? [])
+
+export type BulkArchiveResult = { EventID: string; Ok: boolean; Code?: string; Error?: string }
+/** POST /api/events/bulk/archive {EventIDs} (1..200): one result per event, in request order. */
+export async function bulkArchiveEvents(ids: string[]): Promise<BulkArchiveResult[]> {
+  const res = await apiPost<{ Results?: BulkArchiveResult[] }>(`${BASE}/bulk/archive`, { EventIDs: ids })
+  return res.Results ?? []
 }

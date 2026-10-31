@@ -2,7 +2,7 @@
 // A page describes its fields once as FilterDefs. A filter bag is { [key]: { op, v: string[] } }; every value is a
 // string so the bag round-trips through the address (`f.<key>=op:v1,v2`) and a saved view unchanged.
 
-export type FilterType = "choice" | "text" | "number" | "boolean"
+export type FilterType = "choice" | "text" | "number" | "boolean" | "date"
 export type FilterOption = { value: string; label: string }
 export type FilterDef = {
   key: string
@@ -14,7 +14,7 @@ export type FilterDef = {
   /** The operators the backend of the page understands; defaults by type. */
   ops?: Op[]
 }
-export type Op = "in" | "not_in" | "contains" | "is" | "gt" | "gte" | "lt" | "eq" | "empty" | "not_empty"
+export type Op = "in" | "not_in" | "contains" | "is" | "gt" | "gte" | "lt" | "eq" | "after" | "before" | "between" | "empty" | "not_empty"
 export type Cond = { op: Op; v: string[] }
 export type FilterBag = Record<string, Cond>
 
@@ -23,6 +23,7 @@ export const OPS_BY_TYPE: Record<FilterType, Op[]> = {
   text: ["contains", "is", "empty", "not_empty"],
   number: ["gt", "gte", "lt", "eq", "empty", "not_empty"],
   boolean: ["is"],
+  date: ["after", "before", "between"],
 }
 const VALUELESS = new Set<Op>(["empty", "not_empty"])
 const ALL_OPS = new Set<Op>(Object.values(OPS_BY_TYPE).flat())
@@ -36,6 +37,7 @@ const clean = (v: readonly string[] | undefined) => (v ?? []).filter((x) => type
 /** Does the condition carry everything its operator needs? */
 export function isComplete(cond: Cond | undefined): cond is Cond {
   if (!cond || !ALL_OPS.has(cond.op)) return false
+  if (cond.op === "between") return clean(cond.v).length >= 2
   return VALUELESS.has(cond.op) || clean(cond.v).length >= 1
 }
 
@@ -86,6 +88,7 @@ export function chipParts(def: FilterDef, cond: Cond | undefined, opLabel: (op: 
   if (!isComplete(cond)) return { key, op: "", value: any }
   const v = clean(cond.v)
   if (VALUELESS.has(cond.op)) return { key, op: opLabel(cond.op), value: "" }
+  if (cond.op === "between") return { key, op: opLabel("between"), value: `${v[0]} – ${v[1] ?? ""}` }
   if (def.type === "boolean") return { key, op: opLabel("is"), value: v[0] === "true" ? yes : no }
   if (cond.op === "in" || cond.op === "not_in") {
     const labels = v.map((x) => labelOf(def, x))
