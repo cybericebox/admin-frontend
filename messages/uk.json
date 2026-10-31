@@ -2907,7 +2907,7 @@
   "admin.table.date": "Дата",
   "admin.table.dateFrom": "Від",
   "admin.table.dateTo": "До",
-  "admin.events.filterPeriod": "Доступ із (період)",
+  "admin.events.filterPeriod": "Старт заходу (період)",
   "admin.events.filterOrganizer": "Організатор",
   "admin.events.filterInfrastructure": "Інфраструктура завдань",
   "admin.events.col.participants": "Учасники",
@@ -2937,5 +2937,6 @@
   "admin.events.summary.site": "Сайт заходу",
   "admin.events.tagChange.title": "Змінити посилання на «{tag}»?",
   "admin.events.tagChange.body": "Адреса сайту заходу зміниться: старі посилання перестануть працювати, учасникам і організаторам доведеться користуватися новою адресою.",
-  "admin.events.tagChange.confirm": "Змінити посилання"
+  "admin.events.tagChange.confirm": "Змінити посилання",
+  "admin.events.col.start": "Старт"
 }

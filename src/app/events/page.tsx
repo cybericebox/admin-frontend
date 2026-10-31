@@ -67,6 +67,7 @@ function EventsList() {
     { key: IDENTITY, label: t("admin.events.col.name"), sort: "name", width: 280, cell: (ev) => <Link className="ib-table__name block min-w-0 truncate hover:underline" title={eventName(ev)} href={`/events/detail?id=${encodeURIComponent(ev.ID)}`}>{eventName(ev)}</Link> },
     { key: "tag", label: t("admin.events.col.tag"), sort: "tag", width: 260, cell: (ev) => <EventSiteLink tag={ev.Tag} /> },
     { key: "status", label: t("admin.events.col.status"), sort: "status", width: 170, cell: (ev) => <EventStatusBadge event={ev} /> },
+    { key: "start", label: t("admin.events.col.start"), sort: "start", firstDesc: true, dim: true, width: 170, cell: (ev) => ev.StartAt ? <TimeText iso={ev.StartAt}>{formatListDateTime(ev.StartAt)}</TimeText> : "—" },
     { key: "availableFrom", label: t("admin.events.col.availableFrom"), sort: "availableFrom", firstDesc: true, dim: true, width: 170, cell: (ev) => <TimeText iso={ev.AvailableFrom}>{formatListDateTime(ev.AvailableFrom)}</TimeText> },
     { key: "archiveAt", label: t("admin.events.col.archiveAt"), sort: "archiveAt", firstDesc: true, dim: true, width: 170, cell: (ev) => isUnsetEventDate(ev.ArchiveAt) ? t("admin.events.notScheduled") : <TimeText iso={ev.ArchiveAt}>{formatListDateTime(ev.ArchiveAt)}</TimeText> },
     { key: "participants", label: t("admin.events.col.participants"), sort: "participants", firstDesc: true, width: 130, cell: (ev) => count(ev.ParticipantsCount) },
@@ -76,9 +77,9 @@ function EventsList() {
   ], [])
 
   const defs = useMemo<FilterDef[]>(() => [
-    { key: "status", label: t("admin.events.col.status"), type: "choice", ops: ["in"], options: STATUS_FILTERS.map((value) => ({ value, label: t(`admin.events.lifecycle.${value}`) })) },
+    { key: "status", label: t("admin.events.col.status"), type: "choice", single: true, ops: ["in"], options: STATUS_FILTERS.map((value) => ({ value, label: t(`admin.events.lifecycle.${value}`) })) },
     { key: "period", label: t("admin.events.filterPeriod"), type: "date" },
-    { key: "organizer", label: t("admin.events.filterOrganizer"), type: "choice", ops: ["in"], options: organizers.map((o) => ({ value: o.UserID, label: o.Name || o.Email })) },
+    { key: "organizer", label: t("admin.events.filterOrganizer"), type: "choice", single: true, ops: ["in"], options: organizers.map((o) => ({ value: o.UserID, label: o.Name || o.Email })) },
     { key: "infrastructure", label: t("admin.events.filterInfrastructure"), type: "boolean", ops: ["is"] },
   ], [organizers])
 

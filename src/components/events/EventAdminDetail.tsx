@@ -53,8 +53,8 @@ function EventSummary({ event, schedule }: { event: EventRow; schedule: EventSch
   const site = useEventSiteAddress(event.Tag, "").address
   const when = (iso: string | null | undefined) => !iso || isUnsetEventDate(iso) ? "—" : formatListDateTime(iso)
   const facts: [string, string][] = [
-    [t("admin.events.summary.start"), when(schedule?.Configured ? schedule.StartAt : event.AvailableFrom)],
-    [t("admin.events.summary.finish"), when(schedule?.FinishAt)],
+    [t("admin.events.summary.start"), when(event.StartAt ?? (schedule?.Configured ? schedule.StartAt : null))],
+    [t("admin.events.summary.finish"), when(event.FinishAt ?? schedule?.FinishAt)],
     [t("admin.events.summary.participants"), dash(event.ParticipantsCount)],
     [t("admin.events.summary.teams"), dash(event.TeamsCount)],
     [t("admin.events.summary.stands"), event.StandsTotal === undefined || event.StandsTotal === null ? "—" : `${event.StandsReady ?? 0} / ${event.StandsTotal}`],

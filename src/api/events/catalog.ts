@@ -13,8 +13,13 @@ import { isComplete, withoutKey, type FilterBag } from "@/components/table/filte
 
 const BASE = "/api/events"
 
-function normalizeEvent(value: Event): Event {
-  return isUnsetEventDate(value.ArchiveAt) ? { ...value, ArchiveAt: null } : value
+/** The counts the list and the card carry as one object (`Counts`); flattened onto the event for the screens. */
+type WireEvent = Event & { Counts?: { Participants?: number; Teams?: number; StandsReady?: number; StandsTotal?: number } | null; StartAt?: string | null; FinishAt?: string | null }
+
+function normalizeEvent(value: WireEvent): EventRow {
+  const { Counts, ...rest } = value
+  const flat: EventRow = { ...rest, ParticipantsCount: Counts?.Participants, TeamsCount: Counts?.Teams, StandsReady: Counts?.StandsReady, StandsTotal: Counts?.StandsTotal }
+  return isUnsetEventDate(flat.ArchiveAt) ? { ...flat, ArchiveAt: null } : flat
 }
 
 export type EventStatus = "pending" | "active" | "archived"
@@ -36,7 +41,7 @@ export type Event = {
 }
 
 /** A row of the admin list: the event with its counts (null/absent while the backend does not send them). */
-export type EventRow = Event & { ParticipantsCount?: number; TeamsCount?: number; StandsReady?: number; StandsTotal?: number }
+export type EventRow = Event & { ParticipantsCount?: number; TeamsCount?: number; StandsReady?: number; StandsTotal?: number; StartAt?: string | null; FinishAt?: string | null }
 
 export type EventInput = {
   Tag: string
@@ -97,7 +102,7 @@ export async function listEvents(filter?: EventsFilter): Promise<CursorPage<Even
 
 /** GET /api/events/:id */
 export async function getEvent(id: string): Promise<Event> {
-  return normalizeEvent(await apiGet<Event>(`${BASE}/${id}`))
+  return normalizeEvent(await apiGet<WireEvent>(`${BASE}/${id}`))
 }
 
 /** POST /api/events */
@@ -151,17 +156,22 @@ export type EventListQuery = { search: string; bag: FilterBag; page: number; pag
 
 const value = (bag: FilterBag, key: string) => (isComplete(bag[key]) ? bag[key] : undefined)
 
-/** The filters of a bag as query parameters: status (repeated), start period, organizer (repeated), infrastructure. */
+/** The filters of a bag as query parameters: status, start period (startFrom, startTo exclusive), organizer, infrastructure. */
 export function eventFilterParams(bag: FilterBag, p: URLSearchParams = new URLSearchParams()): URLSearchParams {
-  value(bag, "status")?.v.forEach((status) => p.append("status", status))
+  const status = value(bag, "status")?.v[0]
+  if (status) p.set("status", status)
   const period = value(bag, "period")
   if (period) {
     const [a = "", b = ""] = period.v
+    const day = (date: string, plus = 0) => new Date(new Date(`${date}T00:00:00`).getTime() + plus * 86400e3).toISOString()
     const from = period.op === "before" ? "" : a
     const to = period.op === "before" ? a : period.op === "between" ? b : ""
-    p.set("period", `${from ? new Date(`${from}T00:00:00`).toISOString() : ""},${to ? new Date(`${to}T23:59:59`).toISOString() : ""}`)
+    if (from) p.set("startFrom", day(from))
+    // «to» is exclusive on the server: the chosen day itself belongs to the period.
+    if (to) p.set("startTo", day(to, 1))
   }
-  value(bag, "organizer")?.v.forEach((id) => p.append("organizerID", id))
+  const organizer = value(bag, "organizer")?.v[0]
+  if (organizer) p.set("organizer", organizer)
   const infra = value(bag, "infrastructure")?.v[0]
   if (infra) p.set("infrastructure", infra)
   return p
@@ -175,7 +185,7 @@ export async function listEventsIndex(query: EventListQuery): Promise<OffsetPage
   params.set("pageSize", String(query.pageSize))
   params.set("sortBy", query.sortBy)
   params.set("sortDir", query.sortDir)
-  const raw = await apiGet<OffsetPage<EventRow>>(`${BASE}?${params}`)
+  const raw = await apiGet<OffsetPage<WireEvent>>(`${BASE}?${params}`)
   return { ...raw, Items: (raw.Items ?? []).map(normalizeEvent) }
 }
 
