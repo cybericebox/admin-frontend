@@ -128,9 +128,9 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
 /* Resizable columns: a fixed layout, widths from the view. The grip sits on the header's right edge. */
 .ib-table--fixed { table-layout: fixed; }
 .ib-table--fixed :is(th, td):not(.ib-table__actions) { overflow: hidden; text-overflow: ellipsis; }
-.ib-resize { position: absolute; top: 0; right: -3px; z-index: 4; width: 7px; height: 100%; cursor: col-resize; touch-action: none; }
-.ib-resize::after { content: ""; position: absolute; top: 25%; bottom: 25%; left: 3px; width: 1px; background: var(--ib-line); }
-.ib-resize:hover::after, .ib-resize:focus-visible::after { background: var(--ib-action); width: 2px; left: 2px; }
+.ib-resize { position: absolute; top: 0; right: 0; z-index: 4; width: 8px; height: 100%; cursor: col-resize; touch-action: none; }
+.ib-resize::after { content: ""; position: absolute; top: 25%; bottom: 25%; left: 4px; width: 1px; background: var(--ib-line); }
+.ib-resize:hover::after, .ib-resize:focus-visible::after { background: var(--ib-action); width: 2px; left: 3px; }
 .ib-resize:focus-visible { outline: none; }
 @container (max-width: 767px) {
   .ib-table--cards.ib-table--fixed { width: auto !important; min-width: 0 !important; }
