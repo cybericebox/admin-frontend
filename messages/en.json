@@ -2926,7 +2926,7 @@
   "admin.events.bulk.error": "Could not archive the events. Try again.",
   "admin.events.create.copyFrom": "Copy from an event",
   "admin.events.create.copyNone": "Do not copy",
-  "admin.events.create.copyHelp": "The schedule, settings and organizers are taken from the chosen event. The name, address and dates stay yours: you can change them.",
+  "admin.events.create.copyHelp": "Copied: the name, schedule, settings, pages and branding, organizers and task sets (unpublished). Not copied: participants, teams, invitations, results, stands, reservation, analytics. The site address and dates stay yours: you can change them.",
   "admin.events.create.copyName": "{name} (copy)",
   "admin.events.summary.start": "Start",
   "admin.events.summary.finish": "Finish",
