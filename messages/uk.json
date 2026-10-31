@@ -2882,7 +2882,7 @@
   "admin.table.filterUnpin": "Відкріпити фільтр «{name}»",
   "admin.table.filterRemove": "Прибрати фільтр «{name}»",
   "admin.table.filterOperator": "Умова",
-    "admin.table.any": "будь-яке",
+  "admin.table.any": "будь-яке",
   "admin.table.yes": "Так",
   "admin.table.no": "Ні",
   "admin.table.apply": "Застосувати",
@@ -2896,5 +2896,6 @@
   "admin.table.op.eq": "дорівнює",
   "admin.table.op.empty": "порожнє",
   "admin.table.op.not_empty": "не порожнє",
-  "admin.table.selection.all": "Вибрати всі {total} за фільтром"
+  "admin.table.selection.all": "Вибрати всі {total} за фільтром",
+  "admin.limits.field.LabTelemetryParticipants": "Телеметрія учасників"
 }
