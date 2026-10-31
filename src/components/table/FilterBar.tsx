@@ -16,6 +16,7 @@ export type Facets = Record<string, number> | null
 export type FacetSource = (def: FilterDef, others: FilterBag) => Promise<Facets>
 
 const opText = (op: Op) => t(`admin.table.op.${op}`)
+const daysAgo = (days: number) => new Date(Date.now() - days * 86400e3).toISOString().slice(0, 10)
 const countText = (count: number | null | undefined) => count === undefined ? "·" : count === null ? "—" : String(count)
 
 function useFacets(def: FilterDef, bag: FilterBag, source: FacetSource | undefined, enabled: boolean) {
@@ -38,6 +39,8 @@ function Editor({ def, cond, bag, facets, onChange }: { def: FilterDef; cond: Co
   const ops = opsOf(def)
   const op = cond?.op ?? defaultOp(def)
   const [draft, setDraft] = useState(cond?.v[0] ?? "")
+  const [dates, setDates] = useState<string[]>(cond?.v ?? [])
+  const setDate = (index: number, value: string) => { const next = [...dates]; next[index] = value; setDates(next); apply({ op, v: next }) }
   const counts = useFacets(def, bag, facets, true)
   const values = cond?.v ?? []
   const apply = (next: Cond | undefined) => onChange(next && isComplete(next) ? next : undefined)
@@ -56,6 +59,11 @@ function Editor({ def, cond, bag, facets, onChange }: { def: FilterDef; cond: Co
     {!isValueless(op) && def.type === "boolean" && <div role="radiogroup" className="flex gap-2">
       {["true", "false"].map((value) => <Button key={value} type="button" role="radio" aria-checked={values[0] === value} variant={values[0] === value ? "default" : "outline"} size="sm"
         onClick={() => apply({ op: "is", v: [value] })}>{t(value === "true" ? "admin.table.yes" : "admin.table.no")}</Button>)}
+    </div>}
+    {def.type === "date" && <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">{[7, 30, 90].map((days) => <Button key={days} type="button" variant="outline" size="sm" onClick={() => { setDates([daysAgo(days)]); apply({ op: "after", v: [daysAgo(days)] }) }}>{t("admin.table.lastDays", { count: days })}</Button>)}</div>
+      <Input type="date" value={dates[0] ?? ""} aria-label={t(op === "between" ? "admin.table.dateFrom" : "admin.table.date")} onChange={(event) => setDate(0, event.target.value)} />
+      {op === "between" && <Input type="date" value={dates[1] ?? ""} aria-label={t("admin.table.dateTo")} onChange={(event) => setDate(1, event.target.value)} />}
     </div>}
     {!isValueless(op) && (def.type === "number" || def.type === "text") && <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); apply({ op, v: [draft.trim()] }) }}>
       <Input value={draft} inputMode={def.type === "number" ? "numeric" : undefined} onChange={(event) => setDraft(event.target.value)} aria-label={def.label} />
