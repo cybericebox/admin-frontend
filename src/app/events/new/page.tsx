@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
-import { createEvent, getInfrastructureAvailable, listEventManagers, type Event, type EventManager } from "@/api/events/catalog"
+import { createEvent, getInfrastructureAvailable, listEventManagers, listEventsIndex, type Event, type EventManager, type EventRow } from "@/api/events/catalog"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { EventManagersCard } from "@/components/events/EventManagersCard"
 import { Button } from "@/components/ui/button"
 import { LoadError } from "@/components/ui/load-error"
@@ -15,7 +16,7 @@ import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { FieldValidation } from "@/components/ui/field-validation"
 import { eventErrorField, eventErrorMessage } from "@/lib/eventErrors"
-import { eventFormSchema, localToIso, type EventFormValues } from "@/lib/eventSchemas"
+import { eventFormSchema, isoToLocal, localToIso, type EventFormValues } from "@/lib/eventSchemas"
 import { eventDomain } from "@/lib/origins"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -32,6 +33,23 @@ export default function NewEventPage() {
   const [fields, setFields] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [infrastructure, setInfrastructure] = useState(true)
+  // «Скопіювати із заходу»: the schedule, the settings and the organizers of an existing event; name and tag stay new.
+  const [sources, setSources] = useState<EventRow[]>([])
+  const [copyFrom, setCopyFrom] = useState("")
+  useEffect(() => {
+    let active = true
+    listEventsIndex({ search: "", bag: {}, page: 1, pageSize: 100, sortBy: "updated", sortDir: "desc" })
+      .then((page) => { if (active) setSources(page.Items ?? []) })
+      .catch(() => { /* copying is optional: the form works without it */ })
+    return () => { active = false }
+  }, [])
+  function chooseSource(id: string) {
+    setCopyFrom(id)
+    const source = sources.find((item) => item.ID === id)
+    if (!source) return
+    setDraft((current) => ({ ...current, Name: current.Name || t("admin.events.create.copyName", { name: source.Name || source.Tag }), AvailableFrom: isoToLocal(source.AvailableFrom), ArchiveAt: isoToLocal(source.ArchiveAt) }))
+    if (source.InfrastructureAllowed !== undefined) setInfrastructure(source.InfrastructureAllowed)
+  }
   // null = unknown (no infrastructure.read or the status request failed):
   // keep the choice enabled and let the backend validate it.
   const [infrastructureAvailable, setInfrastructureAvailable] = useState<boolean | null>(null)
@@ -73,6 +91,7 @@ export default function NewEventPage() {
         AvailableFrom: localToIso(draft.AvailableFrom),
         ArchiveAt: draft.ArchiveAt ? localToIso(draft.ArchiveAt) : null,
         InfrastructureAllowed: infrastructure,
+        ...(copyFrom ? { CopyFromEventID: copyFrom } : {}),
       })
       setCreated(saved)
       toast.success(t("admin.events.create.created"))
@@ -93,6 +112,9 @@ export default function NewEventPage() {
       crumbs={[{ label: t("admin.nav.events"), href: "/events" }, { label: t("admin.events.create.title") }]} />
     {!created ? <Card><CardContent className="pt-5">
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
+        {sources.length > 0 && <div className="space-y-1.5"><div className="flex items-center gap-1.5"><span className="text-sm font-medium">{t("admin.events.create.copyFrom")}</span><FieldHelp text={t("admin.events.create.copyHelp")} /></div>
+          <SelectMenu value={copyFrom} onChange={chooseSource} ariaLabel={t("admin.events.create.copyFrom")} placeholder={t("admin.events.create.copyNone")}
+            options={[{ value: "", label: t("admin.events.create.copyNone") }, ...sources.map((item) => ({ value: item.ID, label: item.Name || item.Tag }))]} className="w-full" /></div>}
         <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-name" className="text-sm font-medium">{t("admin.events.field.name")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.nameHelp")} /></div><FieldValidation label={t("admin.events.field.name")} error={fields.Name}><Input id="new-event-name" value={draft.Name} onChange={(event) => { setFields((current) => ({ ...current, Name: "" })); setDraft({ ...draft, Name: event.target.value }) }} required /></FieldValidation></div>
         <div className="space-y-1.5"><div className="flex items-center gap-1.5"><label htmlFor="new-event-tag" className="text-sm font-medium">{t("admin.events.field.tag")} <span className="text-destructive" aria-hidden="true">*</span></label><FieldHelp text={t("admin.events.field.tagHelp")} /></div><FieldValidation label={t("admin.events.field.tag")} error={fields.Tag}><div className="flex h-10 min-w-0 items-center overflow-hidden rounded-md border border-border bg-card text-sm text-foreground focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40"><span className="shrink-0 pl-3 text-muted-foreground">https://</span><Input id="new-event-tag" value={draft.Tag} onChange={(event) => { setFields((current) => ({ ...current, Tag: "" })); setDraft({ ...draft, Tag: event.target.value }) }} autoComplete="off" spellCheck={false} placeholder={t("admin.events.field.tagPlaceholder")} required className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-1 font-mono shadow-none focus-visible:border-0 focus-visible:ring-0" />{domain && <span className="shrink-0 pr-3 font-mono text-muted-foreground">.{domain}</span>}</div></FieldValidation></div>
         <div className="grid gap-4 sm:grid-cols-2">

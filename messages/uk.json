@@ -2923,5 +2923,19 @@
   "admin.events.bulk.done.few": "Архівовано {count} заходи",
   "admin.events.bulk.done.many": "Архівовано {count} заходів",
   "admin.events.bulk.partial": "Архівовано: {done}, пропущено: {skipped}",
-  "admin.events.bulk.error": "Не вдалося архівувати заходи. Спробуйте ще раз."
+  "admin.events.bulk.error": "Не вдалося архівувати заходи. Спробуйте ще раз.",
+  "admin.events.create.copyFrom": "Скопіювати із заходу",
+  "admin.events.create.copyNone": "Не копіювати",
+  "admin.events.create.copyHelp": "Розклад, налаштування й організатори беруться з обраного заходу. Назва, посилання та дати лишаються вашими: їх можна змінити.",
+  "admin.events.create.copyName": "{name} (копія)",
+  "admin.events.summary.start": "Старт",
+  "admin.events.summary.finish": "Фініш",
+  "admin.events.summary.participants": "Учасники",
+  "admin.events.summary.teams": "Команди",
+  "admin.events.summary.stands": "Стенди (готові / усього)",
+  "admin.events.summary.panel": "Панель заходу",
+  "admin.events.summary.site": "Сайт заходу",
+  "admin.events.tagChange.title": "Змінити посилання на «{tag}»?",
+  "admin.events.tagChange.body": "Адреса сайту заходу зміниться: старі посилання перестануть працювати, учасникам і організаторам доведеться користуватися новою адресою.",
+  "admin.events.tagChange.confirm": "Змінити посилання"
 }
