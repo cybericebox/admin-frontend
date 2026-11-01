@@ -85,6 +85,14 @@ export function listBroadcasts(params: { limit: number; cursor?: string | null }
   return apiGet<CursorPage<Broadcast>>(`${BASE}?${query.toString()}`)
 }
 
+/** The offset mode: page, pageSize, search, status (sending|done|failed|canceled), sortBy (subject|status|recipients|created), sortDir. */
+export function listBroadcastsPage(params: { page: number; pageSize: number; search: string; status: string; sortBy: string; sortDir: 'asc' | 'desc' }): Promise<{ Items?: Broadcast[] | null; Total?: number }> {
+  const query = new URLSearchParams({ page: String(params.page), pageSize: String(params.pageSize), sortBy: params.sortBy, sortDir: params.sortDir })
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
+  return apiGet(`${BASE}?${query.toString()}`)
+}
+
 export function getBroadcast(id: string): Promise<Broadcast> {
   return apiGet<Broadcast>(`${BASE}/${encodeURIComponent(id)}`)
 }

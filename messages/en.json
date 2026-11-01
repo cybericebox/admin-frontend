@@ -3105,5 +3105,7 @@
   "admin.platformAnalytics.events.table.search": "Search by event name or tag",
   "admin.platformAnalytics.tasks.search": "Search by exercise",
   "admin.errors.sample.dispatch": "Dispatch",
-  "admin.errors.sample.dispatchOpen": "Open the delivery log entry"
+  "admin.errors.sample.dispatchOpen": "Open the delivery log entry",
+  "admin.notif.broadcast.search": "Search by subject, title or event",
+  "admin.notif.broadcast.emptyFiltered": "No broadcasts found"
 }
