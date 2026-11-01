@@ -1,24 +1,58 @@
-import { describe, expect, it, vi } from "vitest"
-import { render } from "@testing-library/react"
-import { renderToStaticMarkup } from "react-dom/server"
-import { Analytics } from "./Analytics"
+// @vitest-environment jsdom
+// Without analytics consent nothing of GA is on the page; a later «no» switches a loaded gtag off.
+import { act } from "react"
+import { createRoot } from "react-dom/client"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
-// next/script stands in as a marker element carrying the id and src
-vi.mock("next/script", () => ({ default: (p: { id: string; src?: string }) => <i data-script={p.id} data-src={p.src} /> }))
+vi.mock("next/script", () => ({ default: ({ id, src }: { id: string; src?: string }) => <script data-script={id} data-src={src} /> }))
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard/" }))
+vi.mock("./ConsentBanner", () => ({ ConsentBanner: () => null }))
+
+import { Analytics } from "./Analytics"
+import { CONSENT_CHANGE_EVENT, gaDisableKey } from "@/lib/consent"
+
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+const setConsent = (value: string | null) => {
+  document.cookie = value === null ? "cib_consent=; path=/; max-age=0" : `cib_consent=${value}; path=/`
+  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
+}
 
 describe("Analytics", () => {
-  it("without GA mounts only the consent panel: no gtag script", () => {
-    const { container } = render(<Analytics />)
-    expect(container.querySelector("[data-script]")).toBeNull()
+  let host: HTMLElement
+  let root: ReturnType<typeof createRoot>
+  beforeEach(() => {
+    setConsent(null)
+    host = document.body.appendChild(document.createElement("div"))
+    root = createRoot(host)
+  })
+  afterEach(() => {
+    act(() => root.unmount())
+    host.remove()
+    delete (window as unknown as Record<string, unknown>)[gaDisableKey("G-TEST")]
   })
 
-  it("with GA loads the boot script and gtag.js", () => {
-    const { container } = render(<Analytics gaId="G-TEST" />)
-    expect(container.querySelector('[data-src*="googletagmanager"]')).not.toBeNull()
+  const scripts = () => host.querySelectorAll("script[data-script]")
+
+  it("without an id mounts nothing of GA, even with consent", async () => {
+    await act(async () => { root.render(<Analytics />) })
+    await act(async () => { setConsent("analytics:granted,functional:denied") })
+    expect(scripts()).toHaveLength(0)
   })
 
-  it("the static HTML never carries gtag, even with an id: the id is the build placeholder there, the runtime value is known only in the browser", () => {
-    expect(renderToStaticMarkup(<Analytics gaId="__NEXT_PUBLIC_GOOGLE_ANALYTICS_ID__" />)).not.toContain("data-script")
+  it("renders no GA script before a choice and after a «no»", async () => {
+    await act(async () => { root.render(<Analytics gaId="G-TEST" />) })
+    expect(scripts()).toHaveLength(0)
+    await act(async () => { setConsent("analytics:denied,functional:denied") })
+    expect(scripts()).toHaveLength(0)
+  })
+
+  it("loads GA once analytics is allowed, and a later «no» turns it off", async () => {
+    await act(async () => { root.render(<Analytics gaId="G-TEST" />) })
+    await act(async () => { setConsent("analytics:granted,functional:denied") })
+    expect(scripts()).toHaveLength(2)
+    expect((window as unknown as Record<string, unknown>)[gaDisableKey("G-TEST")]).toBeFalsy()
+    await act(async () => { setConsent("analytics:denied,functional:denied") })
+    expect((window as unknown as Record<string, unknown>)[gaDisableKey("G-TEST")]).toBe(true)
   })
 })
