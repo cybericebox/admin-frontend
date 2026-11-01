@@ -1,116 +1,65 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import Page from "./page"
 
-const api = vi.hoisted(() => ({ get: vi.fn(), events: vi.fn() }))
+const api = vi.hoisted(() => ({ get: vi.fn() }))
 vi.mock("@/api/client", () => ({ apiGet: api.get }))
-vi.mock("@/api/events/catalog", () => ({ listEvents: api.events }))
 const rights = vi.hoisted(() => ({ denied: new Set<string>() }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => !rights.denied.has(permission) }) }))
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}:${JSON.stringify(vars)}` : key }))
 
-describe("operational overview", () => {
+const summary = {
+  Attention: [
+    { Kind: "failed_stands", Count: 2, Items: [{ Label: "Осінній CTF · Лисиці", Href: "/labs?status=failed&eventId=e1" }] },
+    { Kind: "open_errors", Count: 1 },
+  ],
+  Events: [{ ID: "e1", Name: "Осінній CTF", Tag: "autumn", LifecycleStatus: "started", StartAt: "2026-11-02T09:00:00Z", Running: true, Participants: 40, Teams: 10, StandsReady: 8, StandsTotal: 10 }],
+  Trends: { Days: ["1", "2", "3", "4", "5", "6", "7"], Signups: [1, 2, 3, 4, 5, 6, 7], ActiveUsers: [2, 2, 2, 2, 2, 2, 2], Solves: [0, 0, 0, 0, 0, 0, 0] },
+  Infra: { CPUPercent: 41.5, MemoryPercent: 60, StandsActive: 7, StandsFailed: 2, Healthy: true, Available: true },
+}
+
+describe("dashboard", () => {
   beforeEach(() => {
     rights.denied = new Set()
     api.get.mockReset()
-    api.events.mockReset()
-    api.get.mockImplementation((path: string) => {
-      if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
-      if (path === "/api/infrastructure/status") return Promise.resolve({ Available: false, Healthy: false, agents: [] })
-      if (path === "/api/infrastructure/summary") return Promise.resolve({ Stands: { Total: 9, Creating: 1, Ready: 6, Failed: 2, Removed: 0, Active: 7 }, TestLabs: { Total: 4, Active: 3, Expired: 1 }, Capacity: { Available: true, CPUPercent: 42.5, MemoryPercent: null } })
-      if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 20, ByStatus: [] })
-      return Promise.reject(new Error(path))
-    })
-    api.events.mockResolvedValue({ Items: [{ ID: "e1", Name: "Осінній CTF", Tag: "autumn", Status: "active" }], Total: 1 })
+    api.get.mockResolvedValue(summary)
   })
 
-  it("shows real platform signals and paths to the corresponding sections", async () => {
+  it("lists what needs attention as links to the place to fix it", async () => {
     render(<Page />)
-    expect(await screen.findByText("Осінній CTF")).toBeInTheDocument()
-    expect(screen.getByText("12")).toBeInTheDocument()
-    expect(screen.getByText("admin.dashboard.infra.disconnected")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "admin.dashboard.allEvents" })).toHaveAttribute("href", "/events")
-    expect(api.get).toHaveBeenCalledWith("/api/infrastructure/status")
-    expect(api.get).toHaveBeenCalledWith("/api/users/stats")
+    const stands = await screen.findByRole("link", { name: /admin.dashboard.attention.failed_stands/ })
+    expect(stands).toHaveAttribute("href", "/labs?status=failed")
+    expect(screen.getByRole("link", { name: "Осінній CTF · Лисиці" })).toHaveAttribute("href", "/labs?status=failed&eventId=e1")
+    expect(screen.getByRole("link", { name: /admin.dashboard.attention.open_errors/ })).toHaveAttribute("href", "/errors")
   })
 
-  it("counts failed deliveries per channel, even when the dispatch itself is done", async () => {
-    api.get.mockImplementation((path: string) => {
-      if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 2, ByStatus: [{ Key: "done", Count: 2 }], ByChannel: [{ Channel: "email", Status: "error", Count: 2 }, { Channel: "inapp", Status: "done", Count: 2 }] })
-      if (path === "/api/users/stats") return Promise.resolve({ Total: 12 })
-      return Promise.reject(new Error(path))
-    })
-    render(<Page />)
-    const tile = (await screen.findByText("admin.dashboard.deliveryErrors7d")).closest("a")!
-    await waitFor(() => expect(tile).toHaveTextContent("2"))
-  })
-
-  it("shows stand and cluster tiles that click through to the filtered labs list", async () => {
-    render(<Page />)
-    const failed = (await screen.findByText("admin.dashboard.standsFailed")).closest("a")!
-    expect(failed).toHaveAttribute("href", "/labs?status=failed")
-    expect(failed).toHaveTextContent("2")
-    const active = screen.getByText("admin.dashboard.standsActive").closest("a")!
-    expect(active).toHaveAttribute("href", "/labs?status=active")
-    // Team stands (7) and catalog test labs (3) are all labs on the infrastructure.
-    expect(active).toHaveTextContent("10")
-    expect(active).toHaveTextContent("admin.dashboard.testLabsActive")
-    const cpu = screen.getByText("admin.dashboard.clusterCpu").closest("a")!
-    expect(cpu).toHaveAttribute("href", "/labs#capacity")
-    expect(cpu).toHaveTextContent("42,5%")
-    expect(screen.getByText("admin.dashboard.clusterMemory").closest("a")).toHaveTextContent("—")
-  })
-
-  it("polls the infrastructure tiles and pauses while the tab is hidden", async () => {
-    vi.useFakeTimers()
-    const statusCalls = () => api.get.mock.calls.filter((c) => c[0] === "/api/infrastructure/summary").length
-    render(<Page />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-    expect(statusCalls()).toBe(1)
-    await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
-    expect(statusCalls()).toBe(2)
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => true })
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
-    expect(statusCalls()).toBe(2)
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => false })
-    vi.useRealTimers()
-  })
-
-  it("keeps available sections visible if one feed fails", async () => {
-    api.get.mockImplementation((path: string) => path === "/api/users/stats" ? Promise.reject(new Error("users")) : Promise.resolve({ Available: false, Healthy: false, agents: [], Total: 20, ByStatus: [] }))
-    render(<Page />)
-    expect(await screen.findByText("Осінній CTF")).toBeInTheDocument()
-    expect(screen.getByText("admin.dashboard.infra.disconnected")).toBeInTheDocument()
-    expect(screen.getByRole("alert")).toHaveTextContent("admin.dashboard.partialError")
-  })
-
-  it("retries failed overview data without leaving the page", async () => {
-    let attempts = 0
-    api.get.mockImplementation((path: string) => {
-      if (path === "/api/users/stats") return ++attempts === 1 ? Promise.reject(new Error("offline")) : Promise.resolve({ Total: 12 })
-      if (path === "/api/infrastructure/status") return Promise.resolve({ Available: false, Healthy: false })
-      if (path.startsWith("/api/notifications/stats")) return Promise.resolve({ Total: 20, ByStatus: [] })
-      return Promise.reject(new Error(path))
-    })
-    render(<Page />)
-    fireEvent.click(await screen.findByRole("button", { name: "error.load.retry" }))
-    await waitFor(() => expect(screen.getByText("12")).toBeInTheDocument())
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-  })
-
-  it("sends the users tile to the analytics page with analytics.read and to the users list without it", async () => {
-    const { unmount } = render(<Page />)
-    expect((await screen.findByText("admin.dashboard.users")).closest("a")).toHaveAttribute("href", "/analytics/users")
-    unmount()
-    rights.denied = new Set(["analytics.read"])
-    render(<Page />)
-    expect((await screen.findByText("admin.dashboard.users")).closest("a")).toHaveAttribute("href", "/users")
-  })
-
-  it("links each recent event to its page and shows the same lifecycle status as the events list", async () => {
-    api.events.mockResolvedValue({ Items: [{ ID: "e1", Name: "Осінній CTF", Tag: "autumn", Status: "active", LifecycleStatus: "started" }], Total: 1 })
+  it("shows running events with their counts, the 7-day trends and the infrastructure", async () => {
     render(<Page />)
     expect(await screen.findByRole("link", { name: "Осінній CTF" })).toHaveAttribute("href", "/events/detail?id=e1")
-    expect(screen.getByText("admin.events.lifecycle.started")).toBeInTheDocument()
+    expect(screen.getByText(/admin.dashboard.eventCounts.*"stands":"8\/10"/)).toBeInTheDocument()
+    expect(screen.getAllByRole("img", { name: /admin.dashboard.trendLabel/ })).toHaveLength(3)
+    expect(screen.getByText("41,5%")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "admin.dashboard.action.createEvent" })).toHaveAttribute("href", "/events/new")
+    expect(screen.getByRole("link", { name: "admin.dashboard.action.invite" })).toHaveAttribute("href", "/users?invite=1")
+  })
+
+  it("hides a block the backend did not send and the actions the person may not use", async () => {
+    rights.denied = new Set(["events.write", "users.invite"])
+    api.get.mockResolvedValue({ Attention: [], Events: null, Trends: null, Infra: null })
+    render(<Page />)
+    expect(await screen.findByText("admin.dashboard.attentionNone")).toBeInTheDocument()
+    expect(screen.queryByText("admin.dashboard.nowSoon")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.dashboard.trends")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.dashboard.infrastructure")).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "admin.dashboard.action.createEvent" })).not.toBeInTheDocument()
+  })
+
+  it("offers a retry when the first load fails and keeps the page when a refresh fails", async () => {
+    api.get.mockRejectedValueOnce(new Error("offline"))
+    render(<Page />)
+    expect(await screen.findByText("admin.dashboard.loadError")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
+    expect(await screen.findByRole("link", { name: /failed_stands/ })).toBeInTheDocument()
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
   })
 })
