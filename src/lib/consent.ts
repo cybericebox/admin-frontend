@@ -11,7 +11,10 @@ import { FUNCTIONAL_STORAGE } from "@/lib/storageKeys"
  * withdrawn) and «Аналітика» (Google Analytics, off until the user turns it on). Google Consent Mode v2:
  * every signal defaults to `denied` before gtag loads; analytics consent maps
  * to `analytics_storage` only, the ad signals stay denied forever (the
- * platform runs no ads). Without consent GA runs cookieless (consent pings).
+ * platform runs no ads). Without consent GA is not loaded at all: nothing is
+ * sent, not even cookieless pings. GA never gets the query or the hash of a page
+ * (one-time tokens, return_to): page_location and page_referrer are the origin
+ * and the path only.
  *
  * The choice lives in the `cib_consent` cookie on the parent domain
  * (.<NEXT_PUBLIC_DOMAIN>, 12 months) as `analytics:granted|denied,functional:granted|denied`, so a choice
@@ -75,9 +78,25 @@ export function shouldShowBanner(prefs: ConsentPrefs | null): boolean {
   return prefs === null
 }
 
+/** GA is loaded only when it is configured and the visitor allowed analytics. */
+export function shouldLoadAnalytics(gaId: string | undefined, prefs: ConsentPrefs | null): boolean {
+  return Boolean(gaId) && prefs?.analytics === true
+}
+
+/** The page address GA may see: the origin and the path, never the query or the hash. */
+export function analyticsPageLocation(loc: Pick<Location, "origin" | "pathname">): string {
+  return loc.origin + loc.pathname
+}
+
+/** GA's own opt-out flag: set when analytics is turned off after gtag.js has loaded. */
+export function gaDisableKey(gaId: string): string {
+  return `ga-disable-${gaId}`
+}
+
 /**
  * Inline gtag bootstrap, run before gtag.js: denied defaults, then the stored
- * choice, then config. gaId goes in through JSON.stringify (no script injection).
+ * choice, then config with the page address and referrer reduced to origin +
+ * path. gaId goes in through JSON.stringify (no script injection).
  */
 export function gtagBootScript(gaId: string): string {
   return [
@@ -85,7 +104,9 @@ export function gtagBootScript(gaId: string): string {
     `gtag("consent","default",${JSON.stringify(CONSENT_DEFAULTS)});`,
     `gtag("set","ads_data_redaction",true);`,
     `if(new RegExp(${JSON.stringify(ANALYTICS_GRANTED)}).test(document.cookie))gtag("consent","update",${JSON.stringify(consentUpdate(ACCEPT_ALL))});`,
-    `gtag("js",new Date());gtag("config",${JSON.stringify(gaId)});`,
+    'var cibRef="";try{var cibU=new URL(document.referrer);cibRef=cibU.origin+cibU.pathname}catch(e){}',
+    'var cibLoc=typeof location!=="undefined"?location.origin+location.pathname:"";',
+    `gtag("js",new Date());gtag("config",${JSON.stringify(gaId)},{page_location:cibLoc,page_referrer:cibRef});`,
   ].join("")
 }
 
