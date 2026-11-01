@@ -17,6 +17,8 @@ describe("admin users table standard", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    // table views kept in the browser are functional storage: only written with functional consent
+    document.cookie = "cib_consent=analytics:denied,functional:granted; path=/"
     window.history.replaceState(null, "", "/test/")
     mocks.get.mockResolvedValue({ Items: [row("anna"), row("boris", { Status: "incomplete" }), row("me", { ID: "me" }), row("root", { Role: "super_admin" })], Total: 4 })
     mocks.post.mockResolvedValue({ Results: [{ ID: "anna", Ok: true }] })

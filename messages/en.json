@@ -982,7 +982,7 @@
   "admin.events.archived": "Event archived.",
   "admin.events.deleted": "Event deleted.",
   "consent.label": "Cookie consent",
-  "consent.text": "We use cookies to make the site work and, with your consent, to improve it. {link}",
+  "consent.text": "We use cookies to make the site work and, with your consent, for convenience and to improve it. {link}",
   "consent.policyLink": "Cookie Policy",
   "consent.policyLinkNewTab": "Cookie Policy (opens in a new tab)",
   "consent.policy": "Details: {link}.",
@@ -2989,5 +2989,7 @@
   "admin.agents.emptyFiltered": "No agents match these conditions.",
   "admin.platformAnalytics.period.custom": "Custom range",
   "admin.platformAnalytics.period.compare": "Compare with the previous period",
-  "admin.platformAnalytics.period.rangeError": "The end must not be before the start."
+  "admin.platformAnalytics.period.rangeError": "The end must not be before the start.",
+  "consent.functional.title": "Functional",
+  "consent.functional.text": "Remember conveniences: that you are signed in, how tables look, read messages."
 }

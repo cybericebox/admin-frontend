@@ -5,6 +5,7 @@
 // Categorized inbox (docs/INBOX-DESIGN.md §3). The reference implementation: copied one-to-one
 // to id, admin, exercises and event; each app only sets the props below.
 
+import { functionalAllowed } from "@/lib/consent"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
@@ -281,6 +282,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   function announceRead() {
     try {
+      if (!functionalAllowed()) return
       const previous = window.localStorage.getItem(STORAGE_INBOX_READ)
       window.localStorage.setItem(STORAGE_INBOX_READ, previous === "1" ? "0" : "1")
     } catch { /* The next pulse still synchronizes read state. */ }
