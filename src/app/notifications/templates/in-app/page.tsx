@@ -37,6 +37,8 @@ import { notifTypeLabel } from "@/utils/notifType"
 import { useRole } from "@/lib/useRole"
 import { LoadingArea } from "@/components/ui/spinner"
 import { PageHeader } from "@/components/ui/page-header"
+import { TemplateChannelTabs } from "@/components/notifications/templates/TemplateChannelTabs"
+import { SortableHeading, compareEntries, nextSort, type TemplateSort } from "@/components/notifications/templates/templateSort"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -83,6 +85,7 @@ function InAppTemplateList() {
   const canCustom = role.can("notifications.broadcast")
   const custom = useCustomTemplates("in_app", canCustom)
   const [kind, setKind] = useState<TemplateKindFilter>("all")
+  const [sort, setSort] = useState<TemplateSort>({ key: "type", dir: "asc" })
   const [entries, setEntries] = useState<InAppLatestEntry[] | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -117,7 +120,7 @@ function InAppTemplateList() {
 
   const needle = search.trim().toLocaleLowerCase()
   const customShown = kind === "triggered" ? [] : custom.rows.filter((row) => row.Name.toLocaleLowerCase().includes(needle))
-  const list = kind === "custom" ? [] : [...(entries ?? [])].filter((entry) => notifTypeLabel(entry.NotificationType).toLocaleLowerCase().includes(search.toLocaleLowerCase()) || entry.NotificationType.toLowerCase().includes(search.toLowerCase())).sort((a, b) => notifTypeLabel(a.NotificationType).localeCompare(notifTypeLabel(b.NotificationType), "uk"))
+  const list = kind === "custom" ? [] : [...(entries ?? [])].filter((entry) => notifTypeLabel(entry.NotificationType).toLocaleLowerCase().includes(search.toLocaleLowerCase()) || entry.NotificationType.toLowerCase().includes(search.toLowerCase())).sort(compareEntries(sort, (id) => (id ? userNames[id]?.name ?? "" : "")))
 
   return (
     <div className="frost-in space-y-4">
@@ -128,6 +131,8 @@ function InAppTemplateList() {
           aria-label={t("admin.notif.list.search")} placeholder={t("admin.notif.list.search")} className="max-w-sm" />{canCustom && <TemplateKindSelect value={kind} onChange={setKind} />}</div>}
       />
 
+      <TemplateChannelTabs />
+
       {/* Empty state */}
       {list.length === 0 && customShown.length === 0 ? (
         <div className="rounded-lg border border-border bg-background"><EmptyState message={t("admin.notif.inapp.list.empty")} /></div>
@@ -137,11 +142,11 @@ function InAppTemplateList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-2.5 text-left">{canCustom ? t("admin.notif.customTpl.col.template") : t("admin.notif.list.colType")}</th>
+                <SortableHeading label={canCustom ? t("admin.notif.customTpl.col.template") : t("admin.notif.list.colType")} field="type" sort={sort} onSort={(field) => setSort(nextSort(sort, field))} />
                 {canCustom && <th className="px-4 py-2.5 text-left">{t("admin.notif.customTpl.col.kind")}</th>}
-                <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colStatus")}</th>
-                <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colUpdated")}</th>
-                <th className="px-4 py-2.5 text-left">{t("admin.notif.list.colUpdatedBy")}</th>
+                <SortableHeading label={t("admin.notif.list.colStatus")} field="status" sort={sort} onSort={(field) => setSort(nextSort(sort, field))} />
+                <SortableHeading label={t("admin.notif.list.colUpdated")} field="updated" sort={sort} onSort={(field) => setSort(nextSort(sort, field))} />
+                <SortableHeading label={t("admin.notif.list.colUpdatedBy")} field="updatedBy" sort={sort} onSort={(field) => setSort(nextSort(sort, field))} />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

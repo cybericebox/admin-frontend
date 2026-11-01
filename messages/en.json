@@ -3025,5 +3025,20 @@
   "admin.notif.settings.critical.title": "Turn off “{type}” ({channel})?",
   "admin.notif.settings.critical.body": "Without this message people cannot finish signing up, sign in or receive an invitation. Turn it off only if you know what you are doing.",
   "admin.notif.settings.critical.confirm": "Turn off",
-  "admin.notif.banners.where": "Where it shows now"
+  "admin.notif.banners.where": "Where it shows now",
+  "admin.notif.diff.action": "Compare",
+  "admin.notif.diff.title.dialog": "How the version differs from the current one",
+  "admin.notif.diff.legend": "Red: in the chosen version but not in the current one; green: added in the current one.",
+  "admin.notif.diff.same": "The content is the same.",
+  "admin.notif.diff.loadError": "Could not load the versions to compare",
+  "admin.notif.diff.subject": "Subject",
+  "admin.notif.diff.preheader": "Preheader",
+  "admin.notif.diff.button": "Button",
+  "admin.notif.diff.image": "Image",
+  "admin.notif.diff.title": "Title",
+  "admin.notif.diff.link": "Link",
+  "admin.notif.diff.added": "Added",
+  "admin.notif.diff.removed": "Removed",
+  "admin.notif.diff.same.line": "Unchanged",
+  "admin.notif.templates.channels": "Template channel"
 }
