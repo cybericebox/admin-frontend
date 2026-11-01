@@ -107,6 +107,20 @@ function targetSummary(banner: Pick<Banner, "TargetMode" | "TargetSites" | "Targ
   return parts.join(t("admin.notif.banners.targets.separator"))
 }
 
+const SUMMARY_SITES: BannerTargetSite[] = ["main", "id", "admin", "exercises", "event"]
+
+/** How many banners are on screen now on each site: a banner inside its window that targets all sites or the site. Event-picked banners show on the event site only. */
+export function bannersBySite(banners: Pick<Banner, "IsActive" | "ActiveFrom" | "ActiveTo" | "TargetMode" | "TargetSites">[], now = Date.now()): Record<BannerTargetSite, number> {
+  const counts = Object.fromEntries(SUMMARY_SITES.map((site) => [site, 0])) as Record<BannerTargetSite, number>
+  for (const banner of banners) {
+    if (bannerState(banner, now) !== "active") continue
+    for (const site of SUMMARY_SITES) {
+      if (banner.TargetMode !== "selected" || (banner.TargetSites ?? []).includes(site)) counts[site] += 1
+    }
+  }
+  return counts
+}
+
 function BannerDialog({ banner, onClose, onSaved }: { banner: Banner | "new"; onClose: () => void; onSaved: (saved: Banner, close: boolean) => void }) {
   const { draft: form, setDraft: setForm, dirty, accept } = useSavedDraft(banner === "new" ? EMPTY_FORM : toForm(banner), toInput)
   const [serverFields, setServerFields] = useState<Partial<Record<keyof Form, string>>>({})
@@ -280,6 +294,12 @@ export function BannersAdmin() {
         actions={canWrite ? <Button onClick={() => setEditing("new")}>{t("admin.notif.banners.create")}</Button> : undefined} />
     <div className="frost-panel frost-in flex min-h-0 flex-col overflow-hidden rounded-lg p-6">
       {actionError && <p role="alert" className="mb-2 text-sm text-destructive">{actionError}</p>}
+      {banners !== null && banners.length > 0 && <section aria-labelledby="banners-where" className="mb-4">
+        <h2 id="banners-where" className="mb-2 text-sm font-semibold text-foreground">{t("admin.notif.banners.where")}</h2>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {SUMMARY_SITES.map((site) => <div key={site} className="rounded-lg border border-border bg-card px-3 py-2"><dt className="text-xs text-muted-foreground">{t(`admin.notif.banners.targets.site.${site}`)}</dt><dd className="text-lg font-semibold tabular-nums text-foreground">{bannersBySite(banners)[site]}</dd></div>)}
+        </dl>
+      </section>}
       <div className="relative min-h-0 overflow-auto [--ib-state-h:400px]" aria-busy={banners === null && !error}>
         {error && !banners ? (
           <LoadError message={t("admin.notif.banners.loadError")} error={error.cause} className="h-[var(--ib-state-h)]" onRetry={() => { setError(null); load() }} />

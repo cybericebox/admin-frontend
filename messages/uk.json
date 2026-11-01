@@ -3021,5 +3021,9 @@
   "admin.notif.broadcast.deliveriesEmptyFiltered": "За цим фільтром доставок немає.",
   "admin.notif.broadcast.exportCsv": "Експорт CSV",
   "admin.notif.broadcast.exportError": "Не вдалося експортувати доставки",
-  "admin.notif.broadcast.copyError": "Не вдалося завантажити розсилку для копіювання."
+  "admin.notif.broadcast.copyError": "Не вдалося завантажити розсилку для копіювання.",
+  "admin.notif.settings.critical.title": "Вимкнути «{type}» ({channel})?",
+  "admin.notif.settings.critical.body": "Без цього повідомлення люди не зможуть завершити реєстрацію, увійти або отримати запрошення. Вимкніть, лише якщо знаєте, що робите.",
+  "admin.notif.settings.critical.confirm": "Вимкнути",
+  "admin.notif.banners.where": "Де зараз показується"
 }

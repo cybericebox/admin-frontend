@@ -4,6 +4,7 @@ import { apiGet, apiPut } from "@/api/client"
 import { t } from "@/i18n/t"
 import { overloadOr } from "@/i18n/apiError"
 import { Switch } from "@/components/ui/switch"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -20,6 +21,9 @@ type Setting = {
   UserDefault: boolean
 }
 
+// Without these messages people cannot sign up, sign in or get an invitation: turning one off asks first.
+const CRITICAL_TYPES = new Set(["continue_registration", "email_confirmation", "password_reset", "user_invitation", "account_exists"])
+
 const rowKey = (s: Setting) => `${s.NotificationType}::${s.Channel}`
 
 export function GlobalSettingsTab() {
@@ -32,6 +36,7 @@ export function GlobalSettingsTab() {
   // latest is set together with rows, so a click right after the load never sees an empty list.
   const latest = useRef<Setting[]>([])
   const queue = useRef<Promise<void>>(Promise.resolve())
+  const [confirmOff, setConfirmOff] = useState<Setting | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -96,7 +101,7 @@ export function GlobalSettingsTab() {
               <tr key={rowKey(s)} className="border-b border-border/50">
                 <td className="px-3 py-2 font-medium text-foreground">{notifTypeLabel(s.NotificationType)}</td>
                 <td className="px-3 py-2 text-muted-foreground">{notifChannelLabel(s.Channel)}</td>
-                <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} disabled={!canWrite} aria-label={switchLabel(s, "enabled")} onCheckedChange={(v) => toggle(s, "Enabled", v)} /></td>
+                <td className="px-3 py-2 text-center"><Switch checked={s.Enabled} disabled={!canWrite} aria-label={switchLabel(s, "enabled")} onCheckedChange={(v) => { if (!v && CRITICAL_TYPES.has(s.NotificationType)) setConfirmOff(s); else toggle(s, "Enabled", v) }} /></td>
                 <td className="px-3 py-2 text-center"><Switch checked={s.UserCanChange} disabled={!canWrite} aria-label={switchLabel(s, "userCanChange")} onCheckedChange={(v) => toggle(s, "UserCanChange", v)} /></td>
                 <td className="px-3 py-2 text-center"><Switch checked={s.UserDefault} disabled={!canWrite} aria-label={switchLabel(s, "userDefault")} onCheckedChange={(v) => toggle(s, "UserDefault", v)} /></td>
               </tr>
@@ -110,6 +115,10 @@ export function GlobalSettingsTab() {
   return (
     <div className="space-y-3 pt-4">
       {globalSettings}
+      <ConfirmDialog open={confirmOff !== null} onCancel={() => setConfirmOff(null)} tone="danger"
+        title={t("admin.notif.settings.critical.title", { type: confirmOff ? notifTypeLabel(confirmOff.NotificationType) : "", channel: confirmOff ? notifChannelLabel(confirmOff.Channel) : "" })}
+        description={t("admin.notif.settings.critical.body")} confirmLabel={t("admin.notif.settings.critical.confirm")}
+        onConfirm={() => { if (confirmOff) toggle(confirmOff, "Enabled", false); setConfirmOff(null) }} />
       <SignalDefaultsSection />
     </div>
   )
