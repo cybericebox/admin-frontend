@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ExternalLink, Info, Power } from "lucide-react"
-import { bulkTerminateTestLabs, listTestLabsIndex, type TestLab } from "@/api/infrastructure"
+import { bulkTerminateTestLabs, getTestLabFacets, listTestLabsIndex, type TestLab } from "@/api/infrastructure"
 import { ImageWarningIcon, LabQueueIndicator } from "@/components/infrastructure/LabIndicators"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
 import { TestLabStatusBadge, testLabAuthor } from "@/components/infrastructure/labView"
@@ -23,7 +23,7 @@ import { usePolling } from "@/lib/usePolling"
 
 const IDENTITY = "author"
 const BULK_LIMIT = 100
-const STATUSES = ["queued", "creating", "ready", "failed"]
+const STATUSES = ["active", "expired"]
 
 /** The «Тестові лабораторії» tab: catalog test labs on the table standard, with «Завершити» one by one and in bulk. */
 export function TestLabsTab({ canWrite, onDetails }: { canWrite: boolean; onDetails: (lab: TestLab) => void }) {
@@ -31,17 +31,17 @@ export function TestLabsTab({ canWrite, onDetails }: { canWrite: boolean; onDeta
     { key: IDENTITY, label: t("admin.labs.testLabs.col.author"), sort: "author", width: 240, cell: (lab) => <Link href={`/users/detail?id=${encodeURIComponent(lab.AuthorID)}`} className="ib-table__name block min-w-0 truncate text-primary hover:underline">{testLabAuthor(lab)}</Link> },
     { key: "exercise", label: t("admin.labs.testLabs.col.exercise"), sort: "exercise", width: 240, cell: (lab) => <a href={`${exercisesOrigin}/detail?id=${encodeURIComponent(lab.ExerciseID)}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1.5 hover:text-primary hover:underline"><span className="ib-table__name truncate">{lab.ExerciseName}</span><ExternalLink aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /></a> },
     { key: "variant", label: t("admin.labs.testLabs.col.variant"), sort: "variant", dim: true, width: 120, cell: (lab) => lab.VariantNumber > 0 ? t("admin.labs.testLabs.variant", { number: lab.VariantNumber }) : t("admin.labs.testLabs.noVariant") },
-    { key: "cpu", label: t("admin.labs.resources.cpu"), sort: "resources", firstDesc: true, width: 150, cell: (lab) => <ResourceCell resources={lab.Resources} kind="cpu" /> },
-    { key: "memory", label: t("admin.labs.resources.memory"), sort: "resources", firstDesc: true, width: 150, cell: (lab) => <ResourceCell resources={lab.Resources} kind="memory" /> },
-    { key: "created", label: t("admin.labs.testLabs.col.created"), sort: "created", firstDesc: true, dim: true, width: 170, cell: (lab) => <TimeText iso={lab.CreatedAt}>{formatListDateTime(lab.CreatedAt)}</TimeText> },
-    { key: "until", label: t("admin.labs.testLabs.col.until"), sort: "until", dim: true, width: 170, cell: (lab) => <TimeText iso={lab.ExpiresAt}>{formatListDateTime(lab.ExpiresAt)}</TimeText> },
+    { key: "cpu", label: t("admin.labs.resources.cpu"), width: 150, cell: (lab) => <ResourceCell resources={lab.Resources} kind="cpu" /> },
+    { key: "memory", label: t("admin.labs.resources.memory"), width: 150, cell: (lab) => <ResourceCell resources={lab.Resources} kind="memory" /> },
+    { key: "created", label: t("admin.labs.testLabs.col.created"), sort: "createdAt", firstDesc: true, dim: true, width: 170, cell: (lab) => <TimeText iso={lab.CreatedAt}>{formatListDateTime(lab.CreatedAt)}</TimeText> },
+    { key: "until", label: t("admin.labs.testLabs.col.until"), sort: "expiresAt", dim: true, width: 170, cell: (lab) => <TimeText iso={lab.ExpiresAt}>{formatListDateTime(lab.ExpiresAt)}</TimeText> },
     { key: "status", label: t("admin.labs.testLabs.col.status"), sort: "status", width: 200, cell: (lab) => <span className="inline-flex flex-wrap items-center gap-1.5"><TestLabStatusBadge status={lab.Status} /><LabQueueIndicator queue={lab.Queue} />{lab.ImageWarning && <ImageWarningIcon />}{lab.Expired && <Badge size="sm">{t("admin.labs.testLabs.expired")}</Badge>}</span> },
   ], [])
   const defs = useMemo<FilterDef[]>(() => [
-    { key: "status", label: t("admin.labs.testLabs.col.status"), type: "choice", single: true, ops: ["in"], options: STATUSES.map((value) => ({ value, label: t(`admin.labs.testLabs.status.${value}`) })) },
+    { key: "status", label: t("admin.labs.testLabs.col.status"), type: "choice", single: true, ops: ["in"], options: STATUSES.map((value) => ({ value, label: t(`admin.labs.testLabs.statusFilter.${value}`) })) },
   ], [])
   const list = useIndexList<TestLab>({
-    table: "admin.labs.testLabs", columns, identity: IDENTITY, defs, defaultSort: { key: "created", dir: "desc" },
+    table: "admin.labs.testLabs", columns, identity: IDENTITY, defs, defaultSort: { key: "createdAt", dir: "desc" },
     fetch: listTestLabsIndex, rowId: (lab) => lab.ID, selectLimit: BULK_LIMIT,
   })
   usePolling(async () => { list.reload() }, true)
@@ -66,7 +66,7 @@ export function TestLabsTab({ canWrite, onDetails }: { canWrite: boolean; onDeta
 
   return <div className="ib-index">
     <IndexTable<TestLab>
-      list={list} columns={columns} identity={IDENTITY} title={t("admin.labs.testLabs.title")} rowId={(lab) => lab.ID} rowLabel={(lab) => `${lab.ExerciseName} · ${testLabAuthor(lab)}`}
+      list={list} columns={columns} identity={IDENTITY} facets={(def) => getTestLabFacets(def.key, { search: list.request.search, bag: list.bag })} title={t("admin.labs.testLabs.title")} rowId={(lab) => lab.ID} rowLabel={(lab) => `${lab.ExerciseName} · ${testLabAuthor(lab)}`}
       defs={defs} searchLabel={t("admin.labs.testLabs.search")} emptyLabel={t("admin.labs.testLabs.emptyFiltered")} emptyInitialLabel={t("admin.labs.testLabs.empty")} errorLabel={t("admin.labs.error.testLabs")}
       actionsLabel={t("admin.labs.testLabs.col.actions")} actionsWidth={canWrite ? 220 : 64}
       bulk={canWrite ? <Button type="button" variant="outline" size="sm" onClick={() => { setError(null); setBulk(true) }}><Power aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" />{t("admin.labs.testLabs.terminate")}</Button> : undefined}

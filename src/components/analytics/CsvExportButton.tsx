@@ -26,6 +26,13 @@ function save(blob: Blob, name: string) {
  * client (blob) and saves it. Inside SectionPage the chosen period is added to the
  * export. The crest shows in the button while it runs.
  */
+// A CSV is one period's table: the comparison switch does not apply to it.
+function withoutCompare<T extends { compare?: unknown }>(query: T): Omit<T, "compare"> {
+  const rest = { ...query }
+  delete rest.compare
+  return rest
+}
+
 export function CsvExportButton({ section, table, params, disabled = false, label, size = "sm" }: {
   section: string
   table: string
@@ -39,7 +46,7 @@ export function CsvExportButton({ section, table, params, disabled = false, labe
   async function download() {
     setBusy(true)
     try {
-      const { blob, filename } = await apiGetBlob(exportUrl(section, { ...period(), ...params, table }))
+      const { blob, filename } = await apiGetBlob(exportUrl(section, { ...withoutCompare(period()), ...params, table }))
       save(blob, filename ?? `${section.replace(/\//g, "-")}-${table}.csv`)
     } catch (err) {
       toast.error(overloadOr(err, t("admin.platformAnalytics.csv.failed")))

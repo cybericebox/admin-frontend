@@ -69,7 +69,7 @@ describe("stands tab", () => {
     const dialog = await screen.findByRole("dialog")
     expect(apiPost).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole("button", { name: "Перестворити" }))
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/stands/bulk/recreate", { Stands: [{ EventID: "event-1", TeamID: "team-1" }] }))
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/stands/bulk/recreate", { Items: [{ EventID: "event-1", TeamID: "team-1" }] }))
   })
 
   it("hides recreate and the select column without infrastructure.write", async () => {

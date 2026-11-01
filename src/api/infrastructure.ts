@@ -252,9 +252,9 @@ export type StandRef = { EventID: string; TeamID: string }
 export type BulkStandResult = StandRef & { Ok: boolean; Code?: string; Error?: string }
 export type BulkLabResult = { ID: string; Ok: boolean; Code?: string; Error?: string }
 
-/** POST /api/infrastructure/stands/bulk/recreate {Stands}: one result per stand, in request order. */
+/** POST /api/infrastructure/stands/bulk/recreate {Items} (1..50): one result per stand, in request order. */
 export async function bulkRecreateStands(stands: StandRef[]): Promise<BulkStandResult[]> {
-  const res = await apiPost<{ Results?: BulkStandResult[] }>(`${BASE}/stands/bulk/recreate`, { Stands: stands })
+  const res = await apiPost<{ Results?: BulkStandResult[] }>(`${BASE}/stands/bulk/recreate`, { Items: stands })
   return res.Results ?? []
 }
 /** POST /api/infrastructure/test-labs/bulk/terminate {IDs}: one result per lab, in request order. */
@@ -262,3 +262,16 @@ export async function bulkTerminateTestLabs(ids: string[]): Promise<BulkLabResul
   const res = await apiPost<{ Results?: BulkLabResult[] }>(`${BASE}/test-labs/bulk/terminate`, { IDs: ids })
   return res.Results ?? []
 }
+
+/** Counts of one filter field's values under the other filters (…/stands/facets, …/test-labs/facets); null when unknown. */
+async function infraFacets(path: string, field: string, query: { search: string; bag: FilterBag }, keys: Record<string, string>): Promise<Record<string, number> | null> {
+  const p = new URLSearchParams({ field })
+  if (query.search) p.set("search", query.search)
+  for (const [filterKey, param] of Object.entries(keys)) {
+    const cond = query.bag[filterKey]
+    if (filterKey !== field && isComplete(cond) && cond.v[0]) p.set(param, cond.v[0])
+  }
+  try { return (await apiGet<{ Counts?: Record<string, number> } | null>(`${BASE}/${path}/facets?${p}`))?.Counts ?? null } catch { return null }
+}
+export const getStandFacets = (field: string, query: { search: string; bag: FilterBag }) => infraFacets("stands", field, query, { event: "eventId", status: "status", kind: "kind" })
+export const getTestLabFacets = (field: string, query: { search: string; bag: FilterBag }) => infraFacets("test-labs", field, query, { status: "status" })

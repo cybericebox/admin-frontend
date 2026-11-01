@@ -2,12 +2,14 @@
 
 import { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
-import { getAnalytics, type AnalyticsParams } from "@/api/platformAnalytics"
+import { getAnalytics, unwrapCompared, type AnalyticsParams } from "@/api/platformAnalytics"
 import { usePolling } from "@/lib/usePolling"
 import { SectionContext } from "./sectionContext"
 
 export type AnalyticsResource<T> = {
   data: T | undefined
+  /** The report of the previous period when «Порівняти з попереднім» is on (null for all time, undefined otherwise). */
+  previous?: T | null
   /** The first load only: a period or filter change keeps the previous data in place. */
   loading: boolean
   /** Any fetch in flight, including one that keeps the previous data on screen. */
@@ -31,7 +33,7 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
   const ctx = useContext(SectionContext)
   const withPeriod = options.period !== false && ctx !== null
   const key = `${section}|${JSON.stringify(params)}|${withPeriod ? ctx?.period.key : "-"}`
-  const [state, setState] = useState<{ key: string; data?: T; error?: unknown; done: boolean; at: number | null }>({ key, done: false, at: null })
+  const [state, setState] = useState<{ key: string; data?: T; previous?: T | null; error?: unknown; done: boolean; at: number | null }>({ key, done: false, at: null })
   const latest = useRef({ section, params, withPeriod, ctx, key })
   const controller = useRef<AbortController | null>(null)
   const started = useRef<string | null>(null)
@@ -50,11 +52,12 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
     cur.ctx?.reportBusy(1)
     try {
       const query = { ...(cur.withPeriod && cur.ctx ? cur.ctx.period.resolve() : {}), ...cur.params }
-      const data = await getAnalytics<T>(cur.section, query, { signal: ctl.signal })
+      const answer = await getAnalytics<T>(cur.section, query, { signal: ctl.signal })
+      const { current: data, previous } = unwrapCompared<T>(answer, (query as { compare?: string }).compare === "true")
       if (ctl.signal.aborted) return
       const at = Date.now()
       hasData.current = true
-      setState({ key: cur.key, data, done: true, at })
+      setState({ key: cur.key, data, previous, done: true, at })
       cur.ctx?.reportUpdated(at)
       cur.ctx?.reportForbidden(false)
     } catch (error) {
@@ -81,6 +84,7 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
   const error = current ? state.error : undefined
   return {
     data: state.data,
+    previous: state.previous,
     loading: state.data === undefined && (!current || !state.done),
     refreshing: !current || !state.done,
     error,
