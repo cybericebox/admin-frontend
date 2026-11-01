@@ -62,8 +62,18 @@ export type ImageRegistrySaveInput = {
 
 export type ImageRegistryListInput = { Provider: RegistryProvider; Account: string; Token: string }
 
+const NO_CHECK: RegistryCheck = { State: "", CheckedAt: null, Reason: "", AttemptedAt: null, Failure: "" }
+
+/** An answer with parts missing (an empty or older one) reads as «not configured»: the card shows its empty form. */
+function withDefaultSettings(answer: Partial<ImageRegistrySettings> | null | undefined): ImageRegistrySettings {
+  return {
+    Configured: false, Provider: "", Account: "", Repository: "", PushTokenSet: false, PullTokenSet: false, SecretsKeyMissing: false,
+    UpdatedAt: null, PushCheck: NO_CHECK, PullCheck: NO_CHECK, ...answer,
+  } as ImageRegistrySettings
+}
+
 export function getImageRegistrySettings(): Promise<ImageRegistrySettings> {
-  return apiGet<ImageRegistrySettings>(BASE)
+  return apiGet<ImageRegistrySettings>(BASE).then(withDefaultSettings)
 }
 
 export function saveImageRegistrySettings(input: ImageRegistrySaveInput): Promise<ImageRegistrySettings> {

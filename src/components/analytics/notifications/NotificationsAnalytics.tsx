@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_MAIL } from "@/components/analytics/emptyReports"
 import { compareDelta } from "../overview/format"
 import { useMemo, useState } from "react"
 import { useUrlState } from "@/lib/useUrlState"
@@ -25,7 +26,7 @@ function Body() {
   const setFilters = (next: MailFilters) => setUrl({ channel: next.channel, transport: next.transport, type: next.type, tests: next.includeTests ? "1" : "" })
   // The query and the CSV exports carry the same filters.
   const params = useMemo(() => ({ channel: filters.channel, transport: filters.transport, type: filters.type, includeTests: filters.includeTests ? "true" : undefined }), [filters])
-  const { data, previous, loading, error, reload } = useAnalyticsResource<MailData>("mail", params)
+  const { data, previous, loading, error, reload } = useAnalyticsResource<MailData>("mail", params, { defaults: EMPTY_MAIL })
   const res = { data, loading, error, reload }
 
   // The option lists come with the report; keep the last ones while a refetch is loading, so the selects do not blink.

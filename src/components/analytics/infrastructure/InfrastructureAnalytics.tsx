@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_INFRASTRUCTURE } from "@/components/analytics/emptyReports"
 import { compareDelta } from "../overview/format"
 import { KpiTile, SectionPage, useAnalyticsResource } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
@@ -15,7 +16,7 @@ import type { InfrastructureData } from "./types"
 const P = "admin.platformAnalytics.infrastructure."
 
 function Body() {
-  const { data, previous, loading, error, reload } = useAnalyticsResource<InfrastructureData>("infrastructure")
+  const { data, previous, loading, error, reload } = useAnalyticsResource<InfrastructureData>("infrastructure", {}, { defaults: EMPTY_INFRASTRUCTURE })
   const res = { data, loading, error, reload }
   const failed = !loading && error !== undefined
   const tile = { loading, empty: failed || !data }

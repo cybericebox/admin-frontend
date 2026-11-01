@@ -5,6 +5,7 @@ import { ApiError } from "@/api/client"
 import { getAnalytics, unwrapCompared, type AnalyticsParams } from "@/api/platformAnalytics"
 import { usePolling } from "@/lib/usePolling"
 import { SectionContext } from "./sectionContext"
+import { withDefaults } from "./emptyReports"
 
 export type AnalyticsResource<T> = {
   data: T | undefined
@@ -29,17 +30,17 @@ export type AnalyticsResource<T> = {
  * until the new answer arrives (only the very first load reports `loading`). `params` (extra filters) override the period
  * keys. Pass `{ period: false }` for a section that ignores the period.
  */
-export function useAnalyticsResource<T>(section: string, params: AnalyticsParams = {}, options: { period?: boolean } = {}): AnalyticsResource<T> {
+export function useAnalyticsResource<T>(section: string, params: AnalyticsParams = {}, options: { period?: boolean; /** What a missing part of the answer is (see emptyReports): the report renders its empty states instead of failing. */ defaults?: T } = {}): AnalyticsResource<T> {
   const ctx = useContext(SectionContext)
   const withPeriod = options.period !== false && ctx !== null
   const key = `${section}|${JSON.stringify(params)}|${withPeriod ? ctx?.period.key : "-"}`
   const [state, setState] = useState<{ key: string; data?: T; previous?: T | null; error?: unknown; done: boolean; at: number | null }>({ key, done: false, at: null })
-  const latest = useRef({ section, params, withPeriod, ctx, key })
+  const latest = useRef({ section, params, withPeriod, ctx, key, defaults: options.defaults })
   const controller = useRef<AbortController | null>(null)
   const started = useRef<string | null>(null)
   const hasData = useRef(false)
 
-  useEffect(() => { latest.current = { section, params, withPeriod, ctx, key } })
+  useEffect(() => { latest.current = { section, params, withPeriod, ctx, key, defaults: options.defaults } })
   useEffect(() => () => { controller.current?.abort(); started.current = null }, [])
 
   const run = useCallback(async (silent: boolean) => {
@@ -53,7 +54,10 @@ export function useAnalyticsResource<T>(section: string, params: AnalyticsParams
     try {
       const query = { ...(cur.withPeriod && cur.ctx ? cur.ctx.period.resolve() : {}), ...cur.params }
       const answer = await getAnalytics<T>(cur.section, query, { signal: ctl.signal })
-      const { current: data, previous } = unwrapCompared<T>(answer, (query as { compare?: string }).compare === "true")
+      const unwrapped = unwrapCompared<T>(answer, (query as { compare?: string }).compare === "true")
+      const fill = (report: T | null) => (cur.defaults !== undefined && report !== null ? withDefaults<T>(report, cur.defaults) : report)
+      const data = fill(unwrapped.current) as T
+      const previous = fill(unwrapped.previous)
       if (ctl.signal.aborted) return
       const at = Date.now()
       hasData.current = true

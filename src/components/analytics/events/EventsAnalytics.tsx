@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_EVENTS } from "@/components/analytics/emptyReports"
 import { compareDelta } from "../overview/format"
 import { AnalyticsChart, CsvExportButton, KpiTile, donutOption, lineOption, useAnalyticsResource, type ChartTheme } from "@/components/analytics"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
@@ -11,7 +12,7 @@ import { formatCount } from "./format"
 
 /** Body of the «Заходи» section: KPIs, events and registrations over time, events by status, the per-event table and the upcoming events. */
 export function EventsAnalytics() {
-  const resource = useAnalyticsResource<EventsReport>("events")
+  const resource = useAnalyticsResource<EventsReport>("events", {}, { defaults: EMPTY_EVENTS })
   const { data, previous, loading, error, reload } = resource
   const empty = !loading && !error && !!data && data.Series.every((day) => day.EventsCreated + day.EventsStarted + day.Registrations === 0)
   const statusSlices = (data?.Statuses ?? []).filter((s) => s.Events > 0).map((s) => ({ name: t(`admin.events.lifecycle.${s.Status}`), value: s.Events }))
