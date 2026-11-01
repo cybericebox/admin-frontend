@@ -109,7 +109,8 @@ function UsersList() {
   const [error, setError] = useState<{ cause: unknown } | null>(null)
 
   const { can, me, role: callerRole } = useRole()
-  const [inviteOpen, setInviteOpen] = useState(false)
+  // The dashboard's «Запросити користувачів» opens the list with the invitation dialog (?invite=1).
+  const [inviteOpen, setInviteOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("invite"))
   const [reloadKey, setReloadKey] = useState(0)
   const tableScrollRef = useRef<HTMLDivElement>(null)
 

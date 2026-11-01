@@ -1,114 +1,113 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
-import { apiGet } from "@/api/client"
-import { listEvents, type Event } from "@/api/events/catalog"
-import { useRole } from "@/lib/useRole"
-import { getInfrastructureStatus, getInfrastructureSummary, type InfrastructureStatus, type InfrastructureSummary } from "@/api/infrastructure"
+import { ATTENTION_HREF, getDashboardSummary, type DashboardSummary } from "@/api/dashboard"
 import { RefreshIndicator } from "@/components/infrastructure/RefreshIndicator"
-import { formatNumber } from "@/lib/locale"
-import { usePolling } from "@/lib/usePolling"
-import { t } from "@/i18n/t"
-import { LoadingArea } from "@/components/ui/spinner"
-import { LoadError } from "@/components/ui/load-error"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
+import { LoadingArea } from "@/components/ui/spinner"
 import { PageHeader } from "@/components/ui/page-header"
-import { EventStatusBadge } from "@/components/events/EventStatusBadge"
+import { Sparkline } from "@/components/ui/sparkline"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatListDateTime, formatNumber } from "@/lib/locale"
+import { usePolling } from "@/lib/usePolling"
+import { useRole } from "@/lib/useRole"
+import { t } from "@/i18n/t"
 
-type UserStats = { Total: number }
-type NotificationStats = { Total: number; ByStatus: { Key: string; Count: number }[]; ByChannel?: { Channel: string; Status: string; Count: number }[] }
+const dash = (value: number | null | undefined) => value === undefined || value === null ? "—" : formatNumber(value)
+const percent = (value: number | null | undefined) => value === undefined || value === null ? "—" : `${formatNumber(value, { maximumFractionDigits: 1 })}%`
 
-function Metric({ label, value, href, hint }: { label: string; value: React.ReactNode; href: string; hint?: string }) {
-  return <Link href={href} className="group flex min-h-28 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-    <span className="flex items-start justify-between gap-3 text-sm text-muted-foreground">{label}<ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 opacity-50 group-hover:opacity-100" /></span>
-    <span className="flex flex-col gap-0.5"><strong className="text-2xl font-semibold tabular-nums text-foreground">{value}</strong>{hint && <span className="text-xs text-muted-foreground">{hint}</span>}</span>
-  </Link>
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id: string }) {
+  return <Card role="region" aria-labelledby={id}>
+    <CardHeader><CardTitle id={id} className="text-base">{title}</CardTitle></CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">{value}</dd></div>
 }
 
 export default function Page() {
   const { can } = useRole()
-  const usersAllowed = can("users.read")
-  const eventsAllowed = can("events.read")
-  const notificationsAllowed = can("notifications.templates.read")
-  const infrastructureAllowed = can("infrastructure.read")
-  // The analytics pages need analytics.read; without it a tile opens the plain list instead of «Немає доступу».
-  const analyticsAllowed = can("analytics.read")
-  const [users, setUsers] = useState<UserStats | null>(null)
-  const [events, setEvents] = useState<Event[] | null>(null)
-  const [eventTotal, setEventTotal] = useState<number | null>(null)
-  const [notifications, setNotifications] = useState<NotificationStats | null>(null)
-  const [infrastructure, setInfrastructure] = useState<InfrastructureStatus | null>(null)
-  const [summary, setSummary] = useState<InfrastructureSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [failedFeeds, setFailedFeeds] = useState(0)
-  const [failCause, setFailCause] = useState<unknown>(undefined)
-  const [retry, setRetry] = useState(0)
-  // A retry reloads in the background: the tiles keep their last values, only the first load shows the loader.
-  const reload = () => setRetry((current) => current + 1)
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      let failures = 0
-      let firstCause: unknown
-      const [u, e, n] = await Promise.all([
-        usersAllowed ? apiGet<UserStats>("/api/users/stats").catch((cause) => { failures++; firstCause ??= cause; return null }) : null,
-        eventsAllowed ? listEvents({ pageSize: 5 }).catch((cause) => { failures++; firstCause ??= cause; return null }) : null,
-        notificationsAllowed ? apiGet<NotificationStats>("/api/notifications/stats?days=7").catch((cause) => { failures++; firstCause ??= cause; return null }) : null,
-      ])
-      if (cancelled) return
-      // A failed refresh keeps what the page already shows.
-      setUsers((previous) => u ?? previous)
-      setEvents((previous) => e ? e.Items : previous)
-      setEventTotal((previous) => e ? e.Total : previous)
-      setNotifications((previous) => n ?? previous)
-      setFailedFeeds(failures)
-      setFailCause(firstCause)
-      setLoading(false)
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
+  // A refresh runs in the background: the page keeps what it shows, only the first load shows the loader.
+  const load = useCallback(async () => {
+    try {
+      setSummary(await getDashboardSummary())
+      setError(null)
+    } catch (cause) {
+      setError({ cause })
     }
-    void load()
-    return () => { cancelled = true }
-  }, [usersAllowed, eventsAllowed, notificationsAllowed, retry])
-
-  // The infrastructure tiles poll on their own; a failed poll only blanks them.
-  const loadInfrastructure = useCallback(async () => {
-    const [nextStatus, nextSummary] = await Promise.allSettled([getInfrastructureStatus(), getInfrastructureSummary()])
-    // A failed poll keeps the last values instead of blanking the tiles.
-    setInfrastructure((previous) => nextStatus.status === "fulfilled" ? nextStatus.value : previous)
-    setSummary((previous) => nextSummary.status === "fulfilled" ? nextSummary.value : previous)
   }, [])
-  const { updatedAt, refreshing } = usePolling(loadInfrastructure, infrastructureAllowed)
+  const { updatedAt, refreshing, refresh } = usePolling(load, true)
 
-  const unavailable = "—"
-  const percent = (value: number | null | undefined) => value === null || value === undefined ? unavailable : `${formatNumber(value, { maximumFractionDigits: 1 })}%`
-  const stands = summary?.Stands
-  // Every lab on the infrastructure counts as active: team stands (moderators team included) and catalog test labs.
-  const testLabsActive = summary?.TestLabs?.Active ?? 0
-  const labsActive = stands ? stands.Active + testLabsActive : unavailable
-  const infrastructureLabel = !infrastructure ? unavailable : !infrastructure.Available ? t("admin.dashboard.infra.disconnected") : infrastructure.Healthy ? t("admin.dashboard.infra.running") : t("admin.dashboard.infra.attention")
-  // Failed deliveries are counted per channel: a dispatch whose in-app copy arrived is "done" even when its email failed.
-  const notificationErrors = (notifications?.ByChannel ?? []).reduce((sum, item) => item.Status === "error" ? sum + item.Count : sum, 0)
+  const attention = summary?.Attention ?? []
+  const events = summary?.Events ?? []
+  const trends = summary?.Trends
+  const infra = summary?.Infra
+  const canEvent = can("events.write")
+  const canInvite = can("users.invite")
 
-  return <div className="flex min-h-full flex-col gap-7">
-    <PageHeader title={t("admin.dashboard.title")} sub={t("admin.dashboard.subtitle")} actions={infrastructureAllowed ? <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} /> : undefined} />
-    {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : failedFeeds > 0 && !users && !events && !notifications && failedFeeds === [usersAllowed, eventsAllowed, notificationsAllowed].filter(Boolean).length ? <LoadError error={failCause} onRetry={() => { reload() }} className="flex-1" /> : <>
-      {failedFeeds > 0 && <LoadError message={t("admin.dashboard.partialError")} error={failCause} compact onRetry={() => { reload() }} />}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {usersAllowed && <Metric label={t("admin.dashboard.users")} value={users?.Total ?? unavailable} href={analyticsAllowed ? "/analytics/users" : "/users"} />}
-        {eventsAllowed && <Metric label={t("admin.dashboard.events")} value={eventTotal ?? unavailable} href="/events" />}
-        {notificationsAllowed && <Metric label={t("admin.dashboard.deliveryErrors7d")} value={notifications ? notificationErrors : unavailable} href={analyticsAllowed ? "/analytics/notifications" : "/notifications/logs"} />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.infrastructure")} value={infrastructureLabel} href="/labs" />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.standsFailed")} value={stands?.Failed ?? unavailable} href="/labs?status=failed" />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.standsActive")} value={labsActive} hint={stands && testLabsActive > 0 ? t("admin.dashboard.testLabsActive", { count: testLabsActive }) : undefined} href="/labs?status=active" />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.clusterCpu")} value={percent(summary?.Capacity?.CPUPercent)} href="/labs#capacity" />}
-        {infrastructureAllowed && <Metric label={t("admin.dashboard.clusterMemory")} value={percent(summary?.Capacity?.MemoryPercent)} href="/labs#capacity" />}
-      </div>
-      {eventsAllowed && <section className="rounded-lg border border-border bg-card" aria-labelledby="recent-events-heading">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><h3 id="recent-events-heading" className="text-base font-semibold text-foreground">{t("admin.dashboard.recentEvents")}</h3><Link href="/events" className="text-sm font-medium text-primary hover:underline">{t("admin.dashboard.allEvents")}</Link></div>
-        {events === null ? <LoadError message={t("admin.dashboard.eventsError")} error={failCause} compact onRetry={() => { reload() }} /> : events.length === 0 ? <EmptyState message={t("admin.events.emptyInitial")} compact /> : <ul className="divide-y divide-border">{events.map((event) => <li key={event.ID} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"><Link href={`/events/detail?id=${encodeURIComponent(event.ID)}`} className="min-w-0 break-words font-medium text-foreground hover:underline">{event.Name || event.Tag}</Link><EventStatusBadge event={event} /></li>)}</ul>}
-      </section>}
-    </>}
+  return <div className="flex min-h-full flex-col gap-5">
+    <PageHeader title={t("admin.dashboard.title")} sub={t("admin.dashboard.subtitle")} actions={<>
+      <RefreshIndicator updatedAt={updatedAt} refreshing={refreshing} />
+      {canInvite && <Button asChild variant="outline"><Link href="/users?invite=1">{t("admin.dashboard.action.invite")}</Link></Button>}
+      {canEvent && <Button asChild><Link href="/events/new">{t("admin.dashboard.action.createEvent")}</Link></Button>}
+    </>} />
+    {!summary && !error ? <LoadingArea className="flex-1" label={t("admin.loading")} />
+      : !summary ? <LoadError message={t("admin.dashboard.loadError")} error={error?.cause} onRetry={() => void refresh(true)} className="flex-1" />
+      : <>
+        {error && <LoadError message={t("admin.dashboard.partialError")} error={error.cause} compact onRetry={() => void refresh(true)} />}
+        <Section id="dash-attention" title={t("admin.dashboard.attention")}>
+          {attention.length === 0 ? <EmptyState compact message={t("admin.dashboard.attentionNone")} /> : <ul className="divide-y divide-border">{attention.map((item) => (
+            <li key={item.Kind} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
+              <Link href={ATTENTION_HREF[item.Kind]} className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-foreground hover:underline">
+                {t(`admin.dashboard.attention.${item.Kind}`, { count: item.Count })}<ArrowUpRight aria-hidden="true" className="h-4 w-4 opacity-60" />
+              </Link>
+              {item.Items && item.Items.length > 0 && <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm">{item.Items.map((entry) => <Link key={entry.Href + entry.Label} href={entry.Href} className="text-primary hover:underline">{entry.Label}</Link>)}</span>}
+            </li>
+          ))}</ul>}
+        </Section>
+
+        {summary.Events != null && <Section id="dash-events" title={t("admin.dashboard.nowSoon")}>
+          {events.length === 0 ? <EmptyState compact message={t("admin.dashboard.nowSoonNone")} /> : <ul className="divide-y divide-border">{events.map((event) => (
+            <li key={event.ID} className="grid grid-cols-1 gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
+                <Link href={`/events/detail?id=${encodeURIComponent(event.ID)}`} className="min-w-0 truncate text-sm font-medium text-foreground hover:underline">{event.Name || event.Tag}</Link>
+                <Badge tone={event.Running ? "ok" : "info"} size="sm">{event.Running ? t("admin.dashboard.running") : t(`admin.events.lifecycle.${event.LifecycleStatus ?? "not_published"}`)}</Badge>
+              </span>
+              <span className="text-sm text-muted-foreground">{event.StartAt ? formatListDateTime(event.StartAt) : "—"}</span>
+              <span className="text-sm tabular-nums text-muted-foreground">{t("admin.dashboard.eventCounts", { participants: dash(event.Participants), teams: dash(event.Teams), stands: event.StandsTotal === undefined ? "—" : `${event.StandsReady ?? 0}/${event.StandsTotal}` })}</span>
+            </li>
+          ))}</ul>}
+        </Section>}
+
+        {trends && <Section id="dash-trends" title={t("admin.dashboard.trends")}>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {([["signups", trends.Signups], ["activeUsers", trends.ActiveUsers], ["solves", trends.Solves]] as const).map(([key, values]) => (
+              <div key={key} className="flex items-end justify-between gap-3">
+                <Stat label={t(`admin.dashboard.trend.${key}`)} value={dash(values.reduce((sum, value) => sum + value, 0))} />
+                <Sparkline values={values} label={t("admin.dashboard.trendLabel", { name: t(`admin.dashboard.trend.${key}`), values: values.join(", ") })} />
+              </div>
+            ))}
+          </dl>
+        </Section>}
+
+        {infra && <Section id="dash-infra" title={t("admin.dashboard.infrastructure")}>
+          <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat label={t("admin.dashboard.clusterCpu")} value={percent(infra.CPUPercent)} />
+            <Stat label={t("admin.dashboard.clusterMemory")} value={percent(infra.MemoryPercent)} />
+            <Stat label={t("admin.dashboard.standsActive")} value={dash(infra.StandsActive)} />
+            <Stat label={t("admin.dashboard.standsFailed")} value={dash(infra.StandsFailed)} />
+          </dl>
+          <p className="mt-3 text-sm"><Link href="/labs" className="text-primary hover:underline">{t("admin.dashboard.openLabs")}</Link></p>
+        </Section>}
+      </>}
   </div>
 }
