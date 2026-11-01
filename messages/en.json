@@ -2945,7 +2945,6 @@
   "admin.dashboard.attention.events_without_reservation": "Events without a reservation: {count}",
   "admin.dashboard.attention.pending_elevations": "Pending resource elevation requests: {count}",
   "admin.dashboard.attention.open_errors": "Open errors: {count}",
-  "admin.dashboard.attention.mail_failures": "Mail delivery errors: {count}",
   "admin.dashboard.nowSoon": "Now and soon",
   "admin.dashboard.nowSoonNone": "No event is running or starting within 7 days",
   "admin.dashboard.running": "Running",
@@ -3053,5 +3052,8 @@
   "admin.audit.presets": "Quick filters",
   "admin.audit.preset.mine": "My actions",
   "admin.audit.preset.errors": "Errors",
-  "admin.audit.preset.today": "Today"
+  "admin.audit.preset.today": "Today",
+  "admin.dashboard.attention.mail_errors": "Mail delivery errors: {count}",
+  "admin.labs.testLabs.statusFilter.active": "Running",
+  "admin.labs.testLabs.statusFilter.expired": "Lease over"
 }

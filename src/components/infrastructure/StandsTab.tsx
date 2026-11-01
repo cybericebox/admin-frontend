@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Info, RotateCw } from "lucide-react"
-import { bulkRecreateStands, listStandEvents, listStandsIndex, type Stand, type StandEventOption } from "@/api/infrastructure"
+import { bulkRecreateStands, getStandFacets, listStandEvents, listStandsIndex, type Stand, type StandEventOption } from "@/api/infrastructure"
 import { EventSiteLink } from "@/components/events/EventSiteLink"
 import { ImageWarningIcon, LabQueueIndicator, standQueueLabs } from "@/components/infrastructure/LabIndicators"
 import { ResourceCell } from "@/components/infrastructure/ResourceCell"
@@ -21,7 +21,7 @@ import { standReasonText } from "@/lib/standReason"
 import { usePolling } from "@/lib/usePolling"
 
 const IDENTITY = "event"
-const BULK_LIMIT = 100
+const BULK_LIMIT = 50
 const standId = (stand: Stand) => `${stand.EventID}:${stand.TeamID}`
 const standName = (stand: Stand) => `${stand.EventName || stand.EventTag} · ${teamLabel(stand)}`
 
@@ -39,9 +39,9 @@ export function StandsTab({ canWrite, initialStatus, onDetails }: { canWrite: bo
     { key: "team", label: t("admin.labs.stands.col.team"), sort: "team", width: 180, cell: (s) => teamLabel(s) },
     { key: "status", label: t("admin.labs.stands.col.status"), sort: "status", width: 200, cell: (s) => <span className="inline-flex flex-wrap items-center gap-1.5"><StandStatusBadge status={s.Status} /><LabQueueIndicator queue={s.Queue} labs={standQueueLabs(s.Queue)} />{s.ImageWarning && <ImageWarningIcon />}</span> },
     { key: "reason", label: t("admin.labs.stands.col.reason"), sort: "reason", dim: true, width: 220, cell: (s) => s.Reason ? standReasonText(s.Reason) : "—" },
-    { key: "cpu", label: t("admin.labs.resources.cpu"), sort: "resources", firstDesc: true, width: 150, cell: (s) => <ResourceCell resources={s.Resources} kind="cpu" /> },
-    { key: "memory", label: t("admin.labs.resources.memory"), sort: "resources", firstDesc: true, width: 150, cell: (s) => <ResourceCell resources={s.Resources} kind="memory" /> },
-    { key: "updated", label: t("admin.labs.stands.col.time"), sort: "updated", firstDesc: true, dim: true, width: 170, cell: (s) => <TimeText iso={s.UpdatedAt}>{formatListDateTime(s.UpdatedAt)}</TimeText> },
+    { key: "cpu", label: t("admin.labs.resources.cpu"), sort: "cpu", firstDesc: true, width: 150, cell: (s) => <ResourceCell resources={s.Resources} kind="cpu" /> },
+    { key: "memory", label: t("admin.labs.resources.memory"), sort: "memory", firstDesc: true, width: 150, cell: (s) => <ResourceCell resources={s.Resources} kind="memory" /> },
+    { key: "updated", label: t("admin.labs.stands.col.time"), sort: "updatedAt", firstDesc: true, dim: true, width: 170, cell: (s) => <TimeText iso={s.UpdatedAt}>{formatListDateTime(s.UpdatedAt)}</TimeText> },
     { key: "generation", label: t("admin.labs.stands.col.generation"), sort: "generation", firstDesc: true, dim: true, width: 120, cell: (s) => s.Generation },
   ], [])
 
@@ -52,7 +52,7 @@ export function StandsTab({ canWrite, initialStatus, onDetails }: { canWrite: bo
   ], [events])
 
   const list = useIndexList<Stand>({
-    table: "admin.labs.stands", columns, identity: IDENTITY, defs, defaultSort: { key: "updated", dir: "desc" },
+    table: "admin.labs.stands", columns, identity: IDENTITY, defs, defaultSort: { key: "updatedAt", dir: "desc" },
     fetch: listStandsIndex, rowId: standId, selectable: (s) => s.Status !== "removed", selectLimit: BULK_LIMIT,
   })
   // A link from the dashboard (?status=failed) opens the tab already filtered, unless the address has its own filter.
@@ -82,7 +82,7 @@ export function StandsTab({ canWrite, initialStatus, onDetails }: { canWrite: bo
 
   return <div className="ib-index">
     <IndexTable<Stand>
-      list={list} columns={columns} identity={IDENTITY} title={t("admin.labs.stands.title")} rowId={standId} rowLabel={standName}
+      list={list} columns={columns} identity={IDENTITY} facets={(def) => getStandFacets(def.key, { search: list.request.search, bag: list.bag })} title={t("admin.labs.stands.title")} rowId={standId} rowLabel={standName}
       defs={defs} searchLabel={t("admin.labs.stands.search")} emptyLabel={t("admin.labs.stands.emptyFiltered")} emptyInitialLabel={t("admin.labs.stands.empty")} errorLabel={t("admin.labs.error.stands")}
       actionsLabel={t("admin.labs.stands.col.actions")} actionsWidth={canWrite ? 230 : 64} selectable={(s) => s.Status !== "removed"}
       bulk={canWrite ? <Button type="button" variant="outline" size="sm" onClick={() => { setError(null); setBulk(true) }}><RotateCw aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" />{t("admin.labs.stands.recreate")}</Button> : undefined}

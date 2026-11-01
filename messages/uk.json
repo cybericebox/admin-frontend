@@ -2945,7 +2945,6 @@
   "admin.dashboard.attention.events_without_reservation": "Заходи без резервації: {count}",
   "admin.dashboard.attention.pending_elevations": "Запити на підвищення ресурсів: {count}",
   "admin.dashboard.attention.open_errors": "Відкриті помилки: {count}",
-  "admin.dashboard.attention.mail_failures": "Помилки доставки пошти: {count}",
   "admin.dashboard.nowSoon": "Зараз і скоро",
   "admin.dashboard.nowSoonNone": "Зараз немає заходів, що тривають або стартують найближчими 7 днями",
   "admin.dashboard.running": "Триває",
@@ -3053,5 +3052,8 @@
   "admin.audit.presets": "Швидкі фільтри",
   "admin.audit.preset.mine": "Мої дії",
   "admin.audit.preset.errors": "Помилки",
-  "admin.audit.preset.today": "Сьогодні"
+  "admin.audit.preset.today": "Сьогодні",
+  "admin.dashboard.attention.mail_errors": "Помилки доставки пошти: {count}",
+  "admin.labs.testLabs.statusFilter.active": "Працюють",
+  "admin.labs.testLabs.statusFilter.expired": "Строк минув"
 }

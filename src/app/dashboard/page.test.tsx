@@ -8,15 +8,17 @@ const rights = vi.hoisted(() => ({ denied: new Set<string>() }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => !rights.denied.has(permission) }) }))
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}:${JSON.stringify(vars)}` : key }))
 
-const summary = {
+const wire = {
   Attention: [
-    { Kind: "failed_stands", Count: 2, Items: [{ Label: "Осінній CTF · Лисиці", Href: "/labs?status=failed&eventId=e1" }] },
-    { Kind: "open_errors", Count: 1 },
+    { Kind: "failed_stands", Count: 2, Target: "stands", Items: [{ ID: "s1", Label: "Осінній CTF · Лисиці", Count: 1, At: null }] },
+    { Kind: "events_without_reservation", Count: 1, Target: "reservations", Items: [{ ID: "e9", Label: "Весняний CTF", Count: 0, At: null }] },
+    { Kind: "open_errors", Count: 1, Target: "errors", Items: [] },
   ],
-  Events: [{ ID: "e1", Name: "Осінній CTF", Tag: "autumn", LifecycleStatus: "started", StartAt: "2026-11-02T09:00:00Z", Running: true, Participants: 40, Teams: 10, StandsReady: 8, StandsTotal: 10 }],
-  Trends: { Days: ["1", "2", "3", "4", "5", "6", "7"], Signups: [1, 2, 3, 4, 5, 6, 7], ActiveUsers: [2, 2, 2, 2, 2, 2, 2], Solves: [0, 0, 0, 0, 0, 0, 0] },
-  Infra: { CPUPercent: 41.5, MemoryPercent: 60, StandsActive: 7, StandsFailed: 2, Healthy: true, Available: true },
+  CurrentAndUpcoming: [{ EventID: "e1", Name: "Осінній CTF", Tag: "autumn", StartAt: "2026-11-02T09:00:00Z", FinishAt: null, Running: true, Participants: 40, Teams: 10, StandsReady: 8, StandsTotal: 10 }],
+  Trends7d: { Days: ["1", "2", "3", "4", "5", "6", "7"], Registrations: [1, 2, 3, 4, 5, 6, 7], ActiveUsers: [2, 2, 2, 2, 2, 2, 2], Solves: [0, 0, 0, 0, 0, 0, 0] },
+  Infrastructure: { CPUAllocatableMillicores: 8000, CPUReservedMillicores: 3320, MemoryAllocatableBytes: 1000, MemoryReservedBytes: 600, Agents: 2, ActiveStands: 7, FailedStands: 2 },
 }
+const summary = wire
 
 describe("dashboard", () => {
   beforeEach(() => {
@@ -29,7 +31,8 @@ describe("dashboard", () => {
     render(<Page />)
     const stands = await screen.findByRole("link", { name: /admin.dashboard.attention.failed_stands/ })
     expect(stands).toHaveAttribute("href", "/labs?status=failed")
-    expect(screen.getByRole("link", { name: "Осінній CTF · Лисиці" })).toHaveAttribute("href", "/labs?status=failed&eventId=e1")
+    expect(screen.getByRole("link", { name: "Осінній CTF · Лисиці" })).toHaveAttribute("href", "/labs?status=failed")
+    expect(screen.getByRole("link", { name: "Весняний CTF" })).toHaveAttribute("href", "/events/detail?id=e9")
     expect(screen.getByRole("link", { name: /admin.dashboard.attention.open_errors/ })).toHaveAttribute("href", "/errors")
   })
 
@@ -39,13 +42,14 @@ describe("dashboard", () => {
     expect(screen.getByText(/admin.dashboard.eventCounts.*"stands":"8\/10"/)).toBeInTheDocument()
     expect(screen.getAllByRole("img", { name: /admin.dashboard.trendLabel/ })).toHaveLength(3)
     expect(screen.getByText("41,5%")).toBeInTheDocument()
+    expect(screen.getByText("60%")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "admin.dashboard.action.createEvent" })).toHaveAttribute("href", "/events/new")
     expect(screen.getByRole("link", { name: "admin.dashboard.action.invite" })).toHaveAttribute("href", "/users?invite=1")
   })
 
   it("hides a block the backend did not send and the actions the person may not use", async () => {
     rights.denied = new Set(["events.write", "users.invite"])
-    api.get.mockResolvedValue({ Attention: [], Events: null, Trends: null, Infra: null })
+    api.get.mockResolvedValue({ Attention: [], CurrentAndUpcoming: null, Trends7d: null, Infrastructure: null })
     render(<Page />)
     expect(await screen.findByText("admin.dashboard.attentionNone")).toBeInTheDocument()
     expect(screen.queryByText("admin.dashboard.nowSoon")).not.toBeInTheDocument()
