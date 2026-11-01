@@ -3099,5 +3099,7 @@
   "admin.elevations.unit.millicores": "millicores",
   "admin.elevations.history.title": "Other requests of the author: {name}",
   "admin.elevations.history.none": "No other requests",
-  "admin.elevations.history.error": "Could not load the author's history"
+  "admin.elevations.history.error": "Could not load the author's history",
+  "admin.platformAnalytics.users.people.subtitleAll": "All accounts by the number of events they joined.",
+  "admin.platformAnalytics.users.people.search": "Search by name or email"
 }
