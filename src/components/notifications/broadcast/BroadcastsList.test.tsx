@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { BroadcastsList } from "./BroadcastsList"
 
-const api = vi.hoisted(() => ({ list: vi.fn(), push: vi.fn() }))
-vi.mock("@/api/notifications/broadcasts", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/notifications/broadcasts")>()), listBroadcasts: api.list }))
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: api.push }) }))
+const api = vi.hoisted(() => ({ list: vi.fn() }))
+vi.mock("@/api/notifications/broadcasts", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/notifications/broadcasts")>()), listBroadcastsPage: api.list }))
+vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/notifications/broadcasts", useSearchParams: () => new URLSearchParams() }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 
 const row = (id: string, extra = {}) => ({
@@ -14,19 +15,13 @@ const row = (id: string, extra = {}) => ({
 })
 
 describe("broadcast history", () => {
-  beforeEach(() => { api.list.mockReset(); api.push.mockReset() })
+  beforeEach(() => { api.list.mockReset() })
 
-  it("shows a loader while the list loads", () => {
-    api.list.mockReturnValue(new Promise(() => {}))
-    render(<BroadcastsList />)
-    expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
-    expect(screen.getByRole("link", { name: "Надіслати повідомлення" })).toHaveAttribute("href", "/notifications/broadcasts/new")
-  })
-
-  it("shows the empty state", async () => {
+  it("shows the empty state and the send link", async () => {
     api.list.mockResolvedValue({ Items: [], Total: 0 })
     render(<BroadcastsList />)
     expect(await screen.findByText("Розсилок ще не було")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Надіслати повідомлення" })).toHaveAttribute("href", "/notifications/broadcasts/new")
   })
 
   it("shows the load error and retries", async () => {
@@ -36,17 +31,11 @@ describe("broadcast history", () => {
     expect(await screen.findByText("Тема a")).toBeInTheDocument()
   })
 
-  it("lists rows, opens the details and pages by cursor", async () => {
-    api.list.mockResolvedValueOnce({ Items: [row("a")], Total: 2, NextCursor: "c2" }).mockResolvedValueOnce({ Items: [row("b", { Subject: "", InAppTitle: "Заголовок" })], Total: 2 })
+  it("lists rows with a link to the details, newest first from the server", async () => {
+    api.list.mockResolvedValue({ Items: [row("a"), row("b", { Subject: "", InAppTitle: "Заголовок" })], Total: 2 })
     render(<BroadcastsList />)
-    expect(await screen.findByText("Тема a")).toBeInTheDocument()
-    expect(screen.getByText("Електронна пошта, У застосунку")).toBeInTheDocument()
-    expect(screen.getByText("Ірина")).toBeInTheDocument()
-    fireEvent.click(screen.getByText("Тема a").closest("tr")!)
-    expect(api.push).toHaveBeenCalledWith("/notifications/broadcasts/detail?id=a")
-    fireEvent.click(screen.getByRole("button", { name: "Далі" }))
-    expect(await screen.findByText("Заголовок")).toBeInTheDocument()
-    expect(api.list).toHaveBeenLastCalledWith({ limit: 25, cursor: "c2" })
-    await waitFor(() => expect(screen.getByRole("button", { name: "Далі" })).toBeDisabled())
+    expect(await screen.findByRole("link", { name: "Тема a" })).toHaveAttribute("href", "/notifications/broadcasts/detail?id=a")
+    expect(screen.getByRole("link", { name: "Заголовок" })).toBeInTheDocument()
+    await waitFor(() => expect(api.list).toHaveBeenCalledWith(expect.objectContaining({ page: 1, sortBy: "created", sortDir: "desc", status: "", search: "" })))
   })
 })

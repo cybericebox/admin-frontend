@@ -3105,5 +3105,7 @@
   "admin.platformAnalytics.events.table.search": "Пошук за назвою або тегом заходу",
   "admin.platformAnalytics.tasks.search": "Пошук за завданням",
   "admin.errors.sample.dispatch": "Розсилка",
-  "admin.errors.sample.dispatchOpen": "Відкрити запис у журналі надсилання"
+  "admin.errors.sample.dispatchOpen": "Відкрити запис у журналі надсилання",
+  "admin.notif.broadcast.search": "Пошук за темою, заголовком або заходом",
+  "admin.notif.broadcast.emptyFiltered": "Розсилок не знайдено"
 }
