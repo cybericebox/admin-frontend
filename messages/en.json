@@ -3040,5 +3040,14 @@
   "admin.notif.diff.added": "Added",
   "admin.notif.diff.removed": "Removed",
   "admin.notif.diff.same.line": "Unchanged",
-  "admin.notif.templates.channels": "Template channel"
+  "admin.notif.templates.channels": "Template channel",
+  "admin.elevations.col.exercise": "Exercise",
+  "admin.elevations.col.author": "Author",
+  "admin.elevations.col.requestedAt": "Requested",
+  "admin.elevations.col.devices": "Devices",
+  "admin.elevations.col.status": "Status",
+  "admin.elevations.col.decided": "Decided",
+  "admin.elevations.col.actions": "Actions",
+  "admin.elevations.search": "Search by exercise or author",
+  "admin.elevations.empty.filtered": "No requests match these conditions"
 }
