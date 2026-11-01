@@ -2986,5 +2986,8 @@
   "admin.agents.search": "Search by name, address or tenant",
   "admin.agents.filterState": "Filter by state",
   "admin.agents.filterStateAll": "All states",
-  "admin.agents.emptyFiltered": "No agents match these conditions."
+  "admin.agents.emptyFiltered": "No agents match these conditions.",
+  "admin.platformAnalytics.period.custom": "Custom range",
+  "admin.platformAnalytics.period.compare": "Compare with the previous period",
+  "admin.platformAnalytics.period.rangeError": "The end must not be before the start."
 }

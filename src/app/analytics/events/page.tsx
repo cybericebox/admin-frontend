@@ -7,7 +7,7 @@ import { EventsAnalytics } from "@/components/analytics/events/EventsAnalytics"
 import { t } from "@/i18n/t"
 
 function EventsAnalyticsPage() {
-  return <SectionPage title={t("admin.platformAnalytics.events.title")} subtitle={t("admin.platformAnalytics.events.subtitle")}>
+  return <SectionPage title={t("admin.platformAnalytics.events.title")} subtitle={t("admin.platformAnalytics.events.subtitle")} autoRefresh="off">
     <EventsAnalytics />
   </SectionPage>
 }

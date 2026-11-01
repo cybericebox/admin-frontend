@@ -17,3 +17,11 @@ export function periodRange(preset: PeriodPreset, now: number = Date.now()): Per
   if (preset === "all") return {}
   return { from: new Date(now - DAYS[preset] * DAY_MS).toISOString(), to: new Date(now).toISOString() }
 }
+
+/** A custom range typed as dates (YYYY-MM-DD, the local days, both inclusive) as the RFC 3339 bounds the API takes. */
+export function customRange(from: string, to: string): PeriodRange | null {
+  const start = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T23:59:59.999`)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return null
+  return { from: start.toISOString(), to: end.toISOString() }
+}

@@ -2986,5 +2986,8 @@
   "admin.agents.search": "Пошук за назвою, адресою або орендарем",
   "admin.agents.filterState": "Фільтр за станом",
   "admin.agents.filterStateAll": "Усі стани",
-  "admin.agents.emptyFiltered": "За цими умовами агентів не знайдено."
+  "admin.agents.emptyFiltered": "За цими умовами агентів не знайдено.",
+  "admin.platformAnalytics.period.custom": "Свій діапазон",
+  "admin.platformAnalytics.period.compare": "Порівняти з попереднім",
+  "admin.platformAnalytics.period.rangeError": "Кінець має бути не раніше початку."
 }

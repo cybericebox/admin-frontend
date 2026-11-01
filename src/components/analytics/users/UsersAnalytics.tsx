@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, DataTable, KpiTile, barOption, donutOption, lineOption, useAnalyticsResource, type ChartTheme, type Column } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
@@ -38,7 +39,7 @@ export function UsersAnalytics() {
   ) : undefined
 
   const roleColumns: Column<RoleRow>[] = [
-    { key: "role", header: t("admin.platformAnalytics.users.role.role"), cell: (row) => roleLabel(row.Role), sortValue: (row) => roleLabel(row.Role) },
+    { key: "role", header: t("admin.platformAnalytics.users.role.role"), cell: (row) => <Link href={`/users?f.role=in%3A${encodeURIComponent(row.Role)}`} className="text-primary hover:underline">{roleLabel(row.Role)}</Link>, sortValue: (row) => roleLabel(row.Role) },
     { key: "count", header: t("admin.platformAnalytics.users.role.count"), cell: (row) => formatCount(row.Count), sortValue: (row) => row.Count, numeric: true },
   ]
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { exercisesOrigin } from "@/lib/origins"
 import { CsvExportButton, DataTable, type Column } from "@/components/analytics"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
 import { formatCount, formatDuration, formatPercent } from "@/components/analytics/events/format"
@@ -16,7 +17,7 @@ function rowKey(row: TaskUsageRow): string {
 
 function identityColumns(): Column<TaskUsageRow>[] {
   return [
-    { key: "exercise", header: t("admin.platformAnalytics.tasks.col.exercise"), sortValue: (row) => row.Exercise, cell: (row) => <span className="font-medium text-foreground">{row.Exercise}</span> },
+    { key: "exercise", header: t("admin.platformAnalytics.tasks.col.exercise"), sortValue: (row) => row.Exercise, cell: (row) => <a href={`${exercisesOrigin}/detail?id=${encodeURIComponent(row.ExerciseID)}`} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{row.Exercise}</a> },
     { key: "task", header: t("admin.platformAnalytics.tasks.col.task"), sortValue: (row) => row.Task, cell: (row) => row.Task || "–" },
     { key: "level", header: t("admin.platformAnalytics.tasks.col.level"), sortValue: (row) => row.Level, cell: (row) => levelLabel(row.Level) },
     { key: "categories", header: t("admin.platformAnalytics.tasks.col.categories"), cell: (row) => row.Categories.length ? row.Categories.join(", ") : "–" },

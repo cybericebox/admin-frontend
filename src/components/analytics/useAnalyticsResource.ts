@@ -30,7 +30,7 @@ export type AnalyticsResource<T> = {
 export function useAnalyticsResource<T>(section: string, params: AnalyticsParams = {}, options: { period?: boolean } = {}): AnalyticsResource<T> {
   const ctx = useContext(SectionContext)
   const withPeriod = options.period !== false && ctx !== null
-  const key = `${section}|${JSON.stringify(params)}|${withPeriod ? ctx?.period.preset : "-"}`
+  const key = `${section}|${JSON.stringify(params)}|${withPeriod ? ctx?.period.key : "-"}`
   const [state, setState] = useState<{ key: string; data?: T; error?: unknown; done: boolean; at: number | null }>({ key, done: false, at: null })
   const latest = useRef({ section, params, withPeriod, ctx, key })
   const controller = useRef<AbortController | null>(null)
