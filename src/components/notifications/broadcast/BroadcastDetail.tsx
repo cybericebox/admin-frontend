@@ -1,8 +1,15 @@
 "use client"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { Download } from "lucide-react"
 import { t } from "@/i18n/t"
-import { ApiError } from "@/api/client"
-import { BROADCAST_VARIABLES, getBroadcast, listBroadcastDeliveries, type Broadcast, type BroadcastDelivery } from "@/api/notifications/broadcasts"
+import { ApiError, apiGetBlob } from "@/api/client"
+import { toast } from "@/components/ui/toast"
+import { overloadOr } from "@/i18n/apiError"
+import { SelectMenu } from "@/components/ui/select-menu"
+import { TablePagination } from "@/components/ui/table-pagination"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { BROADCAST_VARIABLES, broadcastDeliveriesExportPath, cancelBroadcast, getBroadcast, listBroadcastDeliveries, type Broadcast, type DeliveriesPage, type DeliveryStatus } from "@/api/notifications/broadcasts"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { NotFoundBlock } from "@/components/ErrorPage"
@@ -17,69 +24,103 @@ import { statusLabelKey } from "@/lib/templateStatus"
 import { audienceLabel } from "./AudiencePicker"
 import { broadcastSample, broadcastChannelLabel, broadcastHeading, broadcastPillStatus, broadcastStatusLabel } from "./broadcastLabels"
 
-const DELIVERY_PAGE = 50
 const POLL_MS = 5_000
+const DELIVERY_STATUSES: DeliveryStatus[] = ["error", "done", "waiting"]
 
 function Deliveries({ id, sending }: { id: string; sending: boolean }) {
-  const [rows, setRows] = useState<BroadcastDelivery[]>([])
-  const [more, setMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [status, setStatus] = useState<DeliveryStatus | "">("")
+  // The rows stay on screen while another page or filter loads (no blink); only the first load shows the loader.
+  const [data, setData] = useState<DeliveriesPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
+  const [reload, setReload] = useState(0)
+  const [exporting, setExporting] = useState(false)
 
-  const load = useCallback((offset: number) => {
-    setLoading(true)
-    setError(null)
-    listBroadcastDeliveries(id, { limit: DELIVERY_PAGE, offset })
-      .then((page) => { setRows((current) => (offset === 0 ? page : [...current, ...page])); setMore(page.length === DELIVERY_PAGE) })
-      .catch((cause) => setError({ cause }))
-      .finally(() => setLoading(false))
-  }, [id])
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
+    listBroadcastDeliveries(id, { page, pageSize, status })
+      .then((next) => { if (active) setData(next) })
+      .catch((cause) => { if (active) setError({ cause }) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [id, page, pageSize, status, reload])
 
   // While the broadcast is still sending, the list refreshes together with its counters.
   useEffect(() => {
-    queueMicrotask(() => load(0))
     if (!sending) return
-    const timer = window.setInterval(() => load(0), POLL_MS)
+    const timer = window.setInterval(() => setReload((n) => n + 1), POLL_MS)
     return () => window.clearInterval(timer)
-  }, [load, sending])
+  }, [sending])
 
+  async function exportCsv() {
+    setExporting(true)
+    try {
+      const { blob, filename } = await apiGetBlob(broadcastDeliveriesExportPath(id, status))
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = filename ?? "deliveries.csv"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.notif.broadcast.exportError")))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const rows = data?.Items ?? []
+  const total = data?.Total ?? 0
+  const firstLoad = data === null
   return (
     <section aria-labelledby="bc-deliveries" className="space-y-2">
-      <h2 id="bc-deliveries" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.deliveries")}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="bc-deliveries" className="text-sm font-semibold text-foreground">{t("admin.notif.broadcast.deliveries")}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectMenu value={status} onChange={(value) => { setStatus(value as DeliveryStatus | ""); setPage(1) }} ariaLabel={t("admin.notif.broadcast.deliveryFilter")} className="min-w-44 text-sm"
+            options={[{ value: "", label: t("admin.notif.broadcast.deliveryAll") }, ...DELIVERY_STATUSES.map((value) => ({ value, label: t(`admin.notif.broadcast.delivery.${value}`) }))]} />
+          <Button type="button" variant="outline" size="sm" busy={exporting} busyLabel={t("busy.exporting")} onClick={() => void exportCsv()}><Download aria-hidden="true" className="mr-2 h-4 w-4" />{t("admin.notif.broadcast.exportCsv")}</Button>
+        </div>
+      </div>
       <div className="flex min-h-56 flex-col rounded-md border border-border" aria-busy={loading}>
-        {error && rows.length === 0 ? (
-          <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} compact className="flex-1" onRetry={() => load(0)} />
-        ) : loading && rows.length === 0 ? (
+        {error && firstLoad ? (
+          <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} compact className="flex-1" onRetry={() => setReload((n) => n + 1)} />
+        ) : firstLoad ? (
           <LoadingArea compact className="flex-1" label={t("admin.loading")} />
         ) : rows.length === 0 ? (
-          <EmptyState compact className="flex-1" message={t("admin.notif.broadcast.deliveriesEmpty")} />
+          <EmptyState compact className="flex-1" message={t(status ? "admin.notif.broadcast.deliveriesEmptyFiltered" : "admin.notif.broadcast.deliveriesEmpty")} />
         ) : (
           <div className="overflow-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className={`ib-table${loading ? " is-refreshing" : ""}`} aria-label={t("admin.notif.broadcast.deliveries")}>
               <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">{t("admin.notif.logs.recipient")}</th>
-                  <th className="px-3 py-2 font-medium">{t("admin.notif.logs.channel")}</th>
-                  <th className="px-3 py-2 font-medium">{t("admin.notif.logs.status")}</th>
-                  <th className="px-3 py-2 font-medium">{t("admin.notif.logs.error")}</th>
+                <tr>
+                  <th scope="col">{t("admin.notif.logs.recipient")}</th>
+                  <th scope="col">{t("admin.notif.logs.channel")}</th>
+                  <th scope="col">{t("admin.notif.logs.status")}</th>
+                  <th scope="col">{t("admin.notif.logs.error")}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={`${row.DispatchID}-${row.Channel}-${index}`} className="border-b border-border/50">
-                    <td className="px-3 py-2 text-foreground">{row.RecipientEmail || <span className="font-mono text-xs text-muted-foreground">{row.RecipientUserID.slice(0, 8)}</span>}</td>
-                    <td className="px-3 py-2 text-foreground">{broadcastChannelLabel(row.Channel)}</td>
-                    <td className="px-3 py-2"><StatusPill status={row.TargetStatus} label={t(statusLabelKey(row.TargetStatus))} /></td>
-                    <td className="max-w-80 px-3 py-2">{row.Error ? <HoverTooltip text={row.Error} truncated className="max-w-full"><span className="block truncate text-xs text-destructive">{row.Error}</span></HoverTooltip> : <span className="text-muted-foreground">—</span>}</td>
+                  <tr key={`${row.DispatchID}-${row.Channel}-${index}`}>
+                    <td>{row.RecipientEmail || <span className="font-mono text-xs text-muted-foreground">{row.RecipientUserID.slice(0, 8)}</span>}</td>
+                    <td>{broadcastChannelLabel(row.Channel)}</td>
+                    <td><StatusPill status={row.TargetStatus} label={t(statusLabelKey(row.TargetStatus))} /></td>
+                    <td className="max-w-80">{row.Error ? <HoverTooltip text={row.Error} truncated className="max-w-full"><span className="block truncate text-xs text-destructive">{row.Error}</span></HoverTooltip> : <span className="text-muted-foreground">—</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {error && <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} compact onRetry={() => load(rows.length)} />}
-            {more && !error && <div className="flex justify-center p-3"><Button variant="outline" size="sm" busy={loading} busyLabel={t("busy.loading")} onClick={() => load(rows.length)}>{t("admin.notif.broadcast.loadMore")}</Button></div>}
           </div>
         )}
+        {error && !firstLoad && <LoadError message={t("admin.notif.broadcast.loadError")} error={error.cause} compact onRetry={() => setReload((n) => n + 1)} />}
       </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} busy={loading} onPage={setPage} onPageSize={(size) => { setPageSize(size); setPage(1) }} />
     </section>
   )
 }
@@ -89,6 +130,22 @@ export function BroadcastDetail({ id }: { id: string }) {
   const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reload, setReload] = useState(0)
   const sending = broadcast?.Status === "sending"
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState("")
+  async function runCancel() {
+    setCancelBusy(true)
+    setCancelError("")
+    try {
+      setBroadcast(await cancelBroadcast(id))
+      setCancelling(false)
+      toast.success(t("admin.notif.broadcast.canceled"))
+    } catch (err) {
+      setCancelError(overloadOr(err, t("admin.notif.broadcast.cancel.error")))
+    } finally {
+      setCancelBusy(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -128,7 +185,13 @@ export function BroadcastDetail({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4">
     <PageHeader title={broadcastHeading(broadcast)} crumbs={crumbs(broadcastHeading(broadcast))}
-      actions={<StatusPill status={broadcastPillStatus(broadcast.Status)} label={broadcastStatusLabel(broadcast.Status)} />} />
+      actions={<>
+        <StatusPill status={broadcastPillStatus(broadcast.Status)} label={broadcastStatusLabel(broadcast.Status)} />
+        <Button asChild variant="outline"><Link href={`/notifications/broadcasts/new?copy=${encodeURIComponent(broadcast.ID)}`}>{t("admin.notif.broadcast.copy")}</Link></Button>
+        {sending && <Button variant="outline" onClick={() => { setCancelError(""); setCancelling(true) }}>{t("admin.notif.broadcast.cancel")}</Button>}
+      </>} />
+    <ConfirmDialog open={cancelling} onCancel={() => { if (!cancelBusy) setCancelling(false) }} tone="danger" busy={cancelBusy} busyLabel={t("busy.finishing")} error={cancelError}
+      title={t("admin.notif.broadcast.cancel.title")} description={t("admin.notif.broadcast.cancel.body")} confirmLabel={t("admin.notif.broadcast.cancel.confirm")} onConfirm={() => void runCancel()} />
     <div className="frost-panel frost-in rounded-lg p-6">
 
       <dl className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">

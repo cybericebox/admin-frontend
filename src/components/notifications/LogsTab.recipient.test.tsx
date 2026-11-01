@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, within } from "@testing-library/react"
 
+vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock("@/api/client", () => ({ apiGet: vi.fn() }))
 vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => false }) }))
@@ -40,7 +41,7 @@ describe("LogsTab recipient and error lines", () => {
 
   it("shows one recipient row on top as a user link, none in channel cards, humanized errors", async () => {
     render(<LogsTab />)
-    fireEvent.click((await screen.findByText("Ann Lee")).closest("tr")!)
+    fireEvent.click(within((await screen.findByText("Ann Lee")).closest("tr")!).getAllByRole("button")[0])
     const dialog = await screen.findByRole("dialog")
     const link = await within(dialog).findByRole("link", { name: "Ann Lee (ann@example.com)" })
     expect(link).toHaveAttribute("href", "/users/detail?id=11111111-1111-1111-1111-111111111111")
@@ -60,7 +61,7 @@ describe("LogsTab recipient and error lines", () => {
   ])("shows the recipient as plain text without a link for %s", async (_n, id) => {
     detailOverride = { ...detail, RecipientUserID: id, RecipientName: "", RecipientEmail: "ann@example.com" }
     render(<LogsTab />)
-    fireEvent.click((await screen.findByText("Ann Lee")).closest("tr")!)
+    fireEvent.click(within((await screen.findByText("Ann Lee")).closest("tr")!).getAllByRole("button")[0])
     const dialog = await screen.findByRole("dialog")
     expect(await within(dialog).findByText("ann@example.com")).toBeInTheDocument()
     expect(within(dialog).queryByRole("link")).toBeNull()
@@ -69,7 +70,7 @@ describe("LogsTab recipient and error lines", () => {
   it("shows a dash when the dispatch has neither name nor email", async () => {
     detailOverride = { ...detail, RecipientName: "", RecipientEmail: "" }
     render(<LogsTab />)
-    fireEvent.click((await screen.findByText("Ann Lee")).closest("tr")!)
+    fireEvent.click(within((await screen.findByText("Ann Lee")).closest("tr")!).getAllByRole("button")[0])
     const dialog = await screen.findByRole("dialog")
     expect(await within(dialog).findByText("—")).toBeInTheDocument()
     expect(within(dialog).queryByRole("link")).toBeNull()
@@ -79,7 +80,7 @@ describe("LogsTab recipient and error lines", () => {
     const raw = "email: failed to send: gomail: could not send email 1: 530 Authentication required"
     detailOverride = { ...detail, Targets: [{ Channel: "email", Status: "error", Attempts: 1, Error: raw, ErrorKind: "smtp_auth", ErrorCode: "530", UpdatedAt: "" }] }
     render(<LogsTab />)
-    fireEvent.click((await screen.findByText("Ann Lee")).closest("tr")!)
+    fireEvent.click(within((await screen.findByText("Ann Lee")).closest("tr")!).getAllByRole("button")[0])
     const dialog = await screen.findByRole("dialog")
     expect(await within(dialog).findByText(/SMTP-сервер відхилив вхід: перевірте логін і пароль SMTP/)).toBeInTheDocument()
     expect(within(dialog).getByText("Технічні деталі")).toBeInTheDocument()

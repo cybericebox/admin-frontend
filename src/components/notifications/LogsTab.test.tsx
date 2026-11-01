@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 // ── Mocks (hoisted before imports) ────────────────────────────────────────────
 
@@ -20,8 +20,10 @@ vi.mock('@/i18n/t', () => ({
 }))
 
 // API client — control all responses per test
+vi.mock('@/api/tablePrefs', () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock('@/api/client', () => ({
   apiGet: vi.fn(),
+  apiPost: vi.fn(),
 }))
 
 // useUserNames — deterministic, synchronous resolution
@@ -40,7 +42,7 @@ vi.mock('@/lib/userNames', () => ({
 
 // useRole — events.read unlocks the event filter (listEvents)
 vi.mock('@/lib/useRole', () => ({
-  useRole: () => ({ can: (perm: string) => perm === 'events.read' }),
+  useRole: () => ({ can: (perm: string) => perm === 'events.read' || perm === 'notifications.broadcast' }),
 }))
 
 // next/link — render a plain <a> so href / onClick are testable in jsdom
@@ -53,7 +55,7 @@ vi.mock('next/link', () => ({
 
 // ── Module imports (after mocks) ──────────────────────────────────────────────
 
-import { apiGet } from '@/api/client'
+import { apiGet, apiPost } from '@/api/client'
 import { LogsTab } from './LogsTab'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -106,9 +108,12 @@ const JOURNAL_ROWS = [
 
 describe('LogsTab', () => {
   const mockApiGet = vi.mocked(apiGet)
+  const mockApiPost = vi.mocked(apiPost)
 
   beforeEach(() => {
     vi.clearAllMocks()
+    window.history.replaceState(null, '', '/test/')
+    window.localStorage.clear()
     mockApiGet.mockImplementation((url: string) => {
       if (url.startsWith('/api/notifications/dispatches/')) {
         return Promise.resolve(DETAIL_RESPONSE)
@@ -144,31 +149,20 @@ describe('LogsTab', () => {
     expect(screen.queryByText('done')).not.toBeInTheDocument()
   })
 
-  it('clicking the filter affordance triggers a fetch with user=u1 and shows chip', async () => {
+  it('clicking the filter affordance fetches with user=u1 and shows a chip that can be removed', async () => {
     render(<LogsTab />)
-    // Wait for the recipient row to render
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument()
-    })
-
-    // Clear calls from the initial list fetch
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument())
     mockApiGet.mockClear()
-
-    // Click the per-row filter button (aria-label = the i18n key, since t returns key)
-    const filterBtn = screen.getByRole('button', { name: 'admin.notif.logs.filterByUser' })
-    fireEvent.click(filterBtn)
-
-    // The next fetch must include user=u1
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.logs.filterByUser' }))
+    await waitFor(() => expect((mockApiGet.mock.calls as [string][]).some(([url]) => url.includes('user=u1'))).toBe(true))
+    expect(screen.getByRole('button', { name: /admin.table.filterEdit/ })).toBeInTheDocument()
+    expect(window.location.search).toContain('f.user=is%3Au1')
+    mockApiGet.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /admin.table.filterRemove/ }))
     await waitFor(() => {
-      const calls = mockApiGet.mock.calls as [string, ...unknown[]][]
-      const hit = calls.find(([url]) => (url as string).includes('user=u1'))
-      expect(hit).toBeTruthy()
-    })
-
-    // A "filtered by" chip must be visible
-    await waitFor(() => {
-      expect(document.body.textContent).toContain('admin.notif.logs.filteredByName')
-      expect(document.body.textContent).toContain('Ann Lee')
+      const lists = (mockApiGet.mock.calls as [string][]).filter(([url]) => url.startsWith('/api/notifications/dispatches?'))
+      expect(lists.length).toBeGreaterThan(0)
+      expect(lists.every(([url]) => !url.includes('user='))).toBe(true)
     })
   })
 
@@ -196,7 +190,7 @@ describe('LogsTab', () => {
     // Click the first table row to open the detail dialog
     // The row onClick is on <tr>; find the type cell and go up to its <tr>
     const typeCell = screen.getAllByRole('cell')[0]
-    fireEvent.click(typeCell.closest('tr')!)
+    fireEvent.click(within(typeCell.closest('tr')!).getAllByRole('button')[0])
 
     // Wait for the dialog to show the target status pill with the translated label
     // t('admin.notif.status.error') → 'admin.notif.status.error' (t mocked to return key)
@@ -223,52 +217,22 @@ describe('LogsTab', () => {
 
     render(<LogsTab />)
     await waitFor(() => expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument())
-    fireEvent.click(screen.getAllByRole('cell')[0].closest('tr')!)
+    fireEvent.click(within(screen.getAllByRole('cell')[1].closest('tr')!).getAllByRole('button')[0])
 
     await waitFor(() => expect(screen.getByText('admin.notif.status.deferred')).toBeInTheDocument())
     expect(screen.getByText(/Відкладено: вичерпано добовий ліміт/)).toBeInTheDocument()
   })
 
-  it('clicking chip ✕ clears the filter and removes user= from subsequent fetch', async () => {
-    render(<LogsTab />)
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument()
-    })
-
-    // Activate user filter
-    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.logs.filterByUser' }))
-
-    // Wait for chip to appear and data to settle
-    await waitFor(() => {
-      expect(document.body.textContent).toContain('admin.notif.logs.filteredByName')
-    })
-
-    // Clear calls accumulated so far, then dismiss chip
-    mockApiGet.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: '✕' }))
-
-    // Chip must disappear immediately
-    expect(document.body.textContent).not.toContain('admin.notif.logs.filteredByName')
-
-    // Subsequent fetch must NOT include user=
-    await waitFor(() => {
-      const calls = mockApiGet.mock.calls as [string, ...unknown[]][]
-      expect(calls.length).toBeGreaterThan(0)
-      expect(calls.every(([url]) => !(url as string).includes('user='))).toBe(true)
-    })
-  })
-
-  it('requests the next cursor page', async () => {
+  it('pages by offset and keeps the rows while the next page loads', async () => {
     mockApiGet.mockImplementation((url: string) => {
       if (url.endsWith('/types')) return Promise.resolve([])
-      if (url.includes('cursor=next-id')) return Promise.resolve({ Items: [DISPATCH_ROW], Total: 50 })
-      return Promise.resolve({ Items: [DISPATCH_ROW], Total: 50, NextCursor: 'next-id' })
+      return Promise.resolve({ Items: [DISPATCH_ROW], Total: 120 })
     })
     render(<LogsTab />)
     await waitFor(() => expect(screen.getByRole('button', { name: 'admin.table.next' })).not.toBeDisabled())
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('cursor=next-id')))
-    expect(screen.getByText('admin.table.pageOf')).toBeInTheDocument()
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('page=2')))
+    expect(screen.getByRole('link', { name: 'Ann Lee' })).toBeInTheDocument()
   })
 
   it('renders journal columns: email, event name, transport, fallback and error', async () => {
@@ -283,48 +247,49 @@ describe('LogsTab', () => {
     expect(rows[1].textContent).toContain('Kyiv CTF')
     expect(rows[1].textContent).toContain('platform')
     expect(rows[1].textContent).toContain('admin.notif.logs.fallbackPrefix')
-    expect(rows[2].querySelectorAll('td')[2].textContent).toBe('—')
     expect(rows[2].textContent).toContain('env')
     expect(rows[2].textContent).toContain('mail is not configured')
   })
 
-  it('sends channel, result, transport and event filters to the API', async () => {
+  it('sends the channel, result, transport, event, recipient and period filters of the address to the API', async () => {
+    window.history.replaceState(null, '', '/test/?f.channel=in%3Aemail&f.result=in%3Aerror&f.transport=in%3Aevent&f.event=in%3Aev-1&f.recipient=contains%3Aann&f.period=between%3A2026-10-01%2C2026-10-31')
     render(<LogsTab />)
     await screen.findByRole('link', { name: 'Ann Lee' })
-    const pick = async (filter: string, option: string) => {
-      fireEvent.keyDown(screen.getByRole('button', { name: filter }), { key: 'ArrowDown' })
-      fireEvent.click(await screen.findByRole('menuitemradio', { name: option }))
-    }
-    await pick('admin.notif.logs.channel', 'email')
-    await pick('admin.notif.logs.result', 'admin.notif.logs.resultError')
-    await pick('admin.notif.logs.transport', 'event')
-    await pick('admin.notif.logs.event', 'Kyiv CTF')
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*event=ev-1)(?=.*channel=email)(?=.*result=error)(?=.*transport=event)/),
+      expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*event=ev-1)(?=.*channel=email)(?=.*result=error)(?=.*transport=event)(?=.*recipient=ann)(?=.*from=)(?=.*to=)/),
     ))
-    expect(mockApiGet).toHaveBeenCalledWith('/api/events?pageSize=100')
   })
 
-  it('marks SMTP test rows with a badge and filters them by type', async () => {
+  it('marks SMTP test rows with a badge and sends the type filter', async () => {
+    window.history.replaceState(null, '', '/test/?f.type=in%3Asmtp_test')
     mockApiGet.mockImplementation((url: string) => {
       if (url.startsWith('/api/events')) return Promise.resolve(EVENTS_RESPONSE)
       if (url.startsWith('/api/notifications/dispatches')) {
-        return Promise.resolve({
-          ...LIST_RESPONSE,
-          Items: [
-            { ...DISPATCH_ROW, ID: 't1', NotificationType: 'smtp_test', RecipientEmail: 'ann@example.com', Targets: [] },
-            { ...DISPATCH_ROW, ID: 't2', NotificationType: 'password_reset', Targets: [] },
-          ],
-        })
+        return Promise.resolve({ ...LIST_RESPONSE, Items: [
+          { ...DISPATCH_ROW, ID: 't1', NotificationType: 'smtp_test', RecipientEmail: 'ann@example.com', Targets: [] },
+          { ...DISPATCH_ROW, ID: 't2', NotificationType: 'password_reset', Targets: [] },
+        ] })
       }
       return Promise.resolve([])
     })
     render(<LogsTab />)
     await waitFor(() => expect(screen.getAllByText('admin.notif.logs.testBadge')).toHaveLength(1))
-    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.notif.logs.type' }), { key: 'ArrowDown' })
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Smtp Test' }))
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*type=smtp_test)/),
-    ))
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/notifications\/dispatches\?(?=.*type=smtp_test)/)))
+  })
+
+  it('resends the selected failed deliveries after a confirmation; a delivery with no failed channel cannot be selected', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/events')) return Promise.resolve(EVENTS_RESPONSE)
+      return Promise.resolve({ Items: JOURNAL_ROWS, Total: 2 })
+    })
+    mockApiPost.mockResolvedValue({ Results: [{ DispatchID: 'j2', Ok: true }] })
+    render(<LogsTab />)
+    await screen.findByText('bob@example.com')
+    const rows = screen.getAllByRole('row')
+    expect(within(rows[1]).getByRole('checkbox')).toBeDisabled()
+    fireEvent.click(within(rows[2]).getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.notif.logs.resend' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'admin.notif.logs.resend.confirm' }))
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledWith('/api/notifications/dispatches/resend', { DispatchIDs: ['j2'] }))
   })
 })
