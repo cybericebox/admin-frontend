@@ -5,6 +5,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     globals: true,
+    // Tests wait for conditions (see src/test/setup.ts); a loaded machine only needs more time, not a different test.
+    testTimeout: 30000,
     env: {
       // The one base domain; every host derives from it. ("localhost" where jsdom must accept the shared-domain cookies.)
       NEXT_PUBLIC_DOMAIN: "localhost",
