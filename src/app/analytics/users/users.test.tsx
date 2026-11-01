@@ -38,7 +38,7 @@ const people: UsersPerson[] = [
 ]
 
 function serve(usersResult: () => Promise<unknown>) {
-  mocks.apiGet.mockImplementation((path: string) => path.startsWith("/api/analytics/users/people") ? Promise.resolve(people) : usersResult())
+  mocks.apiGet.mockImplementation((path: string) => path.startsWith("/api/analytics/users/people") ? Promise.resolve({ Items: people, Total: 137, Page: 1, PageSize: 25 }) : usersResult())
 }
 
 beforeEach(() => {
@@ -84,7 +84,18 @@ describe("analytics users page", () => {
     const table = await screen.findByRole("table", { name: "Найактивніші користувачі" })
     expect(within(table).getByText("Ada Lovelace")).toBeInTheDocument()
     expect(within(table).getByText("grace@example.test")).toBeInTheDocument()
-    expect(mocks.apiGet.mock.calls.some(([path]) => path === "/api/analytics/users/people")).toBe(true)
+    expect(mocks.apiGet.mock.calls.some(([path]) => String(path).startsWith("/api/analytics/users/people?") && String(path).includes("page=1") && String(path).includes("sortBy=eventsJoined"))).toBe(true)
+    // all the accounts, not a top 100: the found total drives the paging
+    expect(screen.getByText("Усього: 137")).toBeInTheDocument()
+  })
+
+  it("searches the people on the server after a pause and starts again from the first page", async () => {
+    mocks.granted = new Set(["analytics.read", "analytics.users.read"])
+    serve(() => Promise.resolve(report()))
+    render(<Page />)
+    await screen.findByRole("table", { name: "Найактивніші користувачі" })
+    fireEvent.change(screen.getByLabelText("Пошук за імʼям або поштою"), { target: { value: "grace" } })
+    await waitFor(() => expect(mocks.apiGet.mock.calls.some(([path]) => String(path).startsWith("/api/analytics/users/people?") && String(path).includes("search=grace") && String(path).includes("page=1"))).toBe(true))
   })
 
   it("shows the empty states when nothing happened in the period", async () => {

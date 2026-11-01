@@ -3099,5 +3099,7 @@
   "admin.elevations.unit.millicores": "мілі-ядер",
   "admin.elevations.history.title": "Інші запити автора: {name}",
   "admin.elevations.history.none": "Інших запитів немає",
-  "admin.elevations.history.error": "Не вдалося завантажити історію автора"
+  "admin.elevations.history.error": "Не вдалося завантажити історію автора",
+  "admin.platformAnalytics.users.people.subtitleAll": "Усі облікові записи за кількістю заходів, у яких вони брали участь.",
+  "admin.platformAnalytics.users.people.search": "Пошук за імʼям або поштою"
 }
