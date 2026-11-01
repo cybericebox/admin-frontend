@@ -13,6 +13,7 @@ import { StatusPill } from "@/components/notifications/StatusPill"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
+import { VersionDiffDialog } from "./VersionDiffDialog"
 
 type Version = {
   ID: string
@@ -42,6 +43,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
   const [restoreSource, setRestoreSource] = useState<Version | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState(false)
+  const [diffId, setDiffId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || !notificationType) return
@@ -99,6 +101,7 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
           {version.ID === currentId
             ? <span className="text-xs font-medium text-muted-foreground">{t("admin.notif.versions.current")}</span>
             : <Link href={`/notifications/templates/${channel}/detail?id=${version.ID}`} className="text-xs font-medium text-primary hover:underline">{t("admin.notif.versions.open")}</Link>}
+          {version.ID !== currentId && <Button type="button" size="sm" variant="outline" onClick={() => setDiffId(version.ID)}>{t("admin.notif.diff.action")}</Button>}
           {canWrite && version.Status !== "draft" && <Button type="button" size="sm" variant="outline" disabled={busy || restoring}
             onClick={() => { setRestoreError(false); setRestoreSource(version) }}>
             {t("admin.notif.tpl.rollback")}
@@ -106,6 +109,8 @@ export function TemplateVersions({ channel, notificationType, currentId, canWrit
         </div>)}
       </div>}
     </section>
+
+    <VersionDiffDialog channel={channel} versionId={diffId} currentId={currentId} onClose={() => setDiffId(null)} />
 
     <ConfirmDialog open={restoreSource !== null} onCancel={() => { if (!restoring) setRestoreSource(null) }}
       busy={restoring} busyLabel={t("busy.restoring")} disabled={busy} error={restoreError ? t("admin.notif.versions.restoreError") : null}

@@ -3025,5 +3025,20 @@
   "admin.notif.settings.critical.title": "Вимкнути «{type}» ({channel})?",
   "admin.notif.settings.critical.body": "Без цього повідомлення люди не зможуть завершити реєстрацію, увійти або отримати запрошення. Вимкніть, лише якщо знаєте, що робите.",
   "admin.notif.settings.critical.confirm": "Вимкнути",
-  "admin.notif.banners.where": "Де зараз показується"
+  "admin.notif.banners.where": "Де зараз показується",
+  "admin.notif.diff.action": "Порівняти",
+  "admin.notif.diff.title.dialog": "Чим версія відрізняється від поточної",
+  "admin.notif.diff.legend": "Червоним — що є у вибраній версії, але немає в поточній; зеленим — що додано в поточній.",
+  "admin.notif.diff.same": "Вміст не відрізняється.",
+  "admin.notif.diff.loadError": "Не вдалося завантажити версії для порівняння",
+  "admin.notif.diff.subject": "Тема",
+  "admin.notif.diff.preheader": "Прехедер",
+  "admin.notif.diff.button": "Кнопка",
+  "admin.notif.diff.image": "Зображення",
+  "admin.notif.diff.title": "Заголовок",
+  "admin.notif.diff.link": "Посилання",
+  "admin.notif.diff.added": "Додано",
+  "admin.notif.diff.removed": "Видалено",
+  "admin.notif.diff.same.line": "Без змін",
+  "admin.notif.templates.channels": "Канал шаблонів"
 }
