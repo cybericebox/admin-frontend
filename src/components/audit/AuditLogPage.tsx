@@ -3,8 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { listAuditLog, type AuditFilters, type AuditRecord } from "@/api/auditLog"
 import { Button } from "@/components/ui/button"
-import { DateTimePicker } from "@/components/ui/date-time-picker"
-import { Input } from "@/components/ui/input"
 import { LoadError } from "@/components/ui/load-error"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
@@ -12,14 +10,15 @@ import { PageHeader } from "@/components/ui/page-header"
 import { FilterField } from "@/components/common/FilterField"
 import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
 import { useUrlState } from "@/lib/useUrlState"
-import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 import { formatDateTime } from "@/lib/locale"
 import { parseAuditTarget } from "@/lib/auditTarget"
-import { useDebounced } from "@/lib/useDebounced"
 import { useUserNames } from "@/lib/userNames"
 import { useRole } from "@/lib/useRole"
 import { AuditUserFilter, type PickedUser } from "./AuditUserFilter"
+import { FilterBar } from "@/components/table/FilterBar"
+import { ResetFilters } from "@/components/table/ResetFilters"
+import { bagFromUrl, isComplete, serializeCond, urlKey, withoutKey, type FilterBag, type FilterDef } from "@/components/table/filters"
 
 const METHODS = ["POST", "PUT", "PATCH", "DELETE", "GET"] as const
 const STATUS_FILTERS = ["2xx", "3xx", "4xx", "5xx", "403", "409"] as const
@@ -44,17 +43,31 @@ const COLUMNS = ["time", "actor", "permission", "method", "route", "status", "ta
 
 export function AuditLogPage() {
   const { can } = useRole()
-  const [url, setUrl] = useUrlState({ actor: "", actorName: "", permission: "", route: "", method: "", status: "", kind: "", targetID: "", from: "", to: "", sort: "time", dir: "desc" })
-  // Text fields stay responsive: the field shows its own value, the URL and the request follow.
-  const [permissionInput, setPermissionInput] = useState(url.permission)
-  const [routeInput, setRouteInput] = useState(url.route)
-  const [targetIDInput, setTargetIDInput] = useState(url.targetID)
-  const permission = useDebounced(permissionInput.trim())
-  const route = useDebounced(routeInput.trim())
-  const targetID = useDebounced(targetIDInput.trim())
-  useEffect(() => { setUrl({ permission, route, targetID }) }, [permission, route, targetID, setUrl])
+  // The filters are chips (the table standard, filters in the address as f.<key>); the person stays a picker: names, not ids.
+  const defs = useMemo<FilterDef[]>(() => [
+    { key: "permission", label: t("admin.audit.col.permission"), type: "text", ops: ["contains"] },
+    { key: "route", label: t("admin.audit.col.route"), type: "text", ops: ["contains"] },
+    { key: "method", label: t("admin.audit.filter.method"), type: "choice", single: true, ops: ["in"], options: METHODS.map((value) => ({ value, label: value === "GET" ? t("admin.audit.filter.methodGet") : value })) },
+    { key: "status", label: t("admin.audit.filter.status"), type: "choice", single: true, ops: ["in"], options: STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status_${value}`) })) },
+    { key: "kind", label: t("admin.audit.filter.kindLabel"), type: "choice", single: true, ops: ["in"], options: TARGET_KINDS.map((kind) => ({ value: kind, label: t(`admin.audit.target.${kind}`) })) },
+    { key: "targetID", label: t("admin.audit.filter.targetIDLabel"), type: "text", ops: ["is"] },
+    { key: "period", label: t("admin.audit.col.time"), type: "date" },
+  ], [])
+  const [url, setUrl] = useUrlState({ actor: "", actorName: "", ...Object.fromEntries(defs.map((def) => [urlKey(def.key), ""])), sort: "time", dir: "desc" })
+  const [pinned, setPinned] = useState<string[]>([])
+  const bag = bagFromUrl(url, defs)
+  const setBag = (next: FilterBag) => setUrl(Object.fromEntries(defs.map((def) => [urlKey(def.key), serializeCond(next[def.key])])))
+  const first = (key: string) => (isComplete(bag[key]) ? bag[key].v[0] : "")
+  const permission = first("permission")
+  const route = first("route")
+  const targetID = first("targetID")
+  const method = first("method")
+  const status = first("status")
+  const targetKind = first("kind")
+  const period = bag.period
+  const fromDay = isComplete(period) && period.op !== "before" ? period.v[0] ?? "" : ""
+  const toDay = isComplete(period) ? (period.op === "before" ? period.v[0] : period.op === "between" ? period.v[1] ?? "" : "") : ""
   const user: PickedUser | null = url.actor ? { id: url.actor, name: url.actorName || url.actor.slice(0, 8) } : null
-  const { method, status, from: fromLocal, to: toLocal, kind: targetKind } = url
   const sortField = url.sort as SortField
   const sortDir = url.dir === "asc" ? "asc" : "desc"
   const [reload, setReload] = useState(0)
@@ -65,8 +78,8 @@ export function AuditLogPage() {
   // Answers of anything but the latest request are dropped.
   const latest = useRef(0)
 
-  const from = toInstant(fromLocal)
-  const to = toInstant(toLocal, true)
+  const from = toInstant(fromDay ? `${fromDay}T00:00` : "")
+  const to = toInstant(toDay ? `${toDay}T23:59` : "", true)
   const badRange = !!from && !!to && to < from
   const actorID = user?.id ?? ""
   const filters: AuditFilters = { actorID, permission, route, method, status, from, to, targetKind, targetID }
@@ -119,44 +132,29 @@ export function AuditLogPage() {
     : <th key={column} scope="col">{t(`admin.audit.col.${column}`)}</th>
   const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
 
+  const { me } = useRole()
+  // «Сьогодні» is the local day the page was opened on.
+  const [todayDay] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))
+  const presetsActive = { mine: !!me && url.actor === me.ID, errors: status === "5xx", today: isComplete(period) && period.op === "after" && period.v[0] === todayDay }
+  const reset = () => { setUrl({ actor: "", actorName: "", ...Object.fromEntries(defs.map((def) => [urlKey(def.key), ""])) }) }
   const filterControls = <>
     {can("users.read") && <FilterField label={t("admin.audit.filter.user")} className="min-w-[min(100%,16rem)] flex-1 lg:max-w-xs">
       <AuditUserFilter value={user} onChange={(picked) => setUrl({ actor: picked?.id ?? "", actorName: picked?.name ?? "" })} />
     </FilterField>}
-    <FilterField label={t("admin.audit.col.permission")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
-      <Input value={permissionInput} onChange={(event) => setPermissionInput(event.target.value)} placeholder={t("admin.audit.filter.permission")} aria-label={t("admin.audit.col.permission")} />
-    </FilterField>
-    <FilterField label={t("admin.audit.col.route")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
-      <Input value={routeInput} onChange={(event) => setRouteInput(event.target.value)} placeholder={t("admin.audit.filter.route")} aria-label={t("admin.audit.col.route")} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.method")} className="min-w-40">
-      <SelectMenu value={method} onChange={(value) => setUrl({ method: value })} ariaLabel={t("admin.audit.filter.method")}
-        options={[{ value: "", label: t("admin.audit.filter.methodAll") }, ...METHODS.map((value) => ({ value, label: value === "GET" ? t("admin.audit.filter.methodGet") : value }))]} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.status")} className="min-w-44">
-      <SelectMenu value={status} onChange={(value) => setUrl({ status: value })} ariaLabel={t("admin.audit.filter.status")}
-        options={[{ value: "", label: t("admin.audit.filter.statusAll") }, ...STATUS_FILTERS.map((value) => ({ value, label: t(`admin.audit.filter.status_${value}`) }))]} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.kindLabel")} className="min-w-44">
-      <SelectMenu value={targetKind} onChange={(value) => setUrl({ kind: value })} ariaLabel={t("admin.audit.filter.kindLabel")}
-        options={[{ value: "", label: t("admin.audit.filter.kindAll") }, ...TARGET_KINDS.map((kind) => ({ value: kind, label: t(`admin.audit.target.${kind}`) }))]} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.targetIDLabel")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-xs">
-      <Input value={targetIDInput} onChange={(event) => setTargetIDInput(event.target.value)} placeholder={t("admin.audit.filter.targetID")} aria-label={t("admin.audit.filter.targetIDLabel")} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.from")}>
-      <DateTimePicker value={fromLocal} onChange={(value) => setUrl({ from: value })} allowClear aria-label={t("admin.audit.filter.from")} aria-invalid={badRange || undefined} aria-describedby={badRange ? "audit-range-error" : undefined} />
-    </FilterField>
-    <FilterField label={t("admin.audit.filter.to")}>
-      <DateTimePicker value={toLocal} onChange={(value) => setUrl({ to: value })} allowClear aria-label={t("admin.audit.filter.to")} aria-invalid={badRange || undefined} aria-describedby={badRange ? "audit-range-error" : undefined} />
-      {badRange && <p id="audit-range-error" role="alert" className="text-xs text-destructive">{t("admin.audit.filter.rangeError")}</p>}
-    </FilterField>
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("admin.audit.presets")}>
+      <Button type="button" variant={presetsActive.mine ? "default" : "outline"} aria-pressed={presetsActive.mine} disabled={!me} onClick={() => me && setUrl(presetsActive.mine ? { actor: "", actorName: "" } : { actor: me.ID, actorName: `${me.FirstName} ${me.LastName}`.trim() || me.Email })}>{t("admin.audit.preset.mine")}</Button>
+      <Button type="button" variant={presetsActive.errors ? "default" : "outline"} aria-pressed={presetsActive.errors} onClick={() => setBag(presetsActive.errors ? withoutKey(bag, "status") : { ...bag, status: { op: "in", v: ["5xx"] } })}>{t("admin.audit.preset.errors")}</Button>
+      <Button type="button" variant={presetsActive.today ? "default" : "outline"} aria-pressed={presetsActive.today} onClick={() => setBag(presetsActive.today ? withoutKey(bag, "period") : { ...bag, period: { op: "after", v: [todayDay] } })}>{t("admin.audit.preset.today")}</Button>
+    </div>
+    <FilterBar defs={defs} bag={bag} onChange={setBag} pinned={pinned} onPinned={setPinned} />
+    <ResetFilters active={filtered} onReset={reset} />
+    {badRange && <p id="audit-range-error" role="alert" className="text-xs text-destructive">{t("admin.audit.filter.rangeError")}</p>}
   </>
 
   return (
     <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
       <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")}
-        filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-end gap-x-3 gap-y-3">{filterControls}</div>} />
+        filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-center gap-x-3 gap-y-3">{filterControls}</div>} />
 
       <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0">
         <table aria-label={t("admin.audit.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">

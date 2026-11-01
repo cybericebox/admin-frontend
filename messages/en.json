@@ -3049,5 +3049,9 @@
   "admin.elevations.col.decided": "Decided",
   "admin.elevations.col.actions": "Actions",
   "admin.elevations.search": "Search by exercise or author",
-  "admin.elevations.empty.filtered": "No requests match these conditions"
+  "admin.elevations.empty.filtered": "No requests match these conditions",
+  "admin.audit.presets": "Quick filters",
+  "admin.audit.preset.mine": "My actions",
+  "admin.audit.preset.errors": "Errors",
+  "admin.audit.preset.today": "Today"
 }
