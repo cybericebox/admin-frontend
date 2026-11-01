@@ -40,6 +40,8 @@ export type ErrorSample = {
   Permission: string
   Limiter: string
   Details: Record<string, string> | null
+  /** The mail dispatch this failure belongs to (mail failures only). */
+  DispatchID?: string | null
 }
 
 export type ErrorGroupList = { Items: ErrorGroup[]; Total: number; Limit: number; Offset: number }

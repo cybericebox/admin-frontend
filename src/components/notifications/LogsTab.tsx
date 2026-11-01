@@ -219,6 +219,13 @@ export function LogsTab() {
       .catch((cause) => { if (my === reqId.current) setDetailError({ cause }) })
   }
 
+  // A link from elsewhere (an error sample) opens that dispatch: /notifications/logs?dispatch=<id>.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("dispatch")
+    if (id) queueMicrotask(() => openDetail(id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const columns: ColumnDef<Dispatch>[] = [
     { key: "type", label: t("admin.notif.logs.type"), sort: "type", width: 240, cell: (d) => <button type="button" onClick={() => openDetail(d.ID)} className="max-w-full truncate text-left font-medium hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}{isSmtpTest(d.NotificationType) && <Badge size="sm" className="ml-2">{t("admin.notif.logs.testBadge")}</Badge>}</button> },
     { key: "recipient", label: t("admin.notif.logs.recipient"), sort: "recipient", width: 260, cell: (d) => <span className="block min-w-0">
