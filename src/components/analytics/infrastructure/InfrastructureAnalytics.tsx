@@ -1,5 +1,6 @@
 "use client"
 
+import { compareDelta } from "../overview/format"
 import { KpiTile, SectionPage, useAnalyticsResource } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
@@ -14,7 +15,7 @@ import type { InfrastructureData } from "./types"
 const P = "admin.platformAnalytics.infrastructure."
 
 function Body() {
-  const { data, loading, error, reload } = useAnalyticsResource<InfrastructureData>("infrastructure")
+  const { data, previous, loading, error, reload } = useAnalyticsResource<InfrastructureData>("infrastructure")
   const res = { data, loading, error, reload }
   const failed = !loading && error !== undefined
   const tile = { loading, empty: failed || !data }
@@ -28,11 +29,11 @@ function Body() {
         sub={data ? t(P + "kpi.activeNowSub", { events: formatNumber(data.Stands.Active - moderatorsActive), moderators: formatNumber(moderatorsActive), tests: formatNumber(testActive) }) : undefined} />
       <KpiTile {...tile} label={t(P + "kpi.failedNow")} hint={t(P + "kpi.failedNowHint")} href="/labs?status=failed" value={data && formatNumber(data.Stands.Failed)}
         sub={data ? t(P + "kpi.failedNowSub", { removed: formatNumber(data.Stands.Removed) }) : undefined} />
-      <KpiTile {...tile} label={t(P + "kpi.standHours")} hint={t(P + "kpi.standHoursHint")} value={data && formatNumber(data.StandHours.AllHours ?? data.StandHours.TotalHours, { maximumFractionDigits: 1 })}
+      <KpiTile {...tile} label={t(P + "kpi.standHours")} hint={t(P + "kpi.standHoursHint")} value={data && formatNumber(data.StandHours.AllHours ?? data.StandHours.TotalHours, { maximumFractionDigits: 1 })} delta={compareDelta(data ? (data.StandHours.AllHours ?? data.StandHours.TotalHours) : undefined, previous ? (previous.StandHours.AllHours ?? previous.StandHours.TotalHours) : undefined)}
         sub={data ? t(P + "kpi.standHoursSub", { events: kindHours("event"), moderators: kindHours("moderators"), tests: kindHours("test") }) : undefined} />
-      <KpiTile {...tile} label={t(P + "kpi.peak")} hint={t(P + "kpi.peakHint")} value={data && formatNumber(data.AllPeakMax ?? data.PeakMax)}
+      <KpiTile {...tile} label={t(P + "kpi.peak")} hint={t(P + "kpi.peakHint")} value={data && formatNumber(data.AllPeakMax ?? data.PeakMax)} delta={compareDelta(data ? (data.AllPeakMax ?? data.PeakMax) : undefined, previous ? (previous.AllPeakMax ?? previous.PeakMax) : undefined)}
         sub={data ? t(P + `kpi.peakSub.${data.Bucket}`) : undefined} />
-      <KpiTile {...tile} label={t(P + "kpi.failedLabs")} hint={t(P + "kpi.failedLabsHint")} value={data && formatNumber(data.FailedLabs)}
+      <KpiTile {...tile} label={t(P + "kpi.failedLabs")} hint={t(P + "kpi.failedLabsHint")} value={data && formatNumber(data.FailedLabs)} delta={compareDelta(data?.FailedLabs, previous?.FailedLabs, true)}
         sub={data ? t(P + "kpi.failedLabsSub", { count: formatNumber(data.FailedStands) }) : undefined} />
     </div>
     <PeaksBlock res={res} />
