@@ -139,13 +139,13 @@ export function FilterBar({ defs, bag, onChange, pinned, onPinned, facets }: {
         <Button type="button" variant="outline" className="text-sm" disabled={defs.every((d) => chipKeys.includes(d.key)) && !adding}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.table.addFilter")}</Button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="start" sideOffset={6} collisionPadding={12} className="z-50 flex max-h-[min(70dvh,26rem)] w-72 max-w-full flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground outline-none">
+        <Popover.Content align="start" sideOffset={6} collisionPadding={12} onCloseAutoFocus={(event) => event.preventDefault()} className="z-50 flex max-h-[min(70dvh,26rem)] w-72 max-w-full flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground outline-none">
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("admin.table.addFilterSearch")} aria-label={t("admin.table.addFilterSearch")} />
           <ul className="min-h-0 flex-1 overflow-y-auto">
             {addable.length === 0 && <li className="px-2 py-3 text-sm text-muted-foreground">{t("admin.table.addFilterNone")}</li>}
             {addable.map((def) => <li key={def.key}>
               <button type="button" className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
-                onClick={() => { setPending((keys) => [...keys, def.key]); setAdding(false); setSearch(""); setOpen(def.key) }}>
+                onClick={() => { setPending((keys) => [...keys, def.key]); setAdding(false); setSearch(""); window.setTimeout(() => setOpen(def.key), 0) }}>
                 <span>{def.label}</span><span className="text-xs text-muted-foreground">{countText(null)}</span>
               </button>
             </li>)}

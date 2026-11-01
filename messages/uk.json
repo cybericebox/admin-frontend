@@ -3049,5 +3049,9 @@
   "admin.elevations.col.decided": "Розглянуто",
   "admin.elevations.col.actions": "Дії",
   "admin.elevations.search": "Пошук за завданням або автором",
-  "admin.elevations.empty.filtered": "За цими умовами запитів не знайдено"
+  "admin.elevations.empty.filtered": "За цими умовами запитів не знайдено",
+  "admin.audit.presets": "Швидкі фільтри",
+  "admin.audit.preset.mine": "Мої дії",
+  "admin.audit.preset.errors": "Помилки",
+  "admin.audit.preset.today": "Сьогодні"
 }
