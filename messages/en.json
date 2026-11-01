@@ -3055,5 +3055,10 @@
   "admin.audit.preset.today": "Today",
   "admin.dashboard.attention.mail_errors": "Mail delivery errors: {count}",
   "admin.labs.testLabs.statusFilter.active": "Running",
-  "admin.labs.testLabs.statusFilter.expired": "Lease over"
+  "admin.labs.testLabs.statusFilter.expired": "Lease over",
+  "admin.audit.col.changes": "Changes",
+  "admin.audit.changes.hidden": "hidden",
+  "admin.audit.changes.empty": "empty",
+  "admin.audit.exportCsv": "Export CSV",
+  "admin.audit.exportError": "Could not export the log"
 }

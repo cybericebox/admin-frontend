@@ -1,7 +1,11 @@
 "use client"
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { listAuditLog, type AuditFilters, type AuditRecord } from "@/api/auditLog"
+import { auditExportPath, listAuditLog, type AuditFilters, type AuditRecord } from "@/api/auditLog"
+import { apiGetBlob } from "@/api/client"
+import { toast } from "@/components/ui/toast"
+import { overloadOr } from "@/i18n/apiError"
+import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LoadError } from "@/components/ui/load-error"
 import { Spinner } from "@/components/ui/spinner"
@@ -36,10 +40,43 @@ const toInstant = (local: string, endOfMinute = false) => {
   return at.toISOString().replace(/\.\d{3}Z$/, "Z")
 }
 
-type Shown = { key: string; rows: AuditRecord[]; next: string }
+type Shown = { key: string; rows: AuditRecord[]; next: string; total: number | null }
 type SortField = "time" | "actor" | "permission" | "method" | "status"
 
-const COLUMNS = ["time", "actor", "permission", "method", "route", "status", "target"] as const
+const COLUMNS = ["time", "actor", "permission", "method", "route", "status", "target", "changes"] as const
+
+/** What a request changed: «поле: було → стало»; a secret or an unlisted field shows only its name. */
+function AuditChanges({ changes }: { changes: AuditRecord["Changes"] }) {
+  if (!changes || changes.length === 0) return <span className="text-muted-foreground">—</span>
+  return <ul className="flex flex-col gap-0.5 py-1 text-xs">{changes.map((change) => <li key={change.Field} className="whitespace-normal">
+    <span className="font-medium text-foreground">{change.Field}</span>{": "}
+    {change.Redacted ? <span className="text-muted-foreground">{t("admin.audit.changes.hidden")}</span>
+      : <><span className="text-muted-foreground line-through">{change.Before || t("admin.audit.changes.empty")}</span>{" → "}<span className="text-foreground">{change.After || t("admin.audit.changes.empty")}</span></>}
+  </li>)}</ul>
+}
+
+function ExportCsv({ filters, disabled }: { filters: AuditFilters; disabled: boolean }) {
+  const [busy, setBusy] = useState(false)
+  async function download() {
+    setBusy(true)
+    try {
+      const { blob, filename } = await apiGetBlob(auditExportPath(filters))
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = filename ?? "audit-log.csv"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(overloadOr(err, t("admin.audit.exportError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <Button type="button" variant="outline" disabled={disabled} busy={busy} busyLabel={t("busy.exporting")} onClick={() => void download()}><Download aria-hidden="true" className="mr-2 h-4 w-4" />{t("admin.audit.exportCsv")}</Button>
+}
 
 export function AuditLogPage() {
   const { can } = useRole()
@@ -90,7 +127,7 @@ export function AuditLogPage() {
     const request = ++latest.current
     const query: AuditFilters = { actorID, permission, route, method, status, from, to, targetKind, targetID }
     listAuditLog(query)
-      .then((page) => { if (request === latest.current) { setData({ key, rows: page.Items, next: page.NextCursor }); setFailure(null) } })
+      .then((page) => { if (request === latest.current) { setData({ key, rows: page.Items, next: page.NextCursor, total: page.Total }); setFailure(null) } })
       .catch((cause) => { if (request === latest.current) setFailure({ key, cause }) })
   }, [key, badRange, actorID, permission, route, method, status, from, to, targetKind, targetID])
 
@@ -153,7 +190,8 @@ export function AuditLogPage() {
 
   return (
     <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
-      <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")}
+      <PageHeader title={t("admin.nav.audit")} sub={t("admin.audit.sub")} count={data?.total ?? undefined}
+        actions={<ExportCsv filters={filters} disabled={!data || badRange} />}
         filters={<div role="group" aria-label={t("admin.audit.filter.groupLabel")} className="flex flex-wrap items-center gap-x-3 gap-y-3">{filterControls}</div>} />
 
       <TableWrap label={t("admin.audit.table")} rows={10} className="min-h-0">
@@ -187,6 +225,7 @@ export function AuditLogPage() {
                         {!row.Target && <span className="text-muted-foreground">—</span>}
                       </div>
                     </td>
+                    <td><AuditChanges changes={row.Changes} /></td>
                   </tr>
                 )
               })}

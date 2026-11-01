@@ -3055,5 +3055,10 @@
   "admin.audit.preset.today": "Сьогодні",
   "admin.dashboard.attention.mail_errors": "Помилки доставки пошти: {count}",
   "admin.labs.testLabs.statusFilter.active": "Працюють",
-  "admin.labs.testLabs.statusFilter.expired": "Строк минув"
+  "admin.labs.testLabs.statusFilter.expired": "Строк минув",
+  "admin.audit.col.changes": "Зміни",
+  "admin.audit.changes.hidden": "приховано",
+  "admin.audit.changes.empty": "порожньо",
+  "admin.audit.exportCsv": "Експорт CSV",
+  "admin.audit.exportError": "Не вдалося експортувати журнал"
 }
