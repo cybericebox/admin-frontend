@@ -3021,5 +3021,9 @@
   "admin.notif.broadcast.deliveriesEmptyFiltered": "No deliveries match this filter.",
   "admin.notif.broadcast.exportCsv": "Export CSV",
   "admin.notif.broadcast.exportError": "Could not export the deliveries",
-  "admin.notif.broadcast.copyError": "Could not load the broadcast to copy."
+  "admin.notif.broadcast.copyError": "Could not load the broadcast to copy.",
+  "admin.notif.settings.critical.title": "Turn off “{type}” ({channel})?",
+  "admin.notif.settings.critical.body": "Without this message people cannot finish signing up, sign in or receive an invitation. Turn it off only if you know what you are doing.",
+  "admin.notif.settings.critical.confirm": "Turn off",
+  "admin.notif.banners.where": "Where it shows now"
 }
