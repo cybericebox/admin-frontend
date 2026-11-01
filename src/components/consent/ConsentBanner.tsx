@@ -22,7 +22,7 @@ function subscribe(onChange: () => void) {
 // A primitive snapshot: "none" = no choice yet; "ssr" = server render, cookie unknown (render nothing).
 const snapshot = () => {
   const prefs = readConsent()
-  return prefs ? (prefs.analytics ? "granted" : "denied") : "none"
+  return prefs ? `${prefs.analytics ? "a" : "-"}${prefs.functional ? "f" : "-"}` : "none"
 }
 const serverSnapshot = () => "ssr"
 
@@ -46,6 +46,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   const [layer, setLayer] = useState<"banner" | "panel" | null>(null)
   const [analytics, setAnalytics] = useState(false)
+  const [functional, setFunctional] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const returnToRef = useRef<HTMLElement | null>(null)
 
@@ -53,6 +54,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
     const onOpen = () => {
       returnToRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setAnalytics(readConsent()?.analytics ?? false)
+    setFunctional(readConsent()?.functional ?? false)
       setLayer("panel")
     }
     window.addEventListener(CONSENT_OPEN_EVENT, onOpen)
@@ -75,7 +77,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
   }
 
   if (stored === "ssr") return null
-  const asking = shouldShowBanner(gaId, stored === "none" ? null : { analytics: stored === "granted" })
+  const asking = shouldShowBanner(stored === "none" ? null : { analytics: stored[0] === "a", functional: stored[1] === "f" })
   const shown = layer ?? (asking ? "banner" : null)
   if (!shown) return null
 
@@ -131,15 +133,24 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
         </li>
         <li className="flex items-center justify-between gap-4 border-t border-border py-3">
           <span>
-            <span className="block font-medium text-foreground">{t("consent.analytics.title")}</span>
-            <span className="block text-xs">{t("consent.analytics.text")}</span>
+            <span className="block font-medium text-foreground">{t("consent.functional.title")}</span>
+            <span className="block text-xs">{t("consent.functional.text")}</span>
           </span>
-          <Switch checked={analytics} onCheckedChange={setAnalytics} aria-label={t("consent.analytics.title")} />
+          <Switch checked={functional} onCheckedChange={setFunctional} aria-label={t("consent.functional.title")} />
         </li>
+        {gaId && (
+          <li className="flex items-center justify-between gap-4 border-t border-border py-3">
+            <span>
+              <span className="block font-medium text-foreground">{t("consent.analytics.title")}</span>
+              <span className="block text-xs">{t("consent.analytics.text")}</span>
+            </span>
+            <Switch checked={analytics} onCheckedChange={setAnalytics} aria-label={t("consent.analytics.title")} />
+          </li>
+        )}
       </ul>
       <p className="border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
       <div className="mt-4 flex items-center justify-end gap-2">
-        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => choose({ analytics })}>{t("consent.saveChoice")}</Button>
+        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => choose({ analytics: Boolean(gaId) && analytics, functional })}>{t("consent.saveChoice")}</Button>
         <Button size="sm" className="flex-1 sm:flex-none" onClick={() => choose(ACCEPT_ALL)}>{t("consent.acceptAll")}</Button>
       </div>
     </div>

@@ -14,7 +14,17 @@ describe("event return origin", () => {
     expect(validEventReturn("https://ctf.example.org/manage", "")).toBeNull()
   })
 
+  it("keeps the origin for the session only with functional consent", () => {
+    document.cookie = "cib_consent=analytics:denied,functional:denied; path=/"
+    const storage = store()
+    const search = `?from=${encodeURIComponent("https://ctf.example.org/manage")}&from_name=${encodeURIComponent("CTF 2027")}`
+    expect(readEventReturn(search, storage, DOMAIN, HOSTS)).toEqual({ url: "https://ctf.example.org/manage", name: "CTF 2027" })
+    expect(readEventReturn("", storage, DOMAIN, HOSTS)).toBeNull()
+    document.cookie = "cib_consent=; path=/; max-age=0"
+  })
+
   it("remembers the origin with the event name for the session", () => {
+    document.cookie = "cib_consent=analytics:denied,functional:granted; path=/"
     const storage = store()
     const search = `?from=${encodeURIComponent("https://ctf.example.org/manage")}&from_name=${encodeURIComponent("CTF 2027")}`
     expect(readEventReturn(search, storage, DOMAIN, HOSTS)).toEqual({ url: "https://ctf.example.org/manage", name: "CTF 2027" })

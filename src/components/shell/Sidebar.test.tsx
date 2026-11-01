@@ -103,7 +103,7 @@ describe("admin sidebar", () => {
 
   describe("return to the event", () => {
     const from = (url: string, name = "CTF 2027") => window.history.replaceState(null, "", `/dashboard?from=${encodeURIComponent(url)}&from_name=${encodeURIComponent(name)}`)
-    beforeEach(() => { window.sessionStorage.clear(); window.history.replaceState(null, "", "/dashboard") })
+    beforeEach(() => { document.cookie = "cib_consent=analytics:denied,functional:granted; path=/"; window.sessionStorage.clear(); window.history.replaceState(null, "", "/dashboard") })
 
     it("is hidden without an origin", () => {
       render(<Sidebar />)

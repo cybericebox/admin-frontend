@@ -982,7 +982,7 @@
   "admin.events.archived": "Захід архівовано.",
   "admin.events.deleted": "Захід видалено.",
   "consent.label": "Згода на використання файлів cookie",
-  "consent.text": "Ми використовуємо файли cookie, щоб сайт працював, і — за вашою згодою — щоб покращувати його. {link}",
+  "consent.text": "Ми використовуємо файли cookie, щоб сайт працював, і — за вашою згодою — для зручності та щоб покращувати його. {link}",
   "consent.policyLink": "Політика файлів cookie",
   "consent.policyLinkNewTab": "Політика файлів cookie (відкриється в новій вкладці)",
   "consent.policy": "Докладніше: {link}.",
@@ -2989,5 +2989,7 @@
   "admin.agents.emptyFiltered": "За цими умовами агентів не знайдено.",
   "admin.platformAnalytics.period.custom": "Свій діапазон",
   "admin.platformAnalytics.period.compare": "Порівняти з попереднім",
-  "admin.platformAnalytics.period.rangeError": "Кінець має бути не раніше початку."
+  "admin.platformAnalytics.period.rangeError": "Кінець має бути не раніше початку.",
+  "consent.functional.title": "Функціональні",
+  "consent.functional.text": "Запамʼятовують зручності: що ви вже увійшли, вигляд таблиць, прочитані повідомлення."
 }

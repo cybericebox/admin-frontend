@@ -2,6 +2,7 @@
 // The view of an index table (kept in the browser at once and on the server per person, see api/tablePrefs): column order, hidden columns, widths, pinned filter chips, sort and page size.
 // The ViewStore is the browser copy (instant, offline); the server copy follows the person across devices and wins on load.
 // Pinned filter chips stay in the browser: the server view has no field for them.
+import { functionalAllowed } from "@/lib/consent"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { deleteTablePrefs, getTablePrefs, putTablePrefs, type TablePrefs } from "@/api/tablePrefs"
 import { normalizeCols, sameCols } from "./columns"
@@ -33,7 +34,8 @@ export const localViewStore: ViewStore = {
     } catch { return null }
   },
   write(table, view) {
-    try { window.localStorage.setItem(PREFIX + table, JSON.stringify(view)) } catch { /* the view just is not kept */ }
+    // functional storage: a view is kept in the browser only with functional consent
+    try { if (functionalAllowed()) window.localStorage.setItem(PREFIX + table, JSON.stringify(view)) } catch { /* the view just is not kept */ }
   },
   clear(table) {
     try { window.localStorage.removeItem(PREFIX + table) } catch { /* nothing to clear */ }
