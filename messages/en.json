@@ -3103,5 +3103,7 @@
   "admin.platformAnalytics.users.people.subtitleAll": "All accounts by the number of events they joined.",
   "admin.platformAnalytics.users.people.search": "Search by name or email",
   "admin.platformAnalytics.events.table.search": "Search by event name or tag",
-  "admin.platformAnalytics.tasks.search": "Search by exercise"
+  "admin.platformAnalytics.tasks.search": "Search by exercise",
+  "admin.errors.sample.dispatch": "Dispatch",
+  "admin.errors.sample.dispatchOpen": "Open the delivery log entry"
 }

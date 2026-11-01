@@ -50,6 +50,7 @@ function SampleCard({ sample, userName, matched }: { sample: ErrorSample; userNa
         {sample.Role && <Field label={t("admin.errors.sample.role")}>{roleLabel(sample.Role)}</Field>}
         {sample.Permission && <Field label={t("admin.errors.sample.permission")}><span className="font-mono">{sample.Permission}</span></Field>}
         {sample.Limiter && <Field label={t("admin.errors.sample.limiter")}><span className="font-mono">{sample.Limiter}</span></Field>}
+        {sample.DispatchID && <Field label={t("admin.errors.sample.dispatch")}><a href={`/notifications/logs/?dispatch=${encodeURIComponent(sample.DispatchID)}`} className="underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{t("admin.errors.sample.dispatchOpen")}</a></Field>}
         {details.map(([name, value]) => <Field key={name} label={name}>{value}</Field>)}
       </dl>
       {sample.Stack && (
