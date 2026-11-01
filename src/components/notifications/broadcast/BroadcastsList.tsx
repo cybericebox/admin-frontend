@@ -43,12 +43,12 @@ export function BroadcastsList() {
         <Link href={detailHref(row)} className="block truncate font-medium text-foreground hover:underline">{broadcastHeading(row)}</Link>
       </HoverTooltip>
     ) },
-    { key: "channels", label: t("admin.notif.broadcast.channels"), width: 160, cell: (row) => row.Channels.map(broadcastChannelLabel).join(", ") },
-    { key: "audience", label: t("admin.notif.broadcast.audience.title"), width: 200, cell: (row) => audienceLabel(row.Audience) },
+    { key: "channels", label: t("admin.notif.broadcast.channels"), sort: "channels", width: 160, cell: (row) => row.Channels.map(broadcastChannelLabel).join(", ") },
+    { key: "audience", label: t("admin.notif.broadcast.audience.title"), sort: "audience", width: 200, cell: (row) => audienceLabel(row.Audience) },
     { key: "recipients", label: t("admin.notif.broadcast.col.recipients"), sort: "recipients", width: 130, cell: (row) => row.RecipientCount },
-    { key: "delivery", label: t("admin.notif.broadcast.col.delivery"), width: 140, cell: (row) => <span>{row.SentCount} / <span className={row.FailedCount > 0 ? "text-destructive" : undefined}>{row.FailedCount}</span></span> },
+    { key: "delivery", label: t("admin.notif.broadcast.col.delivery"), sort: "delivered", width: 140, cell: (row) => <span>{row.SentCount} / <span className={row.FailedCount > 0 ? "text-destructive" : undefined}>{row.FailedCount}</span></span> },
     { key: "status", label: t("admin.notif.logs.status"), sort: "status", width: 140, cell: (row) => <StatusPill status={broadcastPillStatus(row.Status)} label={broadcastStatusLabel(row.Status)} /> },
-    { key: "author", label: t("admin.notif.broadcast.col.author"), width: 180, cell: (row) => row.CreatedByName || "—" },
+    { key: "author", label: t("admin.notif.broadcast.col.author"), sort: "author", width: 180, cell: (row) => row.CreatedByName || "—" },
     { key: "created", label: t("admin.notif.logs.created"), sort: "created", firstDesc: true, dim: true, width: 180, cell: (row) => formatListDateTime(row.CreatedAt) },
   ]
 
