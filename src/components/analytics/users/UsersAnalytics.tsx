@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_USERS } from "@/components/analytics/emptyReports"
 import { compareDelta } from "../overview/format"
 import Link from "next/link"
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, DataTable, KpiTile, barOption, donutOption, lineOption, useAnalyticsResource, type ChartTheme, type Column } from "@/components/analytics"
@@ -15,7 +16,7 @@ type RoleRow = UsersReport["ByRole"][number]
 
 /** Body of the «Користувачі» section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
 export function UsersAnalytics() {
-  const { data, previous, loading, error, reload } = useAnalyticsResource<UsersReport>("users")
+  const { data, previous, loading, error, reload } = useAnalyticsResource<UsersReport>("users", {}, { defaults: EMPTY_USERS })
   const { can } = useRole()
   const failed = !!error
   const busy = loading || failed

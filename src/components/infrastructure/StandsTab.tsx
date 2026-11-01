@@ -30,7 +30,7 @@ export function StandsTab({ canWrite, initialStatus, onDetails }: { canWrite: bo
   const [events, setEvents] = useState<StandEventOption[]>([])
   useEffect(() => {
     let active = true
-    listStandEvents().then((items) => { if (active) setEvents(items ?? []) }).catch(() => { /* the event filter just has no options */ })
+    listStandEvents().then((items) => { if (active) setEvents(Array.isArray(items) ? items : []) }).catch(() => { /* the event filter just has no options */ })
     return () => { active = false }
   }, [])
 

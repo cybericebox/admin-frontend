@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_TASKS } from "@/components/analytics/emptyReports"
 import { compareDelta } from "../overview/format"
 import { useState } from "react"
 import { AnalyticsChart, KpiTile, barOption, hBarOption, useAnalyticsResource } from "@/components/analytics"
@@ -23,7 +24,7 @@ export function TasksAnalytics() {
   const [category, setCategory] = useState(ALL)
   const [level, setLevel] = useState(ALL)
   const filters = { category: category === ALL ? undefined : category, level: level === ALL ? undefined : level }
-  const { data, previous, loading, error, reload } = useAnalyticsResource<TasksReport>("tasks", filters)
+  const { data, previous, loading, error, reload } = useAnalyticsResource<TasksReport>("tasks", filters, { defaults: EMPTY_TASKS })
   // The options stay while a filter change reloads the report.
   const [options, setOptions] = useState<Options>(NO_OPTIONS)
   if (data && (data.Categories !== options.categories || data.Levels !== options.levels)) setOptions({ categories: data.Categories, levels: data.Levels })

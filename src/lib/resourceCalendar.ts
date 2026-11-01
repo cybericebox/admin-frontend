@@ -57,7 +57,7 @@ export function barLabel(reservation: Reservation): string {
  * each other, so a rectangle's height is exactly its size.
  */
 export function buildTimelineModel(timeline: Timeline, resource: Resource): TimelineModel {
-  const pool = amountOf(timeline.Capacity.TestPool, resource)
+  const pool = amountOf(timeline.Capacity?.TestPool, resource)
   const placed: Bar[] = []
   const sorted = (timeline.Reservations ?? [])
     .map((reservation) => ({ reservation, size: amountOf(reservation.Size, resource) }))
@@ -72,8 +72,8 @@ export function buildTimelineModel(timeline: Timeline, resource: Resource): Time
     const y0 = levels.find((level) => overlapping.every((bar) => level + size <= bar.y0 || level >= bar.y1)) ?? pool
     placed.push({ id: reservation.ID, kind: reservation.Kind, eventID: reservation.EventID, label: barLabel(reservation), from, to, y0, y1: y0 + size, size, covered: reservation.Covered })
   }
-  const unlimited = (resource === "cpu" ? timeline.Capacity.CPUUnlimited : timeline.Capacity.MemoryUnlimited)
-  const total = amountOf(timeline.Capacity.Total, resource)
+  const unlimited = (resource === "cpu" ? timeline.Capacity?.CPUUnlimited : timeline.Capacity?.MemoryUnlimited)
+  const total = amountOf(timeline.Capacity?.Total, resource)
   const capacity = total > 0 ? total : null
   return {
     from: ms(timeline.From),

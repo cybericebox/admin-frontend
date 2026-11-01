@@ -1,5 +1,6 @@
 "use client"
 
+import { EMPTY_OVERVIEW } from "@/components/analytics/emptyReports"
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, KpiTile, lineOption, useAnalyticsResource, type ChartTheme } from "@/components/analytics"
 import { t } from "@/i18n/t"
 import type { Metric, OverviewReport } from "@/api/platformAnalyticsOverview"
@@ -7,7 +8,7 @@ import { deltaOf, formatCount, previousLine } from "./format"
 
 /** Body of the «Огляд» section: headline tiles with the change against the previous period, then three daily charts. */
 export function OverviewAnalytics() {
-  const { data, loading, error, reload } = useAnalyticsResource<OverviewReport>("overview")
+  const { data, loading, error, reload } = useAnalyticsResource<OverviewReport>("overview", {}, { defaults: EMPTY_OVERVIEW })
   const failed = !!error
   const tile = (key: string, href: string, value: number | undefined, metric?: Metric, opts: { inverse?: boolean; sub?: string } = {}) => (
     <KpiTile key={key} label={t(`admin.platformAnalytics.overview.kpi.${key}`)} hint={t(`admin.platformAnalytics.overview.kpi.${key}Hint`)} href={href}
