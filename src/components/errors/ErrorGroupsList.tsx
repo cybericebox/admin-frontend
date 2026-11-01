@@ -1,6 +1,6 @@
 "use client"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { listErrorGroups, parseReference, setErrorGroupStatus, ERROR_KINDS, ERROR_STATUSES, type ErrorFilters, type ErrorKind, type ErrorStatus } from "@/api/errorJournal"
+import { bulkErrorGroups, listErrorGroups, parseReference, setErrorGroupStatus, type BulkErrorAction, ERROR_KINDS, ERROR_STATUSES, type ErrorFilters, type ErrorKind, type ErrorStatus } from "@/api/errorJournal"
 import { Input } from "@/components/ui/input"
 import { FilterField } from "@/components/common/FilterField"
 import { SortTh, TableState, TableWrap, TimeText } from "@/components/common/DsTable"
@@ -9,6 +9,10 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { SelectionBar } from "@/components/table/SelectionBar"
+import { tPlural } from "@/i18n/plural"
 import { toast } from "@/components/ui/toast"
 import { ChevronDown } from "lucide-react"
 import { t } from "@/i18n/t"
@@ -47,6 +51,12 @@ export function ErrorGroupsList() {
   const sortField = url.sort
   const sortDir = url.dir === "asc" ? "asc" : "desc"
   const [reload, setReload] = useState(0)
+  // Groups that appeared (or came back) since the page was opened; «Показати» refetches and clears the count.
+  const [newCount, setNewCount] = useState(0)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulk, setBulk] = useState<BulkErrorAction | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
   // The last answer stays on screen while the next loads (and while live events change it).
   const [data, setData] = useState<{ key: string; filterKey: string; page: GroupPage } | null>(null)
   const [failure, setFailure] = useState<{ key: string; cause: unknown } | null>(null)
@@ -73,9 +83,10 @@ export function ErrorGroupsList() {
 
   // Live: update the page in place. A (re)connect or a break refetches once, quietly.
   const resync = useCallback(() => setReload((value) => value + 1), [])
+  const showNew = () => { setNewCount(0); setReload((value) => value + 1) }
   const mode = useErrorStream({
     enabled: can("platform.errors.read"),
-    onEvent: (event) => setData((current) => current ? { ...current, page: applyStreamEvent(current.page, event, live.current.currentFilters(), live.current.pageSize, live.current.offset) } : current),
+    onEvent: (event) => { if (event.New) setNewCount((count) => count + 1); setData((current) => current ? { ...current, page: applyStreamEvent(current.page, event, live.current.currentFilters(), live.current.pageSize, live.current.offset) } : current) },
     onResync: resync,
   })
 
@@ -105,6 +116,22 @@ export function ErrorGroupsList() {
       return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * factor
     })
   }, [items, sortField, sortDir])
+  const allIds = rows.map((group) => group.ID)
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id))
+  const toggleOne = (id: string) => setSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  async function runBulk() {
+    if (!bulk) return
+    setBulkBusy(true)
+    setBulkError(null)
+    try {
+      const ids = [...selected]
+      const results = await bulkErrorGroups(bulk, ids)
+      const done = results.filter((r) => r.Ok).length
+      if (done < ids.length) toast.error(t("admin.errors.bulk.partial", { done, skipped: ids.length - done }))
+      else toast.success(tPlural("admin.errors.bulk.done", done))
+      setBulk(null); setSelected(new Set()); setReload((value) => value + 1)
+    } catch (err) { setBulkError(errorOr(err, t("admin.errors.bulk.error"))) } finally { setBulkBusy(false) }
+  }
   const sort = (field: string) => setUrl({ sort: field, dir: sortField === field && sortDir === "asc" ? "desc" : "asc" })
   const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
   const filtered = !!(kinds.length || status || period || q || request)
@@ -147,13 +174,21 @@ export function ErrorGroupsList() {
           <SelectMenu value={period} onChange={(value) => setUrl({ period: value, page: "1" })} ariaLabel={t("admin.errors.filter.period")}
             options={[{ value: "", label: t("admin.errors.filter.periodAll") }, ...PERIOD_KEYS.map((value) => ({ value, label: t(`admin.errors.filter.period${cap(value)}`) }))]} />
         </FilterField>
-        <span className="ml-auto pb-2 text-xs text-muted-foreground" data-stream-mode={mode}>{t(`admin.errors.stream.${mode}`)}</span>
+        <span className="ml-auto flex items-center gap-3 pb-2 text-xs text-muted-foreground">
+          {newCount > 0 && <Button type="button" variant="outline" size="sm" onClick={showNew}>{tPlural("admin.errors.newGroups", newCount)}</Button>}
+          <span data-stream-mode={mode}>{t(`admin.errors.stream.${mode}`)}</span>
+        </span>
       </div>
+
+      {canWrite && selected.size > 0 && <div className="mb-3"><SelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
+        {(["resolve", "ignore", "reopen"] as const).map((action) => <Button key={action} type="button" variant="outline" size="sm" onClick={() => { setBulkError(null); setBulk(action) }}>{t(`admin.errors.bulk.${action}`)}</Button>)}
+      </SelectionBar></div>}
 
       <TableWrap label={t("admin.errors.table")} rows={10} className="min-h-0">
         <table aria-label={t("admin.errors.table")} aria-busy={refreshing} className="ib-table min-w-[960px]">
           <thead>
             <tr>
+              {canWrite && <th scope="col" className="w-10"><Checkbox aria-label={t("admin.table.selectAll")} checked={allSelected} disabled={allIds.length === 0} onChange={() => setSelected(allSelected ? new Set() : new Set(allIds))} /></th>}
               <SortTh label={t("admin.errors.col.kind")} field="kind" activeField={sortField} direction={sortDir} onSort={sort} />
               <SortTh label={t("admin.errors.col.title")} field="title" activeField={sortField} direction={sortDir} onSort={sort} />
               <SortTh label={t("admin.errors.col.status")} field="status" activeField={sortField} direction={sortDir} onSort={sort} />
@@ -162,12 +197,13 @@ export function ErrorGroupsList() {
               <SortTh label={t("admin.errors.col.firstSeen")} field="firstSeen" activeField={sortField} direction={sortDir} onSort={sort} />
             </tr>
           </thead>
-          {state ? <TableState colSpan={6} kind={state}
+          {state ? <TableState colSpan={canWrite ? 7 : 6} kind={state}
             message={state === "error" ? t("admin.errors.loadError") : t(filtered ? "admin.errors.emptyFiltered" : "admin.errors.empty")}
             error={failed?.cause} onRetry={resync} /> : (
             <tbody>
               {rows.map((group) => (
-                <tr key={group.ID}>
+                <tr key={group.ID} aria-selected={selected.has(group.ID) || undefined}>
+                  {canWrite && <td><Checkbox aria-label={t("admin.table.selectRow", { name: group.Title })} checked={selected.has(group.ID)} onChange={() => toggleOne(group.ID)} /></td>}
                   <td><KindBadge kind={group.Kind} /></td>
                   <td className="max-w-xl !whitespace-normal py-1">
                     <a href={errorGroupHref(group.ID, request)} className="break-words font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">{group.Title}</a>
@@ -185,6 +221,9 @@ export function ErrorGroupsList() {
           )}
         </table>
       </TableWrap>
+      <ConfirmDialog open={bulk !== null} onCancel={() => { if (!bulkBusy) setBulk(null) }} tone={bulk === "ignore" ? "danger" : "default"} busy={bulkBusy} busyLabel={t("busy.applying")} error={bulkError}
+        title={bulk ? tPlural(`admin.errors.bulk.${bulk}.title`, selected.size) : ""} description={bulk ? t(`admin.errors.bulk.${bulk}.body`) : undefined}
+        confirmLabel={bulk ? t(`admin.errors.bulk.${bulk}.confirm`) : ""} onConfirm={() => void runBulk()} />
       {data && !failed && <TablePagination page={page} pageSize={pageSize} total={data.page.total} busy={refreshing} onPage={setPage} onPageSize={(size) => setUrl({ size: String(size), page: "1" })} />}
     </div>
   )

@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { Sidebar } from "./Sidebar"
 
 const nav = vi.hoisted(() => ({ path: "/events" }))
+const pendingElevations = vi.hoisted(() => ({ count: 0 }))
+vi.mock("@/lib/usePendingElevations", () => ({ usePendingElevations: () => pendingElevations.count }))
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
 const rights = vi.hoisted(() => ({ infrastructure: true, settings: false, denied: new Set<string>() }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => (permission !== "platform.settings.read" || rights.settings) && !rights.denied.has(permission) && (permission !== "infrastructure.read" || rights.infrastructure) }) }))
@@ -208,5 +210,12 @@ describe("admin sidebar", () => {
     const group = container.querySelector("#admin-group-notifications")!
     const order = Array.from(group.children).map((n) => (n.tagName === "HR" ? "|" : n.textContent))
     expect(order).toEqual(["admin.nav.notif.broadcasts", "admin.nav.notif.banners", "|", "admin.nav.notif.tplInApp", "admin.nav.notif.tplEmail", "admin.nav.notif.settings", "|", "admin.nav.notif.logs"])
+  })
+
+  it("shows how many elevation requests wait for a decision beside the menu item", () => {
+    pendingElevations.count = 3
+    render(<Sidebar />)
+    expect(screen.getByLabelText("admin.nav.elevations.pending")).toHaveTextContent("3")
+    pendingElevations.count = 0
   })
 })

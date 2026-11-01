@@ -21,6 +21,19 @@ export async function getResourcePresets(): Promise<ResourcePreset[]> {
   return caps.Resources?.Presets ?? []
 }
 
+/** The cluster capacity next to a request: what it asks, what is free now, whether it fits (null when the cluster is not measured). */
+export type ElevationCapacity = {
+  CapacityCPUMillicores: number
+  CapacityMemoryBytes: number
+  FreeCPUMillicores: number
+  FreeMemoryBytes: number
+  CPUUnlimited: boolean
+  MemoryUnlimited: boolean
+  AskedCPUMillicores: number
+  AskedMemoryBytes: number
+  Fits: boolean
+}
+
 export type ElevationRequest = {
   ID: string
   ExerciseID: string
@@ -35,6 +48,9 @@ export type ElevationRequest = {
   RequestedAt: string
   DecidedByName: string
   DecidedAt: string | null
+  /** The author's user id: the key of their request history. */
+  RequestedBy: string
+  Capacity: ElevationCapacity | null
 }
 
 /** "" lists every request. */
@@ -48,12 +64,18 @@ function normalize(raw: Raw): ElevationRequest {
     ID: raw.ID, ExerciseID: raw.ExerciseID ?? "", ExerciseName: raw.ExerciseName ?? "", VersionID: raw.VersionID ?? "",
     Status: raw.Status, Reason: raw.Reason ?? "", Requested: raw.Requested ?? [], Approved: raw.Approved ?? [],
     DecisionNote: raw.DecisionNote ?? "", RequestedByName: raw.RequestedByName ?? "", RequestedAt: raw.RequestedAt ?? "",
-    DecidedByName: raw.DecidedByName ?? "", DecidedAt: raw.DecidedAt ?? null,
+    DecidedByName: raw.DecidedByName ?? "", DecidedAt: raw.DecidedAt ?? null, RequestedBy: raw.RequestedBy ?? "", Capacity: raw.Capacity ?? null,
   }
 }
 
 export async function listElevations(filter: ElevationFilter): Promise<ElevationRequest[]> {
   const result = await apiGet<Raw[] | null>(`${BASE}${filter ? `?status=${filter}` : ""}`)
+  return (result ?? []).map(normalize)
+}
+
+/** Every request of one author (GET ?author=): their history; the screen shows the latest few. */
+export async function listAuthorElevations(authorId: string): Promise<ElevationRequest[]> {
+  const result = await apiGet<Raw[] | null>(`${BASE}?author=${encodeURIComponent(authorId)}`)
   return (result ?? []).map(normalize)
 }
 

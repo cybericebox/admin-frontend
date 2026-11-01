@@ -131,3 +131,12 @@ export function sendErrorTest(): Promise<TestResult[]> {
 export const errorStreamUrl = (): string | null => (apiOrigin ? `${apiOrigin}/api/admin/errors/stream` : null)
 
 export type ErrorStreamEvent = { Group: ErrorGroup; Sample: ErrorSample | null; New: boolean }
+
+export type BulkErrorAction = "resolve" | "ignore" | "reopen"
+export type BulkErrorResult = { GroupID: string; Ok: boolean; Code?: string; Error?: string }
+
+/** POST /api/admin/errors/bulk/{resolve|ignore|reopen} {GroupIDs} (1..200): one result per group, in request order. */
+export async function bulkErrorGroups(action: BulkErrorAction, ids: string[]): Promise<BulkErrorResult[]> {
+  const res = await apiPost<{ Results?: BulkErrorResult[] }>(`/api/admin/errors/bulk/${action}`, { GroupIDs: ids })
+  return res.Results ?? []
+}

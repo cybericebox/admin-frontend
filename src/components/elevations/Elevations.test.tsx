@@ -32,7 +32,7 @@ const serve = (value: unknown) => apiGet.mockImplementation((path: string) =>
 
 const request = (over: Partial<ElevationRequest> = {}): ElevationRequest => ({
   ID: "r1", ExerciseID: "e1", ExerciseName: "SQL injection", Status: "pending", Reason: "Needs a database", RequestedByName: "Олена",
-  RequestedAt: "2026-10-02T10:00:00Z", DecidedByName: "", DecidedAt: null, DecisionNote: "", VersionID: "v1", Approved: [],
+  RequestedAt: "2026-10-02T10:00:00Z", DecidedByName: "", DecidedAt: null, DecisionNote: "", VersionID: "v1", Approved: [], RequestedBy: "u1", Capacity: null,
   Requested: [{ DeviceID: "d1", Name: "db", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2 * 1024 ** 3 }], ...over,
 })
 
@@ -169,5 +169,26 @@ describe("elevation detail", () => {
     apiGet.mockRejectedValue(new ApiError(404, "no"))
     render(<ElevationDetail id="missing" />)
     expect(await screen.findByText("Запит не знайдено")).toBeInTheDocument()
+  })
+
+  it("shows the free cluster capacity beside a pending request and says whether it fits", async () => {
+    serve(request({ Capacity: { CapacityCPUMillicores: 8000, CapacityMemoryBytes: 8 * 1024 ** 3, FreeCPUMillicores: 300, FreeMemoryBytes: 1024 ** 3, CPUUnlimited: false, MemoryUnlimited: false, AskedCPUMillicores: 500, AskedMemoryBytes: 2 * 1024 ** 3, Fits: false } }))
+    render(<ElevationDetail id="r1" />)
+    const card = await screen.findByTestId("elevation-capacity")
+    expect(within(card).getByText("Не поміщається")).toBeInTheDocument()
+    expect(within(card).getByText(/300/)).toBeInTheDocument()
+  })
+
+  it("lists the author's other requests, newest first, without the current one", async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === "/api/exercises/capabilities") return Promise.resolve({ Resources: { Presets: presets } })
+      if (path.includes("?author=")) return Promise.resolve([request(), request({ ID: "r0", ExerciseName: "Older", RequestedAt: "2026-09-01T10:00:00Z", Status: "approved" }), request({ ID: "r9", ExerciseName: "Newer", RequestedAt: "2026-10-01T10:00:00Z", Status: "rejected" })])
+      return Promise.resolve(request())
+    })
+    render(<ElevationDetail id="r1" />)
+    const history = await screen.findByTestId("elevation-history")
+    await within(history).findByText("Newer")
+    expect(within(history).getAllByRole("link").map((link) => link.textContent)).toEqual(["Newer", "Older"])
+    expect(apiGet).toHaveBeenCalledWith("/api/exercises/elevations?author=u1")
   })
 })
