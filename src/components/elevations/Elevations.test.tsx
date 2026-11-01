@@ -12,6 +12,7 @@ vi.mock("@/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/client")>()),
   apiGet: (...a: unknown[]) => apiGet(...a), apiPost: (...a: unknown[]) => apiPost(...a),
 }))
+vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (perm: string) => permissions.includes(perm) }) }))
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
 
@@ -42,35 +43,48 @@ beforeEach(() => {
 })
 
 describe("elevations list", () => {
-  it("lists pending requests with author, date, device count and status", async () => {
+  beforeEach(() => { window.localStorage.clear() })
+
+  it("opens on the requests that wait for a decision and lists author, date, device count and status in a table", async () => {
     apiGet.mockResolvedValue([request(), request({ ID: "r2", ExerciseName: "XSS", Requested: [] })])
     render(<ElevationsPage />)
-    const row = await screen.findByTestId("elevation-r1")
-    expect(within(row).getByText("SQL injection")).toBeInTheDocument()
-    expect(within(row).getByText(/Олена/)).toBeInTheDocument()
+    const link = await screen.findByRole("link", { name: "SQL injection" })
+    expect(link).toHaveAttribute("href", "/elevations/detail?id=r1")
+    const row = link.closest("tr")!
+    expect(within(row).getByText("Олена")).toBeInTheDocument()
     expect(within(row).getByText("Пристроїв: 1")).toBeInTheDocument()
     expect(within(row).getByText("Очікує")).toBeInTheDocument()
-    expect(within(row).getByRole("link")).toHaveAttribute("href", "/elevations/detail?id=r1")
     expect(apiGet).toHaveBeenCalledWith("/api/exercises/elevations?status=pending")
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2")
   })
 
-  it("filters by status; «Усі» sends no status", async () => {
+  it("sorts by any column and searches by exercise or author", async () => {
+    apiGet.mockResolvedValue([request(), request({ ID: "r2", ExerciseName: "XSS", RequestedByName: "Богдан" })])
+    render(<ElevationsPage />)
+    await screen.findByRole("link", { name: "SQL injection" })
+    fireEvent.click(screen.getByRole("button", { name: /Завдання/ }))
+    const names = () => screen.getAllByRole("link").filter((l) => l.getAttribute("href")?.startsWith("/elevations/detail")).map((l) => l.textContent)
+    await waitFor(() => expect(names()).toEqual(["SQL injection", "XSS"]))
+    fireEvent.change(screen.getByLabelText("Пошук за завданням або автором"), { target: { value: "богдан" } })
+    await waitFor(() => expect(names()).toEqual(["XSS"]))
+  })
+
+  it("changes the status filter through the chip and sends no status for «all»", async () => {
     apiGet.mockResolvedValue([])
     render(<ElevationsPage />)
-    expect(await screen.findByText("Немає запитів, що очікують рішення")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("radio", { name: "Відхилені" }))
-    expect(await screen.findByText("Відхилених запитів ще немає")).toBeInTheDocument()
-    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations?status=rejected")
-    fireEvent.click(screen.getByRole("radio", { name: "Усі" }))
+    expect(await screen.findByText("За цими умовами запитів не знайдено")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /Прибрати фільтр/ }))
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations"))
     expect(await screen.findByText("Запитів ще немає")).toBeInTheDocument()
-    expect(apiGet).toHaveBeenLastCalledWith("/api/exercises/elevations")
   })
 
   it("shows the centered load error with a retry", async () => {
-    apiGet.mockRejectedValueOnce(new Error("down")).mockResolvedValue([])
+    apiGet.mockRejectedValue(new Error("down"))
     render(<ElevationsPage />)
-    fireEvent.click(await screen.findByRole("button", { name: /Спробувати ще раз/ }))
-    expect(await screen.findByText("Немає запитів, що очікують рішення")).toBeInTheDocument()
+    const retry = await screen.findByRole("button", { name: /Спробувати ще раз/ })
+    apiGet.mockResolvedValue([])
+    fireEvent.click(retry)
+    expect(await screen.findByText("За цими умовами запитів не знайдено")).toBeInTheDocument()
   })
 })
 

@@ -3040,5 +3040,14 @@
   "admin.notif.diff.added": "Додано",
   "admin.notif.diff.removed": "Видалено",
   "admin.notif.diff.same.line": "Без змін",
-  "admin.notif.templates.channels": "Канал шаблонів"
+  "admin.notif.templates.channels": "Канал шаблонів",
+  "admin.elevations.col.exercise": "Завдання",
+  "admin.elevations.col.author": "Автор",
+  "admin.elevations.col.requestedAt": "Запитано",
+  "admin.elevations.col.devices": "Пристрої",
+  "admin.elevations.col.status": "Статус",
+  "admin.elevations.col.decided": "Розглянуто",
+  "admin.elevations.col.actions": "Дії",
+  "admin.elevations.search": "Пошук за завданням або автором",
+  "admin.elevations.empty.filtered": "За цими умовами запитів не знайдено"
 }
