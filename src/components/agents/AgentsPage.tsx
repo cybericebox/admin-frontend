@@ -12,8 +12,10 @@ import { Badge as UiBadge, type BadgeTone } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Input } from "@/components/ui/input"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadError } from "@/components/ui/load-error"
 import { Spinner, LoadingArea } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
@@ -167,7 +169,14 @@ export function AgentsPage() {
 
   const retry = () => void refresh(true)
   const loading = items === null && error === null
-  const list = items ? sortAgents(items) : []
+  const [search, setSearch] = useState("")
+  const [stateFilter, setStateFilter] = useState("all")
+  const stateOf = (agent: Agent): AgentState | "disabled" => !agent.Enabled && agentState(agent) !== "archived" ? "disabled" : agentState(agent)
+  const needle = search.trim().toLowerCase()
+  const all = items ? sortAgents(items) : []
+  const list = all.filter((agent) => (stateFilter === "all" || stateOf(agent) === stateFilter)
+    && (!needle || `${agent.Name} ${agent.Endpoint ?? ""} ${agent.Tenant ?? ""}`.toLowerCase().includes(needle)))
+  const counts = (state: string) => all.filter((agent) => stateOf(agent) === state).length
 
   return <div className="flex min-h-full flex-col gap-5">
     <PageHeader title={t("admin.nav.agents")} sub={t("admin.agents.subtitle")} actions={<>
@@ -179,10 +188,20 @@ export function AgentsPage() {
       {canWrite && <Button onClick={() => setEnrolling(true)}><Plus className="mr-2 h-4 w-4" />{t("admin.agents.add")}</Button>}
     </>} />
 
+    {items && all.length > 0 && <>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="agents-summary">
+        {(["online", "unreachable", "offline", "disabled"] as const).map((state) => <div key={state} className="rounded-lg border border-border bg-card px-4 py-3"><dt className="text-xs text-muted-foreground">{t(`admin.agents.state.${state}`)}</dt><dd className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{counts(state)}</dd></div>)}
+      </dl>
+      <div className="flex flex-wrap items-center gap-3">
+        <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("admin.agents.search")} aria-label={t("admin.agents.search")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />
+        <SelectMenu value={stateFilter} onChange={setStateFilter} ariaLabel={t("admin.agents.filterState")} className="min-w-44 text-sm"
+          options={[{ value: "all", label: t("admin.agents.filterStateAll") }, ...(["online", "unreachable", "offline", "disabled"] as const).map((state) => ({ value: state, label: t(`admin.agents.state.${state}`) }))]} />
+      </div>
+    </>}
     {error !== null && items && <LoadError message={t("admin.agents.error.load")} error={error} compact onRetry={retry} />}
     {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} />
       : !items ? <LoadError message={t("admin.agents.error.load")} error={error} onRetry={retry} className="flex-1" />
-      : list.length === 0 ? <EmptyState className="flex-1" message={t(archived ? "admin.agents.emptyArchived" : canWrite ? "admin.agents.empty" : "admin.agents.emptyReadonly")} />
+      : list.length === 0 ? <EmptyState className="flex-1" message={t(all.length > 0 ? "admin.agents.emptyFiltered" : archived ? "admin.agents.emptyArchived" : canWrite ? "admin.agents.empty" : "admin.agents.emptyReadonly")} />
       : <Card><ul className="divide-y divide-border" data-testid="agents-list">
         {list.map((agent) => {
           const state = agentState(agent)
@@ -210,9 +229,10 @@ export function AgentsPage() {
                     <DropdownMenuItem onSelect={() => setEditing(agent)}>{t("admin.agents.action.edit")}</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setReconnecting(agent)}>{t("admin.agents.action.reconnect")}</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "renew", agent }) }}>{t("admin.agents.action.renew")}</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">{t("admin.agents.menu.danger")}</DropdownMenuLabel>
                     <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "rotate", agent }) }}>{t("admin.agents.action.rotate")}</DropdownMenuItem>
                     {agent.HasCA && <DropdownMenuItem onSelect={() => { setConfirmError(""); setConfirm({ kind: "clearCa", agent }) }}>{t("admin.agents.action.clearCa")}</DropdownMenuItem>}
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive" onSelect={() => void startDelete(agent)}>{t("admin.agents.action.delete")}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>}

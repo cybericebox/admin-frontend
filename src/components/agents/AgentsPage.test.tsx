@@ -231,3 +231,30 @@ describe("agents page", () => {
     expect(screen.getByRole("switch", { name: "Агент «Київ» увімкнено" })).toBeDisabled()
   })
 })
+
+describe("agents summary and filters", () => {
+  it("counts the agents by state on top and filters by search text and by state", async () => {
+    serve([agent({ ID: "a1", Name: "Київ" }), agent({ ID: "a2", Name: "Львів", Enabled: false }), agent({ ID: "a3", Name: "Харків", Tenant: "tenant-x" })])
+    render(<AgentsPage />)
+    const summary = await screen.findByTestId("agents-summary")
+    expect(within(summary).getByText("Вимкнено").nextSibling).toHaveTextContent("1")
+    fireEvent.change(screen.getByLabelText("Пошук за назвою, адресою або орендарем"), { target: { value: "tenant-x" } })
+    expect(screen.queryByText("Київ")).not.toBeInTheDocument()
+    expect(screen.getByText("Харків")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Пошук за назвою, адресою або орендарем"), { target: { value: "" } })
+    fireEvent.keyDown(screen.getByRole("button", { name: "Фільтр за станом" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Вимкнено" }))
+    expect(screen.getByText("Львів")).toBeInTheDocument()
+    expect(screen.queryByText("Київ")).not.toBeInTheDocument()
+  })
+
+  it("keeps the dangerous actions apart from the ordinary ones in the menu", async () => {
+    serve([agent({ HasCA: true })])
+    render(<AgentsPage />)
+    fireEvent.pointerDown(await screen.findByRole("button", { name: /Дії/ }), { button: 0, ctrlKey: false })
+    const menu = await screen.findByRole("menu")
+    const items = within(menu).getAllByRole("menuitem").map((item) => item.textContent)
+    expect(items.indexOf("Видалити")).toBeGreaterThan(items.findIndex((text) => /ключ/i.test(text ?? "")))
+    expect(within(menu).getByText("Небезпечні дії")).toBeInTheDocument()
+  })
+})

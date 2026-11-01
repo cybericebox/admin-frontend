@@ -4,6 +4,7 @@
  * JSON PascalCase; payload objects (protojson) keep their inner camelCase keys.
  */
 import { apiGet, apiPost } from "@/api/client"
+import { isComplete, type FilterBag } from "@/components/table/filters"
 import type { OffsetPage } from "@/api/pagination"
 import { z } from "zod"
 import { ManagedGroupSchema, ManagedLabSchema, type ManagedGroupView, type ManagedLabView } from "@/api/labLifecycle"
@@ -226,3 +227,38 @@ export const rescueStandDevice = (eventId: string, teamId: string, challengeId: 
 export const resetTestLabDevice = (id: string, device: string) => apiPost<unknown>(`${testLabDevicePath(id, device)}/reset`, {})
 export const rescueTestLabDevice = (id: string, device: string, enable: boolean) =>
   apiPost<unknown>(`${testLabDevicePath(id, device)}/rescue`, { Enable: enable })
+
+// ---- Index lists with server-side sort and bulk actions (docs/specs/ADMIN.md §4) ----
+export type InfraListQuery = { search: string; bag: FilterBag; page: number; pageSize: number; sortBy: string; sortDir: "asc" | "desc" }
+
+function infraParams(query: InfraListQuery, keys: Record<string, string>): URLSearchParams {
+  const p = new URLSearchParams()
+  if (query.search) p.set("search", query.search)
+  for (const [filterKey, param] of Object.entries(keys)) {
+    const cond = query.bag[filterKey]
+    if (isComplete(cond) && cond.v[0]) p.set(param, cond.v[0])
+  }
+  p.set("page", String(query.page))
+  p.set("pageSize", String(query.pageSize))
+  p.set("sortBy", query.sortBy)
+  p.set("sortDir", query.sortDir)
+  return p
+}
+
+export const listStandsIndex = (query: InfraListQuery) => apiGet<OffsetPage<Stand>>(`${BASE}/stands?${infraParams(query, { event: "eventId", status: "status", kind: "kind" })}`)
+export const listTestLabsIndex = (query: InfraListQuery) => apiGet<OffsetPage<TestLab>>(`${BASE}/test-labs?${infraParams(query, { status: "status" })}`)
+
+export type StandRef = { EventID: string; TeamID: string }
+export type BulkStandResult = StandRef & { Ok: boolean; Code?: string; Error?: string }
+export type BulkLabResult = { ID: string; Ok: boolean; Code?: string; Error?: string }
+
+/** POST /api/infrastructure/stands/bulk/recreate {Stands}: one result per stand, in request order. */
+export async function bulkRecreateStands(stands: StandRef[]): Promise<BulkStandResult[]> {
+  const res = await apiPost<{ Results?: BulkStandResult[] }>(`${BASE}/stands/bulk/recreate`, { Stands: stands })
+  return res.Results ?? []
+}
+/** POST /api/infrastructure/test-labs/bulk/terminate {IDs}: one result per lab, in request order. */
+export async function bulkTerminateTestLabs(ids: string[]): Promise<BulkLabResult[]> {
+  const res = await apiPost<{ Results?: BulkLabResult[] }>(`${BASE}/test-labs/bulk/terminate`, { IDs: ids })
+  return res.Results ?? []
+}

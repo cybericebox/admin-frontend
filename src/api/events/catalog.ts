@@ -152,7 +152,7 @@ export function getEventSchedule(id: string): Promise<EventSchedule> {
 }
 
 // ---- The admin list (docs/specs/ADMIN.md §2) ----
-export type EventListQuery = { search: string; bag: FilterBag; page: number; pageSize: number; sortBy: string; sortDir: "asc" | "desc" }
+export type EventListQuery = { search: string; bag: FilterBag; page: number; pageSize: number; sortBy: string; sortDir: "asc" | "desc"; /** Only events with labs and no reservation (the resources page). */ needsReservation?: boolean }
 
 const value = (bag: FilterBag, key: string) => (isComplete(bag[key]) ? bag[key] : undefined)
 
@@ -181,6 +181,7 @@ export async function listEventsIndex(query: EventListQuery): Promise<OffsetPage
   const params = new URLSearchParams()
   if (query.search) params.set("search", query.search)
   eventFilterParams(query.bag, params)
+  if (query.needsReservation) params.set("needsReservation", "true")
   params.set("page", String(query.page))
   params.set("pageSize", String(query.pageSize))
   params.set("sortBy", query.sortBy)

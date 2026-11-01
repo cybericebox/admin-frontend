@@ -11,8 +11,8 @@ import { ImageWarningIcon, LabQueueIndicator, standQueueLabs } from "@/component
 import { LabLiveView } from "@/components/infrastructure/LabLiveView"
 import { GroupLifecycleFacts, LifecycleFacts } from "@/components/infrastructure/LifecycleFacts"
 import { useLabDetail } from "@/components/infrastructure/useLabDetail"
-import { StandStatusBadge, teamLabel } from "@/components/infrastructure/StandsTable"
-import { TestLabStatusBadge, testLabAuthor } from "@/components/infrastructure/TestLabsTable"
+import { StandStatusBadge, teamLabel } from "@/components/infrastructure/labView"
+import { TestLabStatusBadge, testLabAuthor } from "@/components/infrastructure/labView"
 import {
   getStandDetail, getTestLabDetail, rescueStandDevice, rescueTestLabDevice, resetStandDevice, resetTestLabDevice,
   type LabDevice, type LabLive, type Stand, type StandDetail, type TestLab, type TestLabDetail,
