@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), allowed: true }))
-vi.mock("@/api/client", () => ({ apiGet: mocks.get }))
+const mocks = vi.hoisted(() => ({ blob: vi.fn(), get: vi.fn(), allowed: true }))
+vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiGetBlob: mocks.blob }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/origins", async (original) => ({ ...(await original<object>()), exercisesOrigin: "https://exercises.example.test" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => mocks.allowed || permission !== "platform.audit.read" }) }))
@@ -139,5 +139,22 @@ describe("admin audit log page", () => {
     expect(await screen.findByText("admin.audit.loadError")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     await waitFor(() => expect(screen.getByText("events.write")).toBeInTheDocument())
+  })
+
+  it("shows the found count, what each request changed (a secret by its name only) and exports the CSV of the filter", async () => {
+    mocks.get.mockImplementation((path: string) => path.startsWith("/api/users/")
+      ? Promise.resolve({ ID: ACTOR, FirstName: "Олена", LastName: "Коваль", Email: "o@example.test" })
+      : Promise.resolve({ Items: [row({ Changes: [{ Field: "Role", Before: "user", After: "admin" }, { Field: "Password", Redacted: true }] })], NextCursor: "", Total: 137 }))
+    mocks.blob.mockResolvedValue({ blob: new Blob(["x"]), filename: "audit.csv" })
+    URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn()
+    render(<Page />)
+    expect(await screen.findByText("Role")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("137")
+    expect(screen.getByText("user")).toBeInTheDocument()
+    expect(screen.getByText("admin")).toBeInTheDocument()
+    expect(screen.getByText("Password")).toBeInTheDocument()
+    expect(screen.getByText("admin.audit.changes.hidden")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /admin.audit.exportCsv/ }))
+    await waitFor(() => expect(mocks.blob).toHaveBeenCalledWith("/api/admin/audit-log/export"))
   })
 })

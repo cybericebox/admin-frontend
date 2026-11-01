@@ -22,9 +22,13 @@ export type AuditRecord = {
   CreatedAt: string
   /** Space separated `kind:id` pairs, or empty. */
   Target: string
+  Changes?: AuditChange[] | null
 }
 
-export type AuditPage = { Items: AuditRecord[]; NextCursor: string }
+/** One changed field. A secret, or a field the route does not list, has Redacted and no values. */
+export type AuditChange = { Field: string; Before?: string | null; After?: string | null; Redacted?: boolean }
+
+export type AuditPage = { Items: AuditRecord[]; NextCursor: string; /** Of the whole filter; on the first page only. */ Total: number | null }
 
 export type AuditFilters = {
   actorID: string
@@ -51,5 +55,10 @@ export function auditQuery(filters: AuditFilters, cursor = ""): string {
 }
 
 export function listAuditLog(filters: AuditFilters, cursor = ""): Promise<AuditPage> {
-  return apiGet<AuditPage>(auditQuery(filters, cursor)).then((page) => ({ Items: page?.Items ?? [], NextCursor: page?.NextCursor ?? "" }))
+  return apiGet<AuditPage>(auditQuery(filters, cursor)).then((page) => ({ Items: page?.Items ?? [], NextCursor: page?.NextCursor ?? "", Total: page?.Total ?? null }))
+}
+
+/** GET /api/admin/audit-log/export: the CSV of the same filter (the Changes column as text). */
+export function auditExportPath(filters: AuditFilters): string {
+  return auditQuery(filters).replace("/api/admin/audit-log", "/api/admin/audit-log/export")
 }
