@@ -13,7 +13,7 @@ import { apiGet, apiPost } from '@/api/client'
 const BASE = '/api/notifications/broadcasts'
 
 export type BroadcastChannel = 'email' | 'in_app'
-export type BroadcastStatus = 'sending' | 'done' | 'failed'
+export type BroadcastStatus = 'sending' | 'done' | 'failed' | 'canceled'
 export type PlatformAudienceKind = 'all' | 'roles' | 'users'
 
 export type BroadcastAudience = {
@@ -89,6 +89,21 @@ export function getBroadcast(id: string): Promise<Broadcast> {
   return apiGet<Broadcast>(`${BASE}/${encodeURIComponent(id)}`)
 }
 
-export function listBroadcastDeliveries(id: string, params: { limit: number; offset: number }): Promise<BroadcastDelivery[]> {
-  return apiGet<BroadcastDelivery[] | null>(`${BASE}/${encodeURIComponent(id)}/deliveries?limit=${params.limit}&offset=${params.offset}`).then((rows) => rows ?? [])
+export type DeliveryStatus = 'error' | 'done' | 'waiting'
+export type DeliveriesPage = { Items?: BroadcastDelivery[] | null; Total?: number; Page?: number; PageSize?: number }
+
+/** GET /api/notifications/broadcasts/:id/deliveries: a page {Items, Total, Page, PageSize}, filtered by status. */
+export function listBroadcastDeliveries(id: string, params: { page: number; pageSize: number; status?: DeliveryStatus | '' }): Promise<DeliveriesPage> {
+  const query = new URLSearchParams({ page: String(params.page), pageSize: String(params.pageSize) })
+  if (params.status) query.set('status', params.status)
+  return apiGet<DeliveriesPage>(`${BASE}/${encodeURIComponent(id)}/deliveries?${query}`)
+}
+
+/** The CSV of the deliveries (BOM, formulas neutralised); the same status filter as the list. */
+export const broadcastDeliveriesExportPath = (id: string, status?: DeliveryStatus | '') =>
+  `${BASE}/${encodeURIComponent(id)}/deliveries/export${status ? `?status=${status}` : ''}`
+
+/** POST /api/notifications/broadcasts/:id/cancel: stops a broadcast that is still sending; the queued recipients still get their message. */
+export function cancelBroadcast(id: string): Promise<Broadcast> {
+  return apiPost<Broadcast>(`${BASE}/${encodeURIComponent(id)}/cancel`, {})
 }

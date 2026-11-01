@@ -1,5 +1,5 @@
 import type { EmailBodyBlock } from "@/components/notifications/editor/emailBlocks"
-import type { BroadcastChannel } from "@/api/notifications/broadcasts"
+import type { Broadcast, BroadcastChannel } from "@/api/notifications/broadcasts"
 import { TEMPLATE_NAME_MAX, type BroadcastTemplate, type BroadcastTemplateInput } from "@/api/notifications/broadcastTemplates"
 import { t } from "@/i18n/t"
 
@@ -67,4 +67,18 @@ export function templateNameError(name: string): string {
   if (!name.trim()) return t("admin.notif.customTpl.validation.name")
   if ([...name.trim()].length > TEMPLATE_NAME_MAX) return t("admin.notif.customTpl.validation.nameLength", { max: TEMPLATE_NAME_MAX })
   return ""
+}
+
+/** A sent broadcast as an editable message: the content to copy, with the channels it used. */
+export function messageFromBroadcast(source: Broadcast): BroadcastMessage {
+  return {
+    email: source.Channels.includes("email"),
+    inApp: source.Channels.includes("in_app"),
+    subject: source.Subject ?? "",
+    preheader: source.Preheader ?? "",
+    body: (source.EmailBody ?? []) as EmailBodyBlock[],
+    title: source.InAppTitle ?? "",
+    inAppBody: source.InAppBody ?? "",
+    link: source.InAppLink ?? "",
+  }
 }

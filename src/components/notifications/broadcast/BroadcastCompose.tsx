@@ -10,13 +10,13 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Spinner } from "@/components/ui/spinner"
-import { broadcastAudienceCount, sendBroadcast } from "@/api/notifications/broadcasts"
+import { broadcastAudienceCount, getBroadcast, sendBroadcast } from "@/api/notifications/broadcasts"
 import { TemplateStart } from "./TemplateStart"
 import { withTemplate, type BroadcastTemplate } from "./broadcastTemplates"
-import { AudiencePicker, EMPTY_AUDIENCE, audienceComplete, audienceToApi, type AudienceState } from "./AudiencePicker"
+import { AudiencePicker, EMPTY_AUDIENCE, audienceComplete, audienceFromBroadcast, audienceToApi, type AudienceState } from "./AudiencePicker"
 import { BroadcastMessageFields, BroadcastMessagePreview } from "./BroadcastMessageFields"
 import { SaveTemplateDialog } from "./SaveTemplateDialog"
-import { emptyMessage, messageComplete, messageContent, type BroadcastMessage } from "./broadcastMessage"
+import { emptyMessage, messageComplete, messageContent, messageFromBroadcast, type BroadcastMessage } from "./broadcastMessage"
 
 const COUNT_DEBOUNCE_MS = 400
 
@@ -38,6 +38,18 @@ export function BroadcastCompose() {
   const touch = (field: string) => setTouched((current) => current.has(field) ? current : new Set(current).add(field))
   const clearField = (field: string) => setFieldErrors((current) => ({ ...current, [field]: "" }))
   const [sendError, setSendError] = useState("")
+
+  // «Копіювати розсилку»: ?copy=<id> fills the composer with an earlier broadcast (message and audience); it is a new one to send.
+  const [copyFailed, setCopyFailed] = useState(false)
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("copy")
+    if (!id) return
+    let active = true
+    getBroadcast(id)
+      .then((source) => { if (active) { setMessage(messageFromBroadcast(source)); setAudience(audienceFromBroadcast(source)) } })
+      .catch(() => { if (active) setCopyFailed(true) })
+    return () => { active = false }
+  }, [])
 
   function applyTemplate(template: BroadcastTemplate) {
     setMessage((current) => withTemplate(current, template))
@@ -111,6 +123,7 @@ export function BroadcastCompose() {
         <Button disabled={!canSend} onClick={() => { setSendError(""); setConfirmOpen(true) }}>{t("admin.notif.broadcast.send")}</Button>
       </>} />
     <div className="frost-panel frost-in rounded-lg p-6">
+      {copyFailed && <p role="alert" className="mb-4 text-sm text-destructive">{t("admin.notif.broadcast.copyError")}</p>}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(400px,45%)]">
         <div className="min-w-0 space-y-6">

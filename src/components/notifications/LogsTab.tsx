@@ -1,10 +1,8 @@
 "use client"
-import { CONTROL_SHAPE } from "@/components/ui/control"
 import { ListFilter } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { apiGet } from "@/api/client"
-import type { CursorPage } from "@/api/pagination"
+import { apiGet, apiPost } from "@/api/client"
 import { t } from "@/i18n/t"
 import { statusLabelKey } from "@/lib/templateStatus"
 import { useUserNames } from "@/lib/userNames"
@@ -13,11 +11,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { StatusPill } from "./StatusPill"
 import { isSmtpTest, journalTypeValues, notifChannelLabel, notifTypeLabel } from "@/utils/notifType"
 import { useNotificationTypes } from "./templateTypes"
-import { LoadingArea, Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
-import { PageHeader } from "@/components/ui/page-header"
 import { LoadError } from "@/components/ui/load-error"
-import { SelectMenu } from "@/components/ui/select-menu"
+import { LoadingArea } from "@/components/ui/spinner"
+import { Badge } from "@/components/ui/badge"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { toast } from "@/components/ui/toast"
+import { overloadOr } from "@/i18n/apiError"
+import { tPlural } from "@/i18n/plural"
+import { formatListDateTime } from "@/lib/locale"
+import { IndexTable } from "@/components/table/IndexTable"
+import { useIndexList, type ColumnDef, type ListQuery } from "@/components/table/useIndexList"
+import { isComplete, type FilterDef } from "@/components/table/filters"
 import { listEvents } from "@/api/events/catalog"
 import { useRole } from "@/lib/useRole"
 import { mailTransportLabel } from "@/utils/notifType"
@@ -54,9 +59,6 @@ type Dispatch = {
   UpdatedAt: string
 }
 type DispatchDetail = Dispatch & { Targets: Target[] }
-type ListResp = CursorPage<Dispatch>
-
-const PAGE_SIZES = [25, 50, 100]
 const STATUSES = ["pending", "started", "done"]
 const CHANNELS = ["email", "in_app"]
 const RESULTS = [{ value: "done", label: "admin.notif.logs.resultDone" }, { value: "error", label: "admin.notif.logs.resultError" }, { value: "deferred", label: "admin.notif.logs.resultDeferred" }]
@@ -137,52 +139,66 @@ function TargetLine({ target }: { target: Target }) {
   )
 }
 
+type DispatchPage = { Items?: Dispatch[] | null; Total?: number }
+
+const ERROR_RESULTS = new Set(["error", "failed"])
+const hasFailedTarget = (dispatch: Dispatch) => (dispatch.Targets ?? []).some((target) => ERROR_RESULTS.has(target.Status))
+const dayAfter = (date: string) => new Date(new Date(`${date}T00:00:00`).getTime() + 86400e3).toISOString()
+
+/** GET /api/notifications/dispatches in the offset mode (page, pageSize, sortBy, sortDir) with the journal filters. */
+function listDispatches(query: ListQuery): Promise<DispatchPage> {
+  const p = new URLSearchParams()
+  const value = (key: string) => (isComplete(query.bag[key]) ? query.bag[key].v[0] : "")
+  for (const key of ["type", "status", "event", "channel", "result", "transport", "user"]) if (value(key)) p.set(key, value(key))
+  const recipient = query.search || value("recipient")
+  if (recipient) p.set("recipient", recipient)
+  const period = query.bag.period
+  if (isComplete(period)) {
+    const [a = "", b = ""] = period.v
+    if (period.op !== "before" && a) p.set("from", new Date(`${a}T00:00:00`).toISOString())
+    if (period.op === "before" && a) p.set("to", dayAfter(a))
+    if (period.op === "between" && b) p.set("to", dayAfter(b))
+  }
+  p.set("page", String(query.page))
+  p.set("pageSize", String(query.pageSize))
+  p.set("sortBy", query.sortBy)
+  p.set("sortDir", query.sortDir)
+  return apiGet<DispatchPage>(`/api/notifications/dispatches?${p}`)
+}
+
+const COLUMNS = [
+  { key: "type", width: 240 }, { key: "recipient", width: 260 }, { key: "event", width: 200 },
+  { key: "delivery", width: 360 }, { key: "status", width: 140 }, { key: "created", width: 180 },
+]
+
 export function LogsTab() {
-  const [type, setType] = useState("")
-  const [status, setStatus] = useState("")
-  const [eventFilter, setEventFilter] = useState("")
-  const [channel, setChannel] = useState("")
-  const [result, setResult] = useState("")
-  const [transport, setTransport] = useState("")
-  const eventOptions = useEventOptions(useRole().can("events.read"))
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
-  const [cursors, setCursors] = useState<(string | null)[]>([null])
-  const [reload, setReload] = useState(0)
+  const { can } = useRole()
+  const canResend = can("notifications.broadcast")
+  const eventOptions = useEventOptions(can("events.read"))
   const types = useNotificationTypes()
-  const [userFilter, setUserFilter] = useState<{ id: string; name: string } | null>(null)
-  const [data, setData] = useState<{ query: string; page: ListResp } | null>(null)
-  const [errorQuery, setErrorQuery] = useState<{ query: string; cause: unknown } | null>(null)
+  const defs = useMemo<FilterDef[]>(() => [
+    { key: "type", label: t("admin.notif.logs.type"), type: "choice", single: true, ops: ["in"], options: journalTypeValues(types.map((kind) => kind.Type)).map((kind) => ({ value: kind, label: notifTypeLabel(kind) })) },
+    { key: "status", label: t("admin.notif.logs.status"), type: "choice", single: true, ops: ["in"], options: STATUSES.map((s) => ({ value: s, label: t(statusLabelKey(s)) })) },
+    { key: "result", label: t("admin.notif.logs.result"), type: "choice", single: true, ops: ["in"], options: RESULTS.map((r) => ({ value: r.value, label: t(r.label) })) },
+    { key: "channel", label: t("admin.notif.logs.channel"), type: "choice", single: true, ops: ["in"], options: CHANNELS.map((c) => ({ value: c, label: notifChannelLabel(c) })) },
+    { key: "transport", label: t("admin.notif.logs.transport"), type: "choice", single: true, ops: ["in"], options: TRANSPORTS.map((tr) => ({ value: tr, label: mailTransportLabel(tr) ?? tr })) },
+    { key: "event", label: t("admin.notif.logs.event"), type: "choice", single: true, ops: ["in"], options: eventOptions },
+    { key: "recipient", label: t("admin.notif.logs.recipient"), type: "text", ops: ["contains"] },
+    { key: "period", label: t("admin.notif.logs.created"), type: "date" },
+    { key: "user", label: t("admin.notif.logs.recipientUser"), type: "text", ops: ["is"] },
+  ], [types, eventOptions])
+
+  const list = useIndexList<Dispatch>({
+    table: "admin.notif.logs", columns: COLUMNS, identity: "type", defs, defaultSort: { key: "created", dir: "desc" },
+    fetch: listDispatches, rowId: (d) => d.ID, selectable: hasFailedTarget, selectLimit: 200,
+  })
+  const names = useUserNames(list.rows.map((r) => r.RecipientUserID))
+
   const [detail, setDetail] = useState<DispatchDetail | null>(null)
   const [open, setOpen] = useState(false)
   const reqId = useRef(0)
   const [detailError, setDetailError] = useState<{ cause: unknown } | null>(null)
   const [detailID, setDetailID] = useState("")
-
-  const params = new URLSearchParams()
-  if (type) params.set("type", type)
-  if (status) params.set("status", status)
-  if (eventFilter) params.set("event", eventFilter)
-  if (channel) params.set("channel", channel)
-  if (result) params.set("result", result)
-  if (transport) params.set("transport", transport)
-  params.set("limit", String(pageSize))
-  if (cursors[page - 1]) params.set("cursor", cursors[page - 1]!)
-  if (userFilter) params.set("user", userFilter.id)
-  const requestQuery = params.toString()
-  const query = `${requestQuery}&reload=${reload}`
-  const failure = errorQuery?.query === query ? errorQuery : null
-  const error = failure !== null
-  const loading = !error && data?.query !== query
-
-  useEffect(() => {
-    let cancelled = false
-    apiGet<ListResp>(`/api/notifications/dispatches?${requestQuery}`)
-      .then((page) => { if (!cancelled) { setData({ query, page }); setErrorQuery(null) } })
-      .catch((cause) => { if (!cancelled) setErrorQuery({ query, cause }) })
-    return () => { cancelled = true }
-  }, [query, requestQuery])
-
   function openDetail(id: string) {
     const my = ++reqId.current
     setDetail(null); setDetailError(null); setDetailID(id); setOpen(true)
@@ -191,122 +207,51 @@ export function LogsTab() {
       .catch((cause) => { if (my === reqId.current) setDetailError({ cause }) })
   }
 
-  function resetPage() { setPage(1); setCursors([null]); setData(null) }
+  const columns: ColumnDef<Dispatch>[] = [
+    { key: "type", label: t("admin.notif.logs.type"), sort: "type", width: 240, cell: (d) => <button type="button" onClick={() => openDetail(d.ID)} className="max-w-full truncate text-left font-medium hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}{isSmtpTest(d.NotificationType) && <Badge size="sm" className="ml-2">{t("admin.notif.logs.testBadge")}</Badge>}</button> },
+    { key: "recipient", label: t("admin.notif.logs.recipient"), sort: "recipient", width: 260, cell: (d) => <span className="block min-w-0">
+      <span className="flex items-center gap-1">
+        {names[d.RecipientUserID]
+          ? <Link href={names[d.RecipientUserID].href} className="truncate font-medium text-foreground hover:underline">{names[d.RecipientUserID].name}</Link>
+          : d.RecipientName ? <span className="truncate font-medium text-foreground">{d.RecipientName}</span> : <span className="font-mono text-xs text-muted-foreground">{d.RecipientUserID.slice(0, 8)}</span>}
+        <HoverTooltip text={t("admin.notif.logs.filterByUser")}><button type="button" aria-label={t("admin.notif.logs.filterByUser")} onClick={() => list.setBag({ ...list.bag, user: { op: "is", v: [d.RecipientUserID] } })} className="admin-tap ml-0.5 inline-flex items-center rounded-sm text-muted-foreground hover:text-foreground"><ListFilter aria-hidden="true" className="h-3.5 w-3.5" /></button></HoverTooltip>
+      </span>
+      {d.RecipientEmail && <span className="block truncate text-xs text-muted-foreground">{d.RecipientEmail}</span>}
+    </span> },
+    { key: "event", label: t("admin.notif.logs.event"), sort: "event", width: 200, cell: (d) => d.ScopeEventID ? (d.EventName || <span className="font-mono text-xs text-muted-foreground">{d.ScopeEventID.slice(0, 8)}</span>) : <span className="text-muted-foreground">—</span> },
+    { key: "delivery", label: t("admin.notif.logs.delivery"), width: 360, cell: (d) => d.Targets && d.Targets.length > 0 ? <span className="flex flex-col gap-1.5 py-1">{d.Targets.map((target, i) => <TargetLine key={`${target.Channel}-${i}`} target={target} />)}</span> : <span className="text-muted-foreground">—</span> },
+    { key: "status", label: t("admin.notif.logs.status"), sort: "status", width: 140, cell: (d) => <StatusPill status={d.Status} label={t(statusLabelKey(d.Status))} /> },
+    { key: "created", label: t("admin.notif.logs.created"), sort: "created", firstDesc: true, dim: true, width: 180, cell: (d) => formatListDateTime(d.CreatedAt) },
+  ]
 
-  const total = data?.query === query ? data.page.Total : 0
-  const rows = data?.query === query ? data.page.Items : []
-  const nextCursor = data?.query === query ? data.page.NextCursor : undefined
-  const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  const names = useUserNames(rows.map(r => r.RecipientUserID))
+  const [resending, setResending] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [resendError, setResendError] = useState<string | null>(null)
+  async function resend() {
+    setBusy(true)
+    setResendError(null)
+    try {
+      const ids = [...list.selected]
+      const res = await apiPost<{ Results?: { DispatchID: string; Ok: boolean }[] }>("/api/notifications/dispatches/resend", { DispatchIDs: ids })
+      const done = (res.Results ?? []).filter((r) => r.Ok).length
+      if (done < ids.length) toast.error(t("admin.notif.logs.resend.partial", { done, skipped: ids.length - done }))
+      else toast.success(tPlural("admin.notif.logs.resend.done", done))
+      setResending(false); list.setSelected(new Set()); list.reload()
+    } catch (err) { setResendError(overloadOr(err, t("admin.notif.logs.resend.error"))) } finally { setBusy(false) }
+  }
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col md:h-full md:min-h-0 gap-4">
-    <PageHeader title={t("admin.nav.notif.logs")} />
-    <div className="frost-panel frost-in flex min-h-0 flex-col overflow-hidden rounded-lg p-6">
-      <div className="mb-3 flex flex-wrap gap-3">
-        <SelectMenu value={type} onChange={(next) => { resetPage(); setType(next) }} ariaLabel={t("admin.notif.logs.type")} options={[{ value: "", label: t("admin.notif.logs.allTypes") }, ...journalTypeValues(types.map((kind) => kind.Type)).map((kind) => ({ value: kind, label: notifTypeLabel(kind) }))]} className="min-w-48" />
-        <SelectMenu value={status} onChange={(next) => { resetPage(); setStatus(next) }} ariaLabel={t("admin.notif.logs.status")} options={[{ value: "", label: t("admin.notif.logs.allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: t(statusLabelKey(s)) }))]} className="min-w-40" />
-        {eventOptions.length > 0 && <SelectMenu value={eventFilter} onChange={(next) => { resetPage(); setEventFilter(next) }} ariaLabel={t("admin.notif.logs.event")} options={[{ value: "", label: t("admin.notif.logs.allEvents") }, ...eventOptions]} className="min-w-48 max-w-72" />}
-        <SelectMenu value={channel} onChange={(next) => { resetPage(); setChannel(next) }} ariaLabel={t("admin.notif.logs.channel")} options={[{ value: "", label: t("admin.notif.logs.allChannels") }, ...CHANNELS.map((c) => ({ value: c, label: notifChannelLabel(c) }))]} className="min-w-36" />
-        <SelectMenu value={result} onChange={(next) => { resetPage(); setResult(next) }} ariaLabel={t("admin.notif.logs.result")} options={[{ value: "", label: t("admin.notif.logs.allResults") }, ...RESULTS.map((r) => ({ value: r.value, label: t(r.label) }))]} className="min-w-40" />
-        <SelectMenu value={transport} onChange={(next) => { resetPage(); setTransport(next) }} ariaLabel={t("admin.notif.logs.transport")} options={[{ value: "", label: t("admin.notif.logs.allTransports") }, ...TRANSPORTS.map((tr) => ({ value: tr, label: mailTransportLabel(tr) }))]} className="min-w-40" />
-      </div>
+    <div className="ib-index">
+      <IndexTable<Dispatch>
+        list={list} columns={columns} identity="type" title={t("admin.nav.notif.logs")} rowId={(d) => d.ID} rowLabel={(d) => notifTypeLabel(d.NotificationType)}
+        defs={defs} searchLabel={t("admin.notif.logs.search")} emptyLabel={t("admin.notif.logs.emptyFiltered")} emptyInitialLabel={t("admin.notif.logs.empty")} errorLabel={t("admin.notif.loadError")}
+        actionsLabel={t("admin.notif.logs.actions")} selectable={hasFailedTarget}
+        bulk={canResend ? <Button type="button" variant="outline" size="sm" onClick={() => { setResendError(null); setResending(true) }}>{t("admin.notif.logs.resend")}</Button> : undefined}
+      />
 
-      {userFilter && (
-        <div className={`inline-flex items-center gap-2 ${CONTROL_SHAPE} px-3 text-foreground`}>
-          <span>{t("admin.notif.logs.filteredByName", { name: userFilter.name })}</span>
-          <button
-            onClick={() => { resetPage(); setUserFilter(null) }}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="✕"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      <div className="relative min-h-0 overflow-auto [--ib-state-h:400px]" aria-busy={loading}>
-      {error ? (
-        <LoadError message={t("admin.notif.loadError")} error={failure?.cause} onRetry={() => setReload((value) => value + 1)} className="h-[var(--ib-state-h)]" />
-      ) : loading ? (
-        <LoadingArea className="h-[var(--ib-state-h)]" label={t("admin.loading")} />
-      ) : rows.length === 0 ? (
-        <EmptyState message={t(type || status || eventFilter || channel || result || transport || userFilter ? "admin.notif.logs.emptyFiltered" : "admin.notif.logs.empty")} className="h-[var(--ib-state-h)]" />
-      ) : (
-        <div className="min-w-[1080px]">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="sticky top-0 z-10 border-b border-border bg-[var(--ib-table-head)] text-left text-[length:var(--ib-fs-13)] font-medium text-muted-foreground">
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.type")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.recipient")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.event")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.delivery")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.status")}</th>
-                <th className="px-3 py-2 font-medium">{t("admin.notif.logs.created")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => (
-                <tr key={d.ID} onClick={() => openDetail(d.ID)} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-accent/10">
-                  <td className="px-3 py-2 font-medium text-foreground"><button type="button" onClick={(event) => { event.stopPropagation(); openDetail(d.ID) }} className="text-left hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{notifTypeLabel(d.NotificationType)}</button>{d.BroadcastID && <Link href={`/notifications/broadcasts/detail?id=${encodeURIComponent(d.BroadcastID)}`} onClick={(event) => event.stopPropagation()} className="ml-2 text-xs font-normal text-primary hover:underline">{t("admin.notif.logs.openBroadcast")}</Link>}{isSmtpTest(d.NotificationType) && <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("admin.notif.logs.testBadge")}</span>}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      {names[d.RecipientUserID] ? (
-                        <Link
-                          href={names[d.RecipientUserID].href}
-                          onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-foreground hover:underline"
-                        >
-                          {names[d.RecipientUserID].name}
-                        </Link>
-                      ) : (
-                        d.RecipientName ? <span className="font-medium text-foreground">{d.RecipientName}</span> : <span className="font-mono text-xs text-muted-foreground">
-                          {d.RecipientUserID.slice(0, 8)}
-                        </span>
-                      )}
-                      <HoverTooltip text={t("admin.notif.logs.filterByUser")}><button
-                        type="button"
-                        aria-label={t("admin.notif.logs.filterByUser")}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setUserFilter({
-                            id: d.RecipientUserID,
-                            name: names[d.RecipientUserID]?.name ?? d.RecipientUserID,
-                          })
-                          resetPage()
-                        }}
-                        className="admin-tap ml-0.5 inline-flex items-center rounded-sm text-muted-foreground hover:text-foreground"
-                      >
-                        <ListFilter aria-hidden="true" className="h-3.5 w-3.5" />
-                      </button></HoverTooltip>
-                    </div>
-                    {d.RecipientEmail && <div className="text-xs text-muted-foreground">{d.RecipientEmail}</div>}
-                  </td>
-                  <td className="px-3 py-2 text-foreground">{d.ScopeEventID ? (d.EventName || <span className="font-mono text-xs text-muted-foreground">{d.ScopeEventID.slice(0, 8)}</span>) : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-3 py-2">
-                    {d.Targets && d.Targets.length > 0
-                      ? <div className="flex flex-col gap-1.5">{d.Targets.map((target, i) => <TargetLine key={`${target.Channel}-${i}`} target={target} />)}</div>
-                      : <span className="text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-3 py-2"><StatusPill status={d.Status} label={t(statusLabelKey(d.Status))} /></td>
-                  <td className="px-3 py-2 text-muted-foreground">{new Date(d.CreatedAt).toLocaleString("uk-UA")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      </div>
-
-      <div className="grid shrink-0 grid-cols-[1fr_auto] items-center gap-3 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
-        <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-1"><span>{t("admin.table.totalCount", { total })}</span><span>{t("admin.table.pageOf", { page, pages: pageCount })}</span>{loading && <Spinner size="sm" label={t("admin.table.updating")} />}</div>
-        <div className="flex min-w-0 flex-wrap gap-2 sm:justify-center">
-          <Button variant="outline" className="px-3 sm:px-4" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>{t("admin.table.previous")}</Button>
-          <Button variant="outline" className="px-3 sm:px-4" disabled={loading || !nextCursor} onClick={() => { if (nextCursor) { setCursors((current) => [...current.slice(0, page), nextCursor]); setPage(page + 1) } }}>{t("admin.table.next")}</Button>
-        </div>
-        <div className="flex items-center justify-end gap-2"><span className="sr-only sm:not-sr-only">{t("admin.table.perPage")}</span><SelectMenu value={String(pageSize)} onChange={(value) => { resetPage(); setPageSize(Number(value)) }} ariaLabel={t("admin.table.perPage")} options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))} className="w-20" disabled={loading} /></div>
-      </div>
-    </div>
+      <ConfirmDialog open={resending} onCancel={() => { if (!busy) setResending(false) }} busy={busy} busyLabel={t("busy.sending")} error={resendError}
+        title={tPlural("admin.notif.logs.resend.title", list.selected.size)} description={t("admin.notif.logs.resend.body")}
+        confirmLabel={t("admin.notif.logs.resend.confirm")} onConfirm={() => void resend()} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
