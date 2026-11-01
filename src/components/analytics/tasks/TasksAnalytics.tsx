@@ -1,5 +1,6 @@
 "use client"
 
+import { compareDelta } from "../overview/format"
 import { useState } from "react"
 import { AnalyticsChart, KpiTile, barOption, hBarOption, useAnalyticsResource } from "@/components/analytics"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
@@ -7,7 +8,7 @@ import { formatCount, formatPercent } from "@/components/analytics/events/format
 import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 import type { TasksAnalytics as TasksReport } from "@/api/platformAnalyticsCatalog"
-import { TaskUsageTable, levelLabel } from "./TaskUsageTable"
+import { TaskUsagePagedTable, TaskUsageTable, levelLabel } from "./TaskUsageTable"
 
 type Options = { categories: string[]; levels: string[] }
 const NO_OPTIONS: Options = { categories: [], levels: [] }
@@ -22,7 +23,7 @@ export function TasksAnalytics() {
   const [category, setCategory] = useState(ALL)
   const [level, setLevel] = useState(ALL)
   const filters = { category: category === ALL ? undefined : category, level: level === ALL ? undefined : level }
-  const { data, loading, error, reload } = useAnalyticsResource<TasksReport>("tasks", filters)
+  const { data, previous, loading, error, reload } = useAnalyticsResource<TasksReport>("tasks", filters)
   // The options stay while a filter change reloads the report.
   const [options, setOptions] = useState<Options>(NO_OPTIONS)
   if (data && (data.Categories !== options.categories || data.Levels !== options.levels)) setOptions({ categories: data.Categories, levels: data.Levels })
@@ -41,13 +42,13 @@ export function TasksAnalytics() {
     </div>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <KpiTile label={t("admin.platformAnalytics.tasks.kpi.used")} hint={t("admin.platformAnalytics.tasks.kpi.usedHint")}
-        value={formatCount(data?.Totals.TasksUsed)} loading={loading} empty={failed} />
+        value={formatCount(data?.Totals.TasksUsed)} delta={compareDelta(data?.Totals.TasksUsed, previous?.Totals.TasksUsed)} loading={loading} empty={failed} />
       <KpiTile label={t("admin.platformAnalytics.tasks.kpi.uses")} hint={t("admin.platformAnalytics.tasks.kpi.usesHint")}
-        value={formatCount(data?.Totals.Uses)} loading={loading} empty={failed} />
+        value={formatCount(data?.Totals.Uses)} delta={compareDelta(data?.Totals.Uses, previous?.Totals.Uses)} loading={loading} empty={failed} />
       <KpiTile label={t("admin.platformAnalytics.tasks.kpi.solveRate")} hint={t("admin.platformAnalytics.tasks.kpi.solveRateHint")}
-        value={formatPercent(data?.Totals.SolveRate)} loading={loading} empty={failed || noRows} />
+        value={formatPercent(data?.Totals.SolveRate)} delta={compareDelta(data?.Totals.SolveRate, previous?.Totals.SolveRate)} loading={loading} empty={failed || noRows} />
       <KpiTile label={t("admin.platformAnalytics.tasks.kpi.neverSolved")} hint={t("admin.platformAnalytics.tasks.kpi.neverSolvedHint")}
-        value={formatCount(data?.Totals.NeverSolved)} loading={loading} empty={failed} />
+        value={formatCount(data?.Totals.NeverSolved)} delta={compareDelta(data?.Totals.NeverSolved, previous?.Totals.NeverSolved, true)} loading={loading} empty={failed} />
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
       <AnalyticsBlock title={t("admin.platformAnalytics.tasks.byCategory.title")} hint={t("admin.platformAnalytics.tasks.byCategory.hint")}>
@@ -61,7 +62,7 @@ export function TasksAnalytics() {
           loading={loading} error={error} empty={byLevel.length === 0} onRetry={reload} ariaLabel={t("admin.platformAnalytics.tasks.byLevel.title")} />
       </AnalyticsBlock>
     </div>
-    <TaskUsageTable variant="usage" rows={data?.Tasks} total={data?.TasksTotal ?? 0} loading={loading} error={error} onRetry={reload} filters={filters} />
+    <TaskUsagePagedTable filters={filters} />
     <TaskUsageTable variant="unsolved" rows={data?.Unsolved} total={data?.UnsolvedTotal ?? 0} loading={loading} error={error} onRetry={reload} filters={filters} />
   </div>
 }

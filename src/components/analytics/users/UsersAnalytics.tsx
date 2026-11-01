@@ -1,5 +1,6 @@
 "use client"
 
+import { compareDelta } from "../overview/format"
 import Link from "next/link"
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, DataTable, KpiTile, barOption, donutOption, lineOption, useAnalyticsResource, type ChartTheme, type Column } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
@@ -14,7 +15,7 @@ type RoleRow = UsersReport["ByRole"][number]
 
 /** Body of the «Користувачі» section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
 export function UsersAnalytics() {
-  const { data, loading, error, reload } = useAnalyticsResource<UsersReport>("users")
+  const { data, previous, loading, error, reload } = useAnalyticsResource<UsersReport>("users")
   const { can } = useRole()
   const failed = !!error
   const busy = loading || failed
@@ -54,7 +55,7 @@ export function UsersAnalytics() {
       <KpiTile label={t("admin.platformAnalytics.users.kpi.active")} hint={t("admin.platformAnalytics.users.kpi.activeHint")}
         value={formatCount(data?.Active.Value)} delta={deltaOf(data?.Active)} sub={previousLine(data?.Active)} loading={loading} empty={failed} />
       <KpiTile label={t("admin.platformAnalytics.users.kpi.avgDaily")} hint={t("admin.platformAnalytics.users.kpi.avgDailyHint")}
-        value={data ? formatNumber(data.AvgDailyActive, { maximumFractionDigits: 1 }) : undefined} loading={loading} empty={failed} />
+        value={data ? formatNumber(data.AvgDailyActive, { maximumFractionDigits: 1 }) : undefined} delta={compareDelta(data?.AvgDailyActive, previous?.AvgDailyActive)} loading={loading} empty={failed} />
     </div>
     <div className="grid gap-4 xl:grid-cols-2">
       <AnalyticsBlock title={t("admin.platformAnalytics.users.series.registrationsTitle")}

@@ -145,8 +145,8 @@ const ERROR_RESULTS = new Set(["error", "failed"])
 const hasFailedTarget = (dispatch: Dispatch) => (dispatch.Targets ?? []).some((target) => ERROR_RESULTS.has(target.Status))
 const dayAfter = (date: string) => new Date(new Date(`${date}T00:00:00`).getTime() + 86400e3).toISOString()
 
-/** GET /api/notifications/dispatches in the offset mode (page, pageSize, sortBy, sortDir) with the journal filters. */
-function listDispatches(query: ListQuery): Promise<DispatchPage> {
+/** The query of the list, minus paging and sort: the filters the facets are counted under (GET …/dispatches/facets, the field's own filter ignored by the server). */
+function dispatchFilters(query: { search: string; bag: ListQuery["bag"] }): URLSearchParams {
   const p = new URLSearchParams()
   const value = (key: string) => (isComplete(query.bag[key]) ? query.bag[key].v[0] : "")
   for (const key of ["type", "status", "event", "channel", "result", "transport", "user"]) if (value(key)) p.set(key, value(key))
@@ -159,6 +159,18 @@ function listDispatches(query: ListQuery): Promise<DispatchPage> {
     if (period.op === "before" && a) p.set("to", dayAfter(a))
     if (period.op === "between" && b) p.set("to", dayAfter(b))
   }
+  return p
+}
+
+async function getDispatchFacets(field: string, query: { search: string; bag: ListQuery["bag"] }): Promise<Record<string, number> | null> {
+  const p = dispatchFilters(query)
+  p.set("field", field)
+  try { return (await apiGet<{ Counts?: Record<string, number> } | null>(`/api/notifications/dispatches/facets?${p}`))?.Counts ?? null } catch { return null }
+}
+
+/** GET /api/notifications/dispatches in the offset mode (page, pageSize, sortBy, sortDir) with the journal filters. */
+function listDispatches(query: ListQuery): Promise<DispatchPage> {
+  const p = dispatchFilters(query)
   p.set("page", String(query.page))
   p.set("pageSize", String(query.pageSize))
   p.set("sortBy", query.sortBy)
@@ -244,7 +256,7 @@ export function LogsTab() {
     <div className="ib-index">
       <IndexTable<Dispatch>
         list={list} columns={columns} identity="type" title={t("admin.nav.notif.logs")} rowId={(d) => d.ID} rowLabel={(d) => notifTypeLabel(d.NotificationType)}
-        defs={defs} searchLabel={t("admin.notif.logs.search")} emptyLabel={t("admin.notif.logs.emptyFiltered")} emptyInitialLabel={t("admin.notif.logs.empty")} errorLabel={t("admin.notif.loadError")}
+        defs={defs} facets={(def) => getDispatchFacets(def.key, { search: list.request.search, bag: list.bag })} searchLabel={t("admin.notif.logs.search")} emptyLabel={t("admin.notif.logs.emptyFiltered")} emptyInitialLabel={t("admin.notif.logs.empty")} errorLabel={t("admin.notif.loadError")}
         actionsLabel={t("admin.notif.logs.actions")} selectable={hasFailedTarget}
         bulk={canResend ? <Button type="button" variant="outline" size="sm" onClick={() => { setResendError(null); setResending(true) }}>{t("admin.notif.logs.resend")}</Button> : undefined}
       />

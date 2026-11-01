@@ -3101,5 +3101,7 @@
   "admin.elevations.history.none": "Інших запитів немає",
   "admin.elevations.history.error": "Не вдалося завантажити історію автора",
   "admin.platformAnalytics.users.people.subtitleAll": "Усі облікові записи за кількістю заходів, у яких вони брали участь.",
-  "admin.platformAnalytics.users.people.search": "Пошук за імʼям або поштою"
+  "admin.platformAnalytics.users.people.search": "Пошук за імʼям або поштою",
+  "admin.platformAnalytics.events.table.search": "Пошук за назвою або тегом заходу",
+  "admin.platformAnalytics.tasks.search": "Пошук за завданням"
 }

@@ -2,6 +2,7 @@
 
 import { exercisesOrigin } from "@/lib/origins"
 import { CsvExportButton, DataTable, type Column } from "@/components/analytics"
+import { PagedTable } from "@/components/analytics/PagedTable"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
 import { formatCount, formatDuration, formatPercent } from "@/components/analytics/events/format"
 import { t } from "@/i18n/t"
@@ -21,7 +22,7 @@ function identityColumns(): Column<TaskUsageRow>[] {
     { key: "task", header: t("admin.platformAnalytics.tasks.col.task"), sortValue: (row) => row.Task, cell: (row) => row.Task || "–" },
     { key: "level", header: t("admin.platformAnalytics.tasks.col.level"), sortValue: (row) => row.Level, cell: (row) => levelLabel(row.Level) },
     { key: "categories", header: t("admin.platformAnalytics.tasks.col.categories"), cell: (row) => row.Categories.length ? row.Categories.join(", ") : "–" },
-    { key: "events", header: t("admin.platformAnalytics.tasks.col.events"), numeric: true, sortValue: (row) => row.EventsUsed, cell: (row) => formatCount(row.EventsUsed) },
+    { key: "eventsUsed", header: t("admin.platformAnalytics.tasks.col.events"), numeric: true, sortValue: (row) => row.EventsUsed, cell: (row) => formatCount(row.EventsUsed) },
     { key: "attempts", header: t("admin.platformAnalytics.tasks.col.attempts"), numeric: true, sortValue: (row) => row.Attempts, cell: (row) => formatCount(row.Attempts) },
   ]
 }
@@ -32,11 +33,11 @@ function usageColumns(): Column<TaskUsageRow>[] {
     { key: "solves", header: t("admin.platformAnalytics.tasks.col.solves"), numeric: true, sortValue: (row) => row.Solves, cell: (row) => formatCount(row.Solves) },
     { key: "solveRate", header: t("admin.platformAnalytics.tasks.col.solveRate"), numeric: true, sortValue: (row) => (row.TeamsTried > 0 ? row.SolveRate : null),
       cell: (row) => row.TeamsTried > 0 ? formatPercent(row.SolveRate) : "–" },
-    { key: "median", header: t("admin.platformAnalytics.tasks.col.median"), numeric: true, sortValue: (row) => row.MedianSolveSeconds,
+    { key: "medianSolveSeconds", header: t("admin.platformAnalytics.tasks.col.median"), numeric: true, sortValue: (row) => row.MedianSolveSeconds,
       cell: (row) => <span className="whitespace-nowrap">{formatDuration(row.MedianSolveSeconds)}</span> },
     { key: "hintRate", header: t("admin.platformAnalytics.tasks.col.hintRate"), numeric: true, sortValue: (row) => (row.TeamsEngaged > 0 ? row.HintRate : null),
       cell: (row) => row.TeamsEngaged > 0 ? formatPercent(row.HintRate) : "–" },
-    { key: "calibration", header: t("admin.platformAnalytics.tasks.col.calibration"), sortValue: (row) => row.Calibration,
+    { key: "calibration", header: t("admin.platformAnalytics.tasks.col.calibration"),
       cell: (row) => t(`admin.platformAnalytics.tasks.calibration.${row.Calibration}`) },
   ]
 }
@@ -44,7 +45,7 @@ function usageColumns(): Column<TaskUsageRow>[] {
 function unsolvedColumns(): Column<TaskUsageRow>[] {
   return [
     ...identityColumns(),
-    { key: "tried", header: t("admin.platformAnalytics.tasks.col.tried"), numeric: true, sortValue: (row) => row.TeamsTried, cell: (row) => formatCount(row.TeamsTried) },
+    { key: "teamsTried", header: t("admin.platformAnalytics.tasks.col.tried"), numeric: true, sortValue: (row) => row.TeamsTried, cell: (row) => formatCount(row.TeamsTried) },
   ]
 }
 
@@ -71,6 +72,15 @@ export function TaskUsageTable({ variant, rows, total, loading, error, onRetry, 
     actions={<CsvExportButton section="tasks" table={unsolved ? "unsolved" : "tasks"} params={filters} disabled={loading || !!error || !rows?.length} />}>
     <DataTable columns={unsolved ? unsolvedColumns() : usageColumns()} rows={rows} rowKey={rowKey} loading={loading} error={error} onRetry={onRetry}
       minHeight={unsolved ? 200 : 320} emptyMessage={t(`admin.platformAnalytics.tasks.${key}.empty`)} errorMessage={t(`admin.platformAnalytics.tasks.${key}.error`)}
-      ariaLabel={t(`admin.platformAnalytics.tasks.${key}.title`)} defaultSort={{ field: unsolved ? "tried" : "events", direction: "desc" }} />
+      ariaLabel={t(`admin.platformAnalytics.tasks.${key}.title`)} defaultSort={{ field: "teamsTried", direction: "desc" }} />
   </AnalyticsBlock>
+}
+
+/** The usage and calibration table: every catalog task of the period, paged, searched and sorted on the server. */
+export function TaskUsagePagedTable({ filters }: { filters?: { category?: string; level?: string } }) {
+  return <PagedTable<TaskUsageRow> section="tasks" path="table" extra={{ category: filters?.category, level: filters?.level }} columns={usageColumns()} rowKey={rowKey}
+    title={t("admin.platformAnalytics.tasks.usage.title")} hint={t("admin.platformAnalytics.tasks.usage.hint")}
+    actions={({ loading, error, empty }) => <CsvExportButton section="tasks" table="tasks" params={filters} disabled={loading || !!error || empty} />}
+    ariaLabel={t("admin.platformAnalytics.tasks.usage.title")} emptyMessage={t("admin.platformAnalytics.tasks.usage.empty")} errorMessage={t("admin.platformAnalytics.tasks.usage.error")}
+    searchLabel={t("admin.platformAnalytics.tasks.search")} defaultSort={{ field: "eventsUsed", direction: "desc" }} />
 }

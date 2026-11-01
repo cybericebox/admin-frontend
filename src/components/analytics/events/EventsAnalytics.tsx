@@ -1,5 +1,6 @@
 "use client"
 
+import { compareDelta } from "../overview/format"
 import { AnalyticsChart, CsvExportButton, KpiTile, donutOption, lineOption, useAnalyticsResource, type ChartTheme } from "@/components/analytics"
 import { AnalyticsBlock } from "@/components/analytics/AnalyticsBlock"
 import { t } from "@/i18n/t"
@@ -11,7 +12,7 @@ import { formatCount } from "./format"
 /** Body of the «Заходи» section: KPIs, events and registrations over time, events by status, the per-event table and the upcoming events. */
 export function EventsAnalytics() {
   const resource = useAnalyticsResource<EventsReport>("events")
-  const { data, loading, error, reload } = resource
+  const { data, previous, loading, error, reload } = resource
   const empty = !loading && !error && !!data && data.Series.every((day) => day.EventsCreated + day.EventsStarted + day.Registrations === 0)
   const statusSlices = (data?.Statuses ?? []).filter((s) => s.Events > 0).map((s) => ({ name: t(`admin.events.lifecycle.${s.Status}`), value: s.Events }))
   const seriesOption = data && !empty ? (theme: ChartTheme) => lineOption([
@@ -22,13 +23,13 @@ export function EventsAnalytics() {
   return <div className="space-y-6">
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <KpiTile label={t("admin.platformAnalytics.events.kpi.events")} hint={t("admin.platformAnalytics.events.kpi.eventsHint")} href="/events"
-        value={formatCount(data?.Totals.Events)} loading={loading} empty={!!error} />
+        value={formatCount(data?.Totals.Events)} delta={compareDelta(data?.Totals.Events, previous?.Totals.Events)} loading={loading} empty={!!error} />
       <KpiTile label={t("admin.platformAnalytics.events.kpi.created")} hint={t("admin.platformAnalytics.events.kpi.createdHint")}
-        value={formatCount(data?.Totals.Created)} loading={loading} empty={!!error} />
+        value={formatCount(data?.Totals.Created)} delta={compareDelta(data?.Totals.Created, previous?.Totals.Created)} loading={loading} empty={!!error} />
       <KpiTile label={t("admin.platformAnalytics.events.kpi.started")} hint={t("admin.platformAnalytics.events.kpi.startedHint")}
-        value={formatCount(data?.Totals.Started)} loading={loading} empty={!!error} />
+        value={formatCount(data?.Totals.Started)} delta={compareDelta(data?.Totals.Started, previous?.Totals.Started)} loading={loading} empty={!!error} />
       <KpiTile label={t("admin.platformAnalytics.events.kpi.registrations")} hint={t("admin.platformAnalytics.events.kpi.registrationsHint")}
-        value={formatCount(data?.Totals.Registrations)} loading={loading} empty={!!error} />
+        value={formatCount(data?.Totals.Registrations)} delta={compareDelta(data?.Totals.Registrations, previous?.Totals.Registrations)} loading={loading} empty={!!error} />
     </div>
     <div className="grid gap-4 xl:grid-cols-3">
       <AnalyticsBlock className="xl:col-span-2" title={t("admin.platformAnalytics.events.series.title")}
@@ -41,7 +42,7 @@ export function EventsAnalytics() {
           ariaLabel={t("admin.platformAnalytics.events.status.title")} emptyMessage={t("admin.platformAnalytics.events.status.empty")} />
       </AnalyticsBlock>
     </div>
-    <EventsTable rows={data?.Events} total={data?.EventsTotal ?? 0} limit={data?.EventsLimit ?? 0} loading={loading} error={error} onRetry={reload} />
+    <EventsTable />
     <UpcomingEventsTable rows={data?.Upcoming} loading={loading} error={error} onRetry={reload} />
   </div>
 }

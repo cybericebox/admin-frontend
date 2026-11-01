@@ -3101,5 +3101,7 @@
   "admin.elevations.history.none": "No other requests",
   "admin.elevations.history.error": "Could not load the author's history",
   "admin.platformAnalytics.users.people.subtitleAll": "All accounts by the number of events they joined.",
-  "admin.platformAnalytics.users.people.search": "Search by name or email"
+  "admin.platformAnalytics.users.people.search": "Search by name or email",
+  "admin.platformAnalytics.events.table.search": "Search by event name or tag",
+  "admin.platformAnalytics.tasks.search": "Search by exercise"
 }
