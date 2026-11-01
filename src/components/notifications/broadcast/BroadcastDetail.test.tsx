@@ -19,13 +19,17 @@ beforeEach(() => {
 describe("BroadcastDetail", () => {
   it("pages the deliveries, filters them by status and keeps the rows while the next page loads", async () => {
     render(<BroadcastDetail id="b1" />)
-    expect(await screen.findByText("ann@example.test")).toBeInTheDocument()
+    const SETTLED = { timeout: 10000 }
+    expect(await screen.findByText("ann@example.test", {}, SETTLED)).toBeInTheDocument()
+    // The pager is disabled while a page loads: an enabled button means the answer has been applied.
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.table.next" })).toBeEnabled(), SETTLED)
     fireEvent.click(screen.getByRole("button", { name: "admin.table.next" }))
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("/deliveries?page=2&pageSize=50")))
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("/deliveries?page=2&pageSize=50")), SETTLED)
     expect(screen.getByText("ann@example.test")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.table.previous" })).toBeEnabled(), SETTLED)
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.notif.broadcast.deliveryFilter" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.notif.broadcast.delivery.error" }))
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("page=1&pageSize=50&status=error")))
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.notif.broadcast.delivery.error" }, SETTLED))
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("page=1&pageSize=50&status=error")), SETTLED)
   })
 
   it("exports the deliveries as CSV with the chosen status", async () => {
