@@ -1,4 +1,5 @@
 "use client"
+import { usePendingElevations } from "@/lib/usePendingElevations"
 import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -97,6 +98,8 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
   // The group that holds the current page opens on its own, at mount and on every navigation (a link elsewhere in the app can
   // change the page without a click here); the reader can still open or close any group by hand.
   const activeGroupID = groups.find((group) => group.children.some((child) => isActive(pathname, child.href, child.exact)))?.id ?? null
+  const hasElevations = groups.some((group) => group.children.some((child) => child.href === "/elevations"))
+  const pendingElevations = usePendingElevations(hasElevations)
   const [openGroupID, setOpenGroupID] = useState<string | null>(activeGroupID)
   const [seenPathname, setSeenPathname] = useState(pathname)
   if (seenPathname !== pathname) {
@@ -145,6 +148,7 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
                     {child.divider && index > 0 && <hr className="ib-admin-side__divider" />}
                     <Link className="ib-admin-side__item" href={child.href} aria-current={isActive(pathname, child.href, child.exact) ? "page" : undefined} onClick={onNavigate}>
                       <child.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(child.label)}</span>
+                      {child.href === "/elevations" && pendingElevations > 0 && <span className="ib-admin-side__count" aria-label={t("admin.nav.elevations.pending", { count: pendingElevations })}>{pendingElevations}</span>}
                     </Link>
                   </Fragment>
                 ))}

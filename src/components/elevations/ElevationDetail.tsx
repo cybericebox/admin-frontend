@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { decideElevation, ELEVATION_WRITE_PERM, getElevation, getResourcePresets, type ElevationRequest, type ResourcePreset } from "@/api/elevations"
+import { decideElevation, ELEVATION_WRITE_PERM, getElevation, getResourcePresets, listAuthorElevations, type ElevationRequest, type ResourcePreset } from "@/api/elevations"
+import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Card } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
 import { TableWrap, Th } from "@/components/common/DsTable"
@@ -16,7 +19,7 @@ import { toast } from "@/components/ui/toast"
 import { ApiError } from "@/api/client"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
-import { formatDateTime } from "@/lib/locale"
+import { formatDateTime, formatNumber } from "@/lib/locale"
 import { formatBytes, formatCpu } from "@/lib/infrastructureMonitoring"
 import { useRole } from "@/lib/useRole"
 import { StatusBadge } from "./ElevationsPage"
@@ -37,6 +40,56 @@ function presetName(blocks: number, presets: ResourcePreset[]): string {
 
 function sizeText(device: { CPUMillicores: number; MemoryBytes: number }) {
   return `${formatCpu(device.CPUMillicores)} · ${formatBytes(device.MemoryBytes)}`
+}
+
+const HISTORY_SHOWN = 5
+
+/** The cluster's free room beside what this request asks: the deciding person sees whether it fits. */
+function CapacityCard({ capacity }: { capacity: NonNullable<ElevationRequest["Capacity"]> }) {
+  const cpu = (millicores: number) => `${formatNumber(millicores)} ${t("admin.elevations.unit.millicores")}`
+  const memory = (bytes: number) => formatBytes(bytes)
+  return <Card className="space-y-3 p-4" data-testid="elevation-capacity">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h2 className="text-base font-semibold text-foreground">{t("admin.elevations.capacity.title")}</h2>
+      <Badge tone={capacity.Fits ? "ok" : "danger"}>{t(capacity.Fits ? "admin.elevations.capacity.fits" : "admin.elevations.capacity.noFit")}</Badge>
+    </div>
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-4">
+      <Fact label={t("admin.elevations.capacity.askedCpu")}>{cpu(capacity.AskedCPUMillicores)}</Fact>
+      <Fact label={t("admin.elevations.capacity.freeCpu")}>{capacity.CPUUnlimited ? t("admin.elevations.capacity.unlimited") : cpu(capacity.FreeCPUMillicores)}</Fact>
+      <Fact label={t("admin.elevations.capacity.askedMemory")}>{memory(capacity.AskedMemoryBytes)}</Fact>
+      <Fact label={t("admin.elevations.capacity.freeMemory")}>{capacity.MemoryUnlimited ? t("admin.elevations.capacity.unlimited") : memory(capacity.FreeMemoryBytes)}</Fact>
+    </dl>
+  </Card>
+}
+
+/** The author's other requests, newest first: how often they ask and how it went. */
+function AuthorHistory({ authorId, currentId, authorName }: { authorId: string; currentId: string; authorName: string }) {
+  const [state, setState] = useState<{ key: string; items?: ElevationRequest[]; error?: unknown } | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const key = `${authorId}|${attempt}`
+  useEffect(() => {
+    if (!authorId) return
+    let active = true
+    listAuthorElevations(authorId)
+      .then((items) => { if (active) setState({ key, items }) })
+      .catch((error) => { if (active) setState({ key, error }) })
+    return () => { active = false }
+  }, [authorId, key])
+  if (!authorId) return null
+  const ready = state?.key === key ? state : null
+  const items = (ready?.items ?? []).filter((entry) => entry.ID !== currentId).sort((a, b) => Date.parse(b.RequestedAt) - Date.parse(a.RequestedAt)).slice(0, HISTORY_SHOWN)
+  return <Card className="space-y-3 p-4" data-testid="elevation-history">
+    <h2 className="text-base font-semibold text-foreground">{t("admin.elevations.history.title", { name: authorName || "—" })}</h2>
+    <div className="min-h-16">
+      {!ready ? <LoadingArea compact label={t("admin.loading")} />
+        : ready.error ? <LoadError message={t("admin.elevations.history.error")} error={ready.error} compact onRetry={() => setAttempt((n) => n + 1)} />
+        : items.length === 0 ? <EmptyState compact message={t("admin.elevations.history.none")} />
+        : <ul className="divide-y divide-border">{items.map((entry) => <li key={entry.ID} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm">
+          <Link href={`/elevations/detail?id=${encodeURIComponent(entry.ID)}`} className="min-w-0 truncate font-medium text-primary hover:underline">{entry.ExerciseName}</Link>
+          <span className="text-muted-foreground">{formatDateTime(entry.RequestedAt)}</span><StatusBadge status={entry.Status} />
+        </li>)}</ul>}
+    </div>
+  </Card>
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -128,6 +181,8 @@ export function ElevationDetail({ id }: { id: string }) {
       {item.DecisionNote && <div><p className="text-xs text-muted-foreground">{t("admin.elevations.note")}</p><p className="whitespace-pre-wrap break-words text-sm text-foreground">{item.DecisionNote}</p></div>}
     </Card>
 
+    {pending && item.Capacity && <CapacityCard capacity={item.Capacity} />}
+
     <Card className="overflow-hidden">
       <TableWrap label={t("admin.elevations.table")} rows={Math.max(2, item.Requested.length)} className="rounded-none border-0">
         <table data-testid="elevation-devices" aria-label={t("admin.elevations.table")} className="ib-table">
@@ -165,6 +220,8 @@ export function ElevationDetail({ id }: { id: string }) {
         {t("admin.elevations.approvedLine", { values: item.Approved.map((device) => t("admin.elevations.approvedItem", { name: device.Name || device.DeviceID, preset: presetName(device.Blocks, presets), size: sizeText(device) })).join("; ") })}
       </p>}
     </Card>
+
+    <AuthorHistory authorId={item.RequestedBy} currentId={item.ID} authorName={item.RequestedByName} />
 
     <ConfirmDialog open={decision !== null} busy={busy} busyLabel={t(decision === "reject" ? "busy.rejecting" : "busy.approving")} error={error} tone={decision === "reject" ? "danger" : "default"}
       onCancel={() => setDecision(null)}

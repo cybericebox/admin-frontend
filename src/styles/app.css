@@ -137,3 +137,6 @@ html { scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2)); }
   .ib-table--cards colgroup { display: none; }
   .ib-resize { display: none; }
 }
+
+/* Menu badge: a count beside a menu item (requests that wait for a decision). */
+.ib-admin-side__count { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: var(--ib-r-pill); background: var(--ib-on-brand); color: var(--ib-brand); font: var(--ib-w-semibold) var(--ib-fs-12)/20px var(--ib-font); text-align: center; font-variant-numeric: tabular-nums; }
