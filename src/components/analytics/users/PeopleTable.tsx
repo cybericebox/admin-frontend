@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { AnalyticsBlock, CsvExportButton, DataTable, useAnalyticsResource, type Column } from "@/components/analytics"
 import { t } from "@/i18n/t"
 import { roleLabel } from "@/lib/roles"
@@ -19,7 +20,7 @@ export function PeopleTable() {
   const columns: Column<UsersPerson>[] = [
     { key: "name", header: t("admin.platformAnalytics.users.people.name"), cell: (row) => row.Name || "–", sortValue: (row) => row.Name },
     { key: "email", header: t("admin.platformAnalytics.users.people.email"), cell: (row) => row.Email, sortValue: (row) => row.Email },
-    { key: "role", header: t("admin.platformAnalytics.users.people.role"), cell: (row) => roleLabel(row.Role), sortValue: (row) => roleLabel(row.Role) },
+    { key: "role", header: t("admin.platformAnalytics.users.people.role"), cell: (row) => <Link href={`/users?f.role=in%3A${encodeURIComponent(row.Role)}`} className="text-primary hover:underline">{roleLabel(row.Role)}</Link>, sortValue: (row) => roleLabel(row.Role) },
     { key: "events", header: t("admin.platformAnalytics.users.people.events"), cell: (row) => formatCount(row.EventsJoined), sortValue: (row) => row.EventsJoined, numeric: true },
     { key: "solves", header: t("admin.platformAnalytics.users.people.solves"), cell: (row) => formatCount(row.Solves), sortValue: (row) => row.Solves, numeric: true },
   ]

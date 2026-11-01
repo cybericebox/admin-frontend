@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useUrlState } from "@/lib/useUrlState"
 import { KpiTile, SectionPage, useAnalyticsResource } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
@@ -17,7 +18,10 @@ const P = "admin.platformAnalytics.mail."
 const NO_OPTIONS: MailOptions = { Transports: [], Types: [] }
 
 function Body() {
-  const [filters, setFilters] = useState<MailFilters>({ channel: "", transport: "", type: "", includeTests: false })
+  // The filters live in the address (?channel=&transport=&type=&tests=1), so a link carries them.
+  const [url, setUrl] = useUrlState({ channel: "", transport: "", type: "", tests: "" })
+  const filters = useMemo<MailFilters>(() => ({ channel: url.channel as MailFilters["channel"], transport: url.transport, type: url.type, includeTests: url.tests === "1" }), [url.channel, url.transport, url.type, url.tests])
+  const setFilters = (next: MailFilters) => setUrl({ channel: next.channel, transport: next.transport, type: next.type, tests: next.includeTests ? "1" : "" })
   // The query and the CSV exports carry the same filters.
   const params = useMemo(() => ({ channel: filters.channel, transport: filters.transport, type: filters.type, includeTests: filters.includeTests ? "true" : undefined }), [filters])
   const { data, loading, error, reload } = useAnalyticsResource<MailData>("mail", params)

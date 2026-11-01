@@ -38,7 +38,7 @@ function Inner({ title, subtitle, showPeriod = true, autoRefresh, actions, child
       <PageHeader title={title} sub={subtitle} actions={<>
         {autoRefresh && <AutoRefresh enabled={auto} onChange={setAuto} updatedAt={updatedAt} refreshing={busy > 0} />}
         {actions}
-        {showPeriod && <PeriodFilter preset={period.preset} onChange={period.setPreset} />}
+        {showPeriod && <PeriodFilter period={period} />}
       </>} />
       {forbidden
         ? <ErrorPage mode="block" status={403} title={t("admin.platformAnalytics.forbidden")} text={t("error.page.body")} onRetry={() => { setForbidden(false); setAttempt((n) => n + 1) }} />
