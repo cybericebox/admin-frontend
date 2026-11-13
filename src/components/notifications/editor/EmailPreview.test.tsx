@@ -14,7 +14,6 @@ import type { EmailBodyBlock } from './emailBlocks'
 vi.mock('@/lib/origins', () => ({
   eventDomain: 'example.test',
   apiOrigin: 'https://api.example.test',
-  mainOrigin: 'https://example.test',
   idOrigin: 'https://id.example.test',
 }))
 

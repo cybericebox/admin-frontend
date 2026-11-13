@@ -8,7 +8,7 @@ import { render, screen, waitFor, fireEvent, within } from "@testing-library/rea
 const h = vi.hoisted(() => ({ canWrite: true }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}:${JSON.stringify(vars)}` : key }))
-vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", mainOrigin: "/", idOrigin: "" }))
+vi.mock("@/lib/origins", () => ({ eventDomain: "cybericebox-dev.pp.ua", apiOrigin: "", idOrigin: "" }))
 vi.mock("@/api/tablePrefs", () => ({ getTablePrefs: () => Promise.resolve(null), putTablePrefs: () => Promise.resolve({}), deleteTablePrefs: () => Promise.resolve() }))
 vi.mock("@/lib/useRole", () => ({
   useRole: () => ({ me: null, role: "admin", isLoading: false, permissions: ["*"], can: (p: string) => (p === "events.write" ? h.canWrite : true) }),
