@@ -1,4 +1,5 @@
 import type { NextConfig } from "next"
+import { urlSettingError } from "./src/lib/settingRules.ts"
 
 // Static export for the admin portal.
 // One base domain: NEXT_PUBLIC_DOMAIN is the only host input and every host derives from it (src/**/hosts.ts, deploy/base-domain.sh; the daemon and
@@ -16,6 +17,15 @@ const REQUIRED = [
 ]
 const missing = REQUIRED.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
+
+// Optional installation settings (src/lib/settings.ts): empty or unset = not shown; a set value must follow the one rule (deploy/cfg-check.sh,
+// tests/cfg-vectors.json). The image build bakes placeholders, which are not checked here: the entrypoint checks the real values.
+const settingProblems = ["NEXT_PUBLIC_MAIN_SITE_URL", "NEXT_PUBLIC_COOKIES_URL"].flatMap((name) => {
+  const value = process.env[name] ?? ""
+  const problem = value.startsWith("__NEXT_PUBLIC_") ? null : urlSettingError(value)
+  return problem ? [`${name} ${problem}`] : []
+})
+if (settingProblems.length > 0) throw new Error(`Invalid optional settings: ${settingProblems.join("; ")}`)
 
 // Dev-only: DEV_ALLOWED_ORIGINS (comma list of hosts) when set, otherwise the configured hosts and event sites.
 const devOrigins = process.env.DEV_ALLOWED_ORIGINS

@@ -3,11 +3,11 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
 import { openConsentSettings } from "@/lib/consent"
-import { mainOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS } from "@/lib/accountMenu"
 
-// The Cookie Policy lives on the main site.
-export const COOKIE_POLICY_HREF = `${mainOrigin.replace(/\/$/, "")}/cookies`
+// The Cookie Policy link (NEXT_PUBLIC_COOKIES_URL; empty = none). This menu item opens the consent panel on click, so with the setting
+// empty it stays an item and only loses its target.
+export const COOKIE_POLICY_HREF = process.env.NEXT_PUBLIC_COOKIES_URL
 
 // «Файли cookie» (named «Налаштування файлів cookie») in the account menu, always shown: a link to
 // the cookie policy. With JS only the navigation is cancelled (on the native event, so the menu still

@@ -5,7 +5,6 @@ import Script from "next/script"
 import { usePathname } from "next/navigation"
 import { analyticsPageLocation, CONSENT_CHANGE_EVENT, gaDisableKey, gtagBootScript, readConsent, shouldLoadAnalytics } from "@/lib/consent"
 import { ConsentBanner } from "./ConsentBanner"
-import { COOKIE_POLICY_HREF } from "./CookieSettingsMenuItem"
 
 // Google Analytics (gtag), loaded only after the visitor allowed analytics, in browser idle time: without consent
 // nothing is sent at all. The inline boot sets the Consent Mode defaults and the stored choice before gtag.js runs
@@ -52,7 +51,7 @@ export function Analytics({ gaId: rawId }: { gaId?: string }) {
           <Script id="ga" strategy="lazyOnload" src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`} />
         </>
       )}
-      <ConsentBanner gaId={gaId || undefined} policyHref={COOKIE_POLICY_HREF} />
+      <ConsentBanner gaId={gaId || undefined} />
     </>
   )
 }
