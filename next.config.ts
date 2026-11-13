@@ -20,7 +20,7 @@ if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}
 
 // Optional installation settings (src/lib/settings.ts): empty or unset = not shown; a set value must follow the one rule (deploy/cfg-check.sh,
 // tests/cfg-vectors.json). The image build bakes placeholders, which are not checked here: the entrypoint checks the real values.
-const settingProblems = ["NEXT_PUBLIC_MAIN_SITE_URL", "NEXT_PUBLIC_COOKIES_URL"].flatMap((name) => {
+const settingProblems = ["NEXT_PUBLIC_MAIN_SITE_URL", "NEXT_PUBLIC_COOKIES_URL", "NEXT_PUBLIC_RETENTION_URL"].flatMap((name) => {
   const value = process.env[name] ?? ""
   const problem = value.startsWith("__NEXT_PUBLIC_") ? null : urlSettingError(value)
   return problem ? [`${name} ${problem}`] : []
@@ -43,7 +43,10 @@ const devOrigins = process.env.DEV_ALLOWED_ORIGINS
 function devContentSecurityPolicy(): string {
   const api = `https://api.${DOMAIN}`
   const script = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
-  const connect = ["'self'", api, `https://${DOMAIN}`, "ws:", "wss:"]
+  const connect = ["'self'", api, "ws:", "wss:"]
+  // The retention file of the installation (optional): its origin only, when it is set.
+  const retention = process.env.NEXT_PUBLIC_RETENTION_URL?.trim()
+  if (retention?.startsWith("https://")) connect.push(new URL(retention).origin)
   if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID?.trim()) {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")

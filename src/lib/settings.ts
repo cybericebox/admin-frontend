@@ -13,9 +13,10 @@
 export const settingsAttrs = () => ({
   "data-cfg-main-site-url": process.env.NEXT_PUBLIC_MAIN_SITE_URL,
   "data-cfg-cookies-url": process.env.NEXT_PUBLIC_COOKIES_URL,
+  "data-cfg-retention-url": process.env.NEXT_PUBLIC_RETENTION_URL,
 })
 
-export type SettingName = "main-site-url" | "cookies-url"
+export type SettingName = "main-site-url" | "cookies-url" | "retention-url"
 
 /**
  * The value of a setting, read from <html>. Only in event handlers, effects and validation, never while rendering (a render-time read

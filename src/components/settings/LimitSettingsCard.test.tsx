@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { LimitField, LimitSettings } from "@/api/platformLimits"
 
@@ -59,11 +59,15 @@ const unitOf = (key: string) => screen.getByLabelText(t("admin.limits.unitLabel"
 const saveButton = () => screen.getByRole("button", { name: new RegExp(`^(${t("admin.limits.save")}|${t("busy.saving")})$`) })
 
 describe("LimitSettingsCard", () => {
+  // The installation publishes a retention file (NEXT_PUBLIC_RETENTION_URL); the cases without one are in LimitSettingsCard.retentionUrl.test.tsx.
   beforeEach(() => {
+    document.documentElement.setAttribute("data-cfg-retention-url", "https://example.test/legal/retention.json")
     permissions = ["platform.settings.read", "platform.settings.write"]
     get.mockReset(); save.mockReset(); reset.mockReset(); toastError.mockReset(); policyGet.mockReset()
     policyGet.mockResolvedValue({ InactiveAccount: { seconds: 3 * 365 * DAY, kind: "upTo" } })
   })
+
+  afterEach(() => document.documentElement.removeAttribute("data-cfg-retention-url"))
 
   it("shows each value in the largest unit that divides it exactly", async () => {
     renderLeases()
