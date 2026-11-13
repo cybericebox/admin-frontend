@@ -42,7 +42,7 @@ const LINK = "text-foreground underline underline-offset-[3px]"
 //    «Зберегти вибір» and «Прийняти всі».
 // Shown when GA is configured and no choice exists; «Налаштування файлів cookie» opens the panel.
 // Esc never counts as consent: it steps back from the panel, or closes a panel opened from settings.
-export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref: string }) {
+export function ConsentBanner({ gaId }: { gaId?: string }) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   const [layer, setLayer] = useState<"banner" | "panel" | null>(null)
   const [analytics, setAnalytics] = useState(false)
@@ -83,7 +83,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
 
   // New tab; the click must not reach any outer handler, so the banner/panel and its toggles stay.
   const policyLink = (
-    <a href={policyHref} className={LINK} {...POLICY_LINK_ATTRS} aria-label={t("consent.policyLinkNewTab")} onClick={(e) => e.stopPropagation()}>
+    <a href={process.env.NEXT_PUBLIC_COOKIES_URL} className={`cfg-cookies ${LINK}`} {...POLICY_LINK_ATTRS} aria-label={t("consent.policyLinkNewTab")} onClick={(e) => e.stopPropagation()}>
       {t("consent.policyLink")}
     </a>
   )
@@ -148,7 +148,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
           </li>
         )}
       </ul>
-      <p className="border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
+      <p className="cfg-cookies border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
       <div className="mt-4 flex items-center justify-end gap-2">
         <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => choose({ analytics: Boolean(gaId) && analytics, functional })}>{t("consent.saveChoice")}</Button>
         <Button size="sm" className="flex-1 sm:flex-none" onClick={() => choose(ACCEPT_ALL)}>{t("consent.acceptAll")}</Button>

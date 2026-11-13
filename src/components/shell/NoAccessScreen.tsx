@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { apiPost } from "@/api/client"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
-import { mainOrigin } from "@/lib/origins"
+import { cfg } from "@/lib/settings"
 import { SignInRedirect } from "./SignInRedirect"
 import { signInRedirectTarget } from "@/lib/signInRedirect"
 
 // A page the signed-in account has no rights for (403): the error-screen frame with a
 // Lock mark, the account, and two ways out: another account (sign out, then sign in
-// back to this page) or home.
+// back to this page) or home (the home button only with NEXT_PUBLIC_MAIN_SITE_URL: without a main site `/` is this very screen).
 export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: string }) {
   const { me } = useRole()
   const [working, setWorking] = useState(false)
@@ -24,7 +24,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
     try {
       await apiPost("/api/auth/sign-out", {}, undefined, { required: false })
       const target = signInRedirectTarget(window.location.href)
-      window.location.replace(target || mainOrigin)
+      window.location.replace(target || cfg("main-site-url") || "/")
     } catch {
       setFailed(true)
       setWorking(false)
@@ -44,7 +44,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
           {failed && <p role="alert" className="text-sm text-destructive">{t("auth.noAccess.failed")}</p>}
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <Button busy={working} busyLabel={t("busy.signingOut")} onClick={() => void switchAccount()}>{t("auth.noAccess.switch")}</Button>
-            <Button variant="outline" asChild><a href={mainOrigin}>{t("auth.noAccess.home")}</a></Button>
+            <Button variant="outline" asChild className="cfg-main-only"><a href={process.env.NEXT_PUBLIC_MAIN_SITE_URL}>{t("auth.noAccess.home")}</a></Button>
           </div>
         </div>
       </div>
