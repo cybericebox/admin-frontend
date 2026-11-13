@@ -16,7 +16,8 @@ ENV NEXT_PUBLIC_SUPPORT_EMAIL="__NEXT_PUBLIC_SUPPORT_EMAIL__"
 ENV NEXT_PUBLIC_GOOGLE_ANALYTICS_ID="__NEXT_PUBLIC_GOOGLE_ANALYTICS_ID__"
 # Optional installation settings (empty or unset = not shown): the entrypoint substitutes the value, or an empty string.
 ENV NEXT_PUBLIC_MAIN_SITE_URL="__NEXT_PUBLIC_MAIN_SITE_URL__" \
-    NEXT_PUBLIC_COOKIES_URL="__NEXT_PUBLIC_COOKIES_URL__"
+    NEXT_PUBLIC_COOKIES_URL="__NEXT_PUBLIC_COOKIES_URL__" \
+    NEXT_PUBLIC_RETENTION_URL="__NEXT_PUBLIC_RETENTION_URL__"
 RUN npm run build && node scripts/csp-inline.mjs
 
 FROM mirror.gcr.io/library/nginx:1.30.5-alpine-slim@sha256:32463212baf0e7d91aded2e9b843a4f2b9e017804b8c9d5bae7b51dcef64389c AS runner

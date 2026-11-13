@@ -27,7 +27,7 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 
 ## Configuration
 
-`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment. The installation settings (`MAIN_SITE_URL`, `COOKIES_URL`) are optional and mean "no value = not shown": a third-party installation says nothing in our name. A URL is empty or `https://host[:port][/path][?query]` (no spaces, quotes, `<`, `>`, `\`, `#` or userinfo). A bad value fails the build, the container start and the Pages workflow. Each value is written into an attribute of `<html>` (`data-cfg-*`, `src/lib/settings.ts`) and `src/styles/cfg.css` hides the blocks that need it, so the same markup works in the image (placeholders substituted at start) and in a build with real values. `npm run check:cfg` builds the way the Dockerfile does and checks that every placeholder survives in the bundle.
+`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment. The installation settings (`MAIN_SITE_URL`, `COOKIES_URL`, `RETENTION_URL`) are optional and mean "no value = not shown": a third-party installation says nothing in our name. A URL is empty or `https://host[:port][/path][?query]` (no spaces, quotes, `<`, `>`, `\`, `#` or userinfo). A bad value fails the build, the container start and the Pages workflow. Each value is written into an attribute of `<html>` (`data-cfg-*`, `src/lib/settings.ts`) and `src/styles/cfg.css` hides the blocks that need it, so the same markup works in the image (placeholders substituted at start) and in a build with real values. `npm run check:cfg` builds the way the Dockerfile does and checks that every placeholder survives in the bundle.
 
 A missing required value fails the build (`next.config.ts`) or the container start; there are no fallbacks.
 
@@ -38,6 +38,7 @@ A missing required value fails the build (`next.config.ts`) or the container sta
 | `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of hosts allowed by `next dev` (default: the hosts above). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 | `NEXT_PUBLIC_MAIN_SITE_URL` | no | `https://` URL of the main site. Set: the logo and the «home» button of the no-access screen lead there; empty: the logo leads to `/` of this site and there is no «home» button. |
+| `NEXT_PUBLIC_RETENTION_URL` | no | `https://` URL of the retention file of the Privacy Policy (format: "Retention file" below). Set: the retention settings are compared with it. Empty: nothing is fetched or compared and the settings stay fully editable. Its origin is the only extra `connect-src` source. |
 | `NEXT_PUBLIC_COOKIES_URL` | no | `https://` URL of the Cookie Policy. Empty: no link in the cookie banner. |
 
 ## i18n
@@ -61,9 +62,25 @@ The nginx image needs no listener settings: plain HTTP on `HTTP_PORT` 8080, a he
 
 `HTTP_PORT` empty with no TLS is a start error. With TLS on, the plain listener stays on unless `HTTP_PORT` is set empty; with `TLS_CLIENT_AUTH=require` the entrypoint warns about it, because the plain port is not protected by client certificates: set `HTTP_PORT=` and use the health port for probes. `scripts/test-nginx-tls.sh` (Docker) tests the whole matrix, including a live certificate replacement.
 
+## Retention file
+
+An installation that has a Privacy Policy can publish the retention periods the Policy states as one JSON file and point `NEXT_PUBLIC_RETENTION_URL` at it. The platform settings «Зберігання» (retention) are then checked against the file: a value that differs from the Policy gets a note under the field, and saving is never blocked. Without the setting nothing is fetched and the settings screen shows no comparison, no error and no placeholder.
+
+The file is a JSON object (schema: `retention.schema.json`, an example: `retention.example.json`):
+
+```json
+{ "InactiveAccount": { "value": 3, "unit": "years", "kind": "after" } }
+```
+
+- The keys are the names of the backend retention settings that the Policy states (the settings flagged `InPrivacyPolicy`); a key the backend does not know is ignored.
+- `value` is a positive whole number; `unit` is `days`, `months` (30 days) or `years` (365 days).
+- `kind` is how the Policy phrases the period: `after` («через N»), `upTo` («до N», an upper bound: only a longer setting is a mismatch), `over` («понад N»), `plus` («ще N» after the event ends), `for` (a bare «N»). All but `upTo` are exact promises.
+- One entry that does not follow this makes the whole file invalid (the screen shows a retry notice for the file, the settings stay editable).
+- The file is fetched from the browser without credentials, so the server must answer with `Access-Control-Allow-Origin: *` (or the admin origin) and `Content-Type: application/json`, and the CSP of this site allows its origin automatically (`deploy/csp.sh`).
+
 ## Content Security Policy
 
-The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`api.<NEXT_PUBLIC_DOMAIN>`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
+The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`api.<NEXT_PUBLIC_DOMAIN>`) plus what the app is configured for: the origin of `NEXT_PUBLIC_RETENTION_URL` when it is set, and Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
 
 The export is static, so a per-request nonce is not possible. Instead, at container start `deploy/csp.sh` (runs after the env substitution) hashes every inline `<script>` in the exported pages, plus the scripts the client creates at runtime (the Google Analytics boot; `scripts/csp-inline.mjs` writes its text at build time), and writes the header to `/tmp/nginx-gen/csp.conf`. `deploy/nginx/server.conf` includes that file in the server block and in every location that sets its own `add_header` (nginx does not inherit `add_header` into a location that defines one). A new inline script needs no manual step; a new runtime-created inline script must be added to `scripts/csp-inline.mjs`.
 

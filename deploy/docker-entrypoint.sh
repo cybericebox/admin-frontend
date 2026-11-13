@@ -27,7 +27,7 @@ export NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
 # the placeholder must not stay). The list is a variable, not a `for name in NEXT_PUBLIC_...` line: scripts/test-nginx-tls.sh reads those lines as
 # the REQUIRED values.
 . /usr/local/lib/cfg-check.sh
-optional_urls="NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL"
+optional_urls="NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL NEXT_PUBLIC_RETENTION_URL"
 for name in $optional_urls; do
   cfg_url_check "$name" || exit 1
   eval "export $name=\"\${$name:-}\""

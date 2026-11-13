@@ -3,6 +3,7 @@ import { TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { getPolicyRetention, type PolicyPeriod, type PolicyRetention } from "@/api/privacyPolicy"
+import { cfg } from "@/lib/settings"
 import { getLimitSettings, resetLimitSettings, saveLimitSettings, type LimitCard, type LimitField, type LimitKind, type LimitSettings } from "@/api/platformLimits"
 import { localizedError } from "@/i18n/apiError"
 import { tPlural } from "@/i18n/plural"
@@ -97,8 +98,9 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   const [settings, setSettings] = useState<LimitSettings | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   // The Privacy Policy's periods (retention card only): they cap the values and fill the note under the fields.
-  // A failed load only costs the note and the check, never the saving.
-  const [policy, setPolicy] = useState<{ status: "loading" } | { status: "error"; cause: unknown } | { status: "ready"; periods: PolicyRetention }>({ status: "loading" })
+  // A failed load only costs the note and the check, never the saving. "off": the installation has no retention file (NEXT_PUBLIC_RETENTION_URL empty),
+  // so nothing is fetched, compared or shown for it.
+  const [policy, setPolicy] = useState<{ status: "loading" } | { status: "off" } | { status: "error"; cause: unknown } | { status: "ready"; periods: PolicyRetention }>({ status: "loading" })
   const [draft, setDraft] = useState<Draft>({})
   const [checked, setChecked] = useState(false)
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
@@ -129,9 +131,14 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   useEffect(() => { queueMicrotask(() => void load()) }, [load])
 
   const loadPolicy = useCallback(async () => {
+    const url = cfg("retention-url")
+    if (!url) {
+      setPolicy({ status: "off" })
+      return
+    }
     setPolicy({ status: "loading" })
     try {
-      setPolicy({ status: "ready", periods: await getPolicyRetention() })
+      setPolicy({ status: "ready", periods: await getPolicyRetention(url) })
     } catch (cause) {
       setPolicy({ status: "error", cause })
     }
