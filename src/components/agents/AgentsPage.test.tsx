@@ -20,7 +20,7 @@ const agent = (over: Partial<Agent> = {}): Agent => ({
   ID: "a1", Name: "Київ", Source: "admin", Endpoint: "agent.test:443", Enabled: true, Priority: 10, HasCA: false, InUse: false, Tenant: "tenant-a", AccessKeyID: "k1", RetiredKeys: 0, Groups: 0,
   Capacity: { CPUMillicores: 4000, MemoryBytes: 8 * 1024 ** 3, SeenAt: "2026-10-01T10:00:00Z" },
   MeetsRequirements: true, Unmet: null,
-  Features: { PersistenceAvailable: true, PersistenceDefaultDebounceMs: 0, PersistenceWriteQuotaBytes: 0, PersistenceMaxFileSizeBytes: 0, PersistenceExcludedPaths: null, ImageCacheEnabled: false, ImageCacheRegistries: null, SchedulerEnabled: true, SchedulerMaxPods: 5, LabsDomain: "", VPNEndpoint: "", ProxyAccessTokenMaxTTLSeconds: 0, ProxySessionMaxTTLSeconds: 0 },
+  Features: { PersistenceAvailable: true, PersistenceDefaultDebounceMs: 0, PersistenceWriteQuotaBytes: 0, PersistenceMaxFileSizeBytes: 0, PersistenceExcludedPaths: null, ImageCacheEnabled: false, ImageCacheRegistries: null, SchedulerEnabled: true, SchedulerMaxPods: 5, LabsDomain: "", VPNEndpoint: "", ProxyGrantMaxTTLSeconds: 0 },
   FeaturesAt: "2026-10-01T10:00:00Z", ArchivedAt: null, CertExpiresAt: "2099-01-01T00:00:00Z", Connected: true, Healthy: true, LatencyMs: 12, Error: "", CreatedAt: "2026-09-01T00:00:00Z", UpdatedAt: "2026-09-01T00:00:00Z", ...over,
 })
 
