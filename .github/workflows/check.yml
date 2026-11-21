@@ -22,7 +22,7 @@ jobs:
       code: ${{ steps.c.outputs.code }}
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       # A PR with only docs (*.md, docs/**, .gitignore, LICENSE) builds nothing. A release PR into main always runs everything.
@@ -67,7 +67,7 @@ jobs:
             image: cybericebox/admin-frontend
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - name: Set up Docker Buildx
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Login to Docker Hub for container tests
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
