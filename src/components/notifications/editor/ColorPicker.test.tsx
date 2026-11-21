@@ -66,7 +66,7 @@ describe('ColorPicker', () => {
     const onChange = vi.fn()
     render(<ColorPicker value="#ff0000" onChange={onChange} />)
     const swatch = screen.getByRole('button', { name: 'Відкрити палітру кольорів' })
-    expect(swatch).toHaveStyle({ background: '#ff0000' })
+    expect(swatch).toHaveStyle({ backgroundColor: '#ff0000' })
   })
 
   it('clicking swatch opens the popover panel', () => {
@@ -113,7 +113,7 @@ describe('ColorPicker', () => {
     const onChange = vi.fn()
     render(<ColorPicker value="theme:accent" onChange={onChange} />)
     const swatch = screen.getByRole('button', { name: 'Відкрити палітру кольорів' })
-    expect(swatch).toHaveStyle({ background: '#211a52' })
+    expect(swatch).toHaveStyle({ backgroundColor: '#211a52' })
   })
 
   it('custom hex still works after a token value: typing a hex and blurring calls onChange with that hex', () => {
