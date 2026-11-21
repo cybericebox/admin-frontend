@@ -68,7 +68,7 @@ describe("ToastProvider", () => {
     expect(screen.getByText("Збережено")).toBeInTheDocument()
   })
 
-  it("offers «Спробувати ще раз» on an overload error and runs the retry once, closing the toast", () => {
+  it("offers 'Try again' on an overload error and runs the retry once, closing the toast", () => {
     const retry = vi.fn()
     render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, null, "x", undefined, undefined, 1), retry)}>Busy</button></ToastProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Busy" }))

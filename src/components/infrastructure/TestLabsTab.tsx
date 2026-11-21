@@ -25,7 +25,7 @@ const IDENTITY = "author"
 const BULK_LIMIT = 100
 const STATUSES = ["active", "expired"]
 
-/** The «Тестові лабораторії» tab: catalog test labs on the table standard, with «Завершити» one by one and in bulk. */
+/** The "Test labs" tab: catalog test labs on the table standard, with "End" one by one and in bulk. */
 export function TestLabsTab({ canWrite, onDetails }: { canWrite: boolean; onDetails: (lab: TestLab) => void }) {
   const columns = useMemo<ColumnDef<TestLab>[]>(() => [
     { key: IDENTITY, label: t("admin.labs.testLabs.col.author"), sort: "author", width: 240, cell: (lab) => <Link href={`/users/detail?id=${encodeURIComponent(lab.AuthorID)}`} className="ib-table__name block min-w-0 truncate text-primary hover:underline">{testLabAuthor(lab)}</Link> },

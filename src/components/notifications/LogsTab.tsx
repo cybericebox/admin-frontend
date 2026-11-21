@@ -88,7 +88,7 @@ function ErrorText({ view, prefix = "", className }: { view: ReturnType<typeof s
   return <HoverTooltip text={full} truncated className="max-w-full self-start"><span className={`max-w-72 truncate text-xs ${className}`}>{prefix}{view.text}</span></HoverTooltip>
 }
 
-// The error of a detail card: the human line, with the raw text under «Технічні деталі».
+// The error of a detail card: the human line, with the raw text under "Technical details".
 function DetailError({ label, view, tone }: { label: string; view: ReturnType<typeof smtpErrorView>; tone: string }) {
   if (!view) return null
   return (

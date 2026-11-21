@@ -39,7 +39,7 @@ export function BroadcastCompose() {
   const clearField = (field: string) => setFieldErrors((current) => ({ ...current, [field]: "" }))
   const [sendError, setSendError] = useState("")
 
-  // «Копіювати розсилку»: ?copy=<id> fills the composer with an earlier broadcast (message and audience); it is a new one to send.
+  // "Copy broadcast": ?copy=<id> fills the composer with an earlier broadcast (message and audience); it is a new one to send.
   const [copyFailed, setCopyFailed] = useState(false)
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("copy")
@@ -86,7 +86,7 @@ export function BroadcastCompose() {
   const ready = messageComplete(message)
   const canSend = ready && complete && (shownCount ?? 0) > 0
 
-  // «Зберегти як шаблон»: an incomplete message marks its empty fields instead of opening the dialog.
+  // "Save as template": an incomplete message marks its empty fields instead of opening the dialog.
   function requestSaveTemplate() {
     if (ready) { setSaveTemplateOpen(true); return }
     for (const field of ["channels", "subject", "body", "title", "inAppBody"]) touch(field)

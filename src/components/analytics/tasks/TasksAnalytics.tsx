@@ -16,7 +16,7 @@ const NO_OPTIONS: Options = { categories: [], levels: [] }
 const ALL = "all"
 
 /**
- * Body of the «Каталог завдань» section: filters (their options come from the
+ * Body of the "Exercise catalog" section: filters (their options come from the
  * response), KPIs, usage by category, solve rate by level, the usage and
  * calibration table and the never-solved table.
  */

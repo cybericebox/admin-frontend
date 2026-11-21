@@ -12,8 +12,8 @@ const DAY = 24 * 3600
 export const UNIT_SECONDS: Record<string, number> = { days: DAY, months: 30 * DAY, years: 365 * DAY }
 
 /**
- * Policy periods by retention setting name, in seconds, with how the Policy phrases each: «через N» (after), «до N» (upTo),
- * «понад N» (over), «ще N» after the event ends (plus), a bare «N» (for). Only «upTo» is an upper bound; the rest are exact.
+ * Policy periods by retention setting name, in seconds, with how the Policy phrases each: "after N" (after), "up to N" (upTo),
+ * "over N" (over), "N more" after the event ends (plus), a bare "N" (for). Only "upTo" is an upper bound; the rest are exact.
  */
 export type PolicyKind = "after" | "upTo" | "over" | "plus" | "for"
 export type PolicyPeriod = { seconds: number; kind: PolicyKind }

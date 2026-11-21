@@ -23,7 +23,7 @@ function answer(rows: object[], next = "") {
   })
 }
 
-/** «+ Додати фільтр» → the field → its value (a choice) in the editor that opens. */
+/** "+ Add filter" → the field → its value (a choice) in the editor that opens. */
 async function addChoice(field: string, option: string) {
   fireEvent.click(screen.getByRole("button", { name: /admin.table.addFilter/ }))
   fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: new RegExp(field) }))

@@ -55,7 +55,7 @@ function renderRetention(view = retention) {
 
 const label = (key: string) => t(`admin.limits.field.${key}`)
 const unitOf = (key: string) => screen.getByLabelText(t("admin.limits.unitLabel", { field: label(key) })) as HTMLSelectElement
-// While saving, the button is named by the running operation («Зберігаємо…»).
+// While saving, the button is named by the running operation ("Saving").
 const saveButton = () => screen.getByRole("button", { name: new RegExp(`^(${t("admin.limits.save")}|${t("busy.saving")})$`) })
 
 describe("LimitSettingsCard", () => {

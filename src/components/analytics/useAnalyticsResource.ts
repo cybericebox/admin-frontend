@@ -9,7 +9,7 @@ import { withDefaults } from "./emptyReports"
 
 export type AnalyticsResource<T> = {
   data: T | undefined
-  /** The report of the previous period when «Порівняти з попереднім» is on (null for all time, undefined otherwise). */
+  /** The report of the previous period when "Compare with the previous period" is on (null for all time, undefined otherwise). */
   previous?: T | null
   /** The first load only: a period or filter change keeps the previous data in place. */
   loading: boolean

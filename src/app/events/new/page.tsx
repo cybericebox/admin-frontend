@@ -33,7 +33,7 @@ export default function NewEventPage() {
   const [fields, setFields] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [infrastructure, setInfrastructure] = useState(true)
-  // «Скопіювати із заходу»: the schedule, the settings and the organizers of an existing event; name and tag stay new.
+  // "Copy from an event": the schedule, the settings and the organizers of an existing event; name and tag stay new.
   const [sources, setSources] = useState<EventRow[]>([])
   const [copyFrom, setCopyFrom] = useState("")
   useEffect(() => {

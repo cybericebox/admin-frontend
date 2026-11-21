@@ -25,7 +25,7 @@ const BULK_LIMIT = 50
 const standId = (stand: Stand) => `${stand.EventID}:${stand.TeamID}`
 const standName = (stand: Stand) => `${stand.EventName || stand.EventTag} · ${teamLabel(stand)}`
 
-/** The «Стенди» tab: team stands on the table standard, with «Перестворити» one by one and in bulk. */
+/** The "Stands" tab: team stands on the table standard, with "Recreate" one by one and in bulk. */
 export function StandsTab({ canWrite, initialStatus, onDetails }: { canWrite: boolean; initialStatus?: string; onDetails: (stand: Stand) => void }) {
   const [events, setEvents] = useState<StandEventOption[]>([])
   useEffect(() => {

@@ -13,7 +13,7 @@ export function partPhase(phase: PartPhase): { label: string; tone: Tone } {
 }
 
 /**
- * «Розподіл по кластерах»: the reservation as the agents hold it, one part per agent — its period, what runs in it
+ * "Split over clusters": the reservation as the agents hold it, one part per agent — its period, what runs in it
  * against what it reserves, its phase and whether the agent has the last change.
  */
 export function ReservationParts({ parts }: { parts: ReservationPart[] | null | undefined }) {

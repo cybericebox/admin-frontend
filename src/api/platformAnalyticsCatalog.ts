@@ -1,5 +1,5 @@
-// Response types of the platform analytics sections «Заходи» (events) and
-// «Каталог завдань» (tasks). JSON is PascalCase like the rest of the API.
+// Response types of the platform analytics sections "Events" (events) and
+// "Exercise catalog" (tasks). JSON is PascalCase like the rest of the API.
 export type AnalyticsPeriod = { From: string; To: string; All: boolean }
 
 export type EventLifecycle = "not_published" | "published" | "started" | "finished" | "withdrawn"

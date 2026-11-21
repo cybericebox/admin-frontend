@@ -15,7 +15,7 @@ export function reference(error: unknown): string | undefined {
   return error.code ? `${error.code}-${rid}` : rid
 }
 
-/** The prefilled «Повідомити деталі» mail. A server error carries the reference; a crash the trimmed message, app and build. */
+/** The prefilled "Report details" mail. A server error carries the reference; a crash the trimmed message, app and build. */
 export function reportHref(error: unknown, now = new Date()): string {
   const ref = reference(error)
   const lines = [`${t("error.report.url")}: ${window.location.href}`, `${t("error.report.time")}: ${now.toISOString()}`]

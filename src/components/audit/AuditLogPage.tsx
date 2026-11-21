@@ -45,7 +45,7 @@ type SortField = "time" | "actor" | "permission" | "method" | "status"
 
 const COLUMNS = ["time", "actor", "permission", "method", "route", "status", "target", "changes"] as const
 
-/** What a request changed: «поле: було → стало»; a secret or an unlisted field shows only its name. */
+/** What a request changed: "field: was → now"; a secret or an unlisted field shows only its name. */
 function AuditChanges({ changes }: { changes: AuditRecord["Changes"] }) {
   if (!changes || changes.length === 0) return <span className="text-muted-foreground">—</span>
   return <ul className="flex flex-col gap-0.5 py-1 text-xs">{changes.map((change) => <li key={change.Field} className="whitespace-normal">
@@ -170,7 +170,7 @@ export function AuditLogPage() {
   const state = failed ? "error" : !data ? "loading" : rows.length === 0 ? "empty" : null
 
   const { me } = useRole()
-  // «Сьогодні» is the local day the page was opened on.
+  // "Today" is the local day the page was opened on.
   const [todayDay] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))
   const presetsActive = { mine: !!me && url.actor === me.ID, errors: status === "5xx", today: isComplete(period) && period.op === "after" && period.v[0] === todayDay }
   const reset = () => { setUrl({ actor: "", actorName: "", ...Object.fromEntries(defs.map((def) => [urlKey(def.key), ""])) }) }

@@ -88,7 +88,7 @@ describe("ConsentBanner", () => {
     expect(readConsent()).toBeNull()
   })
 
-  it("stays hidden when a choice exists; «Налаштування файлів cookie» opens the panel with the stored choice", () => {
+  it("stays hidden when a choice exists; 'Cookie settings' opens the panel with the stored choice", () => {
     document.cookie = "cib_consent=analytics:granted,functional:denied; path=/"
     const trigger = document.createElement("button")
     document.body.appendChild(trigger)

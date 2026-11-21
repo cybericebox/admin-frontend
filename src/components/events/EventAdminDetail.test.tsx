@@ -190,7 +190,7 @@ describe("EventAdminDetail", () => {
     expect(screen.getByText("access:false")).toBeInTheDocument()
   })
 
-  it("keeps the details and access under «Огляд» and opens «Аналітика» as a second tab", async () => {
+  it("keeps the details and access under 'Overview' and opens 'Analytics' as a second tab", async () => {
     render(<EventAdminDetail id="event-1" />)
     expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: "admin.events.tabs.overview" })).toHaveAttribute("aria-selected", "true")
@@ -202,7 +202,7 @@ describe("EventAdminDetail", () => {
     expect(await screen.findByDisplayValue("Spring CTF")).toBeInTheDocument()
   })
 
-  it("keeps the selected tab in the address and reopens «Аналітика» from it", async () => {
+  it("keeps the selected tab in the address and reopens 'Analytics' from it", async () => {
     render(<EventAdminDetail id="event-1" initialTab="analytics" />)
     expect(await screen.findByText(/^analytics:event-1:spring:/)).toBeInTheDocument()
     fireEvent.mouseDown(screen.getByRole("tab", { name: "admin.events.tabs.overview" }))

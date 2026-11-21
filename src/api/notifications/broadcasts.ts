@@ -1,5 +1,5 @@
 /**
- * broadcasts.ts — platform custom broadcasts («Розсилка»).
+ * broadcasts.ts — platform custom broadcasts ("Broadcast").
  * Contract: docs/BROADCASTS.md. Keys are PascalCase, as emitted by the Go backend.
  *   POST /api/notifications/broadcasts/audience-count
  *   POST /api/notifications/broadcasts

@@ -25,7 +25,7 @@ function fetchBroadcasts(query: ListQuery) {
   return listBroadcastsPage({ page: query.page, pageSize: query.pageSize, search: query.search, status, sortBy: query.sortBy, sortDir: query.sortDir })
 }
 
-/** The «Розсилки» history on the table standard: server paging, sorting, search and the status filter. */
+/** The "Broadcasts" history on the table standard: server paging, sorting, search and the status filter. */
 export function BroadcastsList() {
   const canSend = useRole().can("notifications.broadcast")
   const defs = useMemo<FilterDef[]>(() => [

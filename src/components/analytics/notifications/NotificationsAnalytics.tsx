@@ -58,7 +58,7 @@ function Body() {
   </div>
 }
 
-/** Platform analytics, «Сповіщення»: delivery health of the email and in-app channels. No auto refresh, only a manual reload. */
+/** Platform analytics, "Notifications": delivery health of the email and in-app channels. No auto refresh, only a manual reload. */
 export function NotificationsAnalytics() {
   return <SectionPage title={t("admin.platformAnalytics.mail.title")} subtitle={t("admin.platformAnalytics.mail.subtitle")}>
     <Body />

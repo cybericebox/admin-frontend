@@ -135,7 +135,7 @@ export type EventUsage = {
   Users: UsageUser[]
 }
 
-/** «Використання»: per participant VPN connection state and VPN / web proxy use. Counts and times only. */
+/** "Usage": per participant VPN connection state and VPN / web proxy use. Counts and times only. */
 export async function getEventAnalyticsUsage(eventID: string): Promise<EventUsage> {
   const data = await apiGet<EventUsage>(`${base(eventID)}/usage`)
   return {

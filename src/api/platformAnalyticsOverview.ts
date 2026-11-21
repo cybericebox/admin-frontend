@@ -1,5 +1,5 @@
-// Response types of the platform analytics sections «Огляд» (overview) and
-// «Користувачі» (users). JSON is PascalCase like the rest of the API.
+// Response types of the platform analytics sections "Overview" (overview) and
+// "Users" (users). JSON is PascalCase like the rest of the API.
 export type OverviewPeriod = {
   From: string
   To: string

@@ -10,7 +10,7 @@ import { EventsTable } from "./EventsTable"
 import { UpcomingEventsTable } from "./UpcomingEventsTable"
 import { formatCount } from "./format"
 
-/** Body of the «Заходи» section: KPIs, events and registrations over time, events by status, the per-event table and the upcoming events. */
+/** Body of the "Events" section: KPIs, events and registrations over time, events by status, the per-event table and the upcoming events. */
 export function EventsAnalytics() {
   const resource = useAnalyticsResource<EventsReport>("events", {}, { defaults: EMPTY_EVENTS })
   const { data, previous, loading, error, reload } = resource

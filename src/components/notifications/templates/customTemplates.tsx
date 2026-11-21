@@ -48,7 +48,7 @@ export function TemplateKindSelect({ value, onChange }: { value: TemplateKindFil
   return <SelectMenu value={value} onChange={(next) => onChange(next as TemplateKindFilter)} options={options} ariaLabel={t("admin.notif.customTpl.filter.label")} className="w-48" />
 }
 
-// «Створити шаблон» of a templates page: a new custom template on the page's channel.
+// "Create template" of a templates page: a new custom template on the page's channel.
 export function CreateCustomTemplateButton({ channel }: { channel: TemplateChannel }) {
   return <Button asChild><Link href={customTemplateHref(channel)}><Plus aria-hidden className="h-4 w-4" />{t("admin.notif.customTpl.create")}</Link></Button>
 }
