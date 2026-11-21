@@ -1,5 +1,5 @@
 /**
- * settings.ts — the platform image registry («Реєстр образів»).
+ * settings.ts — the platform image registry ("Image registry").
  *
  * Routes:
  *   GET    /api/settings/image-registry               (platform.settings.read)

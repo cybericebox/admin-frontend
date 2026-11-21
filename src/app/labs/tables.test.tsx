@@ -37,7 +37,7 @@ beforeEach(() => {
 })
 
 describe("stands tab", () => {
-  it("shows the KPI strip and the stands with sortable columns, a labelled «Перестворити» and the status filter from the dashboard link", async () => {
+  it("shows the KPI strip and the stands with sortable columns, a labelled 'Recreate' and the status filter from the dashboard link", async () => {
     window.history.replaceState(null, "", "/test/?status=failed")
     serve([stand, { ...stand, TeamID: "team-2", TeamName: "", Moderators: true, Status: "creating", Reason: "" }])
     render(<Page />)
@@ -62,7 +62,7 @@ describe("stands tab", () => {
     apiPost.mockResolvedValue({ Results: [{ EventID: "event-1", TeamID: "team-1", Ok: true }] })
     render(<Page />)
     await screen.findByText("Червоні")
-    // a removed stand has no «Перестворити» and cannot be selected
+    // a removed stand has no "Recreate" and cannot be selected
     expect(screen.getAllByRole("button", { name: "Перестворити стенд" })).toHaveLength(1)
     expect(screen.getByRole("checkbox", { name: /Сірі/ })).toBeDisabled()
     fireEvent.click(screen.getByRole("button", { name: "Перестворити стенд" }))

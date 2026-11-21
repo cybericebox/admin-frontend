@@ -14,7 +14,7 @@ import { PeopleTable } from "./PeopleTable"
 
 type RoleRow = UsersReport["ByRole"][number]
 
-/** Body of the «Користувачі» section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
+/** Body of the "Users" section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
 export function UsersAnalytics() {
   const { data, previous, loading, error, reload } = useAnalyticsResource<UsersReport>("users", {}, { defaults: EMPTY_USERS })
   const { can } = useRole()

@@ -15,7 +15,7 @@ describe("SettingsTabs", () => {
     expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, "page", null])
   })
 
-  it("marks Зберігання даних on its own route", () => {
+  it("marks the data retention tab on its own route", () => {
     pathname = "/settings/data-retention"
     render(<SettingsTabs />)
     expect(screen.getByRole("link", { name: "Зберігання даних" })).toHaveAttribute("aria-current", "page")

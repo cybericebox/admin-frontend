@@ -46,7 +46,7 @@ function Body() {
   </div>
 }
 
-/** Platform analytics, «Інфраструктура»: stand-hours, peaks, failures and cluster capacity. Auto refresh is offered, off by default. */
+/** Platform analytics, "Infrastructure": stand-hours, peaks, failures and cluster capacity. Auto refresh is offered, off by default. */
 export function InfrastructureAnalytics() {
   return <SectionPage title={t("admin.platformAnalytics.infrastructure.title")} subtitle={t("admin.platformAnalytics.infrastructure.subtitle")} autoRefresh="off">
     <Body />

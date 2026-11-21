@@ -96,7 +96,7 @@ describe("top-bar inbox", () => {
     expect(plain.className).not.toContain("cursor-pointer")
   })
 
-  it("«Вирішено» sits above the card link and resolves without following it", async () => {
+  it("'Resolved' sits above the card link and resolves without following it", async () => {
     mockInbox([{ ID: "1", Title: "Збій", Body: "", Link: "https://spring.example.org/manage/", ActionRequired: true, Resolvable: true, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     api.post.mockResolvedValue(undefined)
     render(<InboxButton />)
@@ -358,7 +358,7 @@ describe("top-bar inbox", () => {
       })
     }
 
-    it("opens on «Запити» when requests are open: open first, resolved below with who resolved them", async () => {
+    it("opens on 'Requests' when requests are open: open first, resolved below with who resolved them", async () => {
       mockCategories(1)
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 1" }))
@@ -370,7 +370,7 @@ describe("top-bar inbox", () => {
       expect(screen.queryByText("Особисте повідомлення")).not.toBeInTheDocument()
     })
 
-    it("opens on «Усі» without open requests", async () => {
+    it("opens on 'All' without open requests", async () => {
       mockCategories(0)
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
@@ -400,7 +400,7 @@ describe("top-bar inbox", () => {
     })
   })
 
-  it("shows only «Усі» when the backend sends no counts", async () => {
+  it("shows only 'All' when the backend sends no counts", async () => {
     render(<InboxButton defaultTab="requestsIfOpen" />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(await screen.findByText("Запрошення")).toBeInTheDocument()

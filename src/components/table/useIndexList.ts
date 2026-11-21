@@ -31,7 +31,7 @@ export function useIndexList<Row>({ table, columns, identity, defs, defaultSort,
   fetch: (query: ListQuery) => Promise<ListPage<Row>>
   rowId: (row: Row) => string
   selectable?: (row: Row) => boolean
-  /** «Вибрати всі за фільтром» reads other pages only up to this many rows. */
+  /** "Select all matching the filter" reads other pages only up to this many rows. */
   selectLimit?: number
 }) {
   const allKeys = useMemo(() => columns.map((c) => c.key), [columns])

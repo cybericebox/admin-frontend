@@ -27,7 +27,7 @@ type Item = {
   perm?: string
   // Opens another platform app (full navigation, not a Next.js route) with return_to back here.
   external?: boolean
-  // A thin line after the item (Огляд stands apart, like «Підготовка заходу» in the event sidebar).
+  // A thin line after the item (the overview item stands apart, like "Event preparation" in the event sidebar).
   dividerAfter?: boolean
 }
 type Group = { id: string; label: string; icon: LucideIcon; children: Child[] }

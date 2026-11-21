@@ -10,7 +10,7 @@ import { t } from "@/i18n/t"
 import { columnsMenuList, insertionIndex, moveCol, moveColBy, toggleCol } from "./columns"
 
 /**
- * The «Колонки» menu (the mechanics of nexus ColumnsMenu.jsx): every column of the table, the shown ones in their order,
+ * The "Columns" menu (the mechanics of nexus ColumnsMenu.jsx): every column of the table, the shown ones in their order,
  * then the hidden ones; search; a box shows or hides a column; a grip handle drags it (pointer events: mouse and touch
  * alike, a line marks the drop place; Alt+↑/↓ on a focused handle moves it); the identity column stays first and locked.
  */

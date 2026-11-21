@@ -100,7 +100,7 @@ function Block({ height, children }: { height: number; children: React.ReactNode
 }
 
 /**
- * «Використання» of one event, read-only: per participant whether the VPN is connected now
+ * "Usage" of one event, read-only: per participant whether the VPN is connected now
  * (from the last handshake), sessions and time online, VPN traffic and the web proxy use.
  * Counts and times only; nothing identifies a network address.
  */

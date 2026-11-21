@@ -206,7 +206,7 @@ describe("cluster parts", () => {
     expect(screen.queryByText(t("admin.resources.parts.synced"))).toBeNull()
   })
 
-  it("shrink below usage asks with a danger ConfirmDialog, focus on «Скасувати»", async () => {
+  it("shrink below usage asks with a danger ConfirmDialog, focus on 'Cancel'", async () => {
     serve(result({ Reservation: { ...reservation, Parts: [part()] } }))
     // The dry run says the agent's new share is below what runs on it (1.5 CPU, 1 GiB in use).
     apiPut.mockImplementation(() => Promise.resolve(result({ Reservation: { ...reservation, Teams: 1, Size: { CPUMillicores: 500, MemoryBytes: 512 * MIB }, Placement: [{ AgentID: "a1", AgentName: "Київ", Units: 1 }], Parts: [] } })))

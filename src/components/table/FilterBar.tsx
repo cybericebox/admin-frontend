@@ -74,7 +74,7 @@ function Editor({ def, cond, bag, facets, onChange }: { def: FilterDef; cond: Co
 
 /**
  * Composable filters (the model of nexus FilterControls.jsx): each active filter is a chip with its editor (operator +
- * value by type); «+ Додати фільтр» opens a searchable list of the table's fields; a chip can be pinned so it stays even
+ * value by type); "+ Add filter" opens a searchable list of the table's fields; a chip can be pinned so it stays even
  * with no value. The page declares its fields once (FilterDef); the bag lives in the address (`f.<key>`).
  */
 export function FilterBar({ defs, bag, onChange, pinned, onPinned, facets }: {

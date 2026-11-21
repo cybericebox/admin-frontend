@@ -109,7 +109,7 @@ function UsersList() {
   const [error, setError] = useState<{ cause: unknown } | null>(null)
 
   const { can, me, role: callerRole } = useRole()
-  // The dashboard's «Запросити користувачів» opens the list with the invitation dialog (?invite=1).
+  // The dashboard's "Invite users" opens the list with the invitation dialog (?invite=1).
   const [inviteOpen, setInviteOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("invite"))
   const [reloadKey, setReloadKey] = useState(0)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -194,7 +194,7 @@ function UsersList() {
     })
   }
 
-  // «Вибрати всі за фільтром»: reads the other pages (a bulk action takes at most BULK_LIMIT accounts).
+  // "Select all matching the filter": reads the other pages (a bulk action takes at most BULK_LIMIT accounts).
   async function selectAllMatching() {
     setGathering(true)
     try {

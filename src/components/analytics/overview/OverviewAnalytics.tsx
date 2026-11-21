@@ -6,7 +6,7 @@ import { t } from "@/i18n/t"
 import type { Metric, OverviewReport } from "@/api/platformAnalyticsOverview"
 import { deltaOf, formatCount, previousLine } from "./format"
 
-/** Body of the «Огляд» section: headline tiles with the change against the previous period, then three daily charts. */
+/** Body of the "Overview" section: headline tiles with the change against the previous period, then three daily charts. */
 export function OverviewAnalytics() {
   const { data, loading, error, reload } = useAnalyticsResource<OverviewReport>("overview", {}, { defaults: EMPTY_OVERVIEW })
   const failed = !!error

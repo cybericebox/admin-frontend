@@ -10,7 +10,7 @@ import { CONTROL_SHAPE } from "@/components/ui/control"
 import { customRange, PERIOD_PRESETS } from "./period"
 import type { PlatformPeriod } from "./usePlatformPeriod"
 
-/** Period presets (7 / 30 / 90 days / all time), a custom date range and «Порівняти з попереднім». */
+/** Period presets (7 / 30 / 90 days / all time), a custom date range and "Compare with the previous period". */
 export function PeriodFilter({ period }: { period: Pick<PlatformPeriod, "preset" | "custom" | "compare" | "setPreset" | "setCustom" | "setCompare"> }) {
   const [from, setFrom] = useState(period.custom?.from ?? "")
   const [to, setTo] = useState(period.custom?.to ?? "")

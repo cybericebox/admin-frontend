@@ -15,7 +15,7 @@ import { t } from "./t"
 const uk = errorsUk as Record<string, string>
 const en = errorsEn as Record<string, string>
 
-/** "45 с", "3 хв", "2 год": the wait from a Retry-After value, rounded up. */
+/** "45 s", "3 min", "2 h" in Ukrainian units: the wait from a Retry-After value, rounded up. */
 export function formatWait(seconds: number): string {
   if (seconds < 60) return t("error.wait.seconds", { count: Math.max(1, Math.ceil(seconds)) })
   if (seconds < 3600) return t("error.wait.minutes", { count: Math.ceil(seconds / 60) })

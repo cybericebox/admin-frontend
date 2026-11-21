@@ -96,7 +96,7 @@ describe("admin shell", () => {
     expect(screen.queryByRole("button", { name: "admin.shell.closeMenu" })).not.toBeInTheDocument()
   })
 
-  it("titles the top bar and the document by route, never «Головна» for other sections", () => {
+  it("titles the top bar and the document by route, never 'Home' for other sections", () => {
     path.value = "/resources/"
     render(<AdminShell><span>content</span></AdminShell>)
     expect(screen.getByTestId("bar-title")).toHaveTextContent("admin.nav.resources")

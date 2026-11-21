@@ -1,7 +1,7 @@
 // The view of a table kept on the server per person (docs/specs/UI-TABLES.md). Own session only.
 //   GET    /api/auth/account/table-prefs/{tableKey}   -> prefs, or null when none is saved
 //   PUT    /api/auth/account/table-prefs/{tableKey}   -> the saved prefs (every field optional)
-//   DELETE /api/auth/account/table-prefs/{tableKey}   -> «Скинути вигляд»
+//   DELETE /api/auth/account/table-prefs/{tableKey}   -> "Reset view"
 import { apiDelete, apiGet, apiPut } from "@/api/client"
 
 export type TablePrefs = {

@@ -62,7 +62,7 @@ function timePart(raw: string, max: number): number | null {
   return value <= max ? value : null
 }
 
-// The viewer's zone in our words: «Київ» for Europe/Kyiv (Chrome still reports the old «Europe/Kiev»), the offset as «UTC+3».
+// The viewer's zone in our words: "Kyiv" for Europe/Kyiv (Chrome still reports the old "Europe/Kiev"), the offset as "UTC+3".
 export function zoneLabel(at: Date = new Date(), zoneID: string = Intl.DateTimeFormat().resolvedOptions().timeZone): { zone: string; offset: string } {
   const raw = new Intl.DateTimeFormat("en-US", { timeZone: zoneID, timeZoneName: "shortOffset" }).formatToParts(at).find((part) => part.type === "timeZoneName")?.value ?? ""
   const offset = raw.replace(/^GMT/, "UTC")
@@ -70,7 +70,7 @@ export function zoneLabel(at: Date = new Date(), zoneID: string = Intl.DateTimeF
   return { zone: name, offset }
 }
 
-// «жовтень 2026 р.» → «Жовтень 2026 р.»: only the first letter of the line is a capital (CSS capitalize made «Р.»).
+// a Ukrainian month name with the year suffix, lower case → the same with a capital first letter: only the first letter of the line is a capital (CSS capitalize made the capital of the year suffix).
 export function monthTitle(month: Date): string {
   const text = new Intl.DateTimeFormat(UI_LOCALE, { month: "long", year: "numeric" }).format(month)
   return text.charAt(0).toLocaleUpperCase(UI_LOCALE) + text.slice(1)

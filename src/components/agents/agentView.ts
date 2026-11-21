@@ -23,7 +23,7 @@ export function parsePriority(text: string): number | null {
   return number <= AGENT_PRIORITY_MAX ? number : null
 }
 
-/** «4 vCPU · 8 ГіБ»; a null limit of a seen agent means no limit, an unseen agent has no capacity yet. */
+/** "4 vCPU · 8 GiB"; a null limit of a seen agent means no limit, an unseen agent has no capacity yet. */
 export function capacityText(agent: Agent): string {
   const { CPUMillicores, MemoryBytes, SeenAt } = agent.Capacity
   if (!SeenAt) return "—"
@@ -50,7 +50,7 @@ export function sortAgents(items: Agent[]): Agent[] {
   return [...items].sort((a, b) => Number(!!a.ArchivedAt) - Number(!!b.ArchivedAt) || a.Priority - b.Priority || a.Name.localeCompare(b.Name))
 }
 
-/** «CPU на пристрій: потрібно 250m, є 100m» for each maximum below the platform frame. */
+/** "CPU per device: need 250m, have 100m" for each maximum below the platform frame. */
 export function unmetLines(agent: Agent): string[] {
   const format = (resource: string, value: number) => resource === "deviceCpu" ? formatCpu(value) : resource === "deviceMemory" ? formatBytes(value) : String(value)
   return (agent.Unmet ?? []).map((item) => t(`admin.agents.requirements.${item.Resource}`, { required: format(item.Resource, item.Required), max: format(item.Resource, item.Max) }))

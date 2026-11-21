@@ -42,7 +42,7 @@ const eventName = (event: EventRow) => event.Name || event.Tag
 const standsText = (event: EventRow) => event.StandsTotal === undefined || event.StandsTotal === null ? "—" : `${event.StandsReady ?? 0} / ${event.StandsTotal}`
 const count = (value: number | undefined | null) => value === undefined || value === null ? "—" : String(value)
 
-/** The «Панель заходу» (event /manage) of a row: visible, not hover-only. */
+/** The "Event panel" (event /manage) of a row: visible, not hover-only. */
 function PanelLink({ tag }: { tag: string }) {
   const { address } = useEventSiteAddress(tag, "/manage")
   if (!address) return null

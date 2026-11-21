@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react"
 import { RefreshIndicator } from "./RefreshIndicator"
 
 describe("RefreshIndicator", () => {
-  it("says «щойно» right after a refresh instead of «0 с тому»", () => {
+  it("says 'just now' right after a refresh instead of '0 s ago'", () => {
     render(<RefreshIndicator updatedAt={Date.now()} refreshing={false} />)
     expect(screen.getByText("Оновлено щойно")).toBeInTheDocument()
   })

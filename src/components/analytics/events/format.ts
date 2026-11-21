@@ -17,7 +17,7 @@ export function formatDateTime(iso: string | null | undefined): string {
   return formatListDateTime(iso)
 }
 
-/** A span of seconds as «2 дн 3 год», «3 год 20 хв» or «45 хв». */
+/** A span of seconds as "2 d 3 h", "3 h 20 min" or "45 min". */
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined) return "–"
   const minutes = Math.round(seconds / 60)

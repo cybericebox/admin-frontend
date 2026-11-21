@@ -25,12 +25,12 @@ export function goBack() {
 
 /**
  * The one error / not-found layout (DS patterns/error-page): big muted status, title, one
- * line, actions and, for an error that carries a platform code, the faint «Код помилки» line.
+ * line, actions and, for an error that carries a platform code, the faint "Error code" line.
  * `page` = the shell could not render (global error): centred in the viewport with the
- * thin footer (crest, brand, «На головну», «Надіслати відгук»). `block` = the shell is
+ * thin footer (crest, brand, "Go home", "Send feedback"). `block` = the shell is
  * already there and only the page failed: the same column inside the content area, no
- * footer, no crest. `onRetry` makes «Оновити» the primary action, otherwise «На головну»;
- * «Назад» is always the quiet second one. `title` may be two lines.
+ * footer, no crest. `onRetry` makes "Reload" the primary action, otherwise "Go home";
+ * "Back" is always the quiet second one. `title` may be two lines.
  */
 export function ErrorPage({ mode, status, title, text, onRetry, error, report = false }: {
   mode: "page" | "block"
@@ -44,7 +44,7 @@ export function ErrorPage({ mode, status, title, text, onRetry, error, report = 
   /**
    * A 500 page. A backend 5xx says it is already journaled and shows the reference number
    * («{code}-{rid8}», copyable); a frontend crash says nothing was journaled. Both get
-   * «Повідомити деталі», the prefilled feedback mail. A 404 leaves this off.
+   * "Report details", the prefilled feedback mail. A 404 leaves this off.
    */
   report?: boolean
 }) {
@@ -95,7 +95,7 @@ export function NotFoundBlock({ title = t("error.notFound"), body = t("error.not
   return <ErrorPage mode="block" status={404} title={title} text={body} />
 }
 
-/** «Номер звернення: …» with a small copy button; the result is announced through a live region. */
+/** "Reference number: …" with a small copy button; the result is announced through a live region. */
 function Reference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
   const copy = () => {

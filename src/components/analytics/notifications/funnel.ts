@@ -2,7 +2,7 @@ import { t } from "@/i18n/t"
 
 const F = "admin.platformAnalytics.mail.funnel."
 
-/** A span of seconds as «45 с», «12 хв», «3 год 20 хв» or «2 д 4 год»; «—» without a value. */
+/** A span of seconds as "45 s", "12 min", "3 h 20 min" or "2 d 4 h"; "—" without a value. */
 export function formatFunnelDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return t(F + "noValue")
   if (seconds < 60) return t(F + "dur.s", { s: Math.max(0, Math.round(seconds)) })

@@ -1,5 +1,5 @@
 /**
- * banners.ts — site banners. Contract: docs/BROADCASTS.md, section «Банери».
+ * banners.ts — site banners. Contract: docs/BROADCASTS.md, section "Banners".
  * Management (platform): /api/notifications/site-banners[/:id]
  * Public read (session optional): GET /api/notifications/banners?site=admin → active, audience-filtered, critical first.
  * The list is refetched only when the pulse reports a new Banners version (lib/pulse).

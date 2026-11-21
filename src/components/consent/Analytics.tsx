@@ -11,7 +11,7 @@ import { ConsentBanner } from "./ConsentBanner"
 // and reduces the page address to origin + path (see lib/consent). reCAPTCHA is not part of consent (strictly necessary).
 // The gtag scripts are rendered only in the browser: the static export is built with the NEXT_PUBLIC_GOOGLE_ANALYTICS_ID placeholder
 // (always non-empty), so a build-time check would put gtag.js into the HTML even when the runtime id is empty.
-// Without a GA id only the consent panel is mounted, so «Налаштування файлів cookie» still works.
+// Without a GA id only the consent panel is mounted, so "Cookie settings" still works.
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void }
 
 const subscribe = (onChange: () => void) => {

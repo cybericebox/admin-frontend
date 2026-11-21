@@ -12,7 +12,7 @@ const TABS = [
   { href: "/settings/data-retention", labelKey: "admin.settings.tab.dataRetention" },
 ]
 
-/** Sub-pages of «Налаштування»: every tab needs only platform.settings.read. */
+/** Sub-pages of "Settings": every tab needs only platform.settings.read. */
 export function SettingsTabs() {
   const pathname = (usePathname() ?? "").replace(/\/$/, "") || "/"
   const list = useRef<HTMLElement>(null)

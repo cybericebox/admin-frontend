@@ -4,7 +4,7 @@ import { cn } from "@/utils/cn"
 
 export type Crumb = { label: string; href?: string }
 
-// The one way back on detail pages: «Розділ / Об'єкт». Every item but the last is a link, the last is the current page.
+// The one way back on detail pages: "Section / Object". Every item but the last is a link, the last is the current page.
 export function Breadcrumbs({ items, className }: { items: readonly Crumb[]; className?: string }) {
   if (items.length === 0) return null
   return (

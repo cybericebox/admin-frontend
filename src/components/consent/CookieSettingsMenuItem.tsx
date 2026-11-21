@@ -9,7 +9,7 @@ import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS } from
 // empty it stays an item and only loses its target.
 export const COOKIE_POLICY_HREF = process.env.NEXT_PUBLIC_COOKIES_URL
 
-// «Файли cookie» (named «Налаштування файлів cookie») in the account menu, always shown: a link to
+// "Cookies" (named "Cookie settings") in the account menu, always shown: a link to
 // the cookie policy. With JS only the navigation is cancelled (on the native event, so the menu still
 // sees the select and closes); the consent panel opens once the menu has handed focus back to its trigger.
 export function CookieSettingsMenuItem() {

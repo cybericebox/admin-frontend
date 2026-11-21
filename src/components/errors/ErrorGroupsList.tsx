@@ -40,7 +40,7 @@ export function ErrorGroupsList() {
   const [qInput, setQInput] = useState(url.q)
   const q = useDebounced(qInput.trim())
   useEffect(() => { setUrl({ q }) }, [q, setUrl])
-  // «Номер звернення» from a 500 page; an unreadable value filters nothing and is flagged.
+  // "Reference number" from a 500 page; an unreadable value filters nothing and is flagged.
   const [refInput, setRefInput] = useState(url.ref)
   const refText = useDebounced(refInput.trim())
   useEffect(() => { setUrl({ ref: refText }) }, [refText, setUrl])
@@ -51,7 +51,7 @@ export function ErrorGroupsList() {
   const sortField = url.sort
   const sortDir = url.dir === "asc" ? "asc" : "desc"
   const [reload, setReload] = useState(0)
-  // Groups that appeared (or came back) since the page was opened; «Показати» refetches and clears the count.
+  // Groups that appeared (or came back) since the page was opened; "Show" refetches and clears the count.
   const [newCount, setNewCount] = useState(0)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulk, setBulk] = useState<BulkErrorAction | null>(null)

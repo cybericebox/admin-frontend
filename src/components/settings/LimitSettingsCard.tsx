@@ -42,7 +42,7 @@ export function reservedHeight(groups: LimitGroup[], withButtons: boolean): stri
   return `${rem}rem`
 }
 
-/** «36 год», «3 дні», «512 МіБ», «1000»: the value in the largest allowed unit that divides it; `genitive` reads after «до» («3 років»). */
+/** "36 h", "3 days", "512 MiB", "1000": the value in the largest allowed unit that divides it; `genitive` reads after "is before" ("3 years"). */
 function formatAmount(kind: LimitKind, value: number, allowed: Unit[], genitive = false): string {
   const unit = bestUnit(kind, value, allowed)
   const count = fromBase(value, unit)
@@ -246,8 +246,8 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   }
 
   /**
-   * The Policy phrase under a published field, in the Policy's own wording. «до N» is an upper bound: longer is danger, shorter
-   * warning. The other phrasings («через N», «понад N», …) are exact promises: any difference is danger.
+   * The Policy phrase under a published field, in the Policy's own wording. "up to N" is an upper bound: longer is danger, shorter
+   * warning. The other phrasings ("after N", "over N", …) are exact promises: any difference is danger.
    * Shown only on a mismatch; never blocks saving.
    */
   function policyNote(field: LimitField, base: number | null, fieldUnits: Unit[]) {

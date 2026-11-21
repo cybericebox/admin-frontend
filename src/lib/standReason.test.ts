@@ -6,7 +6,7 @@ describe("standReasonText", () => {
     expect(standReasonText("ImageUnavailable: acme/web:1")).toBe("Образ недоступний: acme/web:1")
   })
 
-  it("reads a bare ImageUnavailable as «Образ недоступний»", () => {
+  it("reads a bare ImageUnavailable as 'Image unavailable'", () => {
     expect(standReasonText("ImageUnavailable")).toBe("Образ недоступний")
   })
 

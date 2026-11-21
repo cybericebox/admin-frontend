@@ -56,7 +56,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       })
   }, [])
 
-  // «Спробувати ще раз»: back to the loader while the check runs again.
+  // "Try again": back to the loader while the check runs again.
   const retry = useCallback(() => { setIsLoading(true); load() }, [load])
 
   useEffect(() => {

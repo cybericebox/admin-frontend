@@ -112,7 +112,7 @@ describe("platform analytics: events", () => {
     await screen.findByRole("table", { name: "Заходи періоду" })
   })
 
-  it("with «Порівняти з попереднім» asks for the comparison, reads the current report and shows the change on the tiles", async () => {
+  it("with 'Compare with the previous period' asks for the comparison, reads the current report and shows the change on the tiles", async () => {
     mocks.search = "period=30d&compare=1"
     const previous = { ...report, Totals: { Events: 2, Created: 2, Started: 1, Registrations: 21 } }
     mocks.apiGet.mockImplementation((path: string) => String(path).startsWith("/api/analytics/events/table")

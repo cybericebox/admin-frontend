@@ -351,7 +351,7 @@ describe("MailProvidersCard", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument()
   })
 
-  it("sends ClearPassword after «Видалити пароль»", async () => {
+  it("sends ClearPassword after 'Remove password'", async () => {
     saveMailProvider.mockResolvedValue(settings([provider("p1", "Brevo", 0, { PasswordSet: false })]))
     render(<Host initial={settings([provider("p1", "Brevo", 0)])} />)
     fireEvent.click(screen.getByRole("button", { name: "Змінити «Brevo»" }))

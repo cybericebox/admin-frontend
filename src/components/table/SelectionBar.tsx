@@ -6,8 +6,8 @@ import { t } from "@/i18n/t"
 
 /**
  * The selection bar (the idea of nexus SelectionBar.jsx): while rows are selected it takes the toolbar's place at the
- * same height (DS .ib-page-header__bulk), so nothing jumps: «N вибрано», «Вибрати всі M за фільтром», the page's bulk
- * actions, «Скасувати».
+ * same height (DS .ib-page-header__bulk), so nothing jumps: "N selected", "Select all M matching the filter", the page's bulk
+ * actions, "Cancel".
  */
 export function SelectionBar({ count, onClear, selectAll, children }: {
   count: number
