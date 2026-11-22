@@ -37,7 +37,7 @@ run = "npm run start"
 
 [tasks."lint:ci"]
 description = "shellcheck: the release helpers (.github/scripts), dev.sh and its test, the file tasks (actionlint runs in lint:leaks)"
-run = "shellcheck -x -P SCRIPTDIR .github/scripts/*.sh scripts/dev.sh scripts/dev.test.sh mise-tasks/test-scripts"
+run = "shellcheck -x -P SCRIPTDIR .github/scripts/*.sh scripts/dev.sh scripts/dev.test.sh mise-tasks/test-scripts mise-tasks/worktree scripts/worktree.test.sh"
 
 [tasks."lint:leaks"]
 description = "gitleaks over the whole history (.gitleaks.toml) and actionlint over the workflows"
