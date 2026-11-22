@@ -5,7 +5,10 @@ export type PreviewSettings = { Inherit: boolean; GroupName: string; GroupNameOv
 export type PreviewDefaultsDraft = Pick<PreviewSettings, "GroupName" | "Selections">
 export type PreviewCatalogItem = { ID: string; ExerciseVersionID: string; Name: string; Infrastructure: boolean; Eligible?: boolean; Reason?: string; Variants: { ID: string; Index: number }[] }
 export const previewSettingsKey = ["platform-participant-preview-settings"] as const
-export const getPreviewSettings = () => apiGet<PreviewSettings>("/api/settings/participant-preview")
+// An answer with parts missing (empty or older) reads as «nothing selected».
+export const getPreviewSettings = () => apiGet<PreviewSettings>("/api/settings/participant-preview").then((settings) => ({
+  ...({ Inherit: false, GroupName: "", GroupNameOverride: null } as Partial<PreviewSettings>), ...settings, Selections: settings?.Selections ?? [], EffectiveSelections: settings?.EffectiveSelections ?? [],
+}))
 export const savePreviewSettings = ({ GroupName, Selections }: PreviewDefaultsDraft) => apiPut<PreviewSettings>("/api/settings/participant-preview", { GroupName, Selections: Selections.map(({ ExerciseVersionID, VariantID }) => ({ ExerciseVersionID, VariantID })) })
 export const getPreviewCatalog = (search: string) => apiGet<PreviewCatalogItem[]>(`/api/settings/participant-preview/catalog?search=${encodeURIComponent(search)}`)
 export const previewSelectionIdentity = (items: PreviewSelection[]) => JSON.stringify(items.map(({ ExerciseVersionID, VariantID }) => [ExerciseVersionID, VariantID]))

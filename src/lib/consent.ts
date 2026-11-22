@@ -1,32 +1,37 @@
 import { hosts } from "@/lib/hosts"
+import { FUNCTIONAL_STORAGE } from "@/lib/storageKeys"
 
 /**
  * src/lib/consent.ts — cookie consent shared by all CyberICEBox frontends.
  *
  * COPY-TO-RP-APPS: app-agnostic, static-export-safe, no React.
  *
- * Categories: «Необхідні» (always on, no consent needed) and «Аналітика»
- * (Google Analytics, off until the user turns it on). Google Consent Mode v2:
+ * Categories: "Necessary" (always on, no consent needed), "Functional"
+ * (conveniences: table views, the return source, read marks; never written without consent and removed when it is
+ * withdrawn) and "Analytics" (Google Analytics, off until the user turns it on). Google Consent Mode v2:
  * every signal defaults to `denied` before gtag loads; analytics consent maps
  * to `analytics_storage` only, the ad signals stay denied forever (the
- * platform runs no ads). Without consent GA runs cookieless (consent pings).
+ * platform runs no ads). Without consent GA is not loaded at all: nothing is
+ * sent, not even cookieless pings. GA never gets the query or the hash of a page
+ * (one-time tokens, return_to): page_location and page_referrer are the origin
+ * and the path only.
  *
  * The choice lives in the `cib_consent` cookie on the parent domain
- * (.<NEXT_PUBLIC_DOMAIN>, 12 months) as `analytics:granted|denied`, so a choice
+ * (.<NEXT_PUBLIC_DOMAIN>, 12 months) as `analytics:granted|denied,functional:granted|denied`, so a choice
  * made on any app applies to all.
  */
 
-export type ConsentPrefs = { analytics: boolean }
+export type ConsentPrefs = { analytics: boolean; functional: boolean }
 type Signal = "granted" | "denied"
 type ConsentState = Record<"analytics_storage" | "ad_storage" | "ad_user_data" | "ad_personalization", Signal>
 
 export const CONSENT_COOKIE = "cib_consent"
 export const CONSENT_MAX_AGE = 60 * 60 * 24 * 365
-// «Налаштування файлів cookie» fires OPEN to open the preferences panel; saveConsent fires CHANGE.
+// "Cookie settings" fires OPEN to open the preferences panel; saveConsent fires CHANGE.
 export const CONSENT_OPEN_EVENT = "cib:consent-open"
 export const CONSENT_CHANGE_EVENT = "cib:consent-change"
 
-export const ACCEPT_ALL: ConsentPrefs = { analytics: true }
+export const ACCEPT_ALL: ConsentPrefs = { analytics: true, functional: true }
 
 export const CONSENT_DEFAULTS: ConsentState = {
   analytics_storage: "denied",
@@ -39,11 +44,15 @@ const COOKIE_VALUE = `(?:^|; )${CONSENT_COOKIE}=([^;]*)`
 // The boot script only needs to know whether analytics was granted.
 const ANALYTICS_GRANTED = `(?:^|; )${CONSENT_COOKIE}=[^;]*\\banalytics:granted\\b`
 
-/** The stored choice in a `document.cookie` string, or null when none was made. */
+/**
+ * The stored choice in a `document.cookie` string, or null when none was made. A cookie of the older format (analytics
+ * only) counts as no choice: the visitor is asked again, now with the functional category.
+ */
 export function parseConsent(cookie: string): ConsentPrefs | null {
   const value = new RegExp(COOKIE_VALUE).exec(cookie)?.[1]
   const analytics = value ? /\banalytics:(granted|denied)\b/.exec(value)?.[1] : undefined
-  return analytics ? { analytics: analytics === "granted" } : null
+  const functional = value ? /\bfunctional:(granted|denied)\b/.exec(value)?.[1] : undefined
+  return analytics && functional ? { analytics: analytics === "granted", functional: functional === "granted" } : null
 }
 
 /** The Consent Mode update for a choice: only analytics_storage ever changes. */
@@ -54,7 +63,7 @@ export function consentUpdate(prefs: ConsentPrefs): Pick<ConsentState, "analytic
 /** The Set-Cookie string for a choice; host-only when no parent domain is configured (dev). */
 export function consentCookie(prefs: ConsentPrefs, opts: { domain?: string; secure: boolean }): string {
   const parts = [
-    `${CONSENT_COOKIE}=analytics:${prefs.analytics ? "granted" : "denied"}`,
+    `${CONSENT_COOKIE}=analytics:${prefs.analytics ? "granted" : "denied"},functional:${prefs.functional ? "granted" : "denied"}`,
     "path=/",
     `max-age=${CONSENT_MAX_AGE}`,
     "SameSite=Lax",
@@ -64,14 +73,30 @@ export function consentCookie(prefs: ConsentPrefs, opts: { domain?: string; secu
   return parts.join("; ")
 }
 
-/** The banner asks only when GA is configured (the only optional category) and no choice exists yet. */
-export function shouldShowBanner(gaId: string | undefined, prefs: ConsentPrefs | null): boolean {
-  return Boolean(gaId) && prefs === null
+/** The banner asks until a choice exists (functional is always an optional category, analytics only when GA is configured). */
+export function shouldShowBanner(prefs: ConsentPrefs | null): boolean {
+  return prefs === null
+}
+
+/** GA is loaded only when it is configured and the visitor allowed analytics. */
+export function shouldLoadAnalytics(gaId: string | undefined, prefs: ConsentPrefs | null): boolean {
+  return Boolean(gaId) && prefs?.analytics === true
+}
+
+/** The page address GA may see: the origin and the path, never the query or the hash. */
+export function analyticsPageLocation(loc: Pick<Location, "origin" | "pathname">): string {
+  return loc.origin + loc.pathname
+}
+
+/** GA's own opt-out flag: set when analytics is turned off after gtag.js has loaded. */
+export function gaDisableKey(gaId: string): string {
+  return `ga-disable-${gaId}`
 }
 
 /**
  * Inline gtag bootstrap, run before gtag.js: denied defaults, then the stored
- * choice, then config. gaId goes in through JSON.stringify (no script injection).
+ * choice, then config with the page address and referrer reduced to origin +
+ * path. gaId goes in through JSON.stringify (no script injection).
  */
 export function gtagBootScript(gaId: string): string {
   return [
@@ -79,7 +104,9 @@ export function gtagBootScript(gaId: string): string {
     `gtag("consent","default",${JSON.stringify(CONSENT_DEFAULTS)});`,
     `gtag("set","ads_data_redaction",true);`,
     `if(new RegExp(${JSON.stringify(ANALYTICS_GRANTED)}).test(document.cookie))gtag("consent","update",${JSON.stringify(consentUpdate(ACCEPT_ALL))});`,
-    `gtag("js",new Date());gtag("config",${JSON.stringify(gaId)});`,
+    'var cibRef="";try{var cibU=new URL(document.referrer);cibRef=cibU.origin+cibU.pathname}catch(e){}',
+    'var cibLoc=typeof location!=="undefined"?location.origin+location.pathname:"";',
+    `gtag("js",new Date());gtag("config",${JSON.stringify(gaId)},{page_location:cibLoc,page_referrer:cibRef});`,
   ].join("")
 }
 
@@ -98,29 +125,56 @@ function clearAnalyticsCookies(domain: string | undefined): void {
   }
 }
 
+/** Functional storage and cookies may be written only after this says yes (read live from the consent cookie). */
+export function functionalAllowed(): boolean {
+  return readConsent()?.functional === true
+}
+
+// Everything of the functional category goes when its consent is withdrawn: browser storage by name or prefix, the
+// sign-in hint cookie, and the backend's last-address cookie (HttpOnly, so the backend deletes it).
+function clearFunctionalData(domain: string | undefined): void {
+  for (const [storage, names, prefixes] of [
+    [window.localStorage, FUNCTIONAL_STORAGE.local, FUNCTIONAL_STORAGE.localPrefixes],
+    [window.sessionStorage, FUNCTIONAL_STORAGE.session, FUNCTIONAL_STORAGE.sessionPrefixes],
+  ] as const) {
+    try {
+      for (const name of names) storage.removeItem(name)
+      for (const key of Array.from({ length: storage.length }, (_, i) => storage.key(i) ?? "")) {
+        if (prefixes.some((prefix) => key.startsWith(prefix))) storage.removeItem(key)
+      }
+    } catch { /* storage unavailable: nothing was kept */ }
+  }
+  for (const name of FUNCTIONAL_STORAGE.cookies) {
+    document.cookie = `${name}=; path=/; max-age=0`
+    if (domain) document.cookie = `${name}=; path=/; max-age=0; domain=.${domain}`
+  }
+  void fetch(`https://${hosts().api}/api/auth/last-email`, { method: "DELETE", credentials: "include" }).catch(() => {})
+}
+
 /** Persist the choice on the parent domain and apply it to a running gtag. */
 export function saveConsent(prefs: ConsentPrefs): void {
   const domain = hosts().cookieDomain
   document.cookie = consentCookie(prefs, { domain, secure: location.protocol === "https:" })
   ;(window as GtagWindow).gtag?.("consent", "update", consentUpdate(prefs))
   if (!prefs.analytics) clearAnalyticsCookies(domain)
+  if (!prefs.functional) clearFunctionalData(domain)
   window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
 }
 
 /**
  * The cookie-policy link inside the banner and panel opens in a new tab, so the
  * panel and its unsaved toggles stay put. Spread onto the <a> with an aria-label
- * that says so («відкриється в новій вкладці»).
+ * that says so ("opens in a new tab").
  */
 export const POLICY_LINK_ATTRS = { target: "_blank", rel: "noopener noreferrer" } as const
 
-/** «Налаштування файлів cookie»: open the preferences panel. */
+/** "Cookie settings": open the preferences panel. */
 export function openConsentSettings(): void {
   window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))
 }
 
 /**
- * «Налаштування файлів cookie» is always an <a href> to the cookie policy (works without JS
+ * "Cookie settings" is always an <a href> to the cookie policy (works without JS
  * and without GA); with JS the click opens the preferences panel instead of navigating.
  */
 export function interceptSettingsLink(e: { preventDefault(): void }): void {

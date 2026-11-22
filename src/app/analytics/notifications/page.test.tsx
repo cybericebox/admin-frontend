@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({ apiGet: vi.fn(), apiGetBlob: vi.fn() }))
 vi.mock("@/api/client", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/client")>()), apiGet: mocks.apiGet, apiGetBlob: mocks.apiGetBlob }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => true }) }))
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("period=30d"),
+  useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/analytics/notifications",
 }))
@@ -25,7 +25,7 @@ const report = {
 }
 const empty = { ...report, Sent: 0, Failed: 0, Total: 0, FailureRate: 0, Fallbacks: 0, Daily: [], ByTransport: [], ByChannel: [], ByType: [], Errors: [], Options: { Transports: [], Types: [] } }
 
-beforeEach(() => { mocks.apiGet.mockReset(); mocks.apiGetBlob.mockReset() })
+beforeEach(() => { window.history.replaceState(null, "", "/test/"); mocks.apiGet.mockReset(); mocks.apiGetBlob.mockReset() })
 
 describe("notifications analytics page", () => {
   it("shows the crest inside every block while loading", () => {

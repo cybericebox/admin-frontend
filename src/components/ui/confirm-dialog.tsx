@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { t } from "@/i18n/t"
 
 // ds-v2 confirm dialog: a question as the title, one or two lines about the
-// consequence, «Скасувати» + the action. tone="danger" makes the action the
-// solid danger button. Focus starts on «Скасувати»; Esc and the backdrop
+// consequence, "Cancel" + the action. tone="danger" makes the action the
+// solid danger button. Focus starts on "Cancel"; Esc and the backdrop
 // cancel unless the action is running. Errors stay inside the dialog.
 // A dialog whose action runs async (busy) must name the running action: busyLabel is required with busy.
 type ConfirmBusy = { busy?: false; busyLabel?: string } | { busy: boolean; busyLabel: string }

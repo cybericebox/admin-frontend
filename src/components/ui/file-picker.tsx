@@ -5,7 +5,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { t } from "@/i18n/t"
 
-// DS file picker: «Обрати файл», the chosen file name and a clear action
+// DS file picker: "Choose file", the chosen file name and a clear action
 // instead of the browser's native control.
 export function FilePicker({ id, fileName, onFile, accept, disabled = false, describedBy }: {
   id: string

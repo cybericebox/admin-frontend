@@ -1,5 +1,8 @@
 "use client"
 
+import { EMPTY_USERS } from "@/components/analytics/emptyReports"
+import { compareDelta } from "../overview/format"
+import Link from "next/link"
 import { AnalyticsBlock, AnalyticsChart, CsvExportButton, DataTable, KpiTile, barOption, donutOption, lineOption, useAnalyticsResource, type ChartTheme, type Column } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
@@ -11,9 +14,9 @@ import { PeopleTable } from "./PeopleTable"
 
 type RoleRow = UsersReport["ByRole"][number]
 
-/** Body of the «Користувачі» section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
+/** Body of the "Users" section: the admin user stats bound to the period, activity, sign-in methods, event retention and, for super admins, the most active accounts. */
 export function UsersAnalytics() {
-  const { data, loading, error, reload } = useAnalyticsResource<UsersReport>("users")
+  const { data, previous, loading, error, reload } = useAnalyticsResource<UsersReport>("users", {}, { defaults: EMPTY_USERS })
   const { can } = useRole()
   const failed = !!error
   const busy = loading || failed
@@ -38,7 +41,7 @@ export function UsersAnalytics() {
   ) : undefined
 
   const roleColumns: Column<RoleRow>[] = [
-    { key: "role", header: t("admin.platformAnalytics.users.role.role"), cell: (row) => roleLabel(row.Role), sortValue: (row) => roleLabel(row.Role) },
+    { key: "role", header: t("admin.platformAnalytics.users.role.role"), cell: (row) => <Link href={`/users?f.role=in%3A${encodeURIComponent(row.Role)}`} className="text-primary hover:underline">{roleLabel(row.Role)}</Link>, sortValue: (row) => roleLabel(row.Role) },
     { key: "count", header: t("admin.platformAnalytics.users.role.count"), cell: (row) => formatCount(row.Count), sortValue: (row) => row.Count, numeric: true },
   ]
 
@@ -53,7 +56,7 @@ export function UsersAnalytics() {
       <KpiTile label={t("admin.platformAnalytics.users.kpi.active")} hint={t("admin.platformAnalytics.users.kpi.activeHint")}
         value={formatCount(data?.Active.Value)} delta={deltaOf(data?.Active)} sub={previousLine(data?.Active)} loading={loading} empty={failed} />
       <KpiTile label={t("admin.platformAnalytics.users.kpi.avgDaily")} hint={t("admin.platformAnalytics.users.kpi.avgDailyHint")}
-        value={data ? formatNumber(data.AvgDailyActive, { maximumFractionDigits: 1 }) : undefined} loading={loading} empty={failed} />
+        value={data ? formatNumber(data.AvgDailyActive, { maximumFractionDigits: 1 }) : undefined} delta={compareDelta(data?.AvgDailyActive, previous?.AvgDailyActive)} loading={loading} empty={failed} />
     </div>
     <div className="grid gap-4 xl:grid-cols-2">
       <AnalyticsBlock title={t("admin.platformAnalytics.users.series.registrationsTitle")}

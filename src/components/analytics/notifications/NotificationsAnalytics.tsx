@@ -1,6 +1,9 @@
 "use client"
 
+import { EMPTY_MAIL } from "@/components/analytics/emptyReports"
+import { compareDelta } from "../overview/format"
 import { useMemo, useState } from "react"
+import { useUrlState } from "@/lib/useUrlState"
 import { KpiTile, SectionPage, useAnalyticsResource } from "@/components/analytics"
 import { formatNumber } from "@/lib/locale"
 import { t } from "@/i18n/t"
@@ -17,10 +20,13 @@ const P = "admin.platformAnalytics.mail."
 const NO_OPTIONS: MailOptions = { Transports: [], Types: [] }
 
 function Body() {
-  const [filters, setFilters] = useState<MailFilters>({ channel: "", transport: "", type: "", includeTests: false })
+  // The filters live in the address (?channel=&transport=&type=&tests=1), so a link carries them.
+  const [url, setUrl] = useUrlState({ channel: "", transport: "", type: "", tests: "" })
+  const filters = useMemo<MailFilters>(() => ({ channel: url.channel as MailFilters["channel"], transport: url.transport, type: url.type, includeTests: url.tests === "1" }), [url.channel, url.transport, url.type, url.tests])
+  const setFilters = (next: MailFilters) => setUrl({ channel: next.channel, transport: next.transport, type: next.type, tests: next.includeTests ? "1" : "" })
   // The query and the CSV exports carry the same filters.
   const params = useMemo(() => ({ channel: filters.channel, transport: filters.transport, type: filters.type, includeTests: filters.includeTests ? "true" : undefined }), [filters])
-  const { data, loading, error, reload } = useAnalyticsResource<MailData>("mail", params)
+  const { data, previous, loading, error, reload } = useAnalyticsResource<MailData>("mail", params, { defaults: EMPTY_MAIL })
   const res = { data, loading, error, reload }
 
   // The option lists come with the report; keep the last ones while a refetch is loading, so the selects do not blink.
@@ -32,11 +38,11 @@ function Body() {
   return <div className="space-y-6">
     <MailFiltersBar filters={filters} options={options} onChange={setFilters} onReload={reload} busy={loading} />
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiTile {...tile} label={t(P + "kpi.total")} hint={t(P + "kpi.totalHint")} value={data && formatNumber(data.Total)}
+      <KpiTile {...tile} label={t(P + "kpi.total")} hint={t(P + "kpi.totalHint")} value={data && formatNumber(data.Total)} delta={compareDelta(data?.Total, previous?.Total)}
         sub={data ? t(P + "kpi.totalSub", { sent: formatNumber(data.Sent) }) : undefined} />
-      <KpiTile {...tile} label={t(P + "kpi.failed")} hint={t(P + "kpi.failedHint")} href="/notifications/logs" value={data && formatNumber(data.Failed)} />
-      <KpiTile {...tile} label={t(P + "kpi.rate")} hint={t(P + "kpi.rateHint")} value={data && percent(data.FailureRate, formatNumber)} />
-      <KpiTile {...tile} label={t(P + "kpi.fallbacks")} hint={t(P + "kpi.fallbacksHint")} value={data && formatNumber(data.Fallbacks)} />
+      <KpiTile {...tile} label={t(P + "kpi.failed")} hint={t(P + "kpi.failedHint")} href="/notifications/logs" value={data && formatNumber(data.Failed)} delta={compareDelta(data?.Failed, previous?.Failed, true)} />
+      <KpiTile {...tile} label={t(P + "kpi.rate")} hint={t(P + "kpi.rateHint")} value={data && percent(data.FailureRate, formatNumber)} delta={compareDelta(data?.FailureRate, previous?.FailureRate, true)} />
+      <KpiTile {...tile} label={t(P + "kpi.fallbacks")} hint={t(P + "kpi.fallbacksHint")} value={data && formatNumber(data.Fallbacks)} delta={compareDelta(data?.Fallbacks, previous?.Fallbacks, true)} />
     </div>
     <FunnelCards funnels={data?.Funnels} loading={loading} failed={failed} />
     <DailyBlock res={res} params={params} />
@@ -52,7 +58,7 @@ function Body() {
   </div>
 }
 
-/** Platform analytics, «Сповіщення»: delivery health of the email and in-app channels. No auto refresh, only a manual reload. */
+/** Platform analytics, "Notifications": delivery health of the email and in-app channels. No auto refresh, only a manual reload. */
 export function NotificationsAnalytics() {
   return <SectionPage title={t("admin.platformAnalytics.mail.title")} subtitle={t("admin.platformAnalytics.mail.subtitle")}>
     <Body />

@@ -7,7 +7,7 @@ import { TasksAnalytics } from "@/components/analytics/tasks/TasksAnalytics"
 import { t } from "@/i18n/t"
 
 function TasksAnalyticsPage() {
-  return <SectionPage title={t("admin.platformAnalytics.tasks.title")} subtitle={t("admin.platformAnalytics.tasks.subtitle")}>
+  return <SectionPage title={t("admin.platformAnalytics.tasks.title")} subtitle={t("admin.platformAnalytics.tasks.subtitle")} autoRefresh="off">
     <TasksAnalytics />
   </SectionPage>
 }

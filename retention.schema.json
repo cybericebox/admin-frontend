@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Retention periods of a Privacy Policy",
+  "description": "Published by an installation and read by the admin retention settings (NEXT_PUBLIC_RETENTION_URL). Keys are names of backend retention settings.",
+  "type": "object",
+  "additionalProperties": { "$ref": "#/$defs/period" },
+  "$defs": {
+    "period": {
+      "type": "object",
+      "required": ["value", "unit", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "integer", "minimum": 1 },
+        "unit": { "enum": ["days", "months", "years"] },
+        "kind": { "enum": ["after", "upTo", "over", "plus", "for"] }
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { mainOrigin } from "@/lib/origins"
+import Link from "next/link"
 
 /* eslint-disable @next/next/no-img-element -- The crest is a static file with fixed dimensions and needs no image optimization. */
 
@@ -11,15 +11,12 @@ export interface LogoProps {
   size?: number
   className?: string
   /**
-   * Where the brand mark links. Defaults to the landing (apex) origin so the
-   * organisation logo navigates home from every app. Pass `null` to render a
-   * non-linking mark (e.g. when an ancestor already wraps it in an anchor).
+   * Where the brand mark links. By default it leads to NEXT_PUBLIC_MAIN_SITE_URL when that is set and to `/` of this site when it is not
+   * (two anchors, one of them hidden by src/styles/cfg.css). Pass `null` to render a non-linking mark (e.g. when an ancestor already
+   * wraps it in an anchor).
    */
   href?: string | null
 }
-
-// Shared landing origin; falls back to "/" when the public domain is unset.
-const LANDING_HREF = mainOrigin
 
 export function Logo({ size = 64, className, href }: LogoProps) {
   const img = (
@@ -32,11 +29,13 @@ export function Logo({ size = 64, className, href }: LogoProps) {
       style={{ display: "inline-block", objectFit: "contain" }}
     />
   )
-  const target = href === null ? null : href ?? LANDING_HREF
-  if (!target) return img
+  if (href === null) return img
+  const anchor = { "aria-label": "CyberICEBox", style: { display: "inline-flex", lineHeight: 0 } } as const
+  if (href !== undefined) return <a href={href} {...anchor}>{img}</a>
   return (
-    <a href={target} aria-label="CyberICEBox" style={{ display: "inline-flex", lineHeight: 0 }}>
-      {img}
-    </a>
+    <>
+      <a className="cfg-main-only" href={process.env.NEXT_PUBLIC_MAIN_SITE_URL} {...anchor}>{img}</a>
+      <Link className="cfg-main-off" href="/" prefetch={false} {...anchor}>{img}</Link>
+    </>
   )
 }

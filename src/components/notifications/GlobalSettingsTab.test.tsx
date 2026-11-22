@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
 const api = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn() }))
 vi.mock("@/api/client", () => ({ apiGet: api.get, apiPut: api.put }))
@@ -68,5 +68,28 @@ describe("GlobalSettingsTab saving", () => {
     render(<GlobalSettingsTab />)
     const switches = await screen.findAllByRole("switch")
     switches.forEach((el) => expect(el).toBeDisabled())
+  })
+
+  it("asks before turning off a message people need to sign up, sign in or get an invitation", async () => {
+    api.get.mockResolvedValue([{ ...row, NotificationType: "password_reset", Enabled: true }])
+    api.put.mockResolvedValue(undefined)
+    render(<GlobalSettingsTab />)
+    fireEvent.click((await screen.findAllByRole("switch"))[0])
+    const dialog = await screen.findByRole("dialog")
+    expect(api.put).not.toHaveBeenCalled()
+    expect(screen.getAllByRole("switch", { hidden: true })[0]).toHaveAttribute("aria-checked", "true")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.notif.settings.critical.confirm" }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith("/api/notifications/settings/global", expect.objectContaining({ NotificationType: "password_reset", Enabled: false })))
+  })
+
+  it("turning a critical message on, or any other one off, needs no confirmation", async () => {
+    api.get.mockResolvedValue([{ ...row, NotificationType: "password_reset", Enabled: false }, { ...row, NotificationType: "flag_accepted", Enabled: true }])
+    api.put.mockResolvedValue(undefined)
+    render(<GlobalSettingsTab />)
+    const switches = await screen.findAllByRole("switch")
+    fireEvent.click(switches[0])
+    fireEvent.click(switches[3])
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(2))
   })
 })

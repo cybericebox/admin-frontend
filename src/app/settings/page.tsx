@@ -23,6 +23,8 @@ import { overloadOr } from "@/i18n/apiError"
 import { tRich } from "@/i18n/tRich"
 
 type Setting = {
+  /** The key's meaning in plain words (uk, en); null for a key the backend has not described. */
+  Description?: { Uk: string; En: string } | null
   ID: string
   Key: string
   Value: unknown
@@ -60,6 +62,7 @@ export default function Page() {
   const allowed = useRole().can("platform.settings.read")
   const canWrite = useRole().can("platform.settings.write")
   const [items, setItems] = useState<Setting[]>([])
+  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [fieldError, setFieldError] = useState("")
   const [error, setError] = useState("")
@@ -135,15 +138,19 @@ export default function Page() {
     }
   }
 
+  const needle = search.trim().toLowerCase()
+  const shownItems = needle ? items.filter((item) => item.Key.toLowerCase().includes(needle) || (item.Description?.Uk ?? "").toLowerCase().includes(needle) || (labelOf(item.Key) ?? "").toLowerCase().includes(needle)) : items
+
   return (
     <RequirePermission perm="platform.settings.read" fallback={<NoAccess message={t("admin.settings.noAccess")} />}>
       <div className="flex min-h-full flex-col gap-5">
-        <PageHeader title={t("admin.settings.title")} sub={t("admin.settings.description")} />
+        <PageHeader title={t("admin.settings.title")} sub={t("admin.settings.description")} filters={<Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("admin.settings.search")} aria-label={t("admin.settings.search")} className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm" />} />
         <SettingsTabs />
         {error && <p role="alert" className="rounded-md bg-[var(--ib-danger-bg)] p-3 text-sm text-[var(--ib-danger)]">{error}</p>}
         {loading ? <LoadingArea className="flex-1" label={t("admin.loading")} /> : loadFailed ? <LoadError message={t("admin.settings.loadError")} error={loadFailed.cause} onRetry={() => void load()} className="flex-1" /> : items.length === 0 ? <EmptyState message={t("admin.settings.emptyExplained", { tab: t("admin.settings.tab.mail") })} className="flex-1" /> : (
           <Card><CardContent className="divide-y divide-border pt-5">
-            {items.map((item) => {
+            {shownItems.length === 0 && <EmptyState compact message={t("admin.settings.noMatch")} />}
+            {shownItems.map((item) => {
               const kind = kindOf(item.Value)
               const label = labelOf(item.Key)
               const name = label ?? item.Key
@@ -154,6 +161,7 @@ export default function Page() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <h2 className={label ? "font-medium text-foreground" : "font-mono text-sm font-medium text-foreground"}>{name}</h2>
+                    {item.Description?.Uk && <p className="mt-0.5 text-sm text-muted-foreground">{item.Description.Uk}</p>}
                     {label && <p className="mt-0.5 font-mono text-xs text-muted-foreground">{item.Key}</p>}
                     {!open && kind !== "boolean" && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{showValue(item.Value)}</pre>}
                     {item.UpdatedAt && <p className="mt-1 text-xs text-muted-foreground">{tRich("admin.settings.updatedAt", { date: <time dateTime={item.UpdatedAt}>{formatListDateTime(item.UpdatedAt)}</time> })}</p>}

@@ -1,6 +1,6 @@
 // Cookie consent (Google Consent Mode v2): denied by default; accept all / save choice
 // map to analytics_storage only; the choice is one cookie on the parent domain.
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import * as consent from "./consent"
 
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void }
@@ -49,37 +49,37 @@ describe("consent", () => {
     expect(consent.consentUpdate(consent.ACCEPT_ALL)).toEqual({ analytics_storage: "granted" })
     consent.saveConsent(consent.ACCEPT_ALL)
     expect(calls).toEqual([["consent", "update", { analytics_storage: "granted" }]])
-    expect(consent.readConsent()).toEqual({ analytics: true })
+    expect(consent.readConsent()).toEqual({ analytics: true, functional: true })
   })
 
   it("customize: save choice with analytics on grants it", () => {
-    consent.saveConsent({ analytics: true })
+    consent.saveConsent({ analytics: true, functional: true })
     expect(calls).toEqual([["consent", "update", { analytics_storage: "granted" }]])
-    expect(consent.readConsent()).toEqual({ analytics: true })
+    expect(consent.readConsent()).toEqual({ analytics: true, functional: true })
   })
 
   it("customize: save choice with analytics off keeps everything denied", () => {
     document.cookie = "_ga=GA1.1.1; path=/"
-    consent.saveConsent({ analytics: false })
+    consent.saveConsent({ analytics: false, functional: false })
     expect(calls).toEqual([["consent", "update", { analytics_storage: "denied" }]])
-    expect(consent.readConsent()).toEqual({ analytics: false })
+    expect(consent.readConsent()).toEqual({ analytics: false, functional: false })
     expect(document.cookie).not.toMatch(/_ga/)
   })
 
   it("save choice with analytics off after accepting drops GA cookies", () => {
     document.cookie = "_ga=GA1.1.1; path=/"
     document.cookie = "_ga_TEST=GS1.1; path=/"
-    consent.saveConsent({ analytics: false })
+    consent.saveConsent({ analytics: false, functional: false })
     expect(calls).toEqual([["consent", "update", { analytics_storage: "denied" }]])
-    expect(consent.readConsent()).toEqual({ analytics: false })
+    expect(consent.readConsent()).toEqual({ analytics: false, functional: false })
     expect(document.cookie).not.toMatch(/_ga/)
   })
 
   it("writes the choice per category to one cookie on the parent domain", () => {
     expect(consent.consentCookie(consent.ACCEPT_ALL, { domain: "cybericebox.com", secure: true })).toBe(
-      "cib_consent=analytics:granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
+      "cib_consent=analytics:granted,functional:granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
     )
-    expect(consent.consentCookie({ analytics: false }, { secure: false })).toBe("cib_consent=analytics:denied; path=/; max-age=31536000; SameSite=Lax")
+    expect(consent.consentCookie({ analytics: false, functional: false }, { secure: false })).toBe("cib_consent=analytics:denied,functional:denied; path=/; max-age=31536000; SameSite=Lax")
     process.env.NEXT_PUBLIC_DOMAIN = "cybericebox.com"
     const writes: string[] = []
     const desc = Object.getOwnPropertyDescriptor(Document.prototype, "cookie")!
@@ -89,22 +89,52 @@ describe("consent", () => {
     } finally {
       Object.defineProperty(document, "cookie", desc)
     }
-    expect(writes[0]).toMatch(/^cib_consent=analytics:granted; .*domain=\.cybericebox\.com/)
+    expect(writes[0]).toMatch(/^cib_consent=analytics:granted,functional:granted; .*domain=\.cybericebox\.com/)
   })
 
   it("reads the stored choice back from the cookie string", () => {
-    expect(consent.parseConsent("cib_theme=dark; cib_consent=analytics:granted")).toEqual({ analytics: true })
-    expect(consent.parseConsent("cib_consent=analytics:denied")).toEqual({ analytics: false })
-    expect(consent.parseConsent("xcib_consent=analytics:granted")).toBeNull()
+    expect(consent.parseConsent("cib_theme=dark; cib_consent=analytics:granted,functional:denied")).toEqual({ analytics: true, functional: false })
+    expect(consent.parseConsent("cib_consent=analytics:denied,functional:granted")).toEqual({ analytics: false, functional: true })
+    expect(consent.parseConsent("xcib_consent=analytics:granted,functional:granted")).toBeNull()
+    // the older format (analytics only) counts as no choice: the visitor is asked again
+    expect(consent.parseConsent("cib_consent=analytics:granted")).toBeNull()
     expect(consent.parseConsent("cib_consent=granted")).toBeNull()
     expect(consent.parseConsent("")).toBeNull()
   })
 
-  it("shows the banner only when GA is configured and no choice exists", () => {
-    expect(consent.shouldShowBanner("G-TEST", null)).toBe(true)
-    expect(consent.shouldShowBanner("G-TEST", { analytics: true })).toBe(false)
-    expect(consent.shouldShowBanner("G-TEST", { analytics: false })).toBe(false)
-    expect(consent.shouldShowBanner(undefined, null)).toBe(false)
-    expect(consent.shouldShowBanner("", null)).toBe(false)
+  it("shows the banner until a choice exists", () => {
+    expect(consent.shouldShowBanner(null)).toBe(true)
+    expect(consent.shouldShowBanner({ analytics: true, functional: false })).toBe(false)
+    expect(consent.shouldShowBanner({ analytics: false, functional: false })).toBe(false)
+  })
+
+  it("writes functional data only with functional consent and removes it when it is withdrawn", () => {
+    const fetched: string[] = []
+    vi.stubGlobal("fetch", (url: string, init: { method?: string }) => { fetched.push(`${init.method} ${url}`); return Promise.resolve(new Response()) })
+    try {
+      expect(consent.functionalAllowed()).toBe(false)
+      consent.saveConsent({ analytics: false, functional: true })
+      expect(consent.functionalAllowed()).toBe(true)
+      expect(fetched).toEqual([])
+      localStorage.setItem("cib_inbox_read", "1")
+      localStorage.setItem("ib.view.teams", "{}")
+      localStorage.setItem("cib_site_banner_dismissed_1_", "1")
+      sessionStorage.setItem("cib_return_event", "{}")
+      document.cookie = "cib_signed_in=1; path=/"
+      consent.saveConsent({ analytics: false, functional: false })
+      expect(consent.functionalAllowed()).toBe(false)
+      expect(localStorage.getItem("cib_inbox_read")).toBeNull()
+      expect(localStorage.getItem("ib.view.teams")).toBeNull()
+      expect(sessionStorage.getItem("cib_return_event")).toBeNull()
+      // the user's own banner choice is necessary and stays
+      expect(localStorage.getItem("cib_site_banner_dismissed_1_")).toBe("1")
+      expect(document.cookie).not.toContain("cib_signed_in")
+      expect(fetched).toHaveLength(1)
+      expect(fetched[0]).toMatch(/^DELETE https:\/\/api\..*\/api\/auth\/last-email$/)
+    } finally {
+      vi.unstubAllGlobals()
+      localStorage.clear()
+      sessionStorage.clear()
+    }
   })
 })

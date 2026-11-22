@@ -10,7 +10,7 @@ const KIND_KEYS: Record<string, string> = {
 export type SmtpErrorView = {
   /** The line to show: a human text for a known kind, else the raw error. */
   text: string
-  /** The raw error for the «Технічні деталі» block; empty when it is already the line itself. */
+  /** The raw error for the "Technical details" block; empty when it is already the line itself. */
   technical: string
 }
 

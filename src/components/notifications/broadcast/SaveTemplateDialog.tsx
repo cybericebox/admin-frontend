@@ -28,7 +28,7 @@ export function TemplateNameField({ id, value, onChange, onBlur, error }: { id: 
   )
 }
 
-// «Зберегти як шаблон» in the composer: asks for a name and stores the message (not the audience) as a template.
+// "Save as template" in the composer: asks for a name and stores the message (not the audience) as a template.
 export function SaveTemplateDialog({ open, message, onClose }: { open: boolean; message: BroadcastMessage; onClose: () => void }) {
   const [name, setName] = useState("")
   const [left, setLeft] = useState(false)

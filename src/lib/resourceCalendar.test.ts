@@ -175,3 +175,10 @@ describe("buildMaintenanceTracks", () => {
     expect(buildMaintenanceTracks(timeline({ Maintenance: null }))).toEqual([])
   })
 })
+
+describe("buildTimelineModel with an empty answer", () => {
+  it("reads missing capacity as no pool and no limit", () => {
+    const model = buildTimelineModel({} as Timeline, "cpu")
+    expect(model.capacity).toBeNull()
+  })
+})

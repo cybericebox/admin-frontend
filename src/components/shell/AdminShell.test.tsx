@@ -7,7 +7,7 @@ const path = vi.hoisted(() => ({ value: "/dashboard" }))
 vi.mock("next/navigation", () => ({ usePathname: () => path.value }))
 const role = vi.hoisted(() => ({ value: { role: "admin" as string | null, isLoading: false, me: null as { Email: string } | null, can: (): boolean => true } }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => role.value }))
-vi.mock("@/lib/origins", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/origins")>()), idOrigin: "https://id.example.test", mainOrigin: "https://example.test" }))
+vi.mock("@/lib/origins", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/origins")>()), idOrigin: "https://id.example.test" }))
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/brand/Logo", () => ({ Logo: () => <span>crest</span>, CREST_SRC: "/crest.png" }))
@@ -96,7 +96,7 @@ describe("admin shell", () => {
     expect(screen.queryByRole("button", { name: "admin.shell.closeMenu" })).not.toBeInTheDocument()
   })
 
-  it("titles the top bar and the document by route, never «Головна» for other sections", () => {
+  it("titles the top bar and the document by route, never 'Home' for other sections", () => {
     path.value = "/resources/"
     render(<AdminShell><span>content</span></AdminShell>)
     expect(screen.getByTestId("bar-title")).toHaveTextContent("admin.nav.resources")

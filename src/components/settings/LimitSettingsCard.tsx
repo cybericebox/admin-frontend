@@ -3,6 +3,7 @@ import { TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { getPolicyRetention, type PolicyPeriod, type PolicyRetention } from "@/api/privacyPolicy"
+import { cfg } from "@/lib/settings"
 import { getLimitSettings, resetLimitSettings, saveLimitSettings, type LimitCard, type LimitField, type LimitKind, type LimitSettings } from "@/api/platformLimits"
 import { localizedError } from "@/i18n/apiError"
 import { tPlural } from "@/i18n/plural"
@@ -29,6 +30,7 @@ type Draft = Record<string, Entry>
 // Cross-field rules, checked when both keys are on the card (the server checks them too).
 const RULES: { key: string; other: string; holds: (value: number, other: number) => boolean; message: string }[] = [
   { key: "InactivityGrace", other: "InactiveAccount", holds: (value, other) => value < other, message: "admin.limits.error.lessThan" },
+  { key: "LabTelemetryParticipants", other: "LabTelemetry", holds: (value, other) => value <= other, message: "admin.limits.error.atMost" },
   { key: "LeaseMax", other: "Lease", holds: (value, other) => value >= other, message: "admin.limits.error.atLeast" },
   { key: "EntryBytes", other: "UnpackedBytes", holds: (value, other) => value <= other, message: "admin.limits.error.atMost" },
 ]
@@ -40,7 +42,7 @@ export function reservedHeight(groups: LimitGroup[], withButtons: boolean): stri
   return `${rem}rem`
 }
 
-/** «36 год», «3 дні», «512 МіБ», «1000»: the value in the largest allowed unit that divides it; `genitive` reads after «до» («3 років»). */
+/** "36 h", "3 days", "512 MiB", "1000": the value in the largest allowed unit that divides it; `genitive` reads after "is before" ("3 years"). */
 function formatAmount(kind: LimitKind, value: number, allowed: Unit[], genitive = false): string {
   const unit = bestUnit(kind, value, allowed)
   const count = fromBase(value, unit)
@@ -96,8 +98,9 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   const [settings, setSettings] = useState<LimitSettings | null>(null)
   const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null)
   // The Privacy Policy's periods (retention card only): they cap the values and fill the note under the fields.
-  // A failed load only costs the note and the check, never the saving.
-  const [policy, setPolicy] = useState<{ status: "loading" } | { status: "error"; cause: unknown } | { status: "ready"; periods: PolicyRetention }>({ status: "loading" })
+  // A failed load only costs the note and the check, never the saving. "off": the installation has no retention file (NEXT_PUBLIC_RETENTION_URL empty),
+  // so nothing is fetched, compared or shown for it.
+  const [policy, setPolicy] = useState<{ status: "loading" } | { status: "off" } | { status: "error"; cause: unknown } | { status: "ready"; periods: PolicyRetention }>({ status: "loading" })
   const [draft, setDraft] = useState<Draft>({})
   const [checked, setChecked] = useState(false)
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({})
@@ -128,9 +131,14 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   useEffect(() => { queueMicrotask(() => void load()) }, [load])
 
   const loadPolicy = useCallback(async () => {
+    const url = cfg("retention-url")
+    if (!url) {
+      setPolicy({ status: "off" })
+      return
+    }
     setPolicy({ status: "loading" })
     try {
-      setPolicy({ status: "ready", periods: await getPolicyRetention() })
+      setPolicy({ status: "ready", periods: await getPolicyRetention(url) })
     } catch (cause) {
       setPolicy({ status: "error", cause })
     }
@@ -238,8 +246,8 @@ export function LimitSettingsCard({ card, title, description, groups, units, lab
   }
 
   /**
-   * The Policy phrase under a published field, in the Policy's own wording. «до N» is an upper bound: longer is danger, shorter
-   * warning. The other phrasings («через N», «понад N», …) are exact promises: any difference is danger.
+   * The Policy phrase under a published field, in the Policy's own wording. "up to N" is an upper bound: longer is danger, shorter
+   * warning. The other phrasings ("after N", "over N", …) are exact promises: any difference is danger.
    * Shown only on a mismatch; never blocks saving.
    */
   function policyNote(field: LimitField, base: number | null, fieldUnits: Unit[]) {

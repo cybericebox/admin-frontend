@@ -1,5 +1,5 @@
 // Section title per route: the top bar and the document title use it. The longest matching prefix wins;
-// an unknown route has no section title (never «Головна», which belongs to the dashboard only).
+// an unknown route has no section title (never "Home", which belongs to the dashboard only).
 const ROUTE_TITLES: [prefix: string, key: string][] = [
   ["/dashboard", "admin.nav.dashboard"],
   ["/events", "admin.nav.events"],

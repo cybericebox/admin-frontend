@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), allowed: true }))
-vi.mock("@/api/client", () => ({ apiGet: mocks.get }))
+const mocks = vi.hoisted(() => ({ blob: vi.fn(), get: vi.fn(), allowed: true }))
+vi.mock("@/api/client", () => ({ apiGet: mocks.get, apiGetBlob: mocks.blob }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/origins", async (original) => ({ ...(await original<object>()), exercisesOrigin: "https://exercises.example.test" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: (permission: string) => mocks.allowed || permission !== "platform.audit.read" }) }))
@@ -23,6 +23,13 @@ function answer(rows: object[], next = "") {
   })
 }
 
+/** "+ Add filter" → the field → its value (a choice) in the editor that opens. */
+async function addChoice(field: string, option: string) {
+  fireEvent.click(screen.getByRole("button", { name: /admin.table.addFilter/ }))
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: new RegExp(field) }))
+  fireEvent.click(await screen.findByRole("checkbox", { name: option }))
+}
+
 describe("admin audit log page", () => {
   beforeEach(() => { window.history.replaceState(null, "", "/audit/"); mocks.get.mockReset(); mocks.allowed = true; answer([row()]) })
   afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -36,15 +43,15 @@ describe("admin audit log page", () => {
     expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log")
   })
 
-  it("keeps the filters in the address and starts from them", async () => {
+  it("keeps the filters in the address as chips and starts from them", async () => {
     render(<Page />)
     await screen.findByText("events.write")
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
-    await waitFor(() => expect(window.location.search).toBe("?status=5xx"))
+    await addChoice("admin.audit.filter.status", "admin.audit.filter.status_5xx")
+    await waitFor(() => expect(window.location.search).toBe("?f.status=in%3A5xx"))
     cleanup()
     render(<Page />)
     await waitFor(() => expect(mocks.get).toHaveBeenLastCalledWith("/api/admin/audit-log?status=5xx"))
+    expect(screen.getByRole("button", { name: /admin.table.filterEdit/ })).toBeInTheDocument()
   })
 
   it("shows nothing without platform.audit.read", () => {
@@ -54,33 +61,40 @@ describe("admin audit log page", () => {
     expect(mocks.get).not.toHaveBeenCalled()
   })
 
-  it("debounces the text filters into one request and keeps the rows meanwhile", async () => {
+  it("sends a text filter once it is applied and keeps the rows meanwhile", async () => {
     render(<Page />)
     await screen.findByText("events.write")
-    vi.useFakeTimers()
-    const input = screen.getByLabelText("admin.audit.col.permission")
-    fireEvent.change(input, { target: { value: "ev" } })
-    fireEvent.change(input, { target: { value: "events.read" } })
-    const before = mocks.get.mock.calls.length
-    expect(mocks.get.mock.calls.filter(([path]) => String(path).includes("permission="))).toHaveLength(0)
+    fireEvent.click(screen.getByRole("button", { name: /admin.table.addFilter/ }))
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /admin.audit.col.permission/ }))
+    fireEvent.change(await screen.findByLabelText("admin.audit.col.permission"), { target: { value: "events.read" } })
+    fireEvent.click(await screen.findByRole("button", { name: "admin.table.apply" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?permission=events.read"))
     expect(screen.getByText("events.write")).toBeInTheDocument()
-    await act(async () => { await vi.advanceTimersByTimeAsync(350) })
-    expect(mocks.get.mock.calls.length).toBe(before + 1)
-    expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?permission=events.read")
   })
 
   it("sends status, method and target filters to the server", async () => {
     render(<Page />)
     await screen.findByText("events.write")
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
+    await addChoice("admin.audit.filter.status", "admin.audit.filter.status_5xx")
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=5xx"))
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.method" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "DELETE" }))
+    fireEvent.keyDown(document.body, { key: "Escape" })
+    await addChoice("admin.audit.filter.method", "DELETE")
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx"))
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.kindLabel" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.target.team" }))
+    fireEvent.keyDown(document.body, { key: "Escape" })
+    await addChoice("admin.audit.filter.kindLabel", "admin.audit.target.team")
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?method=DELETE&status=5xx&targetKind=team"))
+  })
+
+  it("has quick filters: errors and today", async () => {
+    render(<Page />)
+    await screen.findByText("events.write")
+    fireEvent.click(screen.getByRole("button", { name: "admin.audit.preset.errors" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=5xx"))
+    expect(screen.getByRole("button", { name: "admin.audit.preset.errors" })).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "admin.audit.preset.today" }))
+    await waitFor(() => expect(mocks.get.mock.calls.some(([path]) => String(path).includes("status=5xx") && String(path).includes("from="))).toBe(true))
+    fireEvent.click(screen.getByRole("button", { name: "admin.table.resetFilters" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenLastCalledWith("/api/admin/audit-log"))
   })
 
   it("appends the next page with «show more» and keeps the earlier rows", async () => {
@@ -102,14 +116,14 @@ describe("admin audit log page", () => {
     await screen.findByText("events.write")
     let resolve: (value: unknown) => void = () => {}
     mocks.get.mockImplementationOnce(() => new Promise((done) => { resolve = done }))
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_4xx" }))
-    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=4xx"))
+    fireEvent.click(screen.getByRole("button", { name: "admin.audit.preset.errors" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith("/api/admin/audit-log?status=5xx"))
     expect(screen.getByText("events.write")).toBeInTheDocument()
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.audit.filter.status" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "admin.audit.filter.status_5xx" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.audit.preset.errors" }))
+    await waitFor(() => expect(mocks.get).toHaveBeenLastCalledWith("/api/admin/audit-log"))
     await screen.findByText("events.write")
-    await act(async () => { resolve(pageOf([row({ ID: "old", Permission: "stale.perm" })])) })
+    resolve(pageOf([row({ ID: "old", Permission: "stale.perm" })]))
+    await new Promise((r) => setTimeout(r, 20))
     expect(screen.queryByText("stale.perm")).not.toBeInTheDocument()
   })
 
@@ -125,5 +139,22 @@ describe("admin audit log page", () => {
     expect(await screen.findByText("admin.audit.loadError")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     await waitFor(() => expect(screen.getByText("events.write")).toBeInTheDocument())
+  })
+
+  it("shows the found count, what each request changed (a secret by its name only) and exports the CSV of the filter", async () => {
+    mocks.get.mockImplementation((path: string) => path.startsWith("/api/users/")
+      ? Promise.resolve({ ID: ACTOR, FirstName: "Олена", LastName: "Коваль", Email: "o@example.test" })
+      : Promise.resolve({ Items: [row({ Changes: [{ Field: "Role", Before: "user", After: "admin" }, { Field: "Password", Redacted: true }] })], NextCursor: "", Total: 137 }))
+    mocks.blob.mockResolvedValue({ blob: new Blob(["x"]), filename: "audit.csv" })
+    URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn()
+    render(<Page />)
+    expect(await screen.findByText("Role")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("137")
+    expect(screen.getByText("user")).toBeInTheDocument()
+    expect(screen.getByText("admin")).toBeInTheDocument()
+    expect(screen.getByText("Password")).toBeInTheDocument()
+    expect(screen.getByText("admin.audit.changes.hidden")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /admin.audit.exportCsv/ }))
+    await waitFor(() => expect(mocks.blob).toHaveBeenCalledWith("/api/admin/audit-log/export"))
   })
 })

@@ -1,5 +1,6 @@
 "use client"
 
+import { CONTROL_SHAPE } from "@/components/ui/control"
 import { ApiError } from "@/api/client"
 import { localizedError } from "@/i18n/apiError"
 import { FieldValidation } from "@/components/ui/field-validation"
@@ -113,7 +114,7 @@ export function PreviewDefaultsEditor() {
             if (item.Eligible === false) return <div key={item.ID} role="option" aria-disabled="true" aria-selected="false" className="flex flex-col border-b border-border px-3 py-2 text-muted-foreground last:border-b-0"><span className="break-words">{item.Name}</span><span className="text-sm">{t(`admin.previewSettings.reason.${item.Reason}`)}</span></div>
             return <div key={item.ID} id={`preview-option-${index}`} role="option" aria-selected={!!chosen} className={cn("flex flex-wrap items-center gap-3 border-b border-border px-3 py-2 last:border-b-0", index === active && "bg-muted")}>
               <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"><input type="checkbox" tabIndex={-1} checked={!!chosen} disabled={item.Variants.length === 0} onChange={() => toggle(item)} /><span className="break-words">{item.Name}</span></label>
-              {chosen && item.Variants.length > 1 && <select className="h-9 max-w-full rounded-md border border-border bg-card px-2 text-sm" aria-label={t("admin.previewSettings.variant", { name: item.Name })} value={chosen.VariantID} onChange={event => chooseVariant(item, event.target.value)}>{item.Variants.map(variant => <option key={variant.ID} value={variant.ID}>{t("admin.previewSettings.variantNumber", { number: variant.Index + 1 })}</option>)}</select>}
+              {chosen && item.Variants.length > 1 && <select className={`${CONTROL_SHAPE} max-w-full px-2`} aria-label={t("admin.previewSettings.variant", { name: item.Name })} value={chosen.VariantID} onChange={event => chooseVariant(item, event.target.value)}>{item.Variants.map(variant => <option key={variant.ID} value={variant.ID}>{t("admin.previewSettings.variantNumber", { number: variant.Index + 1 })}</option>)}</select>}
             </div>
           })}
         </div>}

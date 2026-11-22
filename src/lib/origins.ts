@@ -15,7 +15,6 @@ export const eventDomain = h.eventDomain
 
 export const apiOrigin = origin(apiHost)
 export const idOrigin = origin(idHost)
-export const mainOrigin = origin(mainHost) || "/"
 // The exercise catalog lives in its own app (exercises-frontend).
 export const exercisesOrigin = origin(exercisesHost) || "/"
 

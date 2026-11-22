@@ -19,9 +19,19 @@ export function analyticsPath(section: string, params: AnalyticsParams = {}): st
   return `/api/analytics/${section}${analyticsQuery(params)}`
 }
 
-/** GET /api/analytics/<section>?from=&to=&... */
+/** With `compare=true` the answer is wrapped: the current report, the same report for the previous period of the same length (null for all time) and that period. */
+export type Compared<T> = { Current: T; Previous: T | null; PreviousPeriod: { From: string; To: string } | null }
+
+/** GET /api/analytics/<section>?from=&to=&... ; with `compare` the wrapped answer comes back as it is (see getAnalyticsCompared). */
 export function getAnalytics<T>(section: string, params: AnalyticsParams = {}, init?: RequestInit): Promise<T> {
   return apiGet<T>(analyticsPath(section, params), init)
+}
+
+/** The current report of an answer that may be wrapped by compare; the previous one (or null) beside it. */
+export function unwrapCompared<T>(answer: T | Compared<T>, compare: boolean): { current: T; previous: T | null } {
+  if (!compare) return { current: answer as T, previous: null }
+  const wrapped = answer as Compared<T>
+  return { current: wrapped.Current, previous: wrapped.Previous ?? null }
 }
 
 /** /api/analytics/<section>/export.csv?table=...&from=&to= (fetched as a blob by CsvExportButton). */

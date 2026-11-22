@@ -1,0 +1,4 @@
+{
+  "InactiveAccount": { "value": 3, "unit": "years", "kind": "after" },
+  "InactivityGrace": { "value": 30, "unit": "days", "kind": "for" }
+}

@@ -4,7 +4,7 @@ import { t } from "@/i18n/t"
 import { hasMessage } from "@/i18n/hasMessage"
 import { cn } from "@/utils/cn"
 
-// A kind the catalog does not know yet (a newer daemon) reads «Інше (kind)», never a raw message key.
+// A kind the catalog does not know yet (a newer daemon) reads "Other (kind)", never a raw message key.
 export const kindLabel = (kind: string) => hasMessage(`admin.errors.kind.${kind}`) ? t(`admin.errors.kind.${kind}`) : t("admin.errors.kind.other", { kind })
 export const statusLabel = (status: string) => t(`admin.errors.status.${status}`)
 

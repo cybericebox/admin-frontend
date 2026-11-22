@@ -10,14 +10,7 @@ import { Th } from "./resourceView"
 
 type Target = { eventID: string; name: string }
 
-/** Events that may run labs, still ahead of their end, and that the calendar holds no reservation for. */
-export function eventsNeedingReservation(events: Event[], reservedIDs: ReadonlySet<string>): Event[] {
-  return events.filter((event) => event.InfrastructureAllowed === true
-    && event.Status !== "archived"
-    && event.LifecycleStatus !== "finished" && event.LifecycleStatus !== "withdrawn"
-    && !reservedIDs.has(event.ID))
-}
-
+// The server decides which events need a reservation (GET /api/events?needsReservation=true), so the list has no 200-event cap.
 export function NeedsReservationTab({ events, error, onRetry, canRead, onEdit }: {
   events: Event[] | null
   error: unknown

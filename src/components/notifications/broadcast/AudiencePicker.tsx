@@ -3,7 +3,7 @@ import { t } from "@/i18n/t"
 import { PLATFORM_ROLES, roleLabel } from "@/lib/roles"
 import { Checkbox } from "@/components/ui/checkbox"
 import { SelectMenu } from "@/components/ui/select-menu"
-import type { BroadcastAudience } from "@/api/notifications/broadcasts"
+import type { Broadcast, BroadcastAudience } from "@/api/notifications/broadcasts"
 import { UserPicker, type PickedUser } from "./UserPicker"
 
 export type AudienceState = { kind: "all" | "roles" | "users"; roles: string[]; users: PickedUser[] }
@@ -14,6 +14,14 @@ export function audienceToApi(state: AudienceState): BroadcastAudience {
   if (state.kind === "roles") return { Kind: "roles", Roles: state.roles }
   if (state.kind === "users") return { Kind: "users", UserIDs: state.users.map((user) => user.id) }
   return { Kind: "all" }
+}
+
+/** A stored audience as the picker's state (a copied broadcast); chosen users show by their id until the picker names them. */
+export function audienceFromBroadcast(source: Broadcast): AudienceState {
+  const audience = source.Audience
+  if (audience.Kind === "roles") return { kind: "roles", roles: audience.Roles ?? [], users: [] }
+  if (audience.Kind === "users") return { kind: "users", roles: [], users: (audience.UserIDs ?? []).map((id) => ({ id, name: id.slice(0, 8), email: "" })) }
+  return EMPTY_AUDIENCE
 }
 
 // A roles/users audience with nothing chosen is incomplete: no count is requested for it.

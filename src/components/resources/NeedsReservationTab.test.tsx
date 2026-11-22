@@ -4,24 +4,11 @@ import type { Event } from "@/api/events/catalog"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
-import { NeedsReservationTab, eventsNeedingReservation } from "./NeedsReservationTab"
+import { NeedsReservationTab } from "./NeedsReservationTab"
 
 const event = (over: Partial<Event>): Event => ({
   ID: "e1", Tag: "e1", Name: "Cup", AvailableFrom: "2026-11-01T10:00:00Z", ArchiveAt: null, Status: "active", LifecycleStatus: "published",
   InfrastructureAllowed: true, CreatedAt: "", UpdatedAt: "", ...over,
-})
-
-describe("eventsNeedingReservation", () => {
-  it("keeps only live infrastructure events with no reservation", () => {
-    const events = [
-      event({ ID: "need" }),
-      event({ ID: "reserved" }),
-      event({ ID: "noinfra", InfrastructureAllowed: false }),
-      event({ ID: "archived", Status: "archived" }),
-      event({ ID: "finished", LifecycleStatus: "finished" }),
-    ]
-    expect(eventsNeedingReservation(events, new Set(["reserved"])).map((e) => e.ID)).toEqual(["need"])
-  })
 })
 
 describe("NeedsReservationTab", () => {
@@ -43,8 +30,3 @@ describe("NeedsReservationTab", () => {
   })
 })
 
-describe("eventsNeedingReservation with an upcoming reservation", () => {
-  it("does not list an event whose reservation has not started (the statistics list it)", () => {
-    expect(eventsNeedingReservation([event({ ID: "later" })], new Set(["later"]))).toEqual([])
-  })
-})

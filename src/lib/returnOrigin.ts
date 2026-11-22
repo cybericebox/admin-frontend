@@ -1,4 +1,5 @@
 import { eventDomain, platformHosts } from "@/lib/origins"
+import { functionalAllowed } from "@/lib/consent"
 import { STORAGE_RETURN_EVENT } from "@/lib/storageKeys"
 
 // Where an admin session came from: only an event's /manage counts (the catalog and the profile are
@@ -40,7 +41,8 @@ export function readEventReturn(search: string, storage: Pick<Storage, "getItem"
   const url = validEventReturn(params.get(FROM_PARAM), domain, hosts)
   if (url) {
     const found = { url, name: (params.get(FROM_NAME_PARAM) ?? "").trim().slice(0, NAME_MAX) }
-    try { storage?.setItem(STORAGE_RETURN_EVENT, JSON.stringify(found)) } catch { /* Session storage may be unavailable; the origin lasts for this page. */ }
+    // functional storage: the origin is kept for the session only with functional consent
+    try { if (functionalAllowed()) storage?.setItem(STORAGE_RETURN_EVENT, JSON.stringify(found)) } catch { /* Session storage may be unavailable; the origin lasts for this page. */ }
     return found
   }
   try {

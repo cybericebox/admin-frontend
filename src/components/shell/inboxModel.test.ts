@@ -56,13 +56,13 @@ test("open = ActionRequired and not resolved (§8.3)", () => {
   assert.equal(inbox.isOpenRequest(request("r", { ResolvedAt: "2026-09-29T10:00:00Z" })), false)
   assert.equal(inbox.isOpenRequest(request("o")), true)
   assert.equal(inbox.isOpenRequest(request("read", { ReadAt: "2026-09-29T10:00:00Z" })), true)
-  // Backfilled legacy rows keep ActionRequired false even in «Запити».
+  // Backfilled legacy rows keep ActionRequired false even in "Requests".
   assert.equal(inbox.isOpenRequest(item("legacy", { Category: "requests" })), false)
   assert.equal(inbox.isUnread(item("u")), true)
   assert.equal(inbox.isUnread(item("x", { ReadAt: "2026-09-29T10:00:00Z" })), false)
 })
 
-test("«Вирішено» only where the server says Resolvable on an open request", () => {
+test("'Resolved' only where the server says Resolvable on an open request", () => {
   assert.equal(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true })), true)
   assert.equal(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" })), false)
   assert.equal(inbox.canResolve(request("alarm", { Resolvable: false })), false)

@@ -37,7 +37,7 @@ const buttonVariants = cva(
 )
 
 // A button that can be busy must say what it is doing (AGENTS.md «Busy buttons show the operation»): `busyLabel` is
-// required whenever `busy` is passed, in the present tense («Зберігаємо…»).
+// required whenever `busy` is passed, in the present tense ("Saving").
 type BusyProps = { busy?: false; busyLabel?: string } | { busy: boolean; busyLabel: string }
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &

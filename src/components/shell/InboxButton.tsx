@@ -5,6 +5,7 @@
 // Categorized inbox (docs/INBOX-DESIGN.md §3). The reference implementation: copied one-to-one
 // to id, admin, exercises and event; each app only sets the props below.
 
+import { functionalAllowed } from "@/lib/consent"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
@@ -40,7 +41,7 @@ type InboxPage = { Items: Message[]; NextCursor: string | null }
 // After a baseline on an empty inbox the cursor is empty; only the very first call may send an empty since.
 const EPOCH_CURSOR = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
 const query = (tab: InboxTab, eventId?: string, extra?: Record<string, string>) => inboxQuery(PULSE_SITE, tab, eventId, extra)
-// A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
+// A link here with ?inbox opens the dropdown on arrival (the event site's "N more in other events").
 const OPEN_PARAM = "inbox"
 
 export type InboxButtonProps = {
@@ -72,7 +73,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [olderCursor, setOlderCursor] = useState<string | null>(null)
   const [unread, setUnread] = useState(0)
-  // null = the backend has no categories yet: the dropdown shows only «Усі».
+  // null = the backend has no categories yet: the dropdown shows only "All".
   const [counts, setCounts] = useState<InboxCounts | null>(null)
   const [otherEvents, setOtherEvents] = useState(0)
   // Load failures (LoadError) and action failures (inline line) are separate: only the first offers a reload.
@@ -281,6 +282,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   function announceRead() {
     try {
+      if (!functionalAllowed()) return
       const previous = window.localStorage.getItem(STORAGE_INBOX_READ)
       window.localStorage.setItem(STORAGE_INBOX_READ, previous === "1" ? "0" : "1")
     } catch { /* The next pulse still synchronizes read state. */ }
@@ -310,7 +312,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     else window.location.assign(href)
   }
 
-  // «Вирішено» closes a «Лабораторія впала» request for every recipient (§8.2).
+  // "Resolved" closes a "Lab is down" request for every recipient (§8.2).
   async function resolve(item: Message) {
     setActionError("")
     setResolving(item.ID)
@@ -333,7 +335,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     else pollNowRef.current()
   }
 
-  // «Позначити прочитаним» acts on the current tab only.
+  // "Mark as read" acts on the current tab only.
   async function readAll() {
     setActionError("")
     const current = tab
@@ -373,7 +375,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             <Popover.Close aria-label={t("inbox.close")} className="flex rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X className="h-4 w-4" /></Popover.Close>
           </div>
         </div>
-        {/* The segmented control of the catalog's «Область» switch (exercises-frontend). */}
+        {/* The segmented control of the catalog's "Scope" switch (exercises-frontend). */}
         {tabs.length > 0 && <div className="shrink-0 border-b border-border px-3 pb-3">
           <div role="tablist" aria-label={t("inbox.tabs")} className="flex h-10 w-full items-center rounded-md bg-muted p-1">
             {tabs.map((value) => {

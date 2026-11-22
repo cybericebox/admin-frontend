@@ -84,7 +84,7 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
  * App-wide outage modal, the same as the event site's. API calls report network
  * failures and 5xx into the status store; one probe 15 s after the first failure confirms before the
  * modal shows. The page stays rendered and inert underneath; the modal cannot be
- * dismissed, retries on a 3/5/10/20/30 s backoff or on «Спробувати зараз», and
+ * dismissed, retries on a 3/5/10/20/30 s backoff or on "Try now", and
  * closes by itself once the API answers.
  */
 export function ServiceStatusGate() {

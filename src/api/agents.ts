@@ -22,8 +22,8 @@ export type AgentFeatures = {
   SchedulerMaxPods: number
   LabsDomain: string
   VPNEndpoint: string
-  ProxyAccessTokenMaxTTLSeconds: number
-  ProxySessionMaxTTLSeconds: number
+  /** The longest a web or console grant may live (the proxy's grantMaxTTL); one value, there is no session length any more. */
+  ProxyGrantMaxTTLSeconds: number
 }
 
 export type UnmetRequirement = { Resource: "deviceCpu" | "deviceMemory" | "devices"; Required: number; Max: number }

@@ -12,10 +12,10 @@ const root = path.resolve(import.meta.dirname, "..")
 // docs/design-system sits in the monorepo around this repo (also when this is a worktree); DS_DIR overrides.
 function findSource() {
   for (let dir = root; dir !== path.dirname(dir); dir = path.dirname(dir)) {
-    const candidate = path.join(dir, "docs/design-system")
+    const candidate = path.join(dir, "docs/internal-docs/design-system")
     if (fs.existsSync(candidate)) return candidate
   }
-  return path.resolve(root, "../docs/design-system")
+  return path.resolve(root, "../../docs/internal-docs/design-system")
 }
 const source = process.env.DS_DIR ?? findSource()
 // from (relative to the design system) -> to (relative to this repo). transform runs on the text before it is written.

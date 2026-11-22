@@ -34,6 +34,14 @@ const empty: TasksAnalytics = {
   Tasks: [], TasksTotal: 0, Unsolved: [], UnsolvedTotal: 0, ByCategory: [], ByLevel: [],
 }
 
+/** The report and the paged usage table answer on their own paths. */
+function serve(overview: TasksAnalytics) {
+  mocks.apiGet.mockImplementation((path: string) => String(path).startsWith("/api/analytics/tasks/table")
+    ? Promise.resolve({ Items: overview.Tasks, Total: overview.TasksTotal, Page: 1, PageSize: 25 })
+    : Promise.resolve(overview))
+}
+const tableCalls = () => mocks.apiGet.mock.calls.map((c) => String(c[0])).filter((path) => path.startsWith("/api/analytics/tasks/table"))
+
 beforeEach(() => mocks.apiGet.mockReset())
 
 describe("platform analytics: task catalog", () => {
@@ -42,12 +50,13 @@ describe("platform analytics: task catalog", () => {
     mocks.apiGet.mockReturnValue(new Promise((resolve) => { finish = resolve }))
     render(<Page />)
     expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
+    serve(report)
     finish(report)
     await screen.findByRole("table", { name: "Використання й калібрування" })
   })
 
   it("shows usage, calibration and the never solved tasks", async () => {
-    mocks.apiGet.mockResolvedValue(report)
+    serve(report)
     render(<Page />)
     const usage = await screen.findByRole("table", { name: "Використання й калібрування" })
     expect(within(usage).getByText("Login bypass")).toBeInTheDocument()
@@ -63,19 +72,31 @@ describe("platform analytics: task catalog", () => {
   })
 
   it("filters by category and level through the request, the options come from the response", async () => {
-    mocks.apiGet.mockResolvedValue(report)
+    serve(report)
     render(<Page />)
     await screen.findByRole("table", { name: "Використання й калібрування" })
     fireEvent.keyDown(screen.getByRole("button", { name: "Категорія" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "web" }))
-    await waitFor(() => expect(mocks.apiGet.mock.calls.at(-1)?.[0]).toMatch(/category=web/))
+    await waitFor(() => expect(tableCalls().at(-1)).toMatch(/category=web/))
     fireEvent.keyDown(screen.getAllByRole("button", { name: "Рівень" })[0], { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "Складний" }))
-    await waitFor(() => expect(mocks.apiGet.mock.calls.at(-1)?.[0]).toMatch(/category=web&level=hard/))
+    await waitFor(() => expect(tableCalls().at(-1)).toMatch(/category=web&level=hard/))
+  })
+
+  it("pages, searches and sorts the usage table on the server", async () => {
+    serve(report)
+    render(<Page />)
+    const usage = await screen.findByRole("table", { name: "Використання й калібрування" })
+    expect(screen.getByText("Усього: 2")).toBeInTheDocument()
+    expect(tableCalls()[0]).toMatch(/page=1.*pageSize=25.*sortBy=eventsUsed.*sortDir=desc/)
+    fireEvent.click(within(usage).getByRole("button", { name: /Спроби/ }))
+    await waitFor(() => expect(tableCalls().some((path) => path.includes("sortBy=attempts"))).toBe(true))
+    fireEvent.change(screen.getByLabelText("Пошук за завданням"), { target: { value: "sql" } })
+    await waitFor(() => expect(tableCalls().some((path) => path.includes("search=sql") && path.includes("page=1"))).toBe(true))
   })
 
   it("shows empty states when no task was used", async () => {
-    mocks.apiGet.mockResolvedValue(empty)
+    serve(empty)
     const { container } = render(<Page />)
     await screen.findByText("Немає використаних завдань за цей період")
     expect(screen.getByText("Усі використані завдання хтось розвʼязав")).toBeInTheDocument()
@@ -83,11 +104,11 @@ describe("platform analytics: task catalog", () => {
   })
 
   it("shows the load error with a retry", async () => {
-    mocks.apiGet.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(report)
+    mocks.apiGet.mockRejectedValue(new Error("boom"))
     render(<Page />)
     const retry = await screen.findAllByRole("button", { name: "Спробувати ще раз" })
+    serve(report)
     fireEvent.click(retry[0])
     await screen.findByRole("table", { name: "Використання й калібрування" })
-    expect(mocks.apiGet).toHaveBeenCalledTimes(2)
   })
 })

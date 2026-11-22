@@ -9,11 +9,17 @@
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 import type { CursorPage, OffsetPage } from "@/api/pagination"
 import { isUnsetEventDate } from "@/lib/eventDates"
+import { isComplete, withoutKey, type FilterBag } from "@/components/table/filters"
 
 const BASE = "/api/events"
 
-function normalizeEvent(value: Event): Event {
-  return isUnsetEventDate(value.ArchiveAt) ? { ...value, ArchiveAt: null } : value
+/** The counts the list and the card carry as one object (`Counts`); flattened onto the event for the screens. */
+type WireEvent = Event & { Counts?: { Participants?: number; Teams?: number; StandsReady?: number; StandsTotal?: number } | null; StartAt?: string | null; FinishAt?: string | null }
+
+function normalizeEvent(value: WireEvent): EventRow {
+  const { Counts, ...rest } = value
+  const flat: EventRow = { ...rest, ParticipantsCount: Counts?.Participants, TeamsCount: Counts?.Teams, StandsReady: Counts?.StandsReady, StandsTotal: Counts?.StandsTotal }
+  return isUnsetEventDate(flat.ArchiveAt) ? { ...flat, ArchiveAt: null } : flat
 }
 
 export type EventStatus = "pending" | "active" | "archived"
@@ -34,6 +40,9 @@ export type Event = {
   UpdatedAt: string
 }
 
+/** A row of the admin list: the event with its counts (null/absent while the backend does not send them). */
+export type EventRow = Event & { ParticipantsCount?: number; TeamsCount?: number; StandsReady?: number; StandsTotal?: number; StartAt?: string | null; FinishAt?: string | null }
+
 export type EventInput = {
   Tag: string
   Name: string
@@ -43,6 +52,8 @@ export type EventInput = {
 
 /** Creation-only fields: the infrastructure flag cannot change after creation. */
 export type EventCreateInput = EventInput & {
+  /** Copy the schedule, settings and organizers of this event (name, tag and start come from the body). */
+  CopyFromEventID?: string
   /** Omitted: the backend enables it when infrastructure is available. */
   InfrastructureAllowed?: boolean
 }
@@ -91,7 +102,7 @@ export async function listEvents(filter?: EventsFilter): Promise<CursorPage<Even
 
 /** GET /api/events/:id */
 export async function getEvent(id: string): Promise<Event> {
-  return normalizeEvent(await apiGet<Event>(`${BASE}/${id}`))
+  return normalizeEvent(await apiGet<WireEvent>(`${BASE}/${id}`))
 }
 
 /** POST /api/events */
@@ -138,4 +149,65 @@ export type EventSchedule = { Configured: boolean; StartAt: string | null; Finis
 
 export function getEventSchedule(id: string): Promise<EventSchedule> {
   return apiGet<EventSchedule>(`${BASE}/${encodeURIComponent(id)}/manage/lifecycle`)
+}
+
+// ---- The admin list (docs/specs/ADMIN.md §2) ----
+export type EventListQuery = { search: string; bag: FilterBag; page: number; pageSize: number; sortBy: string; sortDir: "asc" | "desc"; /** Only events with labs and no reservation (the resources page). */ needsReservation?: boolean }
+
+const value = (bag: FilterBag, key: string) => (isComplete(bag[key]) ? bag[key] : undefined)
+
+/** The filters of a bag as query parameters: status, start period (startFrom, startTo exclusive), organizer, infrastructure. */
+export function eventFilterParams(bag: FilterBag, p: URLSearchParams = new URLSearchParams()): URLSearchParams {
+  const status = value(bag, "status")?.v[0]
+  if (status) p.set("status", status)
+  const period = value(bag, "period")
+  if (period) {
+    const [a = "", b = ""] = period.v
+    const day = (date: string, plus = 0) => new Date(new Date(`${date}T00:00:00`).getTime() + plus * 86400e3).toISOString()
+    const from = period.op === "before" ? "" : a
+    const to = period.op === "before" ? a : period.op === "between" ? b : ""
+    if (from) p.set("startFrom", day(from))
+    // «to» is exclusive on the server: the chosen day itself belongs to the period.
+    if (to) p.set("startTo", day(to, 1))
+  }
+  const organizer = value(bag, "organizer")?.v[0]
+  if (organizer) p.set("organizer", organizer)
+  const infra = value(bag, "infrastructure")?.v[0]
+  if (infra) p.set("infrastructure", infra)
+  return p
+}
+
+export async function listEventsIndex(query: EventListQuery): Promise<OffsetPage<EventRow>> {
+  const params = new URLSearchParams()
+  if (query.search) params.set("search", query.search)
+  eventFilterParams(query.bag, params)
+  if (query.needsReservation) params.set("needsReservation", "true")
+  params.set("page", String(query.page))
+  params.set("pageSize", String(query.pageSize))
+  params.set("sortBy", query.sortBy)
+  params.set("sortDir", query.sortDir)
+  const raw = await apiGet<OffsetPage<WireEvent>>(`${BASE}?${params}`)
+  return { ...raw, Items: (raw.Items ?? []).map(normalizeEvent) }
+}
+
+/** Counts of one filter field's values under the other filters (GET /api/events/facets); null when unknown. */
+export async function getEventFacets(field: string, search: string, others: FilterBag): Promise<Record<string, number> | null> {
+  const p = new URLSearchParams({ field })
+  if (search) p.set("search", search)
+  eventFilterParams(withoutKey(others, field), p)
+  try {
+    const res = await apiGet<{ Counts?: Record<string, number> } | null>(`${BASE}/facets?${p}`)
+    return res?.Counts ?? null
+  } catch { return null }
+}
+
+export type EventOrganizer = { UserID: string; Name: string; Email: string }
+/** GET /api/events/organizers: everyone who manages at least one event. */
+export const listEventOrganizers = () => apiGet<EventOrganizer[] | null>(`${BASE}/organizers`).then((items) => items ?? [])
+
+export type BulkArchiveResult = { EventID: string; Ok: boolean; Code?: string; Error?: string }
+/** POST /api/events/bulk/archive {EventIDs} (1..200): one result per event, in request order. */
+export async function bulkArchiveEvents(ids: string[]): Promise<BulkArchiveResult[]> {
+  const res = await apiPost<{ Results?: BulkArchiveResult[] }>(`${BASE}/bulk/archive`, { EventIDs: ids })
+  return res.Results ?? []
 }

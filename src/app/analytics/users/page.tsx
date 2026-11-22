@@ -7,7 +7,7 @@ import { UsersAnalytics } from "@/components/analytics/users/UsersAnalytics"
 import { t } from "@/i18n/t"
 
 function UsersAnalyticsPage() {
-  return <SectionPage title={t("admin.platformAnalytics.users.title")} subtitle={t("admin.platformAnalytics.users.subtitle")}>
+  return <SectionPage title={t("admin.platformAnalytics.users.title")} subtitle={t("admin.platformAnalytics.users.subtitle")} autoRefresh="off">
     <UsersAnalytics />
   </SectionPage>
 }

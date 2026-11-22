@@ -12,39 +12,50 @@ describe("ConsentBanner", () => {
   afterEach(clear)
 
   it("banner: a general line, customize and accept all; accept all grants analytics", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="https://example.com/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     const region = screen.getByRole("region", { name: "consent.label" })
     expect(region).toHaveTextContent("consent.text")
-    expect(screen.getByRole("link", { name: "consent.policyLinkNewTab" })).toHaveAttribute("href", "https://example.com/cookies")
+    expect(screen.getByRole("link", { name: "consent.policyLinkNewTab" })).toHaveAttribute("href", "https://example.test/cookies")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["consent.customize", "consent.acceptAll"])
     click("consent.acceptAll")
-    expect(readConsent()).toEqual({ analytics: true })
+    expect(readConsent()).toEqual({ analytics: true, functional: true })
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
   })
 
+  it("marks the policy link and the panel's policy paragraph as the Cookie Policy setting's (hidden by the stylesheet when it is empty)", () => {
+    render(<ConsentBanner gaId="G-TEST" />)
+    expect(screen.getByRole("link", { name: "consent.policyLinkNewTab" })).toHaveClass("cfg-cookies")
+    click("consent.customize")
+    const links = screen.getAllByRole("link", { name: "consent.policyLinkNewTab" })
+    expect(links.map((link) => link.closest("p")?.classList.contains("cfg-cookies") || link.classList.contains("cfg-cookies"))).toEqual([true])
+    expect(screen.getByRole("dialog").querySelector("p.cfg-cookies")).not.toBeNull()
+  })
+
   it("customize → save choice with analytics off (the default)", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("consent.customize")
     const panel = screen.getByRole("dialog")
     expect(panel).toHaveFocus()
     expect(screen.getByRole("switch", { name: "consent.necessary.switch" })).toBeDisabled()
     expect(screen.getByRole("switch", { name: "consent.necessary.switch" })).toHaveAttribute("aria-checked", "true")
     expect(screen.getByRole("switch", { name: "consent.analytics.title" })).toHaveAttribute("aria-checked", "false")
+    expect(screen.getByRole("switch", { name: "consent.functional.title" })).toHaveAttribute("aria-checked", "false")
     click("consent.saveChoice")
-    expect(readConsent()).toEqual({ analytics: false })
+    expect(readConsent()).toEqual({ analytics: false, functional: false })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
   it("customize → save choice with analytics on", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("consent.customize")
     fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
+    fireEvent.click(screen.getByRole("switch", { name: "consent.functional.title" }))
     click("consent.saveChoice")
-    expect(readConsent()).toEqual({ analytics: true })
+    expect(readConsent()).toEqual({ analytics: true, functional: true })
   })
 
   it("the policy link opens a new tab and keeps the panel and its unsaved toggles", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("consent.customize")
     fireEvent.click(screen.getByRole("switch", { name: "consent.analytics.title" }))
     const link = screen.getByRole("link", { name: "consent.policyLinkNewTab" })
@@ -58,17 +69,17 @@ describe("ConsentBanner", () => {
 
   it("the panel has only save choice and accept all; saving with analytics off drops _ga", () => {
     document.cookie = "_ga=GA1.1.1; path=/"
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("consent.customize")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["consent.saveChoice", "consent.acceptAll"])
     expect(screen.queryByRole("button", { name: "consent.rejectAll" })).not.toBeInTheDocument()
     click("consent.saveChoice")
-    expect(readConsent()).toEqual({ analytics: false })
+    expect(readConsent()).toEqual({ analytics: false, functional: false })
     expect(document.cookie).not.toMatch(/(^|; )_ga=/)
   })
 
   it("Esc never consents: from the panel it steps back to the banner", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     fireEvent.keyDown(screen.getByRole("region"), { key: "Escape" })
     expect(screen.getByRole("region")).toBeInTheDocument()
     click("consent.customize")
@@ -77,12 +88,12 @@ describe("ConsentBanner", () => {
     expect(readConsent()).toBeNull()
   })
 
-  it("stays hidden when a choice exists; «Налаштування файлів cookie» opens the panel with the stored choice", () => {
-    document.cookie = "cib_consent=analytics:granted; path=/"
+  it("stays hidden when a choice exists; 'Cookie settings' opens the panel with the stored choice", () => {
+    document.cookie = "cib_consent=analytics:granted,functional:denied; path=/"
     const trigger = document.createElement("button")
     document.body.appendChild(trigger)
     trigger.focus()
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
     act(() => openConsentSettings())
     const panel = screen.getByRole("dialog")
@@ -91,21 +102,27 @@ describe("ConsentBanner", () => {
     fireEvent.keyDown(panel, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
-    expect(readConsent()).toEqual({ analytics: true })
+    expect(readConsent()).toEqual({ analytics: true, functional: false })
     trigger.remove()
   })
 
-  it("stays hidden when GA is not configured", () => {
-    render(<ConsentBanner gaId="" policyHref="/cookies" />)
-    expect(screen.queryByRole("region")).not.toBeInTheDocument()
+  it("without GA the banner still asks (functional), and the panel has no analytics switch", () => {
+    render(<ConsentBanner gaId="" />)
+    expect(screen.getByRole("region")).toBeInTheDocument()
+    click("consent.customize")
+    expect(screen.queryByRole("switch", { name: "consent.analytics.title" })).not.toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "consent.functional.title" })).toBeInTheDocument()
+    click("consent.saveChoice")
+    expect(readConsent()).toEqual({ analytics: false, functional: false })
   })
 })
 
 describe("ConsentBanner without GA", () => {
   afterEach(clear)
 
-  it("never asks on its own but opens the panel on request", () => {
-    render(<ConsentBanner policyHref="/cookies" />)
+  it("opens the panel on request once a choice exists", () => {
+    document.cookie = "cib_consent=analytics:denied,functional:denied; path=/"
+    render(<ConsentBanner />)
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
     act(() => openConsentSettings())
     expect(screen.getByRole("dialog")).toBeInTheDocument()

@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { listBroadcastTemplates } from "@/api/notifications/broadcastTemplates"
 import { loadBroadcastTemplates, savedBroadcastTemplates, type BroadcastTemplate } from "./broadcastTemplates"
 
-// «Почати з шаблону»: the saved broadcast templates first, then the published notification templates. Picking one
+// "Start from a template": the saved broadcast templates first, then the published notification templates. Picking one
 // hands it to the composer, which prefills itself from it; the template itself does not change.
 export function TemplateStart({ onPick }: { onPick: (template: BroadcastTemplate) => void }) {
   const [templates, setTemplates] = useState<(BroadcastTemplate & { group: string })[] | null>(null)

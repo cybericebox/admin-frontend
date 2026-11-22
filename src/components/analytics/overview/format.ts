@@ -26,8 +26,14 @@ export function deltaOf(metric: Metric | undefined, inverse = false): Delta | un
   return { text: `${sign}${number.format(Math.round((Math.abs(change) / metric.Previous) * 100))}%`, tone }
 }
 
-/** «було 10» under a tile; nothing for all time. */
+/** "was 10" under a tile; nothing for all time. */
 export function previousLine(metric: Metric | undefined): string | undefined {
   if (!metric || metric.Previous === null) return undefined
   return t("admin.platformAnalytics.overview.was", { previous: number.format(metric.Previous) })
+}
+
+/** The change of one headline number against the previous period of "Compare with the previous period"; none without a previous report or a number. */
+export function compareDelta(current: number | null | undefined, previous: number | null | undefined, inverse = false): Delta | undefined {
+  if (current === null || current === undefined || previous === null || previous === undefined) return undefined
+  return deltaOf({ Value: current, Previous: previous } as Metric, inverse)
 }

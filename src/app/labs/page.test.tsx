@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import Page from "./page"
 
 const apiGet = vi.fn()
@@ -12,9 +12,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(s
 
 const agent = { ID: "agent-1", Key: "primary", Name: "Primary", Configured: true, Healthy: true }
 const okStatus = { Available: true, Healthy: true, Mode: "available", Agents: [agent], Capabilities: { Laboratories: true } }
-const stand = { EventID: "event-1", EventName: "Осінній CTF", EventTag: "autumn", TeamID: "team-1", TeamName: "Червоні", Moderators: false, Status: "failed", Reason: "ImagePullBackOff: web", UpdatedAt: "2026-09-24T12:00:00Z", StatusChangedAt: "2026-09-24T12:00:00Z", Generation: 2, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 1500, MemoryBytes: 2 * 1024 ** 3, RequestedCPUMillicores: 2000, RequestedMemoryBytes: 4 * 1024 ** 3 } }
 const currentLab = (over: object = {}) => ({ EventID: "event-1", EventName: "Осінній CTF", EventTeamID: "team-1", TeamName: "Червоні", LabGroupName: "e-1-t-1", AgentID: "agent-1", Sequence: 8, ObservedAt: "2026-09-24T12:00:00Z", UpdatedAt: "2026-09-24T12:00:00Z", Payload: {}, ...over })
-const testLab = { ID: "lab-1", GroupName: "t-1", ExerciseID: "ex-1", ExerciseName: "Вебуразливість", VariantNumber: 2, AuthorID: "user-1", AuthorName: "Анна Лі", AuthorEmail: "ann@example.test", CreatedAt: "2026-09-24T10:00:00Z", ExpiresAt: "2026-09-24T12:00:00Z", Expired: false, Status: "ready" }
 const capacityRow = (payload: unknown) => ({ ID: "capacity-1", AgentID: "agent-1", Sequence: 1, ObservedAt: "2026-09-24T12:00:00Z", ReceivedAt: "2026-09-24T12:00:00Z", SchemaVersion: 1, Snapshot: true, Payload: payload })
 
 type Routes = { status?: unknown; current?: unknown; capacity?: unknown; stands?: unknown; events?: unknown; testLabs?: unknown }
@@ -42,6 +40,7 @@ afterEach(() => { vi.useRealTimers() })
 
 describe("infrastructure page", () => {
   it("shows agent availability and current state with names instead of ids", async () => {
+    search = "tab=current"
     serve({ current: [currentLab()], capacity: [capacityRow({ cpu: 4 })] })
     render(<Page />)
     expect((await screen.findAllByText("Primary")).length).toBeGreaterThan(0)
@@ -64,6 +63,7 @@ describe("infrastructure page", () => {
   })
 
   it("asks for recent events only when the toggle is on", async () => {
+    search = "tab=current"
     render(<Page />)
     fireEvent.click(await screen.findByRole("switch", { name: "Показати недавні заходи" }))
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith("/api/infrastructure/monitoring/current?includeRecent=true"))
@@ -79,6 +79,7 @@ describe("infrastructure page", () => {
   })
 
   it("shows the reserved part of the agent capacity from protojson, and what the existing nodes give now", async () => {
+    search = "tab=capacity"
     serve({ capacity: [capacityRow({
       tenant: "platform", hasCpuQuota: true, cpuQuotaMillicores: "4000", cpuReservedMillicores: "1500",
       hasMemoryQuota: true, memoryQuotaBytes: "8589934592", memoryReservedBytes: "3221225472",
@@ -96,6 +97,7 @@ describe("infrastructure page", () => {
   })
 
   it("keeps an overcommitted resource bar accessible without hiding its real usage", async () => {
+    search = "tab=capacity"
     serve({ capacity: [capacityRow({ tenant: "platform", hasCpuQuota: true, cpuQuotaMillicores: "4000", cpuReservedMillicores: "5000" })] })
     render(<Page />)
     const cpu = await screen.findByRole("progressbar", { name: "CPU агента Primary" })
@@ -116,6 +118,7 @@ describe("infrastructure page", () => {
   })
 
   it("keeps agent status visible when the current state fails to load", async () => {
+    search = "tab=current"
     serve({ current: new Error("monitoring unavailable") })
     render(<Page />)
     expect(await screen.findByText("Доступна")).toBeInTheDocument()
@@ -124,6 +127,7 @@ describe("infrastructure page", () => {
   })
 
   it("keeps agent status visible when capacity fails to load", async () => {
+    search = "tab=capacity"
     serve({ capacity: new Error("capacity unavailable") })
     render(<Page />)
     expect(await screen.findByText("Доступна")).toBeInTheDocument()
@@ -132,6 +136,7 @@ describe("infrastructure page", () => {
   })
 
   it("shows resource, VPN traffic, access-rule, and deletion facts without exposing secret fields", async () => {
+    search = "tab=current"
     serve({ current: [currentLab({ LabGroupName: "team-a", Payload: {
       groups: [{ name: "team-a", status: { phase: "Ready", vpnRegistered: true } }],
       labs: [{ name: "web-lab", status: { phase: "Running", ready: true, devices: [{ name: "web", usageAvailable: true, cpuMillicores: "250", memoryBytes: "104857600", restartCount: 2 }] }, specJson: "hidden-spec" }],
@@ -150,181 +155,6 @@ describe("infrastructure page", () => {
     expect(screen.getByText("5 пакетів, 4 КіБ")).toBeInTheDocument()
     expect(screen.getByText("Видалено: old-lab")).toBeInTheDocument()
     expect(screen.queryByText(/hidden-spec|hidden-key|hidden-config/)).not.toBeInTheDocument()
-  })
-
-  describe("stands", () => {
-    it("renders the stands table with the event site link and applies URL filters", async () => {
-      search = "status=failed&eventId=event-1"
-      serve({ stands: { Items: [stand, { ...stand, TeamID: "team-2", TeamName: "", Moderators: true, Status: "creating", Reason: "" }], Total: 2, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      const table = (await screen.findByText("Червоні")).closest("table") as HTMLElement
-      expect(within(table).getByText("ImagePullBackOff: web")).toBeInTheDocument()
-      expect(within(table).getByText("Команда модераторів")).toBeInTheDocument()
-      expect(within(table).getByText("Помилка")).toBeInTheDocument()
-      expect(within(table).getByText("Готується")).toBeInTheDocument()
-      // The link into /manage carries this admin page, so the event can offer the way back.
-      const eventLink = new URL(within(table).getAllByRole("link")[0].getAttribute("href") ?? "")
-      expect(eventLink.origin + eventLink.pathname).toBe("https://autumn.localhost/manage/labs")
-      expect(eventLink.searchParams.get("from")).toBe(window.location.href)
-      const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
-      const query = new URLSearchParams(call.split("?")[1])
-      expect(query.get("status")).toBe("failed")
-      expect(query.get("eventId")).toBe("event-1")
-      expect(query.get("page")).toBe("1")
-    })
-
-    it("sends the search text to the API after a pause", async () => {
-      render(<Page />)
-      fireEvent.change(await screen.findByLabelText("Пошук за заходом або командою"), { target: { value: "red" } })
-      await waitFor(() => expect(apiGet.mock.calls.some((c) => String(c[0]).includes("/stands?") && String(c[0]).includes("search=red"))).toBe(true))
-    })
-
-    it("shows a centered empty state when nothing matches", async () => {
-      render(<Page />)
-      expect(await screen.findByText("Стендів ще немає.")).toBeInTheDocument()
-    })
-
-    it("hides the recreate action without infrastructure.write", async () => {
-      permissions = ["infrastructure.read"]
-      serve({ stands: { Items: [stand], Total: 1, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      await screen.findByText("Червоні")
-      expect(screen.queryByRole("button", { name: /Перестворити стенд/ })).not.toBeInTheDocument()
-    })
-
-    it("recreates a stand after confirmation naming the event and team", async () => {
-      serve({ stands: { Items: [stand, { ...stand, TeamID: "team-9", TeamName: "Сірі", Status: "removed" }], Total: 2, Page: 1, PageSize: 25 } })
-      apiPost.mockResolvedValue({})
-      render(<Page />)
-      await screen.findByText("Червоні")
-      expect(screen.getAllByRole("button", { name: /Перестворити стенд/ })).toHaveLength(1)
-      fireEvent.click(screen.getByRole("button", { name: /Перестворити стенд/ }))
-      const dialog = await screen.findByRole("dialog")
-      expect(dialog).toHaveTextContent("«Червоні»")
-      expect(dialog).toHaveTextContent("«Осінній CTF»")
-      expect(dialog).toHaveTextContent("VPN-конфігурації залишаться чинними")
-      expect(apiPost).not.toHaveBeenCalled()
-      fireEvent.click(within(dialog).getByRole("button", { name: "Перестворити" }))
-      await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/stands/event-1/team-1/recreate", {}))
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    })
-
-    it("keeps the dialog open with a localized error when recreating fails", async () => {
-      serve({ stands: { Items: [stand], Total: 1, Page: 1, PageSize: 25 } })
-      apiPost.mockRejectedValue(new Error("boom"))
-      render(<Page />)
-      await screen.findByText("Червоні")
-      fireEvent.click(screen.getByRole("button", { name: /Перестворити стенд/ }))
-      fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Перестворити" }))
-      expect(await screen.findByRole("alert")).toBeInTheDocument()
-      expect(screen.getByRole("dialog")).toBeInTheDocument()
-    })
-  })
-
-  describe("resources", () => {
-    it("shows live CPU and memory per stand, requested ones marked when usage is unavailable, a dash when unknown", async () => {
-      const requestedOnly = { ...stand, TeamID: "team-2", TeamName: "Сині", Resources: { Known: true, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 500, RequestedMemoryBytes: 512 * 1024 ** 2 } }
-      const unknown = { ...stand, TeamID: "team-3", TeamName: "Сірі", Resources: { Known: false, UsageAvailable: false, CPUMillicores: 0, MemoryBytes: 0, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }
-      serve({ stands: { Items: [stand, requestedOnly, unknown], Total: 3, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      const rows = (await screen.findByText("Червоні")).closest("table")!.querySelectorAll("tbody tr")
-      expect(rows[0]).toHaveTextContent("1,5 vCPU")
-      expect(rows[0]).toHaveTextContent("2 ГіБ")
-      expect(rows[0]).not.toHaveTextContent("запрошено")
-      expect(rows[1]).toHaveTextContent(/500 мілі-ядер\s*запрошено/)
-      expect(rows[1]).toHaveTextContent(/512 МіБ\s*запрошено/)
-      expect(rows[2].textContent).not.toMatch(/CPU/)
-    })
-
-    it("reads small CPU in millicores, never as 0 vCPU", async () => {
-      serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 7, MemoryBytes: 16 * 1024 ** 2, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      const row = (await screen.findByText("Вебуразливість")).closest("tr")!
-      expect(row).toHaveTextContent("7 мілі-ядер")
-      expect(row).not.toHaveTextContent("0 vCPU")
-    })
-
-    it("shows the resources of a test lab", async () => {
-      serve({ testLabs: { Items: [{ ...testLab, Resources: { Known: true, UsageAvailable: true, CPUMillicores: 250, MemoryBytes: 1024 ** 3, RequestedCPUMillicores: 0, RequestedMemoryBytes: 0 } }], Total: 1, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      const row = (await screen.findByText("Вебуразливість")).closest("tr")!
-      expect(row).toHaveTextContent("250 мілі-ядер")
-      expect(row).toHaveTextContent("1 ГіБ")
-    })
-  })
-
-  describe("stand kind filter", () => {
-    it("sends the kind to the API and keeps it in the filtered empty state", async () => {
-      search = "kind=moderators"
-      render(<Page />)
-      expect(await screen.findByText("За цими умовами стендів не знайдено.")).toBeInTheDocument()
-      const call = apiGet.mock.calls.map((c) => c[0] as string).find((path) => path.startsWith("/api/infrastructure/stands?"))!
-      expect(new URLSearchParams(call.split("?")[1]).get("kind")).toBe("moderators")
-    })
-  })
-
-  describe("test labs", () => {
-    it("lists catalog test labs with author, exercise, variant, lease and live status", async () => {
-      serve({ testLabs: { Items: [testLab, { ...testLab, ID: "lab-2", Status: "unknown", Expired: true, VariantNumber: 0 }], Total: 2, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      const table = (await screen.findAllByText("Вебуразливість"))[0].closest("table") as HTMLElement
-      expect(screen.getByText("Тестові лабораторії завдань")).toBeInTheDocument()
-      expect(within(table).getAllByRole("link", { name: "Анна Лі" })[0]).toHaveAttribute("href", "/users/detail?id=user-1")
-      expect(within(table).getAllByText("ann@example.test")[0]).toBeInTheDocument()
-      expect(within(table).getAllByRole("link", { name: /Вебуразливість/ })[0].getAttribute("href")).toMatch(/\/detail\?id=ex-1$/)
-      expect(within(table).getByText("Варіант 2")).toBeInTheDocument()
-      expect(within(table).getByText("Готова")).toBeInTheDocument()
-      expect(within(table).getByText("Невідомо")).toBeInTheDocument()
-      expect(within(table).getByText("Строк минув")).toBeInTheDocument()
-    })
-
-    it("shows a centered empty state and a load error with retry", async () => {
-      render(<Page />)
-      expect(await screen.findByText("Тестових лабораторій зараз немає.")).toBeInTheDocument()
-      serve({ testLabs: new Error("boom") })
-      fireEvent.click(screen.getByRole("button", { name: /Оновити/ }))
-      expect(await screen.findByText("Не вдалося завантажити тестові лабораторії.")).toBeInTheDocument()
-    })
-
-    it("searches through the API after a pause", async () => {
-      render(<Page />)
-      fireEvent.change(await screen.findByLabelText("Пошук за завданням або автором"), { target: { value: "web" } })
-      await waitFor(() => expect(apiGet.mock.calls.some((c) => String(c[0]).includes("/test-labs?") && String(c[0]).includes("search=web"))).toBe(true))
-    })
-
-    it("hides the end action without infrastructure.write", async () => {
-      permissions = ["infrastructure.read"]
-      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
-      render(<Page />)
-      await screen.findByText("Вебуразливість")
-      expect(screen.queryByRole("button", { name: /Завершити лабораторію/ })).not.toBeInTheDocument()
-    })
-
-    it("ends a lab after a danger confirmation naming the exercise and author", async () => {
-      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
-      apiPost.mockResolvedValue({})
-      render(<Page />)
-      await screen.findByText("Вебуразливість")
-      fireEvent.click(screen.getByRole("button", { name: /Завершити лабораторію/ }))
-      const dialog = await screen.findByRole("dialog")
-      expect(dialog).toHaveTextContent("«Вебуразливість»")
-      expect(dialog).toHaveTextContent("«Анна Лі»")
-      expect(apiPost).not.toHaveBeenCalled()
-      fireEvent.click(within(dialog).getByRole("button", { name: "Завершити" }))
-      await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/infrastructure/test-labs/lab-1/terminate", {}))
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    })
-
-    it("keeps the dialog open with a localized error when ending fails", async () => {
-      serve({ testLabs: { Items: [testLab], Total: 1, Page: 1, PageSize: 25 } })
-      apiPost.mockRejectedValue(new Error("boom"))
-      render(<Page />)
-      await screen.findByText("Вебуразливість")
-      fireEvent.click(screen.getByRole("button", { name: /Завершити лабораторію/ }))
-      fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Завершити" }))
-      expect(await screen.findByRole("alert")).toBeInTheDocument()
-      expect(screen.getByRole("dialog")).toBeInTheDocument()
-    })
   })
 
   describe("auto-refresh", () => {

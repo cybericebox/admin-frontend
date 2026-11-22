@@ -50,7 +50,7 @@ function NoAccess({ message }: { message: string }) {
 }
 
 /**
- * «Доброчесність» of one event, read-only: every flagged solve with all of its signals and
+ * "Integrity" of one event, read-only: every flagged solve with all of its signals and
  * their evidence, so nobody needs the raw attempts. Hints for a person to review, never a
  * verdict. Only the platform `admin` role sees it; `admin_viewer` gets a 403 and the
  * no-access state.
