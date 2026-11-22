@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#MISE description="A new worktree for parallel work: .worktrees/<name> on feature/<name> from the fresh develop, with the pinned tools and a clean npm ci of its own. Usage: mise run worktree <name>"
+# Never copy node_modules into a worktree (cp -R/-Rc of the main checkout's tree): a copy that does not match the lockfile
+# broke the Turbopack build there ("Cannot find module '@vercel/turbopack/postcss'"). A worktree is its own project root
+# (Next stops the root search at the worktree's git boundary), so a clean npm ci is all it needs. Remove it when its
+# branch is merged: git worktree remove .worktrees/<name>.
+set -euo pipefail
+cd "${MISE_PROJECT_ROOT:?run through mise}"
+die() { echo "error: $*" >&2; exit 1; }
+
+name=${1:-}
+[[ -n "$name" ]] || die "a name is required: mise run worktree <name>"
+[[ "$name" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || die "the name must be lowercase letters, digits, '.', '_' or '-'"
+dir=.worktrees/$name
+[[ ! -e "$dir" ]] || die "$dir already exists"
+command git show-ref --verify --quiet "refs/heads/feature/$name" && die "branch feature/$name already exists"
+
+command git fetch -q origin develop
+command git worktree add -q --no-track -b "feature/$name" "$dir" origin/develop
+cd "$dir"
+mise trust -q .
+mise install
+npm ci
+echo "Ready: $dir on feature/$name (a .env, if you need one, is not copied: cp ../../.env .)."

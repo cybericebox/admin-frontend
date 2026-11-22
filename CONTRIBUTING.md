@@ -11,6 +11,10 @@
 
 The tasks use `scripts/dev.sh` (the same file in every repository) and need the `gh` CLI, logged in.
 
+### Work in a worktree
+
+`mise run worktree <x>` creates `.worktrees/<x>` on `feature/<x>` from the fresh `develop`, installs the pinned tools there and runs a clean `npm ci` of its own; the rest of the cycle is the same inside it. Never copy `node_modules` from the main checkout into a worktree (`cp -R`, `cp -Rc`): a copy that does not match the lockfile breaks the Turbopack build there with "Cannot find module '@vercel/turbopack/postcss'". The project root is not the problem: Next stops its root search at the worktree's git boundary, so a worktree with a clean `npm ci` builds like the main checkout. A `.env` is not copied either. Remove the worktree once its branch is merged (`git worktree remove .worktrees/<x>`).
+
 ### A fix for a release line
 
 A line takes fixes only. Start from the line, not from `develop`:
